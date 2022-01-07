@@ -13,11 +13,11 @@ add_library(Quark STATIC
     src/quark.cpp
 )
 
-add_subdirectory(deps/glfw)
-add_subdirectory(deps/entt)
-add_subdirectory(deps/tinyobjloader)
-add_subdirectory(deps/vk-bootstrap)
-add_subdirectory(deps/VulkanMemoryAllocator)
+add_subdirectory(lib/glfw)
+add_subdirectory(lib/entt)
+add_subdirectory(lib/tinyobjloader)
+add_subdirectory(lib/vk-bootstrap)
+add_subdirectory(lib/VulkanMemoryAllocator)
 
 find_package(Vulkan REQUIRED)
 
