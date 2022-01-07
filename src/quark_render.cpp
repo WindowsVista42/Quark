@@ -857,6 +857,7 @@ void quark::end_frame() {
 }
 
 void quark::begin_pass_deferred() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline); }
+void quark::end_pass_deferred() {}
 
 void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
     DeferredPushConstant dpc;

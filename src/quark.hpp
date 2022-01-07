@@ -77,6 +77,7 @@ void begin_frame(vec3 view_eye, vec3 view_dir);
 void end_frame();
 
 void begin_pass_deferred();
+void end_pass_deferred();
 void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh);
 
 void begin_pass_debug_fill();
