@@ -10,11 +10,11 @@
 #include <vector>
 
 #define _USE_MATH_DEFINES
-#include <cmath>
+#include <math.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vk-bootstrap/VkBootstrap.h>
+#include <VkBootstrap.h>
 
 // Sean: I have to do this because c++ sucks
 #ifndef QUARK_INTERNALS

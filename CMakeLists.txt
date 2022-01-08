@@ -4,8 +4,8 @@ project(Quark)
 
 set(CMAKE_CXX_VERSION 17)
 
-set(CMAKE_C_FLAGS "-fPIC -Wno-nullability-completeness")
-set(CMAKE_CXX_FLAGS "-fPIC -Wno-nullability-completeness")
+set(CMAKE_C_FLAGS "-Wno-nullability-completeness")
+set(CMAKE_CXX_FLAGS "-Wno-nullability-completeness")
 
 add_library(Quark STATIC
     src/quark_render.cpp
@@ -23,6 +23,8 @@ find_package(Vulkan REQUIRED)
 
 target_include_directories(Quark PUBLIC src)
 set_target_properties(Quark PROPERTIES PUBLIC_HEADER quark.hpp)
+
+include_directories(lib/vk-bootstrap/src)
 
 target_link_libraries(Quark
     Vulkan::Vulkan
