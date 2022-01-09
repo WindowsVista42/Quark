@@ -16,8 +16,7 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-// Sean: I have to do this because c++ sucks
-#ifndef QUARK_INTERNALS
+#ifndef QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
 #define VMA_IMPLEMENTATION
 #endif
 

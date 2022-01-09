@@ -10,6 +10,10 @@ void quark::init() {
     scratch_alloc.init(10 * MB);
     render_alloc.init(10 * MB);
 
+    // Sean: render data buffer for distance sorted rendering to reduce overdraw
+    render_data_count = 0;
+    render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
+
     assets.add_type(quark::internal::load_vert_shader, quark::internal::unload_shader, ".vert.spv");
     assets.add_type(quark::internal::load_frag_shader, quark::internal::unload_shader, ".frag.spv");
     assets.add_type(quark::internal::load_obj_mesh, quark::internal::unload_mesh, ".obj");

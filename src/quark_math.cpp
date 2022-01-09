@@ -20,6 +20,17 @@ f32 quark::max(f32 x, f32 y) {
         return y;
     }
 }
+f32 quark::distance(vec3 a, vec3 b) {
+    float xx = (a.x - b.x);
+    float yy = (a.y - b.y);
+    float zz = (a.z - b.z);
+
+    xx *= xx;
+    yy *= yy;
+    zz *= zz;
+
+    return sqrtf(xx + yy + zz);
+}
 f32 quark::saturate(f32 x) { return fminf(fmaxf(x, 0.0f), 1.0f); }
 mat4 quark::translate(mat4 lhs, vec3 rhs) {
     lhs[3][0] += rhs.x;

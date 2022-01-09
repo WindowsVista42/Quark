@@ -2,6 +2,15 @@
 #ifndef QUARK_INTERNAL_HPP
 #define QUARK_INTERNAL_HPP
 
+#define QUARK_INTERNALS
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <quark_types.hpp>
+#include <vector>
+#include <string>
+
+#include <vk_mem_alloc.h>
+
 // Internals
 namespace internal {
 
@@ -15,6 +24,15 @@ struct DeferredPushConstant {
 struct DebugPushConstant {
     vec4 color;
     mat4 world_view_projection;
+};
+
+struct RenderData {
+    Pos pos;
+    Rot rot;
+    Scl scl;
+    Mesh* mesh;
+
+    f32 camera_distance;
 };
 
 // Internal Globals
@@ -68,6 +86,13 @@ inline usize frame_count = 0;     // Current frame number
 inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
 inline u32 swapchain_image_index; // Current swapchain image index, this number is only valid
                                   // in-between begin_frame() and end_frame() calls
+
+inline constexpr usize RENDER_DATA_MAX_COUNT = 1024; // Maximum number of items that can be stored in render data
+inline usize render_data_count; // Current render data size;
+inline RenderData* render_data; // Buffer for storing things that need to be rendered.
+
+inline vec3 __view_eye;
+inline vec3 __view_dir;
 
 // Internal Functions
 

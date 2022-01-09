@@ -20,6 +20,7 @@ f32 length_recip(vec3 vector);
 vec3 normalize(vec3 vector);
 vec3 cross(vec3 lhs, vec3 rhs);
 f32 dot(vec3 lhs, vec3 rhs);
+f32 distance(vec3 a, vec3 b);
 
 // mat4 mat4_splat(f32 splat) {
 //     return {

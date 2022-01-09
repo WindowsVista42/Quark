@@ -756,9 +756,12 @@ void quark::internal::resize_swapchain() {
 }
 
 void quark::begin_frame(vec3 view_eye, vec3 view_dir) {
+    __view_eye = view_eye;
+    __view_dir = view_dir;
+
     // Update projection and view matricies
     projection_matrix = perspective(radians(projection_fov), (f32)window_w / (f32)window_h, 0.1f, 10000.0f);
-    view_matrix = look_dir(view_eye, view_dir, VEC3_UNIT_Z);
+    view_matrix = look_dir(__view_eye, __view_dir, VEC3_UNIT_Z);
 
     // TODO Sean: dont block the thread
     vk_check(vkWaitForFences(device, 1, &render_fence[frame_index], true, OP_TIMEOUT));
@@ -856,10 +859,7 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void quark::begin_pass_deferred() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline); }
-void quark::end_pass_deferred() {}
-
-void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
     DeferredPushConstant dpc;
 
     mat4 translation_m = translate(pos.x);
@@ -876,9 +876,42 @@ void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
 
     VkDeviceSize offset = 0;
 
+    // Sean: dont render here
     vkCmdPushConstants(main_cmd_buf[frame_index], deferred_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
     vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
+}
+
+void quark::begin_pass_deferred() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline); }
+void quark::end_pass_deferred() {
+    // Sean: flush our render queue of everythings
+    // Sean: loook into using an inerstion-sort like algorithm because the positions of things shouldn't change too much
+
+    std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
+        return a.camera_distance < b.camera_distance;
+    });
+
+    for_every(index, render_data_count) {
+        RenderData rd = render_data[index];
+        __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh);
+    }
+
+    // Sean: reset the buffer
+    render_data_count = 0;
+}
+
+void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+    if(render_data_count == RENDER_DATA_MAX_COUNT) {
+        panic("You have rendered too many items or something!\n");
+    }
+
+    RenderData rd = { pos, rot, scl, mesh, quark::distance(pos.x, __view_eye)};
+
+    // Sean: we push to a buffer so we can render front to back
+    // not sure if this is the most efficient way to do this on the cpu-side of things
+    // but the tradeoff should improve gpu-side performance because of reduced overdraw
+    render_data[render_data_count] = rd;
+    render_data_count += 1;
 }
 
 void quark::begin_pass_debug_fill() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, debug_fill_pipeline); }
