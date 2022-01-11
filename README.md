@@ -1,4 +1,4 @@
 # Quark
 Game Engine
 
-Compile with clang
+Compile with ninja + clang
