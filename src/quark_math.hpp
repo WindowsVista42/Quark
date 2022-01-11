@@ -52,6 +52,7 @@ f32 length(vec3 x);
 f32 length_recip(vec3 x);
 
 mat4 mul(mat4 m0, mat4 m1);
+vec4 mul(mat4 m, vec4 v);
 
 f32 wrap(f32 x, f32 min, f32 max);
 f32 wrap(f32 x, f32 v);

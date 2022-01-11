@@ -83,6 +83,8 @@ void begin_pass_debug_fill();
 void begin_pass_debug_line();
 void draw_debug(Pos pos, Rot rot, Scl scl, Col col);
 
+void render_frame(vec3 view_eye, vec3 view_dir);
+
 #include "quark_internal.hpp"
 
 }; // namespace quark

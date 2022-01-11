@@ -8,7 +8,7 @@ using namespace internal;
 
 void quark::init() {
     scratch_alloc.init(10 * MB);
-    render_alloc.init(10 * MB);
+    render_alloc.init(100 * MB);
 
     // Sean: render data buffer for distance sorted rendering to reduce overdraw
     render_data_count = 0;

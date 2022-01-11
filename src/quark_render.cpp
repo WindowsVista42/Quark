@@ -373,6 +373,12 @@ void quark::internal::init_pipelines() {
     VkPipelineColorBlendAttachmentState color_blend_attachment = {};
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment.blendEnable = VK_FALSE;
+    //color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    //color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    //color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    //color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    //color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
@@ -859,7 +865,10 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+    //if(counter > 10) { return; }
+    //counter += 1;
+
     DeferredPushConstant dpc;
 
     mat4 translation_m = translate(pos.x);
@@ -876,34 +885,71 @@ void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
 
     VkDeviceSize offset = 0;
 
-    // Sean: dont render here
     vkCmdPushConstants(main_cmd_buf[frame_index], deferred_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
     vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
 }
 
+
 void quark::begin_pass_deferred() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline); }
 void quark::end_pass_deferred() {
-    // Sean: flush our render queue of everythings
-    // Sean: loook into using an inerstion-sort like algorithm because the positions of things shouldn't change too much
+    //std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
+    //    return a.camera_distance < b.camera_distance;
+    //});
 
-    std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
-        return a.camera_distance < b.camera_distance;
-    });
-
+    // Sean: flush our render queue of everything
+    //auto t0 = std::chrono::high_resolution_clock::now();
     for_every(index, render_data_count) {
         RenderData rd = render_data[index];
         __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh);
     }
+    //auto t1 = std::chrono::high_resolution_clock::now();
+    //printf("dt:%f\n", std::chrono::duration<f32>(t1 - t0).count());
 
     // Sean: reset the buffer
     render_data_count = 0;
+}
+
+// Frustum visibility check
+bool __is_visible(Pos pos, Scl scl) {
+    // https://vkguide.dev/docs/gpudriven/compute_culling/
+
+    vec3 center = pos.x;
+    center = mul(quark::view_matrix, vec4 {center.x, center.y, center.z, 1.0f}).xyz;
+
+    float radius = scl.x.x;
+    if(radius < scl.x.y) {radius = scl.x.y;}
+    if(radius < scl.x.z) {radius = scl.x.z;}
+
+    bool visible = true;
+
+    visible = visible && center.z * cull_data.frustum[1] - fabs(center.x) * cull_data.frustum[0] > -radius;
+    visible = visible && center.z * cull_data.frustum[3] - fabs(center.x) * cull_data.frustum[2] > -radius;
+
+    if(cull_data.dist_cull != 0) {
+        visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
+    }
+
+    //visible = visible || cull_data.culling_enabled == 0;
+
+    return visible;
 }
 
 void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
     if(render_data_count == RENDER_DATA_MAX_COUNT) {
         panic("You have rendered too many items or something!\n");
     }
+
+    // sean: move this to a compute shader in the future
+    //if(!__is_visible(pos, scl)) {
+    //    return;
+    //}
+
+    if(dot(__view_dir, (__view_eye - pos.x)) < 0.0f) { 
+        return;
+    }
+
+    // Sean: implement frustum culling
 
     RenderData rd = { pos, rot, scl, mesh, quark::distance(pos.x, __view_eye)};
 
@@ -931,6 +977,22 @@ void quark::draw_debug(Pos pos, Rot rot, Scl scl, Col col) {
 
     vkCmdPushConstants(main_cmd_buf[frame_index], debug_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
     vkCmdDraw(main_cmd_buf[frame_index], 3, 1, 0, 0);
+}
+
+void quark::render_frame(vec3 view_eye, vec3 view_dir) {
+    begin_frame(view_eye, view_dir);
+    {
+        f32 r = radians(tt * 20.0f);
+
+        begin_pass_deferred();
+        auto view = registry.view<Pos, Rot, Scl, Mesh*>();
+        for (auto [e, pos, rot, scl, mesh] : view.each()) {
+            rot.x = axis_angle(VEC3_UNIT_Z, r);
+            draw_deferred(pos, rot, scl, mesh);
+        }
+        end_pass_deferred();
+    }
+    end_frame();
 }
 
 void quark::internal::print_performance_statistics() {

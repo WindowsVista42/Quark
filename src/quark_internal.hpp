@@ -87,12 +87,21 @@ inline u32 frame_index = 0;       // Current synchronization object index for mu
 inline u32 swapchain_image_index; // Current swapchain image index, this number is only valid
                                   // in-between begin_frame() and end_frame() calls
 
-inline constexpr usize RENDER_DATA_MAX_COUNT = 1024; // Maximum number of items that can be stored in render data
+inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 200; // Maximum number of items that can be stored in render data
 inline usize render_data_count; // Current render data size;
 inline RenderData* render_data; // Buffer for storing things that need to be rendered.
 
 inline vec3 __view_eye;
 inline vec3 __view_dir;
+
+struct CullData {
+    f32 frustum[4];
+    f32 dist_cull;
+    f32 znear;
+    f32 zfar;
+};
+
+inline CullData cull_data;
 
 // Internal Functions
 
@@ -107,6 +116,8 @@ void init_render_passes();
 void init_framebuffers();
 void init_sync_objects();
 void init_pipelines();
+
+void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh);
 
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);
