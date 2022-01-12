@@ -3,13 +3,14 @@
 #define QUARK_INTERNAL_HPP
 
 #define QUARK_INTERNALS
+#include <vk_mem_alloc.h>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <quark_types.hpp>
+#include <quark_game.hpp>
 #include <vector>
 #include <string>
-
-#include <vk_mem_alloc.h>
 
 // Internals
 namespace internal {
@@ -31,8 +32,6 @@ struct RenderData {
     Rot rot;
     Scl scl;
     Mesh* mesh;
-
-    f32 camera_distance;
 };
 
 // Internal Globals

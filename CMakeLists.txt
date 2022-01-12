@@ -4,9 +4,6 @@ project(Quark)
 
 set(CMAKE_CXX_VERSION 17)
 
-set(CMAKE_C_FLAGS "-Wno-nullability-completeness")
-set(CMAKE_CXX_FLAGS "-Wno-nullability-completeness")
-
 add_library(Quark STATIC
     src/quark_render.cpp
     src/quark_math.cpp

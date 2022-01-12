@@ -3,7 +3,10 @@
 #define QUARK_GAME_HPP
 
 #include "quark_types.hpp"
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
+
+#define QUARK_INTERNALS
+#include <vk_mem_alloc.h>
 
 //#include "vk_mem_alloc.h"
 

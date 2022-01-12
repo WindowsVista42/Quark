@@ -951,7 +951,7 @@ void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
 
     // Sean: implement frustum culling
 
-    RenderData rd = { pos, rot, scl, mesh, quark::distance(pos.x, __view_eye)};
+    RenderData rd = { pos, rot, scl, mesh};
 
     // Sean: we push to a buffer so we can render front to back
     // not sure if this is the most efficient way to do this on the cpu-side of things
@@ -982,12 +982,9 @@ void quark::draw_debug(Pos pos, Rot rot, Scl scl, Col col) {
 void quark::render_frame(vec3 view_eye, vec3 view_dir) {
     begin_frame(view_eye, view_dir);
     {
-        f32 r = radians(tt * 20.0f);
-
         begin_pass_deferred();
         auto view = registry.view<Pos, Rot, Scl, Mesh*>();
         for (auto [e, pos, rot, scl, mesh] : view.each()) {
-            rot.x = axis_angle(VEC3_UNIT_Z, r);
             draw_deferred(pos, rot, scl, mesh);
         }
         end_pass_deferred();
