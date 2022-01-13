@@ -88,10 +88,18 @@ struct AllocatedImage {
     VkImage image;
 };
 
+//struct Mesh {
+//    void* data;
+//    usize size;
+//    AllocatedBuffer alloc_buffer;
+//};
+
+// index into mesh metadata array
 struct Mesh {
-    void* data;
-    usize size;
-    AllocatedBuffer alloc_buffer;
+    u32 offset;
+    u32 size;
+    //u32 size;
+    //u32 offset;
 };
 
 #endif

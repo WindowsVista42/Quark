@@ -21,9 +21,18 @@ void quark::init() {
     quark::internal::init_window();
     quark::internal::init_vulkan();
 
+    //vertex_alloc.init(gpu_alloc, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 20 * MB);
+    //index_alloc.init(gpu_alloc, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 20 * MB);
+    //texture_alloc.init(gpu_alloc, 100 * MB);
+
     // concurrently load shaders
-    auto loader_thread = std::thread([&]() { assets.load_directory("assets"); });
+    //auto loader_thread = std::thread([&]() { assets.load_directory("assets"); });
     // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
+
+    quark::internal::init_allocated_buffer(&quark::internal::gpu_vertex_buffer, 20 * MB);
+    quark::internal::gpu_vertex_alloc.init(20 * MB);
+
+    assets.load_directory("assets");
 
     quark::internal::init_swapchain();
     quark::internal::init_command_pools_and_buffers();
@@ -32,7 +41,7 @@ void quark::init() {
     quark::internal::init_sync_objects();
 
     // make sure shaders are loaded before we use them in the pipeline init
-    loader_thread.join();
+    //loader_thread.join();
 
     quark::internal::init_pipelines();
 

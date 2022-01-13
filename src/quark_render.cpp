@@ -76,6 +76,18 @@ VkImageViewCreateInfo get_img_view_info(VkFormat format, VkImage image, VkImageA
     return view_info;
 }
 
+void quark::internal::init_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity) {
+    VkBufferCreateInfo buffer_info = {};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = capacity;
+    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+    vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer->buffer, &alloc_buffer->alloc, 0));
+}
+
 void quark::internal::init_window() {
     glfwInit();
 
@@ -528,26 +540,28 @@ VkFragmentShader* quark::internal::load_frag_shader(std::string* path) {
 
 void quark::internal::unload_shader(VkShaderModule* shader) { vkDestroyShaderModule(device, *shader, 0); }
 
-void quark::internal::create_mesh(void* data, usize size, usize memsize, Mesh* mesh) {
+// TODO: update this to use one big buffer and atomically increment some numbers into it.
+// Update this so we are not doing extra copies
+void quark::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
     mesh->size = size;
-    mesh->data = data;
+    mesh->offset = gpu_vertex_alloc.alloc(size);
 
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = memsize;
-    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    //VkBufferCreateInfo buffer_info = {};
+    //buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    //buffer_info.size = memsize;
+    //buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    //VmaAllocationCreateInfo alloc_info = {};
+    //alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
-    vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &mesh->alloc_buffer.buffer, &mesh->alloc_buffer.alloc, 0));
+    //vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &mesh->alloc_buffer.buffer, &mesh->alloc_buffer.alloc, 0));
 
     void* ptr;
-    vmaMapMemory(gpu_alloc, mesh->alloc_buffer.alloc, &ptr);
+    vmaMapMemory(gpu_alloc, gpu_vertex_buffer.alloc, &ptr);
 
-    memcpy(ptr, mesh->data, memsize);
+    memcpy((u8*)ptr + (elemsize * mesh->offset) , data, elemsize * mesh->size);
 
-    vmaUnmapMemory(gpu_alloc, mesh->alloc_buffer.alloc);
+    vmaUnmapMemory(gpu_alloc, gpu_vertex_buffer.alloc);
 }
 
 Mesh* quark::internal::load_obj_mesh(std::string* path) {
@@ -620,7 +634,7 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
     }
 
     Mesh* mesh = (Mesh*)render_alloc.alloc(sizeof(Mesh));
-    create_mesh(data, size, size * sizeof(VertexPNT), mesh);
+    create_mesh(data, size, sizeof(VertexPNT), mesh);
     return mesh;
 }
 
@@ -665,14 +679,14 @@ Mesh* quark::internal::load_vbo_mesh(std::string* path) {
 
     Mesh* mesh = (Mesh*)render_alloc.alloc(sizeof(Mesh));
 
-    create_mesh(vertices, index_count, index_count * sizeof(VertexPNC), mesh);
+    create_mesh(vertices, index_count, sizeof(VertexPNC), mesh);
 
     scratch_alloc.reset();
 
     return mesh;
 }
 
-void quark::internal::unload_mesh(Mesh* mesh) { vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
+void quark::internal::unload_mesh(Mesh* mesh) { }//vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
 
 void quark::internal::deinit_sync_objects() {
     for_every(i, FRAME_OVERLAP) {
@@ -696,6 +710,7 @@ void quark::internal::deinit_shaders() {
 void quark::internal::deinit_allocators() {
     render_alloc.deinit();
     scratch_alloc.deinit();
+    vmaDestroyBuffer(gpu_alloc, gpu_vertex_buffer.buffer, gpu_vertex_buffer.alloc);
     vmaDestroyAllocator(gpu_alloc);
 }
 
@@ -886,12 +901,20 @@ void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
     VkDeviceSize offset = 0;
 
     vkCmdPushConstants(main_cmd_buf[frame_index], deferred_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
-    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
-    vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
+    //vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
+    //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
+    //printf("o: %d, s: %d\n", mesh->offset, mesh->size);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
+    //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
 
-void quark::begin_pass_deferred() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline); }
+void quark::begin_pass_deferred() { 
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
+}
 void quark::end_pass_deferred() {
     //std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
     //    return a.camera_distance < b.camera_distance;
@@ -951,7 +974,7 @@ void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
 
     // Sean: implement frustum culling
 
-    RenderData rd = { pos, rot, scl, mesh};
+    RenderData rd = { pos, rot, scl, mesh };
 
     // Sean: we push to a buffer so we can render front to back
     // not sure if this is the most efficient way to do this on the cpu-side of things

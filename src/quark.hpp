@@ -63,6 +63,8 @@ inline LinearAllocator render_alloc;
 // inline FixedBufferAllocator level_alloc;
 inline VmaAllocator gpu_alloc;
 
+//inline AtomicGpuLinearAllocator texture_alloc;
+
 inline void (*init_func)();
 inline void (*update_func)();
 inline void (*deinit_func)();

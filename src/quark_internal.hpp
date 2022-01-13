@@ -7,10 +7,12 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <quark_types.hpp>
-#include <quark_game.hpp>
 #include <vector>
 #include <string>
+
+#include "quark_types.hpp"
+#include "quark_game.hpp"
+#include "quark_allocators.hpp"
 
 // Internals
 namespace internal {
@@ -90,6 +92,10 @@ inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 200; // Maximum number of 
 inline usize render_data_count; // Current render data size;
 inline RenderData* render_data; // Buffer for storing things that need to be rendered.
 
+inline LinearAllocatorTracker gpu_vertex_alloc;
+inline AllocatedBuffer gpu_vertex_buffer;
+//inline AllocatedBuffer gpu_index_buffer;
+
 inline vec3 __view_eye;
 inline vec3 __view_dir;
 
@@ -106,6 +112,8 @@ inline CullData cull_data;
 
 static void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+
+void init_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity);
 
 void init_window();
 void init_vulkan();
