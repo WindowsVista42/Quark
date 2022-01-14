@@ -237,7 +237,7 @@ void quark::internal::init_swapchain() {
     };
 
     // 32-bit depth will be __NEEDED__
-    depth_format = VK_FORMAT_D16_UNORM;//VK_FORMAT_D32_SFLOAT;
+    depth_format = VK_FORMAT_D16_UNORM; // VK_FORMAT_D32_SFLOAT;
 
     VkImageCreateInfo depth_img_info = get_img_info(depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_img_ext);
 
@@ -368,8 +368,8 @@ void quark::internal::copy_staging_buffers_to_gpu() {
     AllocatedBuffer old_buffer = quark::internal::gpu_vertex_buffer;
     LinearAllocationTracker old_tracker = quark::internal::gpu_vertex_tracker;
 
-    create_allocated_buffer(&gpu_vertex_buffer, old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            VMA_MEMORY_USAGE_GPU_ONLY);
+    create_allocated_buffer(&gpu_vertex_buffer, old_tracker.size() * sizeof(VertexPNT),
+                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
     gpu_vertex_tracker.deinit();
     gpu_vertex_tracker.init(old_tracker.size());
