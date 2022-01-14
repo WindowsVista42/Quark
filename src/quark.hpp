@@ -79,7 +79,7 @@ void end_frame();
 
 void begin_pass_deferred();
 void end_pass_deferred();
-void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh);
+void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh);
 
 void begin_pass_debug_fill();
 void begin_pass_debug_line();

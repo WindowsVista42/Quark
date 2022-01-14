@@ -33,7 +33,7 @@ struct RenderData {
     Pos pos;
     Rot rot;
     Scl scl;
-    Mesh* mesh;
+    Mesh mesh;
 };
 
 // Internal Globals
@@ -124,7 +124,7 @@ void init_framebuffers();
 void init_sync_objects();
 void init_pipelines();
 
-void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh);
+void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh);
 
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);

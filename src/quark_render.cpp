@@ -880,7 +880,7 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     //if(counter > 10) { return; }
     //counter += 1;
 
@@ -904,7 +904,7 @@ void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
     //vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
     //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
     //printf("o: %d, s: %d\n", mesh->offset, mesh->size);
-    vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
     //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
@@ -958,7 +958,7 @@ bool __is_visible(Pos pos, Scl scl) {
     return visible;
 }
 
-void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh* mesh) {
+void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     if(render_data_count == RENDER_DATA_MAX_COUNT) {
         panic("You have rendered too many items or something!\n");
     }
@@ -1006,7 +1006,7 @@ void quark::render_frame(vec3 view_eye, vec3 view_dir) {
     begin_frame(view_eye, view_dir);
     {
         begin_pass_deferred();
-        auto view = registry.view<Pos, Rot, Scl, Mesh*>();
+        auto view = registry.view<Pos, Rot, Scl, Mesh>();
         for (auto [e, pos, rot, scl, mesh] : view.each()) {
             draw_deferred(pos, rot, scl, mesh);
         }

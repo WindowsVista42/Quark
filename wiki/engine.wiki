@@ -1,6 +1,5 @@
 = Quark Engine =
-== Renderer 3 ==
-* [.] Bindless GPU-Driven Architecture
+* [.] Renderer 3
     * [.] Data Layout
         * [X] Use one big vertex buffer for all vertex information
         * [ ] Make writing to the vertex buffer atomic
@@ -21,14 +20,14 @@
         * [ ] 3D skeletal animation / 3D stop motion animation
         * [ ] Anisotropic filtering
 
-* [ ] Lighting
-    * [ ] Deferred Lighting
-    * [ ] Shadow Lighting
+    * [ ] Lighting
+        * [ ] Deferred Lighting
+        * [ ] Shadow Lighting
 
-* [ ] Screen Space Effects
-    * [ ] Ambient occlusion
-    * [ ] Bloom
-    * [ ] Reflections
-    * [ ] Haze / Distance fog
-    * [ ] FXAA / TAA / SMAA / DLSS / TXAA
+    * [ ] Screen Space Effects
+        * [ ] Ambient occlusion
+        * [ ] Bloom
+        * [ ] Reflections
+        * [ ] Haze / Distance fog
+        * [ ] FXAA / TAA / SMAA / DLSS / TXAA
 
