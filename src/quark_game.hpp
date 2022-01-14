@@ -86,6 +86,8 @@ struct AllocatedBuffer {
 struct AllocatedImage {
     VmaAllocation alloc;
     VkImage image;
+    VkImageView view;
+    VkFormat format;
 };
 
 // struct Mesh {

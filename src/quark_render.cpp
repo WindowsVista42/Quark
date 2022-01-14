@@ -1,4 +1,3 @@
-#include <vulkan/vulkan_core.h>
 #define QUARK_INTERNALS
 #include "quark.hpp"
 
@@ -77,7 +76,7 @@ VkImageViewCreateInfo get_img_view_info(VkFormat format, VkImage image, VkImageA
     return view_info;
 }
 
-VkCommandBuffer begin_quick_commands() {
+VkCommandBuffer quark::internal::begin_quick_commands() {
     VkCommandBufferAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -97,7 +96,7 @@ VkCommandBuffer begin_quick_commands() {
     return command_buffer;
 }
 
-void end_quick_commands(VkCommandBuffer command_buffer) {
+void quark::internal::end_quick_commands(VkCommandBuffer command_buffer) {
     vkEndCommandBuffer(command_buffer);
 
     VkSubmitInfo submit_info = {};
@@ -111,7 +110,9 @@ void end_quick_commands(VkCommandBuffer command_buffer) {
     vkFreeCommandBuffers(device, transfer_cmd_pool, 1, &command_buffer);
 }
 
-void quark::internal::create_allocated_buffer(AllocatedBuffer* alloc_buffer, usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
+AllocatedBuffer quark::internal::create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
+    AllocatedBuffer alloc_buffer = {};
+
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.size = size;
@@ -120,7 +121,35 @@ void quark::internal::create_allocated_buffer(AllocatedBuffer* alloc_buffer, usi
     VmaAllocationCreateInfo alloc_info = {};
     alloc_info.usage = vma_usage;
 
-    vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer->buffer, &alloc_buffer->alloc, 0));
+    vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer.buffer, &alloc_buffer.alloc, 0));
+
+    return alloc_buffer;
+}
+
+AllocatedImage quark::internal::create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
+    AllocatedImage image = {};
+    image.format = format;
+
+    // Depth image creation
+    VkExtent3D img_ext = {
+        width,
+        height,
+        1,
+    };
+
+    VkImageCreateInfo img_info = get_img_info(image.format, usage, img_ext);
+
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    vmaCreateImage(gpu_alloc, &img_info, &alloc_info, &image.image, &image.alloc, 0);
+
+    VkImageViewCreateInfo view_info = get_img_view_info(image.format, image.image, aspect);
+
+    vk_check(vkCreateImageView(device, &view_info, 0, &image.view));
+
+    return image;
 }
 
 void quark::internal::init_window() {
@@ -229,27 +258,8 @@ void quark::internal::init_swapchain() {
     swapchain_image_views = vkb_swapchain.get_image_views().value();
     swapchain_format = vkb_swapchain.image_format;
 
-    // Depth image creation
-    VkExtent3D depth_img_ext = {
-        (u32)window_w,
-        (u32)window_h,
-        1,
-    };
-
-    // 32-bit depth will be __NEEDED__
-    depth_format = VK_FORMAT_D16_UNORM; // VK_FORMAT_D32_SFLOAT;
-
-    VkImageCreateInfo depth_img_info = get_img_info(depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_img_ext);
-
-    VmaAllocationCreateInfo depth_alloc_info = {};
-    depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    depth_alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    vmaCreateImage(gpu_alloc, &depth_img_info, &depth_alloc_info, &depth_image.image, &depth_image.alloc, 0);
-
-    VkImageViewCreateInfo depth_view_info = get_img_view_info(depth_format, depth_image.image, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    vk_check(vkCreateImageView(device, &depth_view_info, 0, &depth_image_view));
+    depth_image =
+        create_allocated_image(window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void quark::internal::init_command_pools_and_buffers() {
@@ -288,7 +298,7 @@ void quark::internal::init_render_passes() {
     color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depth_attachment = {};
-    depth_attachment.format = depth_format;
+    depth_attachment.format = depth_image.format;
     depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -338,7 +348,7 @@ void quark::internal::init_framebuffers() {
     for_every(index, swapchain_image_count) {
         VkImageView attachments[2];
         attachments[0] = swapchain_image_views[index];
-        attachments[1] = depth_image_view;
+        attachments[1] = depth_image.view;
 
         framebuffer_info.attachmentCount = 2;
         framebuffer_info.pAttachments = attachments;
@@ -368,8 +378,8 @@ void quark::internal::copy_staging_buffers_to_gpu() {
     AllocatedBuffer old_buffer = quark::internal::gpu_vertex_buffer;
     LinearAllocationTracker old_tracker = quark::internal::gpu_vertex_tracker;
 
-    create_allocated_buffer(&gpu_vertex_buffer, old_tracker.size() * sizeof(VertexPNT),
-                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    gpu_vertex_buffer = create_allocated_buffer(old_tracker.size() * sizeof(VertexPNT),
+                                                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
     gpu_vertex_tracker.deinit();
     gpu_vertex_tracker.init(old_tracker.size());
@@ -800,7 +810,7 @@ void quark::internal::deinit_command_pools_and_buffers() {
 
 void quark::internal::deinit_swapchain() {
     // Destroy depth texture
-    vkDestroyImageView(device, depth_image_view, 0);
+    vkDestroyImageView(device, depth_image.view, 0);
     vmaDestroyImage(gpu_alloc, depth_image.image, depth_image.alloc);
 
     vkDestroySwapchainKHR(device, swapchain, 0);

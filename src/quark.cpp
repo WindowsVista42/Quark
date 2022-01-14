@@ -7,6 +7,8 @@ using namespace quark;
 using namespace internal;
 
 void quark::init() {
+    using namespace quark;
+
     scratch_alloc.init(10 * MB);
     render_alloc.init(100 * MB);
 
@@ -14,12 +16,12 @@ void quark::init() {
     render_data_count = 0;
     render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
 
-    assets.add_type(quark::internal::load_vert_shader, quark::internal::unload_shader, ".vert.spv");
-    assets.add_type(quark::internal::load_frag_shader, quark::internal::unload_shader, ".frag.spv");
-    assets.add_type(quark::internal::load_obj_mesh, quark::internal::unload_mesh, ".obj");
+    assets.add_type(internal::load_vert_shader, internal::unload_shader, ".vert.spv");
+    assets.add_type(internal::load_frag_shader, internal::unload_shader, ".frag.spv");
+    assets.add_type(internal::load_obj_mesh, internal::unload_mesh, ".obj");
 
-    quark::internal::init_window();
-    quark::internal::init_vulkan();
+    internal::init_window();
+    internal::init_vulkan();
 
     // vertex_alloc.init(gpu_alloc, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 20 * MB);
     // index_alloc.init(gpu_alloc, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 20 * MB);
@@ -29,23 +31,23 @@ void quark::init() {
     // auto loader_thread = std::thread([&]() { assets.load_directory("assets"); });
     // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
 
-    quark::internal::create_allocated_buffer(&quark::internal::gpu_vertex_buffer, 20 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
-    quark::internal::gpu_vertex_tracker.init(20 * MB);
+    // Init staging buffer and allocation tracker
+    internal::gpu_vertex_buffer = internal::create_allocated_buffer(20 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    internal::gpu_vertex_tracker.init(20 * MB);
 
     assets.load_directory("assets");
 
-    quark::internal::init_swapchain();
-    quark::internal::init_command_pools_and_buffers();
-    quark::internal::init_render_passes();
-    quark::internal::init_framebuffers();
-    quark::internal::init_sync_objects();
+    internal::init_swapchain();
+    internal::init_command_pools_and_buffers();
+    internal::init_render_passes();
+    internal::init_framebuffers();
+    internal::init_sync_objects();
 
     // make sure shaders are loaded before we use them in the pipeline init
     // loader_thread.join();
 
-    quark::internal::copy_staging_buffers_to_gpu();
-    quark::internal::init_pipelines();
+    internal::copy_staging_buffers_to_gpu();
+    internal::init_pipelines();
 
     printf("Quark initialized!\n");
 

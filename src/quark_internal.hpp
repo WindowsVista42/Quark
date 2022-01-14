@@ -56,9 +56,7 @@ inline std::vector<VkImage> swapchain_images;          // Swapchain images
 inline std::vector<VkImageView> swapchain_image_views; // Swapchain image views
 inline VkFormat swapchain_format;                      // Swapchain image format
 
-inline VkImageView depth_image_view; // Depth buffer image view
-inline AllocatedImage depth_image;   // Allocated depth buffer image
-inline VkFormat depth_format;
+inline AllocatedImage depth_image; // Allocated depth buffer image
 
 inline VkQueue graphics_queue; // Graphics queue
 inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
@@ -115,7 +113,10 @@ inline CullData cull_data;
 static void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
-void create_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
+VkCommandBuffer begin_quick_commands();
+void end_quick_commands(VkCommandBuffer command_buffer);
+AllocatedBuffer create_allocated_buffer(usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
+AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
 void init_window();
 void init_vulkan();
