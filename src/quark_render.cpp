@@ -76,14 +76,48 @@ VkImageViewCreateInfo get_img_view_info(VkFormat format, VkImage image, VkImageA
     return view_info;
 }
 
-void quark::internal::init_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity) {
+VkCommandBuffer begin_quick_commands() {
+    VkCommandBufferAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandPool = transfer_cmd_pool;
+    allocate_info.commandBufferCount = 1;
+
+    VkCommandBuffer command_buffer;
+    vk_check(vkAllocateCommandBuffers(device, &allocate_info, &command_buffer));
+
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = 0;
+    begin_info.pInheritanceInfo = 0;
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    return command_buffer;
+}
+
+void end_quick_commands(VkCommandBuffer command_buffer) {
+    vkEndCommandBuffer(command_buffer);
+
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+
+    vkQueueSubmit(transfer_queue, 1, &submit_info, 0);
+    vkQueueWaitIdle(transfer_queue);
+
+    vkFreeCommandBuffers(device, transfer_cmd_pool, 1, &command_buffer);
+}
+
+void quark::internal::create_allocated_buffer(AllocatedBuffer* alloc_buffer, usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = capacity;
-    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    buffer_info.size = size;
+    buffer_info.usage = vk_usage;
 
     VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    alloc_info.usage = vma_usage;
 
     vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer->buffer, &alloc_buffer->alloc, 0));
 }
@@ -214,13 +248,26 @@ void quark::internal::init_swapchain() {
 }
 
 void quark::internal::init_command_pools_and_buffers() {
-    auto command_pool_info = get_cmd_pool_info(graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    // create_command_pool(graphics_cmd_pool, graphics_queue_family);
+    // create_command_pool(transfer_cmd_pool, transfer_queue_family);
 
-    for_every(i, FRAME_OVERLAP) {
-        vk_check(vkCreateCommandPool(device, &command_pool_info, 0, &graphics_cmd_pool[i]));
+    {
+        auto command_pool_info = get_cmd_pool_info(graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-        auto command_allocate_info = get_cmd_alloc_info(graphics_cmd_pool[i], 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        vk_check(vkAllocateCommandBuffers(device, &command_allocate_info, &main_cmd_buf[i]));
+        for_every(i, FRAME_OVERLAP) {
+            vk_check(vkCreateCommandPool(device, &command_pool_info, 0, &graphics_cmd_pool[i]));
+
+            auto command_allocate_info = get_cmd_alloc_info(graphics_cmd_pool[i], 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+            vk_check(vkAllocateCommandBuffers(device, &command_allocate_info, &main_cmd_buf[i]));
+        }
+    }
+
+    {
+        auto command_pool_info = get_cmd_pool_info(transfer_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        vk_check(vkCreateCommandPool(device, &command_pool_info, 0, &transfer_cmd_pool));
+
+        // auto command_allocate_info = get_cmd_alloc_info(transfer_cmd_pool, 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        // vk_check(vkAllocateCommandBuffers(device, &command_allocate_info, &main_cmd_buf[i]));
     }
 }
 
@@ -312,6 +359,32 @@ void quark::internal::init_sync_objects() {
     }
 }
 
+void quark::internal::copy_staging_buffers_to_gpu() {
+    AllocatedBuffer old_buffer = quark::internal::gpu_vertex_buffer;
+    LinearAllocationTracker old_tracker = quark::internal::gpu_vertex_tracker;
+
+    create_allocated_buffer(&gpu_vertex_buffer, old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            VMA_MEMORY_USAGE_GPU_ONLY);
+
+    gpu_vertex_tracker.deinit();
+    gpu_vertex_tracker.init(old_tracker.size());
+    gpu_vertex_tracker.alloc(old_tracker.size());
+
+    {
+        VkCommandBuffer cmd = begin_quick_commands();
+
+        VkBufferCopy copy = {};
+        copy.dstOffset = 0;
+        copy.srcOffset = 0;
+        copy.size = gpu_vertex_tracker.size() * sizeof(VertexPNT);
+        vkCmdCopyBuffer(cmd, old_buffer.buffer, gpu_vertex_buffer.buffer, 1, &copy);
+
+        end_quick_commands(cmd);
+    }
+
+    vmaDestroyBuffer(gpu_alloc, old_buffer.buffer, old_buffer.alloc);
+}
+
 void quark::internal::init_pipelines() {
     VkPushConstantRange push_constant = {};
     push_constant.offset = 0;
@@ -385,12 +458,12 @@ void quark::internal::init_pipelines() {
     VkPipelineColorBlendAttachmentState color_blend_attachment = {};
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment.blendEnable = VK_FALSE;
-    //color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    //color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-    //color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    //color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    //color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    // color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
@@ -544,23 +617,11 @@ void quark::internal::unload_shader(VkShaderModule* shader) { vkDestroyShaderMod
 // Update this so we are not doing extra copies
 void quark::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
     mesh->size = size;
-    mesh->offset = gpu_vertex_alloc.alloc(size);
-
-    //VkBufferCreateInfo buffer_info = {};
-    //buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    //buffer_info.size = memsize;
-    //buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-    //VmaAllocationCreateInfo alloc_info = {};
-    //alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-
-    //vk_check(vmaCreateBuffer(gpu_alloc, &buffer_info, &alloc_info, &mesh->alloc_buffer.buffer, &mesh->alloc_buffer.alloc, 0));
+    mesh->offset = gpu_vertex_tracker.alloc(size);
 
     void* ptr;
     vmaMapMemory(gpu_alloc, gpu_vertex_buffer.alloc, &ptr);
-
-    memcpy((u8*)ptr + (elemsize * mesh->offset) , data, elemsize * mesh->size);
-
+    memcpy((u8*)ptr + (elemsize * mesh->offset), data, elemsize * mesh->size);
     vmaUnmapMemory(gpu_alloc, gpu_vertex_buffer.alloc);
 }
 
@@ -686,7 +747,7 @@ Mesh* quark::internal::load_vbo_mesh(std::string* path) {
     return mesh;
 }
 
-void quark::internal::unload_mesh(Mesh* mesh) { }//vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
+void quark::internal::unload_mesh(Mesh* mesh) {} // vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
 
 void quark::internal::deinit_sync_objects() {
     for_every(i, FRAME_OVERLAP) {
@@ -881,8 +942,8 @@ void quark::end_frame() {
 }
 
 void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-    //if(counter > 10) { return; }
-    //counter += 1;
+    // if(counter > 10) { return; }
+    // counter += 1;
 
     DeferredPushConstant dpc;
 
@@ -901,33 +962,32 @@ void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     VkDeviceSize offset = 0;
 
     vkCmdPushConstants(main_cmd_buf[frame_index], deferred_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
-    //vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
-    //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
-    //printf("o: %d, s: %d\n", mesh->offset, mesh->size);
+    // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
+    // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
+    // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
     vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
-    //vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
+    // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
-
-void quark::begin_pass_deferred() { 
+void quark::begin_pass_deferred() {
     vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline);
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 void quark::end_pass_deferred() {
-    //std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
-    //    return a.camera_distance < b.camera_distance;
-    //});
+    // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
+    //     return a.camera_distance < b.camera_distance;
+    // });
 
     // Sean: flush our render queue of everything
-    //auto t0 = std::chrono::high_resolution_clock::now();
+    // auto t0 = std::chrono::high_resolution_clock::now();
     for_every(index, render_data_count) {
         RenderData rd = render_data[index];
         __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh);
     }
-    //auto t1 = std::chrono::high_resolution_clock::now();
-    //printf("dt:%f\n", std::chrono::duration<f32>(t1 - t0).count());
+    // auto t1 = std::chrono::high_resolution_clock::now();
+    // printf("dt:%f\n", std::chrono::duration<f32>(t1 - t0).count());
 
     // Sean: reset the buffer
     render_data_count = 0;
@@ -938,43 +998,47 @@ bool __is_visible(Pos pos, Scl scl) {
     // https://vkguide.dev/docs/gpudriven/compute_culling/
 
     vec3 center = pos.x;
-    center = mul(quark::view_matrix, vec4 {center.x, center.y, center.z, 1.0f}).xyz;
+    center = mul(quark::view_matrix, vec4{center.x, center.y, center.z, 1.0f}).xyz;
 
     float radius = scl.x.x;
-    if(radius < scl.x.y) {radius = scl.x.y;}
-    if(radius < scl.x.z) {radius = scl.x.z;}
+    if (radius < scl.x.y) {
+        radius = scl.x.y;
+    }
+    if (radius < scl.x.z) {
+        radius = scl.x.z;
+    }
 
     bool visible = true;
 
     visible = visible && center.z * cull_data.frustum[1] - fabs(center.x) * cull_data.frustum[0] > -radius;
     visible = visible && center.z * cull_data.frustum[3] - fabs(center.x) * cull_data.frustum[2] > -radius;
 
-    if(cull_data.dist_cull != 0) {
+    if (cull_data.dist_cull != 0) {
         visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
     }
 
-    //visible = visible || cull_data.culling_enabled == 0;
+    // visible = visible || cull_data.culling_enabled == 0;
 
     return visible;
 }
 
 void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-    if(render_data_count == RENDER_DATA_MAX_COUNT) {
+    if (render_data_count == RENDER_DATA_MAX_COUNT) {
         panic("You have rendered too many items or something!\n");
     }
 
     // sean: move this to a compute shader in the future
-    //if(!__is_visible(pos, scl)) {
+    // if(!__is_visible(pos, scl)) {
     //    return;
     //}
 
-    if(dot(__view_dir, (__view_eye - pos.x)) < 0.0f) { 
+    if (dot(__view_dir, (__view_eye - pos.x)) < 0.0f) {
         return;
     }
 
     // Sean: implement frustum culling
 
-    RenderData rd = { pos, rot, scl, mesh };
+    RenderData rd = {pos, rot, scl, mesh};
 
     // Sean: we push to a buffer so we can render front to back
     // not sure if this is the most efficient way to do this on the cpu-side of things

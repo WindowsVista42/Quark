@@ -7,12 +7,12 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "quark_types.hpp"
-#include "quark_game.hpp"
 #include "quark_allocators.hpp"
+#include "quark_game.hpp"
+#include "quark_types.hpp"
 
 // Internals
 namespace internal {
@@ -61,12 +61,14 @@ inline AllocatedImage depth_image;   // Allocated depth buffer image
 inline VkFormat depth_format;
 
 inline VkQueue graphics_queue; // Graphics queue
-inline VkQueue transfer_queue; // Transfer queue
+inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
 inline VkQueue present_queue;  // Present queue
 
 inline u32 graphics_queue_family; // Graphics queue family index
-inline u32 transfer_queue_family; // Transfer queue family index
+inline u32 transfer_queue_family; // Transfer queue family index, gets set as the graphics queue family if we dont have a transfer queue
 inline u32 present_queue_family;  // Present queue family index
+
+inline VkCommandPool transfer_cmd_pool; // Transfer command pool
 
 inline VkCommandPool graphics_cmd_pool[FRAME_OVERLAP]; // Graphics command pool
 inline VkCommandBuffer main_cmd_buf[FRAME_OVERLAP];    // Main graphics command buffer
@@ -89,12 +91,12 @@ inline u32 swapchain_image_index; // Current swapchain image index, this number 
                                   // in-between begin_frame() and end_frame() calls
 
 inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 200; // Maximum number of items that can be stored in render data
-inline usize render_data_count; // Current render data size;
-inline RenderData* render_data; // Buffer for storing things that need to be rendered.
+inline usize render_data_count;                            // Current render data size;
+inline RenderData* render_data;                            // Buffer for storing things that need to be rendered.
 
-inline LinearAllocatorTracker gpu_vertex_alloc;
+inline LinearAllocationTracker gpu_vertex_tracker;
 inline AllocatedBuffer gpu_vertex_buffer;
-//inline AllocatedBuffer gpu_index_buffer;
+// inline AllocatedBuffer gpu_index_buffer;
 
 inline vec3 __view_eye;
 inline vec3 __view_dir;
@@ -113,10 +115,11 @@ inline CullData cull_data;
 static void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
-void init_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity);
+void create_allocated_buffer(AllocatedBuffer* alloc_buffer, usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
 
 void init_window();
 void init_vulkan();
+void copy_staging_buffers_to_gpu();
 void init_swapchain();
 void init_command_pools_and_buffers();
 void init_render_passes();

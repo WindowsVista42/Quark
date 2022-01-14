@@ -10,7 +10,7 @@
 
 #define panic(message)                                                                                                                               \
     fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                                                       \
-    char* a = 0; \
+    char* a = 0;                                                                                                                                     \
     *a = 0
 
 template <typename F> struct __Defer {

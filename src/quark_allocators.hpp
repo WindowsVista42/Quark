@@ -56,34 +56,34 @@ struct LinearAllocator {
     }
 };
 
-//struct AtomicGpuLinearAllocator {
-//  private:
-//      VkBuffer buffer;
-//      VmaAllocation alloc;
+// struct AtomicGpuLinearAllocator {
+//   private:
+//       VkBuffer buffer;
+//       VmaAllocation alloc;
 //
-//      std::atomic<usize> capacity;
-//      std::atomic<usize> length;
-//  public:
-//    void init(VmaAllocator vma_alloc, VkBufferUsageFlagBits vk_usage, usize capacity) {
-//        VkBufferCreateInfo buffer_info = {};
-//        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-//        buffer_info.size = capacity;
-//        buffer_info.usage = vk_usage;
+//       std::atomic<usize> capacity;
+//       std::atomic<usize> length;
+//   public:
+//     void init(VmaAllocator vma_alloc, VkBufferUsageFlagBits vk_usage, usize capacity) {
+//         VkBufferCreateInfo buffer_info = {};
+//         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+//         buffer_info.size = capacity;
+//         buffer_info.usage = vk_usage;
 //
-//        VmaAllocationCreateInfo alloc_info = {};
-//        alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+//         VmaAllocationCreateInfo alloc_info = {};
+//         alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 //
-//        vk_check(vmaCreateBuffer(vma_alloc, &buffer_info, &alloc_info, &buffer, &alloc, 0));
-//    }
+//         vk_check(vmaCreateBuffer(vma_alloc, &buffer_info, &alloc_info, &buffer, &alloc, 0));
+//     }
 //
-//    void alloc_map(void* data, usize size) {
-//        void* ptr;
-//    }
-//    void reset();
-//    void deinit();
-//};
+//     void alloc_map(void* data, usize size) {
+//         void* ptr;
+//     }
+//     void reset();
+//     void deinit();
+// };
 
-struct LinearAllocatorTracker {
+struct LinearAllocationTracker {
   private:
     usize length;
     usize capacity;
@@ -113,6 +113,8 @@ struct LinearAllocatorTracker {
         this->length = 0;
         this->capacity = 0;
     }
+
+    usize size() { return length; }
 };
 
 #endif

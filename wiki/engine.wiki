@@ -2,9 +2,12 @@
 * [.] Renderer 3
     * [.] Data Layout
         * [X] Use one big vertex buffer for all vertex information
+        * [X] Make the big vertex buffer GPU_ONLY memory
         * [ ] Make writing to the vertex buffer atomic
         * [ ] Use array textures to store texture information
+        * [ ] Make the big array texture GPU_ONLY memory
         * [ ] Make writing to the array texture atomic
+        * [ ] Look into using 16 bit floats for vertex information and pre-encoding the world matrix to handle scaling.
 
     * [ ] Compute Shaders
         * [ ] Use indirect drawing
