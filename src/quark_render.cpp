@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define QUARK_INTERNALS
 #include "quark.hpp"
 
@@ -172,7 +173,7 @@ void quark::internal::init_vulkan() {
     device_features.wideLines = VK_TRUE;
 
     vkb::PhysicalDeviceSelector selector{vkb_inst};
-    selector = selector.set_minimum_version(1, 1);
+    selector = selector.set_minimum_version(1, 0);
     selector = selector.set_surface(surface);
     selector = selector.set_required_features(device_features);
     selector = selector.allow_any_gpu_device_type();
@@ -198,6 +199,8 @@ void quark::internal::init_vulkan() {
     auto transfer_queue_value = vkb_device.get_queue(vkb::QueueType::transfer);
     if (transfer_queue_value.has_value()) {
         transfer_queue = transfer_queue_value.value();
+    } else {
+        transfer_queue = graphics_queue;
     }
 
     graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
@@ -206,6 +209,8 @@ void quark::internal::init_vulkan() {
     auto transfer_queue_family_value = vkb_device.get_queue_index(vkb::QueueType::transfer);
     if (transfer_queue_family_value.has_value()) {
         transfer_queue_family = transfer_queue_family_value.value();
+    } else {
+        transfer_queue_family = graphics_queue_family;
     }
 }
 
@@ -232,7 +237,7 @@ void quark::internal::init_swapchain() {
     };
 
     // 32-bit depth will be __NEEDED__
-    depth_format = VK_FORMAT_D32_SFLOAT;
+    depth_format = VK_FORMAT_D16_UNORM;//VK_FORMAT_D32_SFLOAT;
 
     VkImageCreateInfo depth_img_info = get_img_info(depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_img_ext);
 
