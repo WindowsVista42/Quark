@@ -409,8 +409,8 @@ void quark::internal::init_pipelines() {
     VkPipelineLayoutCreateInfo pipeline_layout_info = {};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_info.flags = 0;
-    pipeline_layout_info.setLayoutCount = 0;
-    pipeline_layout_info.pSetLayouts = 0;
+    pipeline_layout_info.setLayoutCount = 1;
+    pipeline_layout_info.pSetLayouts = &render_constants_layout;
     pipeline_layout_info.pushConstantRangeCount = 1;
     pipeline_layout_info.pPushConstantRanges = &push_constant;
     pipeline_layout_info.pNext = 0;
@@ -561,6 +561,75 @@ void quark::internal::init_pipelines() {
 
     vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &debug_line_pipeline));
 }
+
+void quark::internal::init_buffers() {
+    for_every(i, FRAME_OVERLAP) {
+        auto buffer_size = sizeof(RenderConstants);
+
+        render_constants_gpu[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        VkDescriptorSetAllocateInfo alloc_info = {};
+        alloc_info.pNext = 0;
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = global_descriptor_pool;
+        alloc_info.descriptorSetCount = 1;
+        alloc_info.pSetLayouts = &render_constants_layout;
+
+        vkAllocateDescriptorSets(device, &alloc_info, &render_constants_sets[i]);
+
+        VkDescriptorBufferInfo buffer_info = {};
+        buffer_info.buffer = render_constants_gpu[i].buffer;
+        buffer_info.offset = 0;
+        buffer_info.range = buffer_size;
+
+        VkWriteDescriptorSet set_write = {};
+        set_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set_write.pNext = 0;
+        set_write.dstBinding = 0;
+        set_write.dstSet = render_constants_sets[i];
+        set_write.descriptorCount = 1;
+        set_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        set_write.pBufferInfo = &buffer_info;
+
+        vkUpdateDescriptorSets(device, 1, &set_write, 0, 0);
+    }
+}
+
+void quark::internal::init_descriptors() {
+    // Create descriptor layouts
+    VkDescriptorSetLayoutBinding rc_buffer_binding = {};
+    rc_buffer_binding.binding = 0;
+    rc_buffer_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    rc_buffer_binding.descriptorCount = 1;
+    rc_buffer_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo set_info = {};
+    set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    set_info.pNext = 0;
+    set_info.bindingCount = 1;
+    set_info.flags = 0;
+    set_info.pBindings = &rc_buffer_binding;
+
+    vkCreateDescriptorSetLayout(device, &set_info, 0, &render_constants_layout);
+
+    // Create descirptor pool(s)
+    
+    // Will be made BIG in the future :)
+    VkDescriptorPoolSize sizes[1] = {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = 0;
+    pool_info.maxSets = 10;
+    pool_info.poolSizeCount = 
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = sizes;
+
+    vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
+}
+
 VkVertexShader* quark::internal::load_vert_shader(std::string* path) {
     FILE* fp = fopen(path->c_str(), "rb");
 
@@ -773,9 +842,18 @@ void quark::internal::deinit_sync_objects() {
     }
 }
 
+void quark::internal::deinit_descriptors() {
+    vkDestroyDescriptorSetLayout(device, render_constants_layout, 0);
+    vkDestroyDescriptorPool(device, global_descriptor_pool, 0);
+}
+
 void quark::internal::deinit_buffers_and_images() {
     // Destroy vma buffers
     assets.unload_all(".obj");
+
+    for_every(i, FRAME_OVERLAP) {
+        vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc);
+    }
 }
 
 void quark::internal::deinit_shaders() {
@@ -806,6 +884,7 @@ void quark::internal::deinit_render_passes() { vkDestroyRenderPass(device, rende
 
 void quark::internal::deinit_command_pools_and_buffers() {
     for_every(i, FRAME_OVERLAP) { vkDestroyCommandPool(device, graphics_cmd_pool[i], 0); }
+    vkDestroyCommandPool(device, transfer_cmd_pool, 0);
 }
 
 void quark::internal::deinit_swapchain() {
@@ -911,6 +990,24 @@ void quark::begin_frame(vec3 view_eye, vec3 view_dir) {
     vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
     view_projection_matrix = quark::mul(projection_matrix, view_matrix);
+
+    // Update render constants
+    RenderConstants rc;
+    for_every(i, 1024 / 4) {
+        rc.tints[i*4 + 0] = { 0.1f, 1.0f, 0.8f, 1.0f };
+        rc.tints[i*4 + 1] = { 1.0f, 1.0f, 0.1f, 1.0f };
+        rc.tints[i*4 + 2] = { 1.0f, 0.1f, 0.1f, 1.0f };
+        rc.tints[i*4 + 3] = { 1.0f, 1.0f, 0.8f, 1.0f };
+    }
+
+    //for_every(i, 1024) {
+    //    rc.others[i] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    //}
+
+    void* rc_ptr;
+    vmaMapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc, &rc_ptr);
+    memcpy(rc_ptr, &rc, sizeof(RenderConstants));
+    vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
 }
 
 void quark::end_frame() {
@@ -956,7 +1053,7 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
     // if(counter > 10) { return; }
     // counter += 1;
 
@@ -980,12 +1077,13 @@ void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
     // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
     // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
-    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, index % 1024);
     // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
 void quark::begin_pass_deferred() {
     vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline);
+    vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
@@ -999,7 +1097,7 @@ void quark::end_pass_deferred() {
     // auto t0 = std::chrono::high_resolution_clock::now();
     for_every(index, render_data_count) {
         RenderData rd = render_data[index];
-        __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh);
+        __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh, index);
     }
     // auto t1 = std::chrono::high_resolution_clock::now();
     // printf("dt:%f\n", std::chrono::duration<f32>(t1 - t0).count());

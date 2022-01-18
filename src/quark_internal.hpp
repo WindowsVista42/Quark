@@ -36,6 +36,18 @@ struct RenderData {
     Mesh mesh;
 };
 
+struct RenderConstants {
+    vec4 tints[1024];
+    vec4 others[1024];
+};
+
+struct CullData {
+    f32 frustum[4];
+    f32 dist_cull;
+    f32 znear;
+    f32 zfar;
+};
+
 // Internal Globals
 
 #define OP_TIMEOUT 1000000000
@@ -74,6 +86,13 @@ inline VkSemaphore present_semaphore[FRAME_OVERLAP];
 inline VkSemaphore render_semaphore[FRAME_OVERLAP];
 inline VkFence render_fence[FRAME_OVERLAP];
 
+inline RenderConstants render_constants; // We dont want this to have multiple copies because we want the most curernt version
+inline AllocatedBuffer render_constants_gpu[FRAME_OVERLAP];
+inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
+
+inline VkDescriptorSetLayout render_constants_layout;
+inline VkDescriptorPool global_descriptor_pool;
+
 inline VkPipelineLayout deferred_pipeline_layout; // Deferred shading pipeline layout
 inline VkPipelineLayout debug_pipeline_layout;    // Debug pipeline layout
 inline VkPipeline deferred_pipeline;              // Deferred shading pipeline
@@ -99,13 +118,6 @@ inline AllocatedBuffer gpu_vertex_buffer;
 inline vec3 __view_eye;
 inline vec3 __view_dir;
 
-struct CullData {
-    f32 frustum[4];
-    f32 dist_cull;
-    f32 znear;
-    f32 zfar;
-};
-
 inline CullData cull_data;
 
 // Internal Functions
@@ -127,8 +139,10 @@ void init_render_passes();
 void init_framebuffers();
 void init_sync_objects();
 void init_pipelines();
+void init_buffers();
+void init_descriptors();
 
-void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh);
+void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
 
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);
@@ -141,6 +155,7 @@ Mesh* load_vbo_mesh(std::string* path);
 void unload_mesh(Mesh* mesh);
 
 void deinit_sync_objects();
+void deinit_descriptors();
 void deinit_buffers_and_images();
 void deinit_shaders();
 void deinit_allocators();

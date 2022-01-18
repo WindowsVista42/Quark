@@ -45,6 +45,8 @@ void quark::init() {
 
     // make sure shaders are loaded before we use them in the pipeline init
     // loader_thread.join();
+    internal::init_descriptors();
+    internal::init_buffers();
 
     internal::copy_staging_buffers_to_gpu();
     internal::init_pipelines();
@@ -89,6 +91,7 @@ void quark::deinit() {
     quark::internal::deinit_sync_objects();
 
     quark::internal::deinit_buffers_and_images();
+    quark::internal::deinit_descriptors();
 
     quark::internal::deinit_shaders();
 
