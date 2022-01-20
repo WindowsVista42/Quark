@@ -111,6 +111,7 @@ vec3 quark::cross(vec3 a, vec3 b) {
     return output;
 }
 f32 quark::dot(vec3 lhs, vec3 rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z); }
+f32 quark::dot(vec4 lhs, vec4 rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z) + (lhs.w * rhs.w); }
 f32 quark::clamp(f32 x, f32 min, f32 max) {
     if (x < min) {
         return min;

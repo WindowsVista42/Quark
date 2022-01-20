@@ -49,7 +49,6 @@ inline f32 tt = 0.0f;         // Total elapsed time
 
 inline GLFWwindow* window_ptr; // GLFW window pointer
 
-inline f32 projection_fov = 90.0f; // TODO: load from file
 inline mat4 projection_matrix;
 inline mat4 view_matrix;
 inline mat4 view_projection_matrix;
@@ -57,6 +56,21 @@ inline mat4 view_projection_matrix;
 inline vec2 mouse_pos;
 inline vec2 view_spherical_dir = {0.0f, M_PI_2};
 inline f32 mouse_sensitivity = 2.0f; // TODO: load from file
+
+// CAMERA STUFF THAT YOU CAN CHANGE
+
+inline vec3 camera_position = {0.0f, 0.0f, 0.0f};
+inline vec3 camera_direction = {1.0f, 0.0f, 0.0f};
+inline f32 camera_znear = 0.01f;
+inline f32 camera_zfar = 10000.0f;
+inline f32 camera_fov = 90.0f;
+
+inline CullData cull_data;
+
+inline vec4 planes[6];
+//inline f32 cull_data_p00;
+//inline f32 cull_data_p11;
+//inline f32 cull_data_frustum_planes[4];
 
 inline LinearAllocator scratch_alloc;
 inline LinearAllocator render_alloc;
@@ -74,7 +88,9 @@ void init();
 void run();
 void deinit();
 
-void begin_frame(vec3 view_eye, vec3 view_dir);
+void update_camera();
+
+void begin_frame();
 void end_frame();
 
 void begin_pass_deferred();
@@ -85,7 +101,7 @@ void begin_pass_debug_fill();
 void begin_pass_debug_line();
 void draw_debug(Pos pos, Rot rot, Scl scl, Col col);
 
-void render_frame(vec3 view_eye, vec3 view_dir);
+void render_frame();
 
 #include "quark_internal.hpp"
 

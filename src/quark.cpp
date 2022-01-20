@@ -9,7 +9,7 @@ using namespace internal;
 void quark::init() {
     using namespace quark;
 
-    scratch_alloc.init(10 * MB);
+    scratch_alloc.init(100 * MB);
     render_alloc.init(100 * MB);
 
     // Sean: render data buffer for distance sorted rendering to reduce overdraw
@@ -32,8 +32,8 @@ void quark::init() {
     // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
 
     // Init staging buffer and allocation tracker
-    internal::gpu_vertex_buffer = internal::create_allocated_buffer(20 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    internal::gpu_vertex_tracker.init(20 * MB);
+    internal::gpu_vertex_buffer = internal::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    internal::gpu_vertex_tracker.init(100 * MB);
 
     assets.load_directory("assets");
 

@@ -104,4 +104,15 @@ struct Mesh {
     // u32 offset;
 };
 
+struct CullData {
+    mat4 view;
+
+    f32 p00, p22, znear, zfar;
+    f32 frustum[4];
+    f32 lod_base, lod_step;
+
+    int dist_cull;
+    //f32 pyramid_width, pyramid_height;
+};
+
 #endif

@@ -931,13 +931,44 @@ void quark::internal::resize_swapchain() {
     init_pipelines();
 }
 
-void quark::begin_frame(vec3 view_eye, vec3 view_dir) {
-    __view_eye = view_eye;
-    __view_dir = view_dir;
+void quark::begin_frame() {
+    f32 camera_aspect = (f32)window_w / (f32)window_h;
 
-    // Update projection and view matricies
-    projection_matrix = perspective(radians(projection_fov), (f32)window_w / (f32)window_h, 0.1f, 10000.0f);
-    view_matrix = look_dir(__view_eye, __view_dir, VEC3_UNIT_Z);
+    projection_matrix = perspective(radians(camera_fov), camera_aspect, camera_znear, camera_zfar);
+    view_matrix = look_dir(camera_position, camera_direction, VEC3_UNIT_Z);
+
+    // Calculate updated frustum
+    if(!quark::internal::pause_frustum_culling) {
+        mat4 projection_matrix_t = transpose(projection_matrix);
+
+        auto normalize_plane = [](vec4 p) {
+            return p / length(p.xyz);
+        };
+
+        vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
+        vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
+
+        cull_data.view = view_matrix;
+        cull_data.p00 = projection_matrix[0][0];
+        cull_data.p22 = projection_matrix[1][1];
+        cull_data.frustum[0] = frustum_x.x;
+        cull_data.frustum[1] = frustum_x.z;
+        cull_data.frustum[2] = frustum_y.y;
+        cull_data.frustum[3] = frustum_y.z;
+        cull_data.lod_base = 10.0f;
+        cull_data.lod_step = 1.5f;
+
+        {
+            mat4 m = quark::mul(projection_matrix, view_matrix);
+            m = transpose(m);
+            planes[0] = m[3] + m[0];
+            planes[1] = m[3] - m[0];
+            planes[2] = m[3] + m[1];
+            planes[3] = m[3] - m[1];
+            planes[4] = m[3] + m[2];
+            planes[5] = m[3] - m[2];
+        }
+    }
 
     // TODO Sean: dont block the thread
     vk_check(vkWaitForFences(device, 1, &render_fence[frame_index], true, OP_TIMEOUT));
@@ -1088,6 +1119,7 @@ void quark::begin_pass_deferred() {
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
+
 void quark::end_pass_deferred() {
     // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
     //     return a.camera_distance < b.camera_distance;
@@ -1106,34 +1138,60 @@ void quark::end_pass_deferred() {
     render_data_count = 0;
 }
 
-// Frustum visibility check
-bool __is_visible(Pos pos, Scl scl) {
-    // https://vkguide.dev/docs/gpudriven/compute_culling/
-
-    vec3 center = pos.x;
-    center = mul(quark::view_matrix, vec4{center.x, center.y, center.z, 1.0f}).xyz;
-
-    float radius = scl.x.x;
-    if (radius < scl.x.y) {
-        radius = scl.x.y;
-    }
-    if (radius < scl.x.z) {
-        radius = scl.x.z;
-    }
+bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
+    vec3 center = pos.x.xyz;
+    //center.y *= -1.0f;
+    center = mul(cull_data.view, vec4 {center.x, center.y, center.z, 1.0f}).xyz;
+    center = center.xyz;
+    f32 radius = 3.0f;
 
     bool visible = true;
 
+    // left/top/right/bottom plane culling utilizing frustum symmetry
     visible = visible && center.z * cull_data.frustum[1] - fabs(center.x) * cull_data.frustum[0] > -radius;
-    visible = visible && center.z * cull_data.frustum[3] - fabs(center.x) * cull_data.frustum[2] > -radius;
+    visible = visible && center.z * cull_data.frustum[3] - fabs(center.y) * cull_data.frustum[2] > -radius;
 
-    if (cull_data.dist_cull != 0) {
-        visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
-    }
-
-    // visible = visible || cull_data.culling_enabled == 0;
+    // near/far plane culling
+    visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
 
     return visible;
+
+};
+
+bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
+    struct Box {
+        f32 minx, maxx;
+        f32 miny, maxy;
+        f32 minz, maxz;
+    };
+
+    scl.x *= 1.5f;
+
+    Box box = {
+        pos.x.x - scl.x.x, pos.x.x + scl.x.x,
+        pos.x.y - scl.x.y, pos.x.y + scl.x.y,
+        pos.x.z - scl.x.z, pos.x.z + scl.x.z,
+    };
+
+    for_every(i, 6) {
+        int out = 0;
+        out += (dot(planes[i], vec4 { box.minx, box.miny, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4 { box.maxx, box.miny, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+
+        out += (dot(planes[i], vec4 { box.minx, box.maxy, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4 { box.maxx, box.maxy, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+
+        out += (dot(planes[i], vec4 { box.maxx, box.miny, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4 { box.minx, box.miny, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
+
+        out += (dot(planes[i], vec4 { box.maxx, box.maxy, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4 { box.minx, box.maxy, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
+        if(out == 8) return false;
+    }
+
+    return true;
 }
+
 
 void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     if (render_data_count == RENDER_DATA_MAX_COUNT) {
@@ -1145,7 +1203,7 @@ void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     //    return;
     //}
 
-    if (dot(__view_dir, (__view_eye - pos.x)) < 0.0f) {
+    if(!box_in_frustum(pos, scl)) {//is_visible(pos, rot, scl)) {//dot(camera_direction, (camera_position - pos.x)) < 0.0f) {
         return;
     }
 
@@ -1179,8 +1237,8 @@ void quark::draw_debug(Pos pos, Rot rot, Scl scl, Col col) {
     vkCmdDraw(main_cmd_buf[frame_index], 3, 1, 0, 0);
 }
 
-void quark::render_frame(vec3 view_eye, vec3 view_dir) {
-    begin_frame(view_eye, view_dir);
+void quark::render_frame() {
+    begin_frame();
     {
         begin_pass_deferred();
         auto view = registry.view<Pos, Rot, Scl, Mesh>();

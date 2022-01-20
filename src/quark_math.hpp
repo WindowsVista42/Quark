@@ -4,9 +4,11 @@
 
 #include "quark_types.hpp"
 
-const vec3 VEC3_ZERO = {0.0f, 0.0f, 0.0f};
-const vec3 VEC3_UNIT_Z = {0.0f, 0.0f, 1.0f};
-const vec4 VEC4_UNIT_W = {0.0f, 0.0f, 0.0f, 1.0f};
+constexpr vec3 VEC3_ZERO = {0.0f, 0.0f, 0.0f};
+constexpr vec3 VEC3_UNIT_X = {1.0f, 0.0f, 0.0f};
+constexpr vec3 VEC3_UNIT_Y = {0.0f, 1.0f, 0.0f};
+constexpr vec3 VEC3_UNIT_Z = {0.0f, 0.0f, 1.0f};
+constexpr vec4 VEC4_UNIT_W = {0.0f, 0.0f, 0.0f, 1.0f};
 
 const mat4 MAT4_IDENTITY = {
     {1.0f, 0.0f, 0.0f, 0.0f},
@@ -20,6 +22,7 @@ f32 length_recip(vec3 vector);
 vec3 normalize(vec3 vector);
 vec3 cross(vec3 lhs, vec3 rhs);
 f32 dot(vec3 lhs, vec3 rhs);
+f32 dot(vec4 lhs, vec4 rhs);
 f32 distance(vec3 a, vec3 b);
 
 // mat4 mat4_splat(f32 splat) {

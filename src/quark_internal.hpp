@@ -107,7 +107,7 @@ inline u32 frame_index = 0;       // Current synchronization object index for mu
 inline u32 swapchain_image_index; // Current swapchain image index, this number is only valid
                                   // in-between begin_frame() and end_frame() calls
 
-inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 200; // Maximum number of items that can be stored in render data
+inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 512; // Maximum number of items that can be stored in render data
 inline usize render_data_count;                            // Current render data size;
 inline RenderData* render_data;                            // Buffer for storing things that need to be rendered.
 
@@ -115,10 +115,7 @@ inline LinearAllocationTracker gpu_vertex_tracker;
 inline AllocatedBuffer gpu_vertex_buffer;
 // inline AllocatedBuffer gpu_index_buffer;
 
-inline vec3 __view_eye;
-inline vec3 __view_dir;
-
-inline CullData cull_data;
+inline bool pause_frustum_culling = false;
 
 // Internal Functions
 
@@ -141,6 +138,9 @@ void init_sync_objects();
 void init_pipelines();
 void init_buffers();
 void init_descriptors();
+
+bool sphere_in_frustum(Pos pos, Rot rot, Scl scl);
+bool box_in_frustum(Pos pos, Scl Scl);
 
 void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
 
