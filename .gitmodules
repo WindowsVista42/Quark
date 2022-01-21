@@ -13,3 +13,9 @@
 [submodule "lib/VulkanMemoryAllocator"]
 	path = lib/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "lib/meshoptimizer"]
+	path = lib/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer
+[submodule "lib/flecs"]
+	path = lib/flecs
+	url = https://github.com/SanderMertens/flecs

@@ -225,15 +225,16 @@ void quark::internal::init_vulkan() {
     graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
     present_queue = vkb_device.get_queue(vkb::QueueType::present).value();
 
+    graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+    present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
+
+    // We check if the selected device has a transfer queue, otherwise we set it as the graphics queue.
     auto transfer_queue_value = vkb_device.get_queue(vkb::QueueType::transfer);
     if (transfer_queue_value.has_value()) {
         transfer_queue = transfer_queue_value.value();
     } else {
         transfer_queue = graphics_queue;
     }
-
-    graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
-    present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
 
     auto transfer_queue_family_value = vkb_device.get_queue_index(vkb::QueueType::transfer);
     if (transfer_queue_family_value.has_value()) {
@@ -454,7 +455,7 @@ void quark::internal::init_pipelines() {
     rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization_info.lineWidth = 1.0f;
     rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization_info.depthBiasConstantFactor = 0.0f;
     rasterization_info.depthBiasClamp = 0.0f;
     rasterization_info.depthBiasSlopeFactor = 0.0f;
@@ -1084,7 +1085,7 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void quark::internal::__draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
+void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
     // if(counter > 10) { return; }
     // counter += 1;
 
@@ -1120,22 +1121,25 @@ void quark::begin_pass_deferred() {
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
+#include <execution>
+#include <algorithm>
+
+template<typename F>
+void quark::flush_render_batch(F f) {
+    for_every(index, render_data_count) {
+        RenderData rd = render_data[index];
+        draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh, index);
+    }
+
+    render_data_count = 0;
+}
+
 void quark::end_pass_deferred() {
     // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
     //     return a.camera_distance < b.camera_distance;
     // });
 
-    // Sean: flush our render queue of everything
-    // auto t0 = std::chrono::high_resolution_clock::now();
-    for_every(index, render_data_count) {
-        RenderData rd = render_data[index];
-        __draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh, index);
-    }
-    // auto t1 = std::chrono::high_resolution_clock::now();
-    // printf("dt:%f\n", std::chrono::duration<f32>(t1 - t0).count());
-
-    // Sean: reset the buffer
-    render_data_count = 0;
+    flush_render_batch(draw_deferred);
 }
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
@@ -1193,7 +1197,7 @@ bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
 }
 
 
-void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+void quark::add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     if (render_data_count == RENDER_DATA_MAX_COUNT) {
         panic("You have rendered too many items or something!\n");
     }

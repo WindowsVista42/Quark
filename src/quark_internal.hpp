@@ -142,8 +142,6 @@ void init_descriptors();
 bool sphere_in_frustum(Pos pos, Rot rot, Scl scl);
 bool box_in_frustum(Pos pos, Scl Scl);
 
-void __draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
-
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);
 void unload_shader(VkShaderModule* shader);

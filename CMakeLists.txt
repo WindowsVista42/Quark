@@ -15,6 +15,7 @@ add_subdirectory(lib/entt)
 add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
+add_subdirectory(lib/meshoptimizer)
 
 find_package(Vulkan REQUIRED)
 

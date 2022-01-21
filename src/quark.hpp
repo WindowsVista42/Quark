@@ -94,8 +94,13 @@ void begin_frame();
 void end_frame();
 
 void begin_pass_deferred();
+void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
 void end_pass_deferred();
-void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh);
+
+void add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh);
+
+template <typename F>
+void flush_render_batch(F f);
 
 void begin_pass_debug_fill();
 void begin_pass_debug_line();
