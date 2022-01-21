@@ -1247,7 +1247,7 @@ void quark::render_frame() {
         begin_pass_deferred();
         auto view = registry.view<Pos, Rot, Scl, Mesh>();
         for (auto [e, pos, rot, scl, mesh] : view.each()) {
-            draw_deferred(pos, rot, scl, mesh);
+            add_to_render_batch(pos, rot, scl, mesh);
         }
         end_pass_deferred();
     }
