@@ -16,6 +16,7 @@ add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
 add_subdirectory(lib/meshoptimizer)
+add_subdirectory(lib/edyn)
 
 find_package(Vulkan REQUIRED)
 
@@ -31,4 +32,5 @@ target_link_libraries(Quark
     tinyobjloader
     vk-bootstrap::vk-bootstrap
     VulkanMemoryAllocator
+    Edyn
 )

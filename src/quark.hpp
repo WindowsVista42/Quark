@@ -93,18 +93,22 @@ void update_camera();
 void begin_frame();
 void end_frame();
 
-void begin_pass_deferred();
-void draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
-void end_pass_deferred();
+void begin_lit_pass();
+void draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
+void end_lit_pass();
 
 void add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh);
 
 template <typename F>
 void flush_render_batch(F f);
 
-void begin_pass_debug_fill();
-void begin_pass_debug_line();
-void draw_debug(Pos pos, Rot rot, Scl scl, Col col);
+void begin_solid_pass();
+void end_solid_pass();
+
+void begin_wireframe_pass();
+void end_wireframe_pass();
+
+void draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh);
 
 void render_frame();
 

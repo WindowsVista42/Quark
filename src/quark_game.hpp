@@ -115,4 +115,12 @@ struct CullData {
     //f32 pyramid_width, pyramid_height;
 };
 
+// TAGS
+
+// Which shading pass you want to use
+//
+struct SolidPass {};
+struct WireframePass {};
+struct LitPass {};
+
 #endif

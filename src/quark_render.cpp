@@ -1,5 +1,6 @@
 #define QUARK_INTERNALS
 #include "quark.hpp"
+//#include "quark_internal.hpp"
 
 using namespace quark;
 using namespace internal;
@@ -417,7 +418,7 @@ void quark::internal::init_pipelines() {
     pipeline_layout_info.pNext = 0;
 
     // Basic pipeline layout
-    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &deferred_pipeline_layout));
+    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &lit_pipeline_layout));
 
     VkPipelineShaderStageCreateInfo shader_stages[2] = {};
 
@@ -531,36 +532,33 @@ void quark::internal::init_pipelines() {
     pipeline_info.pMultisampleState = &multisample_info;
     pipeline_info.pColorBlendState = &color_blend_info;
     pipeline_info.pDepthStencilState = &depth_stencil_info;
-    pipeline_info.layout = deferred_pipeline_layout;
+    pipeline_info.layout = lit_pipeline_layout;
     pipeline_info.renderPass = render_pass;
     pipeline_info.subpass = 0;
     pipeline_info.basePipelineIndex = 0;
     pipeline_info.pNext = 0;
 
     // Basic pipeline
-    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &deferred_pipeline));
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &lit_pipeline));
 
     // Debug pipeline layout
     push_constant.size = sizeof(DebugPushConstant);
-    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &debug_pipeline_layout));
+    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &color_pipeline_layout));
 
-    // Debug pipeline
-    vertex_input_info.vertexBindingDescriptionCount = 0;
-    vertex_input_info.pVertexBindingDescriptions = 0;
-    vertex_input_info.vertexAttributeDescriptionCount = 0;
-    vertex_input_info.pVertexAttributeDescriptions = 0;
-    shader_stages[0].module = *assets.get<VkVertexShader>("debug");
-    shader_stages[1].module = *assets.get<VkFragmentShader>("debug");
+    // Color pipeline
+    shader_stages[0].module = *assets.get<VkVertexShader>("color");
+    shader_stages[1].module = *assets.get<VkFragmentShader>("color");
     rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization_info.lineWidth = 1.0f;
-    pipeline_info.layout = debug_pipeline_layout;
+    pipeline_info.layout = color_pipeline_layout;
 
-    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &debug_fill_pipeline));
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &solid_pipeline));
 
+    rasterization_info.cullMode = VK_CULL_MODE_NONE;
     rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
     rasterization_info.lineWidth = 2.0f;
 
-    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &debug_line_pipeline));
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &wireframe_pipeline));
 }
 
 void quark::internal::init_buffers() {
@@ -870,11 +868,11 @@ void quark::internal::deinit_allocators() {
 }
 
 void quark::internal::deinit_pipelines() {
-    vkDestroyPipelineLayout(device, deferred_pipeline_layout, 0);
-    vkDestroyPipelineLayout(device, debug_pipeline_layout, 0);
-    vkDestroyPipeline(device, deferred_pipeline, 0);
-    vkDestroyPipeline(device, debug_fill_pipeline, 0);
-    vkDestroyPipeline(device, debug_line_pipeline, 0);
+    vkDestroyPipelineLayout(device, lit_pipeline_layout, 0);
+    vkDestroyPipelineLayout(device, color_pipeline_layout, 0);
+    vkDestroyPipeline(device, lit_pipeline, 0);
+    vkDestroyPipeline(device, solid_pipeline, 0);
+    vkDestroyPipeline(device, wireframe_pipeline, 0);
 }
 
 void quark::internal::deinit_framebuffers() {
@@ -1085,7 +1083,7 @@ void quark::end_frame() {
     frame_count += 1;
 }
 
-void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
+void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
     // if(counter > 10) { return; }
     // counter += 1;
 
@@ -1105,41 +1103,38 @@ void quark::draw_deferred(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
 
     VkDeviceSize offset = 0;
 
-    vkCmdPushConstants(main_cmd_buf[frame_index], deferred_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
+    vkCmdPushConstants(main_cmd_buf[frame_index], lit_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
     // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
     // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
     // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
-    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, index % 1024);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
     // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
-void quark::begin_pass_deferred() {
-    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline);
-    vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, deferred_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
+void quark::begin_lit_pass() {
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline);
+    vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-#include <execution>
-#include <algorithm>
-
 template<typename F>
 void quark::flush_render_batch(F f) {
     for_every(index, render_data_count) {
         RenderData rd = render_data[index];
-        draw_deferred(rd.pos, rd.rot, rd.scl, rd.mesh, index);
+        f(rd.pos, rd.rot, rd.scl, rd.mesh, index);
     }
 
     render_data_count = 0;
 }
 
-void quark::end_pass_deferred() {
+void quark::end_lit_pass() {
     // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
     //     return a.camera_distance < b.camera_distance;
     // });
 
-    flush_render_batch(draw_deferred);
+    flush_render_batch(draw_lit);
 }
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
@@ -1207,10 +1202,6 @@ void quark::add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     //    return;
     //}
 
-    if(!box_in_frustum(pos, scl)) {//is_visible(pos, rot, scl)) {//dot(camera_direction, (camera_position - pos.x)) < 0.0f) {
-        return;
-    }
-
     // Sean: implement frustum culling
 
     RenderData rd = {pos, rot, scl, mesh};
@@ -1222,34 +1213,69 @@ void quark::add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     render_data_count += 1;
 }
 
-void quark::begin_pass_debug_fill() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, debug_fill_pipeline); }
+void quark::begin_solid_pass() {
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, solid_pipeline);
 
-void quark::begin_pass_debug_line() { vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, debug_line_pipeline); }
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
+}
 
-void quark::draw_debug(Pos pos, Rot rot, Scl scl, Col col) {
+void quark::end_solid_pass() {}
+
+void quark::begin_wireframe_pass() {
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipeline);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
+}
+
+void quark::end_wireframe_pass() {}
+
+void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
     DebugPushConstant pcd;
     pcd.color = col.x;
 
     mat4 translation_m = translate(pos.x);
-    mat4 rotation_m = rotate(radians((f32)frame_count * 0.4f), VEC3_UNIT_Z);
+    mat4 rotation_m = rotate(rot.x);
     mat4 scale_m = scale(scl.x);
     mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
 
     pcd.world_view_projection = quark::mul(view_projection_matrix, world_m);
 
-    vkCmdPushConstants(main_cmd_buf[frame_index], debug_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
-    vkCmdDraw(main_cmd_buf[frame_index], 3, 1, 0, 0);
+    vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
 void quark::render_frame() {
     begin_frame();
     {
-        begin_pass_deferred();
-        auto view = registry.view<Pos, Rot, Scl, Mesh>();
-        for (auto [e, pos, rot, scl, mesh] : view.each()) {
-            add_to_render_batch(pos, rot, scl, mesh);
+        begin_solid_pass();
+        auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, SolidPass>();
+        for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
+            if(box_in_frustum(pos, scl)) {
+                draw_color(pos, rot, scl, col, mesh);
+            }
         }
-        end_pass_deferred();
+        end_solid_pass();
+
+
+        begin_wireframe_pass();
+        auto wireframe_pass = registry.view<Pos, Rot, Scl, Mesh, Col, WireframePass>();
+        for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
+            if(box_in_frustum(pos, scl)) {
+                draw_color(pos, rot, scl, col, mesh);
+            }
+        }
+        end_wireframe_pass();
+
+        begin_lit_pass();
+        auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, LitPass>();
+        for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
+            if(box_in_frustum(pos, scl)) {
+                add_to_render_batch(pos, rot, scl, mesh);
+            }
+        }
+        end_lit_pass();
     }
     end_frame();
 }
