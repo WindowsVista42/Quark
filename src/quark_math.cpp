@@ -208,25 +208,43 @@ vec3 quark::rotate(vec3 v, vec4 q) {
 
     return v + ((cross(u, v) * s) + cross(u, cross(u, v))) * 2.0f;
 }
+
 mat4 quark::rotate(vec4 q) {
+
+    // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
+
     mat4 m = {};
 
-    m[0][0] = 2.0f * (q.z * q.z + q.y * q.y) - 1.0f;
-    m[0][1] = 2.0f * (q.y * q.x - q.z * q.w);
-    m[0][2] = 2.0f * (q.y * q.w + q.z * q.x);
+    f32 xx = q.x * q.x;
+    f32 xy = q.x * q.y;
+    f32 xz = q.x * q.z;
+    f32 xw = q.x * q.w;
 
-    m[1][0] = 2.0f * (q.y * q.x + q.z * q.w);
-    m[1][1] = 2.0f * (q.z * q.z + q.x * q.x) - 1.0f;
-    m[1][2] = 2.0f * (q.x * q.w - q.z * q.y);
+    f32 yy = q.y * q.y;
+    f32 yz = q.y * q.z;
+    f32 yw = q.y * q.w;
 
-    m[2][0] = 2.0f * (q.y * q.w - q.z * q.x);
-    m[2][1] = 2.0f * (q.x * q.w + q.z * q.y);
-    m[2][2] = 2.0f * (q.z * q.z + q.w * q.w) - 1.0f;
+    f32 zz = q.z * q.z;
+    f32 zw = q.z * q.w;
 
-    m[3][3] = 1.0f;
+    // Sean: this is transposed because we get weird results from bullet3 otherwise
+    m[0][0] = 1.0f - 2.0f * ( yy + zz );
+    m[1][0] =        2.0f * ( xy - zw );
+    m[2][0] =        2.0f * ( xz + yw );
+
+    m[0][1] =        2.0f * ( xy + zw );
+    m[1][1] = 1.0f - 2.0f * ( xx + zz );
+    m[2][1] =        2.0f * ( yz - xw );
+
+    m[0][2] =        2.0f * ( xz - yw );
+    m[1][2] =        2.0f * ( yz + xw );
+    m[2][2] = 1.0f - 2.0f * ( xx + yy );
+
+    m[3][3] = 1;
 
     return m;
 }
+
 void quark::print(const char* prefix, vec2 i) {
     printf("%s"
            "(%f, %f)"

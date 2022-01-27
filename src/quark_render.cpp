@@ -1247,7 +1247,6 @@ void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
 }
 
 void quark::render_frame() {
-    begin_frame();
     {
         begin_solid_pass();
         auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, SolidPass>();
@@ -1277,7 +1276,6 @@ void quark::render_frame() {
         }
         end_lit_pass();
     }
-    end_frame();
 }
 
 void quark::internal::print_performance_statistics() {
