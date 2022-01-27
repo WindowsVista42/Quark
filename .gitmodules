@@ -16,6 +16,3 @@
 [submodule "lib/meshoptimizer"]
 	path = lib/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
-[submodule "lib/bullet3"]
-	path = lib/bullet3
-	url = https://github.com/bulletphysics/bullet3
