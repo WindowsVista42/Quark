@@ -68,9 +68,9 @@ inline f32 camera_fov = 90.0f;
 inline CullData cull_data;
 
 inline vec4 planes[6];
-//inline f32 cull_data_p00;
-//inline f32 cull_data_p11;
-//inline f32 cull_data_frustum_planes[4];
+// inline f32 cull_data_p00;
+// inline f32 cull_data_p11;
+// inline f32 cull_data_frustum_planes[4];
 
 inline LinearAllocator scratch_alloc;
 inline LinearAllocator render_alloc;
@@ -99,8 +99,7 @@ void end_lit_pass();
 
 void add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh);
 
-template <typename F>
-void flush_render_batch(F f);
+template <typename F> void flush_render_batch(F f);
 
 void begin_solid_pass();
 void end_solid_pass();

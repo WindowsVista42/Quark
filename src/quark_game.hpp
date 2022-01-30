@@ -112,7 +112,7 @@ struct CullData {
     f32 lod_base, lod_step;
 
     int dist_cull;
-    //f32 pyramid_width, pyramid_height;
+    // f32 pyramid_width, pyramid_height;
 };
 
 // TAGS

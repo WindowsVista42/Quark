@@ -93,12 +93,12 @@ inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 inline VkDescriptorSetLayout render_constants_layout;
 inline VkDescriptorPool global_descriptor_pool;
 
-inline VkPipelineLayout lit_pipeline_layout; // Deferred shading pipeline layout
-inline VkPipelineLayout color_pipeline_layout;    // Debug pipeline layout
-inline VkPipeline lit_pipeline;              // Deferred shading pipeline
-inline VkPipeline solid_pipeline;            // Debug Solid fill solid color pipeline
-inline VkPipeline wireframe_pipeline;            // Debug Line fill solid color pipeline
-inline VkRenderPass render_pass;                  // Default render pass
+inline VkPipelineLayout lit_pipeline_layout;   // Deferred shading pipeline layout
+inline VkPipelineLayout color_pipeline_layout; // Debug pipeline layout
+inline VkPipeline lit_pipeline;                // Deferred shading pipeline
+inline VkPipeline solid_pipeline;              // Debug Solid fill solid color pipeline
+inline VkPipeline wireframe_pipeline;          // Debug Line fill solid color pipeline
+inline VkRenderPass render_pass;               // Default render pass
 
 inline std::vector<VkFramebuffer> framebuffers; // Vulkan framebuffers
 

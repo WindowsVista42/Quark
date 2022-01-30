@@ -228,17 +228,17 @@ mat4 quark::rotate(vec4 q) {
     f32 zw = q.z * q.w;
 
     // Sean: this is transposed because we get weird results from bullet3 otherwise
-    m[0][0] = 1.0f - 2.0f * ( yy + zz );
-    m[1][0] =        2.0f * ( xy - zw );
-    m[2][0] =        2.0f * ( xz + yw );
+    m[0][0] = 1.0f - 2.0f * (yy + zz);
+    m[1][0] = 2.0f * (xy - zw);
+    m[2][0] = 2.0f * (xz + yw);
 
-    m[0][1] =        2.0f * ( xy + zw );
-    m[1][1] = 1.0f - 2.0f * ( xx + zz );
-    m[2][1] =        2.0f * ( yz - xw );
+    m[0][1] = 2.0f * (xy + zw);
+    m[1][1] = 1.0f - 2.0f * (xx + zz);
+    m[2][1] = 2.0f * (yz - xw);
 
-    m[0][2] =        2.0f * ( xz - yw );
-    m[1][2] =        2.0f * ( yz + xw );
-    m[2][2] = 1.0f - 2.0f * ( xx + yy );
+    m[0][2] = 2.0f * (xz - yw);
+    m[1][2] = 2.0f * (yz + xw);
+    m[2][2] = 1.0f - 2.0f * (xx + yy);
 
     m[3][3] = 1;
 

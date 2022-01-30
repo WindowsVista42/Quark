@@ -612,18 +612,17 @@ void quark::internal::init_descriptors() {
     vkCreateDescriptorSetLayout(device, &set_info, 0, &render_constants_layout);
 
     // Create descirptor pool(s)
-    
+
     // Will be made BIG in the future :)
     VkDescriptorPoolSize sizes[1] = {
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
     };
 
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pool_info.flags = 0;
     pool_info.maxSets = 10;
-    pool_info.poolSizeCount = 
-    pool_info.poolSizeCount = 1;
+    pool_info.poolSizeCount = pool_info.poolSizeCount = 1;
     pool_info.pPoolSizes = sizes;
 
     vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
@@ -850,9 +849,7 @@ void quark::internal::deinit_buffers_and_images() {
     // Destroy vma buffers
     assets.unload_all(".obj");
 
-    for_every(i, FRAME_OVERLAP) {
-        vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc);
-    }
+    for_every(i, FRAME_OVERLAP) { vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc); }
 }
 
 void quark::internal::deinit_shaders() {
@@ -937,12 +934,10 @@ void quark::begin_frame() {
     view_matrix = look_dir(camera_position, camera_direction, VEC3_UNIT_Z);
 
     // Calculate updated frustum
-    if(!quark::internal::pause_frustum_culling) {
+    if (!quark::internal::pause_frustum_culling) {
         mat4 projection_matrix_t = transpose(projection_matrix);
 
-        auto normalize_plane = [](vec4 p) {
-            return p / length(p.xyz);
-        };
+        auto normalize_plane = [](vec4 p) { return p / length(p.xyz); };
 
         vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
         vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
@@ -1024,15 +1019,15 @@ void quark::begin_frame() {
     // Update render constants
     RenderConstants rc;
     for_every(i, 1024 / 4) {
-        rc.tints[i*4 + 0] = { 0.1f, 1.0f, 0.8f, 1.0f };
-        rc.tints[i*4 + 1] = { 1.0f, 1.0f, 0.1f, 1.0f };
-        rc.tints[i*4 + 2] = { 1.0f, 0.1f, 0.1f, 1.0f };
-        rc.tints[i*4 + 3] = { 1.0f, 1.0f, 0.8f, 1.0f };
+        rc.tints[i * 4 + 0] = {0.1f, 1.0f, 0.8f, 1.0f};
+        rc.tints[i * 4 + 1] = {1.0f, 1.0f, 0.1f, 1.0f};
+        rc.tints[i * 4 + 2] = {1.0f, 0.1f, 0.1f, 1.0f};
+        rc.tints[i * 4 + 3] = {1.0f, 1.0f, 0.8f, 1.0f};
     }
 
-    //for_every(i, 1024) {
-    //    rc.others[i] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    //}
+    // for_every(i, 1024) {
+    //     rc.others[i] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    // }
 
     void* rc_ptr;
     vmaMapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc, &rc_ptr);
@@ -1113,14 +1108,14 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
 
 void quark::begin_lit_pass() {
     vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline);
-    vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
+    vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1,
+                            &render_constants_sets[frame_index], 0, 0);
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-template<typename F>
-void quark::flush_render_batch(F f) {
+template <typename F> void quark::flush_render_batch(F f) {
     for_every(index, render_data_count) {
         RenderData rd = render_data[index];
         f(rd.pos, rd.rot, rd.scl, rd.mesh, index);
@@ -1139,8 +1134,8 @@ void quark::end_lit_pass() {
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
     vec3 center = pos.x.xyz;
-    //center.y *= -1.0f;
-    center = mul(cull_data.view, vec4 {center.x, center.y, center.z, 1.0f}).xyz;
+    // center.y *= -1.0f;
+    center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
     center = center.xyz;
     f32 radius = 3.0f;
 
@@ -1154,7 +1149,6 @@ bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
     visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
 
     return visible;
-
 };
 
 bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
@@ -1167,30 +1161,28 @@ bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
     scl.x *= 1.5f;
 
     Box box = {
-        pos.x.x - scl.x.x, pos.x.x + scl.x.x,
-        pos.x.y - scl.x.y, pos.x.y + scl.x.y,
-        pos.x.z - scl.x.z, pos.x.z + scl.x.z,
+        pos.x.x - scl.x.x, pos.x.x + scl.x.x, pos.x.y - scl.x.y, pos.x.y + scl.x.y, pos.x.z - scl.x.z, pos.x.z + scl.x.z,
     };
 
     for_every(i, 6) {
         int out = 0;
-        out += (dot(planes[i], vec4 { box.minx, box.miny, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
-        out += (dot(planes[i], vec4 { box.maxx, box.miny, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.minx, box.miny, box.minz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.maxx, box.miny, box.minz, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4 { box.minx, box.maxy, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
-        out += (dot(planes[i], vec4 { box.maxx, box.maxy, box.minz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.minx, box.maxy, box.minz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.maxx, box.maxy, box.minz, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4 { box.maxx, box.miny, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
-        out += (dot(planes[i], vec4 { box.minx, box.miny, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.maxx, box.miny, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.minx, box.miny, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4 { box.maxx, box.maxy, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
-        out += (dot(planes[i], vec4 { box.minx, box.maxy, box.maxz, 1.0f }) < 0.0 ) ? 1 : 0;
-        if(out == 8) return false;
+        out += (dot(planes[i], vec4{box.maxx, box.maxy, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.minx, box.maxy, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
+        if (out == 8)
+            return false;
     }
 
     return true;
 }
-
 
 void quark::add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     if (render_data_count == RENDER_DATA_MAX_COUNT) {
@@ -1251,17 +1243,16 @@ void quark::render_frame() {
         begin_solid_pass();
         auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, SolidPass>();
         for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
-            if(box_in_frustum(pos, scl)) {
+            if (box_in_frustum(pos, scl)) {
                 draw_color(pos, rot, scl, col, mesh);
             }
         }
         end_solid_pass();
 
-
         begin_wireframe_pass();
         auto wireframe_pass = registry.view<Pos, Rot, Scl, Mesh, Col, WireframePass>();
         for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
-            if(box_in_frustum(pos, scl)) {
+            if (box_in_frustum(pos, scl)) {
                 draw_color(pos, rot, scl, col, mesh);
             }
         }
@@ -1270,7 +1261,7 @@ void quark::render_frame() {
         begin_lit_pass();
         auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, LitPass>();
         for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
-            if(box_in_frustum(pos, scl)) {
+            if (box_in_frustum(pos, scl)) {
                 add_to_render_batch(pos, rot, scl, mesh);
             }
         }
