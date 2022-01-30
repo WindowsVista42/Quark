@@ -14,7 +14,7 @@ add_library(Quark STATIC
     src/quark.cpp
 )
 
-#include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
+include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
 add_subdirectory(lib/glfw)
 add_subdirectory(lib/entt)
