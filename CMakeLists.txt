@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-
+set(VCPKG_FEATURE_FLAGS versions)
 project(Quark)
 
 set(CMAKE_CXX_VERSION 17)
+set(CMAKE_C_VERSION 11)
 
 add_library(Quark STATIC
     src/quark_render.cpp
@@ -11,7 +12,7 @@ add_library(Quark STATIC
     src/quark.cpp
 )
 
-include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
+#include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
 add_subdirectory(lib/glfw)
 add_subdirectory(lib/entt)
