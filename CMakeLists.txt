@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.16)
 set(VCPKG_FEATURE_FLAGS versions)
 project(Quark)
 
+execute_process(COMMAND git submodule update --init)
+
 set(CMAKE_CXX_VERSION 17)
 set(CMAKE_C_VERSION 11)
 
