@@ -104,6 +104,11 @@ struct Mesh {
     // u32 offset;
 };
 
+struct Light {
+    vec4 position;
+    vec4 color;
+};
+
 struct CullData {
     mat4 view;
 

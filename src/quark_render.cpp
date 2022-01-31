@@ -1016,23 +1016,24 @@ void quark::begin_frame() {
 
     view_projection_matrix = quark::mul(projection_matrix, view_matrix);
 
-    // Update render constants
-    RenderConstants rc;
-    for_every(i, 1024 / 4) {
-        rc.tints[i * 4 + 0] = {0.1f, 1.0f, 0.8f, 1.0f};
-        rc.tints[i * 4 + 1] = {1.0f, 1.0f, 0.1f, 1.0f};
-        rc.tints[i * 4 + 2] = {1.0f, 0.1f, 0.1f, 1.0f};
-        rc.tints[i * 4 + 3] = {1.0f, 1.0f, 0.8f, 1.0f};
+    // Update lights
+    {
+        void* rc_ptr;
+        vmaMapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc, &rc_ptr);
+
+        RenderConstants* rc_data = (RenderConstants*)rc_ptr;
+
+        u32 counter = 0;
+        auto lights = registry.view<Light>();
+        for(auto [e, light] : lights.each()) {
+            rc_data->lights[counter] = light;
+            counter += 1;
+        }
+
+        rc_data->light_count = counter;
+
+        vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
     }
-
-    // for_every(i, 1024) {
-    //     rc.others[i] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    // }
-
-    void* rc_ptr;
-    vmaMapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc, &rc_ptr);
-    memcpy(rc_ptr, &rc, sizeof(RenderConstants));
-    vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
 }
 
 void quark::end_frame() {

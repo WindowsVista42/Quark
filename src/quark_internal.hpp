@@ -38,8 +38,8 @@ struct RenderData {
 };
 
 struct RenderConstants {
-    vec4 tints[1024];
-    vec4 others[1024];
+    Light lights[1024];
+    u32 light_count;
 };
 
 struct CullData {
