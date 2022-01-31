@@ -1093,6 +1093,7 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
 
     dpc.world_rotation = rot.x;
     dpc.world_position.xyz = pos.x;
+    dpc.world_scale.xyz = scl.x;
     u32 texture_index = 0;
     dpc.world_position.w = *(f32*)&texture_index;
 

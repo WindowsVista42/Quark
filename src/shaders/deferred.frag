@@ -12,13 +12,42 @@ layout (set = 0, binding = 0) uniform RenderConstants {
 };
 
 layout (location = 0) out vec4 out_color;
-// layout (location = 0) out vec4 out_position;
-// layout (location = 1) out vec4 out_normal;
-// layout (location = 2) out vec4 out_normal;
+
+struct Light {
+    vec3 position;
+    vec3 color;
+};
 
 void main() {
     const vec3 normal_color = (in_normal + 1.0f) / 2.0f;
-    vec4 color;
+    //const vec3 normal_color = vec3(in_texture, 1.0f);
+    //vec4 color;
 
-    out_color = vec4(normal_color, 1.0f);;
+    //out_color = vec4(normal_color, 1.0f);;
+
+    const Light light[3] = {
+        {vec3(0.0f, 0.0f, 10.0f), vec3(1.0f, 1.0f, 0.0f)},
+        {vec3(16.0f, 0.0f, 0.0f), vec3(1.0f, 0.0f, 1.0f)},
+        {vec3(0.0f, 16.0f, 8.0f), vec3(0.0f, 1.0f, 1.0f)},
+    };
+
+    vec3 lighting_color = vec3(0.0f, 0.0f, 0.0f);
+
+    for(int i = 0; i < 3; i += 1) {
+        vec3 position_difference = light[i].position - in_position;
+        float attenuation = 1.0f / sqrt(dot(position_difference, position_difference));
+
+        vec3 light_direction = normalize(position_difference);
+
+        float dotprod = dot(in_normal, light_direction);
+        float shape = clamp((dotprod + 2.0f) / 2.0f, 0.0f, 1.0f);
+
+        //vec3 color = light[i].color * attenuation * shape;
+        vec3 color = vec3(attenuation,  attenuation, attenuation);
+
+        //lighting_color += normal_color * color;
+        lighting_color += color * light[i].color;
+    }
+
+    out_color = vec4(lighting_color, 1.0f);
 }
