@@ -1024,9 +1024,11 @@ void quark::begin_frame() {
         RenderConstants* rc_data = (RenderConstants*)rc_ptr;
 
         u32 counter = 0;
-        auto lights = registry.view<Light>();
-        for(auto [e, light] : lights.each()) {
-            rc_data->lights[counter] = light;
+        auto lights = registry.view<Pos, Col, Light>();
+        for(auto [e, pos, col] : lights.each()) {
+            vec4 p; p.xyz = pos.x;
+            rc_data->lights[counter].position = p;
+            rc_data->lights[counter].color = col.x;
             counter += 1;
         }
 

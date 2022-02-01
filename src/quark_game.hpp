@@ -104,11 +104,6 @@ struct Mesh {
     // u32 offset;
 };
 
-struct Light {
-    vec4 position;
-    vec4 color;
-};
-
 struct CullData {
     mat4 view;
 
@@ -120,6 +115,11 @@ struct CullData {
     // f32 pyramid_width, pyramid_height;
 };
 
+struct LightData {
+    vec4 position;
+    vec4 color;
+};
+
 // TAGS
 
 // Which shading pass you want to use
@@ -127,5 +127,8 @@ struct CullData {
 struct SolidPass {};
 struct WireframePass {};
 struct LitPass {};
+
+// Light tag
+struct Light {};
 
 #endif

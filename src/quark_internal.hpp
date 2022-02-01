@@ -38,7 +38,7 @@ struct RenderData {
 };
 
 struct RenderConstants {
-    Light lights[1024];
+    LightData lights[1024];
     u32 light_count;
 };
 
