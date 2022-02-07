@@ -260,8 +260,9 @@ void quark::internal::init_swapchain() {
     swapchain_image_views = vkb_swapchain.get_image_views().value();
     swapchain_format = vkb_swapchain.image_format;
 
-    depth_image =
-        create_allocated_image(window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+    global_depth_image = create_allocated_image(window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    sun_depth_image = create_allocated_image(1024, 1024, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void quark::internal::init_command_pools_and_buffers() {
@@ -300,7 +301,7 @@ void quark::internal::init_render_passes() {
     color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depth_attachment = {};
-    depth_attachment.format = depth_image.format;
+    depth_attachment.format = global_depth_image.format;
     depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -333,6 +334,28 @@ void quark::internal::init_render_passes() {
     render_pass_info.pSubpasses = &subpass_desc;
 
     vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &render_pass));
+
+    // Change required items
+    // Not sure if this code is more maintainable or readable
+    // but its shorter
+
+    VkAttachmentDescription depth_only_attachments[1] = {depth_attachment};
+
+
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    render_pass_info.attachmentCount = 1;
+    render_pass_info.pAttachments = depth_only_attachments;
+    render_pass_info.subpassCount = 1;
+
+    depth_attachment.format = VK_FORMAT_D32_SFLOAT;
+    depth_attachment_ref.attachment = 0;
+
+    subpass_desc.colorAttachmentCount = 0;
+    subpass_desc.pColorAttachments = 0;
+
+    render_pass_info.pSubpasses = &subpass_desc;
+
+    vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &depth_only_render_pass));
 }
 
 void quark::internal::init_framebuffers() {
@@ -344,18 +367,44 @@ void quark::internal::init_framebuffers() {
     framebuffer_info.layers = 1;
     framebuffer_info.pNext = 0;
 
+    printf("here!\n");
+
     const u32 swapchain_image_count = swapchain_images.size();
     framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
 
     for_every(index, swapchain_image_count) {
         VkImageView attachments[2];
         attachments[0] = swapchain_image_views[index];
-        attachments[1] = depth_image.view;
+        attachments[1] = global_depth_image.view;
 
         framebuffer_info.attachmentCount = 2;
         framebuffer_info.pAttachments = attachments;
         vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &framebuffers[index]));
     }
+
+    printf("here!\n");
+
+    framebuffer_info.renderPass = depth_only_render_pass;
+    framebuffer_info.width = 1024;
+    framebuffer_info.height = 1024;
+
+    depth_only_framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
+
+    printf("here!\n");
+
+    for_every(index, swapchain_image_count) {
+        VkImageView attachments[1];
+        //attachments[0] = swapchain_image_views[index];
+        attachments[0] = sun_depth_image.view;
+
+        framebuffer_info.attachmentCount = 1;
+        framebuffer_info.pAttachments = attachments;
+        vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_only_framebuffers[index]));
+    }
+
+    printf("here!\n");
+
+    printf("here!\n");
 }
 
 void quark::internal::init_sync_objects() {
@@ -424,13 +473,13 @@ void quark::internal::init_pipelines() {
 
     shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shader_stages[0].module = *assets.get<VkVertexShader>("deferred");
+    shader_stages[0].module = *assets.get<VkVertexShader>("common");
     shader_stages[0].pName = "main";
     shader_stages[0].pNext = 0;
 
     shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shader_stages[1].module = *assets.get<VkFragmentShader>("deferred");
+    shader_stages[1].module = *assets.get<VkFragmentShader>("lit_shadow");
     shader_stages[1].pName = "main";
     shader_stages[1].pNext = 0;
 
@@ -475,12 +524,12 @@ void quark::internal::init_pipelines() {
     VkPipelineColorBlendAttachmentState color_blend_attachment = {};
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment.blendEnable = VK_FALSE;
-    // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    // color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-    // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
@@ -541,6 +590,14 @@ void quark::internal::init_pipelines() {
     // Basic pipeline
     vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &lit_pipeline));
 
+    color_blend_attachment.blendEnable = VK_FALSE;
+    //color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    //color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    //color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    //color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    //color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
     // Debug pipeline layout
     push_constant.size = sizeof(DebugPushConstant);
     vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &color_pipeline_layout));
@@ -559,6 +616,25 @@ void quark::internal::init_pipelines() {
     rasterization_info.lineWidth = 2.0f;
 
     vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &wireframe_pipeline));
+
+    // Sun pipeline layout
+    pipeline_layout_info.setLayoutCount = 0;
+    pipeline_layout_info.pSetLayouts = 0;
+
+    push_constant.size = sizeof(mat4);
+
+    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &depth_only_pipeline_layout));
+
+    pipeline_info.stageCount = 1;
+    shader_stages[0].module = *assets.get<VkVertexShader>("depth_only");
+    shader_stages[1].module = 0;
+
+    rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization_info.lineWidth = 1.0f;
+    pipeline_info.layout = depth_only_pipeline_layout;
+    pipeline_info.renderPass = depth_only_render_pass;
+
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_only_pipeline));
 }
 
 void quark::internal::init_buffers() {
@@ -600,7 +676,7 @@ void quark::internal::init_descriptors() {
     rc_buffer_binding.binding = 0;
     rc_buffer_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     rc_buffer_binding.descriptorCount = 1;
-    rc_buffer_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    rc_buffer_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
 
     VkDescriptorSetLayoutCreateInfo set_info = {};
     set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -885,8 +961,8 @@ void quark::internal::deinit_command_pools_and_buffers() {
 
 void quark::internal::deinit_swapchain() {
     // Destroy depth texture
-    vkDestroyImageView(device, depth_image.view, 0);
-    vmaDestroyImage(gpu_alloc, depth_image.image, depth_image.alloc);
+    vkDestroyImageView(device, global_depth_image.view, 0);
+    vmaDestroyImage(gpu_alloc, global_depth_image.image, global_depth_image.alloc);
 
     vkDestroySwapchainKHR(device, swapchain, 0);
 
@@ -988,7 +1064,40 @@ void quark::begin_frame() {
     command_begin_info.pNext = 0;
 
     vk_check(vkBeginCommandBuffer(main_cmd_buf[frame_index], &command_begin_info));
+}
 
+void quark::begin_shadow_rendering() {
+    VkClearValue depth_clear;
+    depth_clear.depthStencil.depth = 1.0f;
+
+    VkClearValue clear_values[1] = {depth_clear};
+
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = depth_only_render_pass;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = 1024;
+    render_pass_begin_info.renderArea.extent.height = 1024;
+    render_pass_begin_info.framebuffer = depth_only_framebuffers[swapchain_image_index];
+    render_pass_begin_info.clearValueCount = 1;
+    render_pass_begin_info.pClearValues = clear_values;
+    render_pass_begin_info.pNext = 0;
+
+    vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, depth_only_pipeline);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
+
+    //view_projection_matrix = quark::mul(projection_matrix, view_matrix);
+}
+
+void quark::end_shadow_rendering() {
+    vkCmdEndRenderPass(main_cmd_buf[frame_index]);
+}
+
+void quark::begin_forward_rendering() {
     VkClearValue color_clear;
     color_clear.color.float32[0] = PURE_BLACK.x[0];
     color_clear.color.float32[1] = PURE_BLACK.x[1];
@@ -1026,7 +1135,7 @@ void quark::begin_frame() {
         u32 counter = 0;
         auto lights = registry.view<Pos, Col, Light>();
         for(auto [e, pos, col] : lights.each()) {
-            vec4 p; p.xyz = pos.x;
+            vec4 p; p.xyz = pos.x; p.w = 50.0f;
             rc_data->lights[counter].position = p;
             rc_data->lights[counter].color = col.x;
             counter += 1;
@@ -1034,12 +1143,19 @@ void quark::begin_frame() {
 
         rc_data->light_count = counter;
 
+        rc_data->camera_direction.xyz = camera_direction;
+        rc_data->camera_position.xyz = camera_position;
+        rc_data->time = tt;
+
         vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
     }
 }
 
-void quark::end_frame() {
+void quark::end_forward_rendering() {
     vkCmdEndRenderPass(main_cmd_buf[frame_index]);
+}
+
+void quark::end_frame() {
     vk_check(vkEndCommandBuffer(main_cmd_buf[frame_index]));
 
     VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1242,7 +1358,29 @@ void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
     vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::render_frame() {
+void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+    mat4 translation_m = translate(pos.x);
+    mat4 rotation_m = rotate(rot.x);
+    mat4 scale_m = scale(scl.x);
+    mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
+
+    mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
+
+    vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
+}
+
+void quark::render_frame(bool end_forward) {
+    begin_shadow_rendering();
+    {
+        auto shadow_pass = registry.view<Pos, Rot, Scl, Mesh, ShadowsEnabled>();
+        for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
+            draw_shadow(pos, rot, scl, mesh);
+        }
+    }
+    end_shadow_rendering();
+
+    begin_forward_rendering();
     {
         begin_solid_pass();
         auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, SolidPass>();
@@ -1270,6 +1408,10 @@ void quark::render_frame() {
             }
         }
         end_lit_pass();
+    }
+
+    if(end_forward) {
+        end_forward_rendering();
     }
 }
 

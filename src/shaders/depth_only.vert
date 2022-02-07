@@ -7,13 +7,9 @@ layout (location = 2) in vec2 in_texture;
 layout (location = 0) out vec4 out_color;
 
 layout (push_constant) uniform constants {
-    vec4 color;
     mat4 world_view_projection;
-} push;
+};
 
 void main() {
-    vec4 vertex_position = vec4(in_position, 1.0f);
-
-    gl_Position = push.world_view_projection * vertex_position;
-    out_color = push.color;
+    gl_Position = world_view_projection * vec4(in_position, 1.0f);
 }

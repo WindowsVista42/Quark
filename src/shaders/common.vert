@@ -25,13 +25,9 @@ vec3 rotate(vec3 v, vec4 q) {
 }
 
 void main() {
-    vec4 vertex_position = vec4(in_position, 1.0f);
-
     out_position = (rotate(in_position, world_rotation) * world_scale.xyz) + world_position.xyz;
     out_normal = rotate(in_normal, world_rotation);
     out_texture = in_texture;
     out_texture_index = floatBitsToUint(world_position.w);
-    //out_base_instance = gl_BaseInstance;
-
-    gl_Position = world_view_projection * vertex_position;
+    gl_Position = world_view_projection * vec4(in_position, 1.0f);
 }

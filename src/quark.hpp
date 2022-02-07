@@ -109,7 +109,14 @@ void end_wireframe_pass();
 
 void draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh);
 
-void render_frame();
+void begin_forward_rendering();
+void end_forward_rendering();
+
+void begin_shadow_rendering();
+void draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh);
+void end_shadow_rendering();
+
+void render_frame(bool end_forward);
 
 #include "quark_internal.hpp"
 

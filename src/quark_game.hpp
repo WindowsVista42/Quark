@@ -13,8 +13,7 @@
 // Game types
 #define TRANSPARENT_TYPE(name, inner)                                                                                                                \
     struct name {                                                                                                                                    \
-        inner x;                                                                                                                                     \
-                                                                                                                                                     \
+        inner x; \
         operator inner&() { return *(inner*)this; }                                                                                                  \
     }
 
@@ -128,7 +127,8 @@ struct SolidPass {};
 struct WireframePass {};
 struct LitPass {};
 
-// Light tag
+// Lighting tags
 struct Light {};
+struct ShadowsEnabled {};
 
 #endif

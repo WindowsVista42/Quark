@@ -40,6 +40,12 @@ struct RenderData {
 struct RenderConstants {
     LightData lights[1024];
     u32 light_count;
+    u32 _pad0;
+    u32 _pad1;
+    u32 _pad2;
+    vec4 camera_direction;
+    vec4 camera_position;
+    f32 time;
 };
 
 struct CullData {
@@ -69,7 +75,8 @@ inline std::vector<VkImage> swapchain_images;          // Swapchain images
 inline std::vector<VkImageView> swapchain_image_views; // Swapchain image views
 inline VkFormat swapchain_format;                      // Swapchain image format
 
-inline AllocatedImage depth_image; // Allocated depth buffer image
+inline AllocatedImage global_depth_image; // Global depth buffer
+inline AllocatedImage sun_depth_image; // Sunlight depth buffer
 
 inline VkQueue graphics_queue; // Graphics queue
 inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
@@ -101,7 +108,12 @@ inline VkPipeline solid_pipeline;              // Debug Solid fill solid color p
 inline VkPipeline wireframe_pipeline;          // Debug Line fill solid color pipeline
 inline VkRenderPass render_pass;               // Default render pass
 
-inline std::vector<VkFramebuffer> framebuffers; // Vulkan framebuffers
+inline VkPipelineLayout depth_only_pipeline_layout; // Debug pipeline layout
+inline VkPipeline depth_only_pipeline;              // Depth only sun pipeline thing
+inline VkRenderPass depth_only_render_pass;         // Sunlight render pass
+
+inline std::vector<VkFramebuffer> framebuffers; // Common framebuffers
+inline std::vector<VkFramebuffer> depth_only_framebuffers; // Depth framebuffers
 
 inline usize frame_count = 0;     // Current frame number
 inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
