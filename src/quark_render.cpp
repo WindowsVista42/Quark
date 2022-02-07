@@ -367,8 +367,6 @@ void quark::internal::init_framebuffers() {
     framebuffer_info.layers = 1;
     framebuffer_info.pNext = 0;
 
-    printf("here!\n");
-
     const u32 swapchain_image_count = swapchain_images.size();
     framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
 
@@ -382,15 +380,11 @@ void quark::internal::init_framebuffers() {
         vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &framebuffers[index]));
     }
 
-    printf("here!\n");
-
     framebuffer_info.renderPass = depth_only_render_pass;
     framebuffer_info.width = 1024;
     framebuffer_info.height = 1024;
 
     depth_only_framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
-
-    printf("here!\n");
 
     for_every(index, swapchain_image_count) {
         VkImageView attachments[1];
@@ -401,10 +395,6 @@ void quark::internal::init_framebuffers() {
         framebuffer_info.pAttachments = attachments;
         vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_only_framebuffers[index]));
     }
-
-    printf("here!\n");
-
-    printf("here!\n");
 }
 
 void quark::internal::init_sync_objects() {
