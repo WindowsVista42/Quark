@@ -303,11 +303,11 @@ void quark::internal::init_render_passes() {
     VkAttachmentDescription depth_attachment = {};
     depth_attachment.format = global_depth_image.format;
     depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference color_attachment_ref = {};
@@ -335,12 +335,11 @@ void quark::internal::init_render_passes() {
 
     vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &render_pass));
 
-    // Change required items
-    // Not sure if this code is more maintainable or readable
-    // but its shorter
+    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VkAttachmentDescription depth_only_attachments[1] = {depth_attachment};
-
 
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     render_pass_info.attachmentCount = 1;
@@ -355,6 +354,7 @@ void quark::internal::init_render_passes() {
 
     render_pass_info.pSubpasses = &subpass_desc;
 
+    vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &depth_prepass_render_pass));
     vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &depth_only_render_pass));
 }
 
@@ -369,7 +369,6 @@ void quark::internal::init_framebuffers() {
 
     const u32 swapchain_image_count = swapchain_images.size();
 
-    //framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
     framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
 
     for_every(index, swapchain_image_count) {
@@ -382,25 +381,24 @@ void quark::internal::init_framebuffers() {
         vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &framebuffers[index]));
     }
 
-    framebuffer_info.renderPass = depth_only_render_pass;
+    framebuffer_info.renderPass = depth_prepass_render_pass;
 
-    //depth_prepass_framebuffers = render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
+    depth_prepass_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
 
-    //for_every(index, swapchain_image_count) {
-    //    VkImageView attachments[1];
-    //    //attachments[0] = swapchain_image_views[index];
-    //    attachments[0] = global_depth_image.view;
+    for_every(index, swapchain_image_count) {
+        VkImageView attachments[1];
+        attachments[0] = global_depth_image.view;
 
-    //    framebuffer_info.attachmentCount = 1;
-    //    framebuffer_info.pAttachments = attachments;
-    //    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_prepass_framebuffers[index]));
-    //}
+        framebuffer_info.attachmentCount = 1;
+        framebuffer_info.pAttachments = attachments;
+        vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_prepass_framebuffers[index]));
+    }
 
     framebuffer_info.width = 1024;
     framebuffer_info.height = 1024;
+    framebuffer_info.renderPass = depth_only_render_pass;
 
     depth_only_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
-    //depth_only_framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
 
     for_every(index, swapchain_image_count) {
         VkImageView attachments[1];
@@ -630,6 +628,9 @@ void quark::internal::init_pipelines() {
     push_constant.size = sizeof(mat4);
 
     vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &depth_only_pipeline_layout));
+    vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &depth_prepass_pipeline_layout));
+
+    rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
     pipeline_info.stageCount = 1;
     shader_stages[0].module = *assets.get<VkVertexShader>("depth_only");
@@ -651,9 +652,10 @@ void quark::internal::init_pipelines() {
     viewport.height = 1024.0f;
     scissor.extent = {1024, 1024};
 
+    pipeline_info.layout = depth_only_pipeline_layout;
     pipeline_info.renderPass = depth_only_render_pass;
 
-    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_prepass_pipeline));
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_only_pipeline));
 }
 
 void quark::internal::init_buffers() {
@@ -1032,7 +1034,6 @@ void quark::begin_frame() {
     VkResult result = vkAcquireNextImageKHR(device, swapchain, OP_TIMEOUT, present_semaphore[frame_index], 0, &swapchain_image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        printf("Herer!\n");
         resize_swapchain();
         return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -1137,7 +1138,7 @@ void quark::begin_depth_prepass_rendering() {
 
     VkRenderPassBeginInfo render_pass_begin_info = {};
     render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.renderPass = render_pass;
+    render_pass_begin_info.renderPass = depth_prepass_render_pass;
     render_pass_begin_info.renderArea.offset.x = 0;
     render_pass_begin_info.renderArea.offset.y = 0;
     render_pass_begin_info.renderArea.extent.width = window_w;
@@ -1148,6 +1149,10 @@ void quark::begin_depth_prepass_rendering() {
     render_pass_begin_info.pNext = 0;
 
     vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, depth_prepass_pipeline);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
 void quark::end_depth_prepass_rendering() {
@@ -1426,6 +1431,18 @@ void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
     vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
+void quark::draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+    mat4 translation_m = translate(pos.x);
+    mat4 rotation_m = rotate(rot.x);
+    mat4 scale_m = scale(scl.x);
+    mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
+
+    mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
+
+    vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
+    vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
+}
+
 void quark::render_frame(bool end_forward) {
     // Todo Sean: Look into not recalculating frustum stuff?
     // Selectively copy then re-use likely
@@ -1441,16 +1458,16 @@ void quark::render_frame(bool end_forward) {
     }
     end_shadow_rendering();
 
-    //being_depth_prepass_rendering();
-    //{
-    //    auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>();
-    //    for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
-    //        if(box_in_frustum(pos, scl)) {
-    //            draw_depth(pos, rot, scl, mesh);
-    //        }
-    //    }
-    //}
-    //end_depth_prepass_rendering();
+    begin_depth_prepass_rendering();
+    {
+        auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>();
+        for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
+            if(box_in_frustum(pos, scl)) {
+                draw_depth(pos, rot, scl, mesh);
+            }
+        }
+    }
+    end_depth_prepass_rendering();
 
     begin_forward_rendering();
     {

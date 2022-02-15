@@ -123,6 +123,7 @@ void begin_forward_rendering();
 void end_forward_rendering();
 
 void begin_depth_prepass_rendering();
+void draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh);
 void end_depth_prepass_rendering();
 
 void begin_shadow_rendering();
