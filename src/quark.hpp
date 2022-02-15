@@ -26,6 +26,8 @@
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 
+#include <btBulletDynamicsCommon.h>
+
 #include "quark_allocators.hpp"
 #include "quark_asset_manager.hpp"
 
@@ -83,6 +85,14 @@ inline void (*init_func)();
 inline void (*update_func)();
 inline void (*deinit_func)();
 
+// Bullet Physics
+
+inline btDefaultCollisionConfiguration* physics_config;
+inline btCollisionDispatcher* physics_dispatcher;
+inline btBroadphaseInterface* physics_overlapping_pair_cache;
+inline btSequentialImpulseConstraintSolver* physics_solver;
+inline btDiscreteDynamicsWorld* physics_world;
+
 // Functions
 void init();
 void run();
@@ -112,11 +122,18 @@ void draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh);
 void begin_forward_rendering();
 void end_forward_rendering();
 
+void begin_depth_prepass_rendering();
+void end_depth_prepass_rendering();
+
 void begin_shadow_rendering();
 void draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh);
 void end_shadow_rendering();
 
 void render_frame(bool end_forward);
+
+
+
+#include "quark_helpers.hpp"
 
 #include "quark_internal.hpp"
 

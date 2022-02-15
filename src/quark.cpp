@@ -51,6 +51,8 @@ void quark::init() {
     internal::copy_staging_buffers_to_gpu();
     internal::init_pipelines();
 
+    internal::init_physics();
+
     printf("Quark initialized!\n");
 
     if (init_func != 0) {
