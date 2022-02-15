@@ -112,8 +112,13 @@ inline VkPipelineLayout depth_only_pipeline_layout; // Debug pipeline layout
 inline VkPipeline depth_only_pipeline;              // Depth only sun pipeline thing
 inline VkRenderPass depth_only_render_pass;         // Sunlight render pass
 
-inline std::vector<VkFramebuffer> framebuffers; // Common framebuffers
-inline std::vector<VkFramebuffer> depth_only_framebuffers; // Depth framebuffers
+inline VkPipelineLayout depth_prepass_pipeline_layout; // Debug pipeline layout
+inline VkPipeline depth_prepass_pipeline;              // Depth only sun pipeline thing
+inline VkRenderPass depth_prepass_render_pass;         // Sunlight render pass
+
+inline VkFramebuffer* framebuffers; // Common framebuffers
+inline VkFramebuffer* depth_prepass_framebuffers; // Common framebuffers
+inline VkFramebuffer* depth_only_framebuffers; // Depth framebuffers
 
 inline usize frame_count = 0;     // Current frame number
 inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
@@ -151,6 +156,8 @@ void init_sync_objects();
 void init_pipelines();
 void init_buffers();
 void init_descriptors();
+
+void init_physics();
 
 bool sphere_in_frustum(Pos pos, Rot rot, Scl scl);
 bool box_in_frustum(Pos pos, Scl Scl);

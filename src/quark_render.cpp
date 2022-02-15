@@ -368,7 +368,9 @@ void quark::internal::init_framebuffers() {
     framebuffer_info.pNext = 0;
 
     const u32 swapchain_image_count = swapchain_images.size();
-    framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
+
+    //framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
+    framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
 
     for_every(index, swapchain_image_count) {
         VkImageView attachments[2];
@@ -381,10 +383,24 @@ void quark::internal::init_framebuffers() {
     }
 
     framebuffer_info.renderPass = depth_only_render_pass;
+
+    //depth_prepass_framebuffers = render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
+
+    //for_every(index, swapchain_image_count) {
+    //    VkImageView attachments[1];
+    //    //attachments[0] = swapchain_image_views[index];
+    //    attachments[0] = global_depth_image.view;
+
+    //    framebuffer_info.attachmentCount = 1;
+    //    framebuffer_info.pAttachments = attachments;
+    //    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_prepass_framebuffers[index]));
+    //}
+
     framebuffer_info.width = 1024;
     framebuffer_info.height = 1024;
 
-    depth_only_framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
+    depth_only_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
+    //depth_only_framebuffers = std::vector<VkFramebuffer>(swapchain_image_count);
 
     for_every(index, swapchain_image_count) {
         VkImageView attachments[1];
@@ -619,12 +635,25 @@ void quark::internal::init_pipelines() {
     shader_stages[0].module = *assets.get<VkVertexShader>("depth_only");
     shader_stages[1].module = 0;
 
+    //viewport.minDepth = 0.0f;
+    //viewport.maxDepth = 1.0f;
+
+    //scissor.offset = {0, 0};
+
     rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization_info.lineWidth = 1.0f;
-    pipeline_info.layout = depth_only_pipeline_layout;
+    pipeline_info.layout = depth_prepass_pipeline_layout;
+    pipeline_info.renderPass = depth_prepass_render_pass;
+
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_prepass_pipeline));
+
+    viewport.width = 1024.0f;
+    viewport.height = 1024.0f;
+    scissor.extent = {1024, 1024};
+
     pipeline_info.renderPass = depth_only_render_pass;
 
-    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_only_pipeline));
+    vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_prepass_pipeline));
 }
 
 void quark::internal::init_buffers() {
@@ -994,7 +1023,41 @@ void quark::internal::resize_swapchain() {
 }
 
 void quark::begin_frame() {
-    f32 camera_aspect = (f32)window_w / (f32)window_h;
+
+    // TODO Sean: dont block the thread
+    vk_check(vkWaitForFences(device, 1, &render_fence[frame_index], true, OP_TIMEOUT));
+    vk_check(vkResetFences(device, 1, &render_fence[frame_index]));
+
+    // TODO Sean: dont block the thread
+    VkResult result = vkAcquireNextImageKHR(device, swapchain, OP_TIMEOUT, present_semaphore[frame_index], 0, &swapchain_image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        printf("Herer!\n");
+        resize_swapchain();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        panic("Failed to acquire swapchain image!");
+    }
+
+    vk_check(vkResetCommandBuffer(main_cmd_buf[frame_index], 0));
+
+    VkCommandBufferBeginInfo command_begin_info = {};
+    command_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    command_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    command_begin_info.pInheritanceInfo = 0;
+    command_begin_info.pNext = 0;
+
+    vk_check(vkBeginCommandBuffer(main_cmd_buf[frame_index], &command_begin_info));
+}
+
+void update_view_stuff(int width, int height) {
+    f32 camera_aspect = (f32)width / (f32)height;
+
+    //VkViewport viewport[1] = {{0, 0, (f32)width, (f32)height, 0.0f, 1.0f}};
+    //vkCmdSetViewport(main_cmd_buf[frame_index], 0, 1, viewport);
+
+    //VkRect2D scissor[1] = {{0, 0, (u32)width, (u32)height}};
+    //vkCmdSetScissor(main_cmd_buf[frame_index], 0, 1, scissor);
 
     projection_matrix = perspective(radians(camera_fov), camera_aspect, camera_znear, camera_zfar);
     view_matrix = look_dir(camera_position, camera_direction, VEC3_UNIT_Z);
@@ -1030,33 +1093,12 @@ void quark::begin_frame() {
         }
     }
 
-    // TODO Sean: dont block the thread
-    vk_check(vkWaitForFences(device, 1, &render_fence[frame_index], true, OP_TIMEOUT));
-    vk_check(vkResetFences(device, 1, &render_fence[frame_index]));
-
-    // TODO Sean: dont block the thread
-    VkResult result = vkAcquireNextImageKHR(device, swapchain, OP_TIMEOUT, present_semaphore[frame_index], 0, &swapchain_image_index);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        printf("Herer!\n");
-        resize_swapchain();
-        return;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        panic("Failed to acquire swapchain image!");
-    }
-
-    vk_check(vkResetCommandBuffer(main_cmd_buf[frame_index], 0));
-
-    VkCommandBufferBeginInfo command_begin_info = {};
-    command_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    command_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    command_begin_info.pInheritanceInfo = 0;
-    command_begin_info.pNext = 0;
-
-    vk_check(vkBeginCommandBuffer(main_cmd_buf[frame_index], &command_begin_info));
+    view_projection_matrix = quark::mul(projection_matrix, view_matrix);
 }
 
 void quark::begin_shadow_rendering() {
+    update_view_stuff(1024, 1024);
+
     VkClearValue depth_clear;
     depth_clear.depthStencil.depth = 1.0f;
 
@@ -1079,15 +1121,42 @@ void quark::begin_shadow_rendering() {
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
-
-    //view_projection_matrix = quark::mul(projection_matrix, view_matrix);
 }
 
 void quark::end_shadow_rendering() {
     vkCmdEndRenderPass(main_cmd_buf[frame_index]);
 }
 
+void quark::begin_depth_prepass_rendering() {
+    update_view_stuff(window_w, window_h);
+
+    VkClearValue depth_clear;
+    depth_clear.depthStencil.depth = 1.0f;
+
+    VkClearValue clear_values[1] = {depth_clear};
+
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = render_pass;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = window_w;
+    render_pass_begin_info.renderArea.extent.height = window_h;
+    render_pass_begin_info.framebuffer = depth_prepass_framebuffers[swapchain_image_index];
+    render_pass_begin_info.clearValueCount = 1;
+    render_pass_begin_info.pClearValues = clear_values;
+    render_pass_begin_info.pNext = 0;
+
+    vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void quark::end_depth_prepass_rendering() {
+    vkCmdEndRenderPass(main_cmd_buf[frame_index]);
+}
+
 void quark::begin_forward_rendering() {
+    update_view_stuff(window_w, window_h);
+
     VkClearValue color_clear;
     color_clear.color.float32[0] = PURE_BLACK.x[0];
     color_clear.color.float32[1] = PURE_BLACK.x[1];
@@ -1112,8 +1181,6 @@ void quark::begin_forward_rendering() {
     render_pass_begin_info.pNext = 0;
 
     vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    view_projection_matrix = quark::mul(projection_matrix, view_matrix);
 
     // Update lights
     {
@@ -1263,32 +1330,31 @@ bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
 
 bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
     struct Box {
-        f32 minx, maxx;
-        f32 miny, maxy;
-        f32 minz, maxz;
+        vec3 min;
+        vec3 max;
     };
 
     scl.x *= 1.5f;
 
     Box box = {
-        pos.x.x - scl.x.x, pos.x.x + scl.x.x, pos.x.y - scl.x.y, pos.x.y + scl.x.y, pos.x.z - scl.x.z, pos.x.z + scl.x.z,
+        pos.x - scl.x,
+        pos.x + scl.x,
     };
 
     for_every(i, 6) {
         int out = 0;
-        out += (dot(planes[i], vec4{box.minx, box.miny, box.minz, 1.0f}) < 0.0) ? 1 : 0;
-        out += (dot(planes[i], vec4{box.maxx, box.miny, box.minz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4{box.minx, box.maxy, box.minz, 1.0f}) < 0.0) ? 1 : 0;
-        out += (dot(planes[i], vec4{box.maxx, box.maxy, box.minz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4{box.maxx, box.miny, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
-        out += (dot(planes[i], vec4{box.minx, box.miny, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
 
-        out += (dot(planes[i], vec4{box.maxx, box.maxy, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
-        out += (dot(planes[i], vec4{box.minx, box.maxy, box.maxz, 1.0f}) < 0.0) ? 1 : 0;
-        if (out == 8)
-            return false;
+        out += (dot(planes[i], vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+        out += (dot(planes[i], vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+        if (out == 8) { return false; }
     }
 
     return true;
@@ -1361,14 +1427,30 @@ void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
 }
 
 void quark::render_frame(bool end_forward) {
+    // Todo Sean: Look into not recalculating frustum stuff?
+    // Selectively copy then re-use likely
+
     begin_shadow_rendering();
     {
         auto shadow_pass = registry.view<Pos, Rot, Scl, Mesh, ShadowsEnabled>();
         for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
-            draw_shadow(pos, rot, scl, mesh);
+            if(box_in_frustum(pos, scl)) {
+                draw_shadow(pos, rot, scl, mesh);
+            }
         }
     }
     end_shadow_rendering();
+
+    //being_depth_prepass_rendering();
+    //{
+    //    auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>();
+    //    for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
+    //        if(box_in_frustum(pos, scl)) {
+    //            draw_depth(pos, rot, scl, mesh);
+    //        }
+    //    }
+    //}
+    //end_depth_prepass_rendering();
 
     begin_forward_rendering();
     {
@@ -1427,20 +1509,17 @@ void quark::internal::print_performance_statistics() {
     if (timer > threshold) {
         // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
         // to work
-        printf("---- Performance Statistics ----\n"
-               "Target:  %.2fms (%.2f%%)\n"
-               "Average: %.2fms (%.2f%%)\n"
-               "High:    %.2fms (%.2f%%)\n"
-               "Low:     %.2fms (%.2f%%)\n"
-               "\n",
-               (1.0f / (f32)target) * 1000.0f,
-               100.0f, //
-               (1.0f / (f32)frame_number) * 1000.0f,
-               100.0f / ((f32)frame_number / (f32)target), //
-               high * 1000.0f,                             //
-               100.0f * (high / (1.0f / (f32)target)),     //
-               low * 1000.0f,                              //
-               100.0f * (low / (1.0f / (f32)target))       //
+        printf(
+            "---- Performance Statistics ----\n"
+            "Target:  %.2fms (%.2f%%)\n"
+            "Average: %.2fms (%.2f%%)\n"
+            "High:    %.2fms (%.2f%%)\n"
+            "Low:     %.2fms (%.2f%%)\n"
+            "\n",
+            (1.0f / (f32)target) * 1000.0f, 100.0f,                                           // Target framerate calculation
+            (1.0f / (f32)frame_number) * 1000.0f, 100.0f / ((f32)frame_number / (f32)target), // Average framerate calculation
+            high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)),                           // High framerate calculation
+            low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))                              // Low framerate calculation
         );
 
         timer -= threshold;
