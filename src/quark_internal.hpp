@@ -101,6 +101,27 @@ inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 inline VkDescriptorSetLayout render_constants_layout;
 inline VkDescriptorPool global_descriptor_pool;
 
+struct RenderEffect {
+    // Same thing with this, without some kind of reference counting this becomes quite annoying to keep track of
+    VkPipelineLayout layout;
+    VkPipeline pipeline;
+    VkRenderPass render_pass;
+
+    // Not sure about this
+    // If these are all just pointers anyways im not sure it makes no difference to copy them around and shit
+    // The only thing that i dont really like about this is that it becomes a pain to keep track of when these
+    // get destroyed without some kind of reference counting
+    VkFramebuffer* framebuffers;
+    VkDescriptorSetLayout descriptor_layout;
+    VkDescriptorPool descriptor_pool;
+};
+
+inline RenderEffect lit_shadow_effect;
+inline RenderEffect solid_effect;
+inline RenderEffect wireframe_effect;
+inline RenderEffect depth_only_effect;
+inline RenderEffect depth_prepass_effect;
+
 inline VkPipelineLayout lit_pipeline_layout;   // Deferred shading pipeline layout
 inline VkPipelineLayout color_pipeline_layout; // Debug pipeline layout
 inline VkPipeline lit_pipeline;                // Deferred shading pipeline

@@ -86,10 +86,10 @@ void quark::deinit() {
         (*deinit_func)();
     }
 
-    // TODO: don't run cleanup if release build
-
     vkDeviceWaitIdle(device);
 
+// Sean: Don't run cleanup if release build
+#ifdef DEBUG
     quark::internal::deinit_sync_objects();
 
     quark::internal::deinit_buffers_and_images();
@@ -105,6 +105,7 @@ void quark::deinit() {
     quark::internal::deinit_allocators();
     quark::internal::deinit_vulkan();
     quark::internal::deinit_window();
+#endif
 
     //#endif
 }
