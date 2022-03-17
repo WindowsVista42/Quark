@@ -4,6 +4,8 @@
 
 #include "quark.hpp"
 
+namespace quark {
+
 using namespace quark;
 
 entt::entity static new_entity() { return registry.create(); }
@@ -198,5 +200,7 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
 
   return t;
 }
+
+};
 
 #endif //QUARK_HELPERS_HPP

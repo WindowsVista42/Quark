@@ -4,6 +4,9 @@
 
 #include <cstdint>
 
+namespace quark {
+using namespace quark;
+
 // Typedefs
 typedef float f32;
 typedef double f64;
@@ -62,5 +65,7 @@ struct mat4 {
     vec4& operator[](usize i) { return ((vec4*)this)[i]; }
     // mat4 operator*(mat4& other) { return mul(*this, other); };
 };
+
+}; // namespace quark
 
 #endif // QUARK_TYPES_HPP

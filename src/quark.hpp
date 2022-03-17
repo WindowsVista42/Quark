@@ -28,11 +28,9 @@
 
 #include <btBulletDynamicsCommon.h>
 
+// Public API
 #include "quark_allocators.hpp"
 #include "quark_asset_manager.hpp"
-
-// Public API
-namespace quark {
 
 #include "quark_colors.hpp"
 #include "quark_consts.hpp"
@@ -40,6 +38,8 @@ namespace quark {
 #include "quark_math.hpp"
 #include "quark_types.hpp"
 #include "quark_utils.hpp"
+
+namespace quark {
 
 // Globals
 inline AssetManager assets;
@@ -132,9 +132,10 @@ void end_shadow_rendering();
 
 void render_frame(bool end_forward);
 
-#include "quark_helpers.hpp"
-#include "quark_internal.hpp"
 
 }; // namespace quark
+
+#include "quark_helpers.hpp"
+#include "quark_internal.hpp"
 
 #endif // QUARK_HPP

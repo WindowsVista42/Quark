@@ -4,6 +4,9 @@
 
 #include "quark_types.hpp"
 
+namespace quark {
+using namespace quark;
+
 constexpr vec3 VEC3_ZERO = {0.0f, 0.0f, 0.0f};
 constexpr vec3 VEC3_UNIT_X = {1.0f, 0.0f, 0.0f};
 constexpr vec3 VEC3_UNIT_Y = {0.0f, 1.0f, 0.0f};
@@ -103,5 +106,7 @@ void print(const char* prefix, vec2 i);
 void print(const char* prefix, vec3 i);
 void print(const char* prefix, vec4 i);
 void print(const char* prefix, mat4 x);
+
+}; // namespace quark
 
 #endif

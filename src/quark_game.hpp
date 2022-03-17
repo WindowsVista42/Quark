@@ -10,7 +10,8 @@
 #define QUARK_INTERNALS
 #include <vk_mem_alloc.h>
 
-//#include "vk_mem_alloc.h"
+namespace quark {
+using namespace quark;
 
 // Game types
 #define TRANSPARENT_TYPE(name, inner)                                                                                                                \
@@ -150,5 +151,7 @@ struct Children {
 struct ParentL1 {
   entt::entity parent;
 };
+
+}; // namespace quark
 
 #endif

@@ -14,6 +14,10 @@
 #include "quark_game.hpp"
 #include "quark_types.hpp"
 
+namespace quark {
+
+using namespace quark;
+
 // Internals
 namespace internal {
 
@@ -211,5 +215,7 @@ void resize_swapchain();
 void print_performance_statistics();
 
 }; // namespace internal
+
+}; // namespace quark
 
 #endif

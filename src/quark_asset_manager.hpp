@@ -10,6 +10,9 @@
 
 #include "quark_types.hpp"
 
+namespace quark {
+using namespace quark;
+
 // Sean todo: use a custom stack allocator
 class AssetManager {
     typedef void* (*LoaderFunction)(std::string*);
@@ -169,5 +172,7 @@ class AssetManager {
 
     template <typename T> void add_raw_data(const char* name, T* data){};
 };
+
+}; // namespace quark
 
 #endif

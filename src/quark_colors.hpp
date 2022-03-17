@@ -4,6 +4,9 @@
 
 #include "quark_game.hpp"
 
+namespace quark {
+using namespace quark;
+
 static Col hex_to_col(const u32 hex) {
     Col col;
     col.x.x = (f32)((hex >> 16) & 0xff) / 255.0f;
@@ -31,5 +34,7 @@ inline const Col BLUE = hex_to_col(0x458588);
 inline const Col PURPLE = hex_to_col(0xb16286);
 inline const Col WHITE = hex_to_col(0xebdbb2);
 inline const Col BLACK = hex_to_col(0x1d2021);
+
+}; // namespace quark
 
 #endif
