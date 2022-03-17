@@ -1,6 +1,6 @@
 #pragma once
-#ifndef FIXED_BUFFER_ALLOCATOR_HPP
-#define FIXED_BUFFER_ALLOCATOR_HPP
+#ifndef QUARK_ALLOCATORS_HPP
+#define QUARK_ALLOCATORS_HPP
 
 #include <iostream>
 

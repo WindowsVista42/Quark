@@ -310,3 +310,24 @@ vec4 quark::mul(mat4 m, vec4 v) {
         m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3],
     };
 }
+
+//vec4 quark::mul_quat(vec4 qa, vec4 qb) {
+//  vec4 q;
+//
+//  q.x =  qa.x * qb.w + qa.y * qb.z - qa.z * qb.y + qa.w * qb.x;
+//  q.y = -qa.x * qb.z + qa.y * qb.w + qa.z * qb.x + qa.w * qb.y;
+//  q.z =  qa.x * qb.y - qa.y * qb.x + qa.z * qb.w + qa.w * qb.z;
+//  q.w = -qa.x * qb.x - qa.y * qb.y - qa.z * qb.z + qa.w * qb.w;
+//
+//  return q;
+//}
+vec4 quark::mul_quat(vec4 qa, vec4 qb) {
+    vec4 q;
+
+    q.x = qa.w * qb.x + qa.x * qb.w + qa.y * qb.z - qa.z * qb.y;
+    q.y = qa.w * qb.y - qa.x * qb.z + qa.y * qb.w + qa.z * qb.x;
+    q.z = qa.w * qb.z + qa.x * qb.y - qa.y * qb.x + qa.z * qb.w;
+    q.w = qa.w * qb.w - qa.x * qb.x - qa.y * qb.y - qa.z * qb.z;
+
+    return q;
+}

@@ -132,10 +132,7 @@ void end_shadow_rendering();
 
 void render_frame(bool end_forward);
 
-
-
 #include "quark_helpers.hpp"
-
 #include "quark_internal.hpp"
 
 }; // namespace quark

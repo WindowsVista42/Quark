@@ -5,6 +5,8 @@
 #include "quark_types.hpp"
 #include <vulkan/vulkan.h>
 
+#include <entt/entity/entity.hpp>
+
 #define QUARK_INTERNALS
 #include <vk_mem_alloc.h>
 
@@ -23,6 +25,10 @@ TRANSPARENT_TYPE(Pos, vec3);                        /* Global world position */
 TRANSPARENT_TYPE(Rot, vec4);                        /* Global world rotation (quaternion) */
 TRANSPARENT_TYPE(Scl, vec3);                        /* Global world scale */
 TRANSPARENT_TYPE(Col, vec4);                        /* Color */
+
+TRANSPARENT_TYPE(RelPos, vec3);                        /* Relative world position */
+TRANSPARENT_TYPE(RelRot, vec4);                        /* Relative world rotation (quaternion) */
+TRANSPARENT_TYPE(RelScl, vec3);                        /* Relative world scale */
 
 #undef TRANSPARENT_TYPE
 
@@ -130,5 +136,19 @@ struct LitPass {};
 // Lighting tags
 struct Light {};
 struct ShadowsEnabled {};
+
+// Parent-Child relationships
+struct Parent {
+  entt::entity parent;
+};
+
+struct Children {
+  i32 count;
+  entt::entity children[15]; // TODO sean: move this to some kind of allocator?
+};
+
+struct ParentL1 {
+  entt::entity parent;
+};
 
 #endif

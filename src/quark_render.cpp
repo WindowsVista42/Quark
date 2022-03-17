@@ -1297,21 +1297,19 @@ void quark::begin_lit_pass() {
     vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-template <typename F> void quark::flush_render_batch(F f) {
-    for_every(index, render_data_count) {
-        RenderData rd = render_data[index];
-        f(rd.pos, rd.rot, rd.scl, rd.mesh, index);
-    }
-
-    render_data_count = 0;
-}
-
 void quark::end_lit_pass() {
     // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
     //     return a.camera_distance < b.camera_distance;
     // });
 
-    flush_render_batch(draw_lit);
+    //flush_render_batch(draw_lit);
+
+    for_every(index, render_data_count) {
+        RenderData rd = render_data[index];
+        draw_lit(rd.pos, rd.rot, rd.scl, rd.mesh, index);
+    }
+
+    render_data_count = 0;
 }
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {

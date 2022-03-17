@@ -19,7 +19,7 @@ const mat4 MAT4_IDENTITY = {
 
 f32 length(vec3 vector);
 f32 length_recip(vec3 vector);
-vec3 normalize(vec3 vector);
+//vec3 normalize(vec3 vector);
 vec3 cross(vec3 lhs, vec3 rhs);
 f32 dot(vec3 lhs, vec3 rhs);
 f32 dot(vec4 lhs, vec4 rhs);
@@ -56,6 +56,7 @@ f32 length_recip(vec3 x);
 
 mat4 mul(mat4 m0, mat4 m1);
 vec4 mul(mat4 m, vec4 v);
+vec4 mul_quat(vec4 qa, vec4 qb);
 
 f32 wrap(f32 x, f32 min, f32 max);
 f32 wrap(f32 x, f32 v);
