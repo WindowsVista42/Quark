@@ -172,7 +172,7 @@ static auto mul_transform(
   return result;
 }
 
-static void add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, RelScl rel_scl) {
+static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, RelScl rel_scl) {
   Parent* p = try_get_component<Parent>(e);
   if(p == 0) {
     panic("Please add parent components to child before calling add_relative_transform_components!\n");
@@ -195,6 +195,8 @@ static void add_relative_transform_components(entt::entity e, RelPos rel_pos, Re
   add_component(e, t.out_pos);
   add_component(e, t.out_rot);
   add_component(e, t.out_scl);
+
+  return t;
 }
 
 #endif //QUARK_HELPERS_HPP
