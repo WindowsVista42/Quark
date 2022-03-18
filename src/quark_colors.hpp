@@ -8,13 +8,13 @@ namespace quark {
 using namespace quark;
 
 static Col hex_to_col(const u32 hex) {
-    Col col;
-    col.x.x = (f32)((hex >> 16) & 0xff) / 255.0f;
-    col.x.y = (f32)((hex >> 8) & 0xff) / 255.0f;
-    col.x.z = (f32)((hex >> 0) & 0xff) / 255.0f;
-    col.x.w = 1.0f;
+  Col col;
+  col.x.x = (f32)((hex >> 16) & 0xff) / 255.0f;
+  col.x.y = (f32)((hex >> 8) & 0xff) / 255.0f;
+  col.x.z = (f32)((hex >> 0) & 0xff) / 255.0f;
+  col.x.w = 1.0f;
 
-    return col;
+  return col;
 }
 
 inline const Col PURE_RED = {{1.0f, 0.0f, 0.0f, 1.0f}};

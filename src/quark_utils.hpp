@@ -9,14 +9,14 @@
 #define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
 
 #define panic(message)                                                                                                                               \
-    fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                                                       \
-    char* a = 0;                                                                                                                                     \
-    *a = 0
+  fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                                                         \
+  char* a = 0;                                                                                                                                       \
+  *a = 0
 
 template <typename F> struct __Defer {
-    F f;
-    __Defer(F f) : f(f) {}
-    ~__Defer() { f(); }
+  F f;
+  __Defer(F f) : f(f) {}
+  ~__Defer() { f(); }
 };
 
 template <typename F> __Defer<F> defer_func(F f) { return __Defer<F>(f); }

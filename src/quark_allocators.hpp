@@ -16,47 +16,47 @@ namespace quark {
 using namespace quark;
 
 #define vk_check(x)                                                                                                                                  \
-    do {                                                                                                                                             \
-        VkResult err = x;                                                                                                                            \
-        if (err) {                                                                                                                                   \
-            std::cout << "Detected Vulkan error: " << err << '\n';                                                                                   \
-            panic("");                                                                                                                               \
-        }                                                                                                                                            \
-    } while (0)
+  do {                                                                                                                                               \
+    VkResult err = x;                                                                                                                                \
+    if (err) {                                                                                                                                       \
+      std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
+      panic("");                                                                                                                                     \
+    }                                                                                                                                                \
+  } while (0)
 
 struct LinearAllocator {
-  private:
-    u8* data;
-    usize length;
-    usize capacity;
+private:
+  u8* data;
+  usize length;
+  usize capacity;
 
-  public:
-    void init(usize capacity) {
-        this->data = (u8*)malloc(capacity);
-        this->length = 0;
-        this->capacity = capacity;
+public:
+  void init(usize capacity) {
+    this->data = (u8*)malloc(capacity);
+    this->length = 0;
+    this->capacity = capacity;
+  }
+
+  u8* alloc(usize size) {
+    usize new_length = this->length + size;
+
+    // TODO: figure out how I want to conditional enable this
+    if (new_length > this->capacity) {
+      panic("Failed to allocate to FixedBufferAllocator!");
     }
 
-    u8* alloc(usize size) {
-        usize new_length = this->length + size;
+    u8* ptr = (data + length);
+    this->length += size;
+    return ptr;
+  }
 
-        // TODO: figure out how I want to conditional enable this
-        if (new_length > this->capacity) {
-            panic("Failed to allocate to FixedBufferAllocator!");
-        }
+  void reset() { length = 0; }
 
-        u8* ptr = (data + length);
-        this->length += size;
-        return ptr;
-    }
-
-    void reset() { length = 0; }
-
-    void deinit() {
-        free(this->data);
-        this->length = 0;
-        this->capacity = 0;
-    }
+  void deinit() {
+    free(this->data);
+    this->length = 0;
+    this->capacity = 0;
+  }
 };
 
 // struct AtomicGpuLinearAllocator {
@@ -87,37 +87,37 @@ struct LinearAllocator {
 // };
 
 struct LinearAllocationTracker {
-  private:
-    usize length;
-    usize capacity;
+private:
+  usize length;
+  usize capacity;
 
-  public:
-    void init(usize capacity) {
-        this->length = 0;
-        this->capacity = capacity;
+public:
+  void init(usize capacity) {
+    this->length = 0;
+    this->capacity = capacity;
+  }
+
+  usize alloc(usize size) {
+    usize new_length = this->length + size;
+
+    // TODO: figure out how I want to conditional enable this
+    if (new_length > this->capacity) {
+      panic("Failed to allocate to FixedBufferAllocator!");
     }
 
-    usize alloc(usize size) {
-        usize new_length = this->length + size;
+    usize offset = this->length;
+    this->length += size;
+    return offset;
+  }
 
-        // TODO: figure out how I want to conditional enable this
-        if (new_length > this->capacity) {
-            panic("Failed to allocate to FixedBufferAllocator!");
-        }
+  void reset() { length = 0; }
 
-        usize offset = this->length;
-        this->length += size;
-        return offset;
-    }
+  void deinit() {
+    this->length = 0;
+    this->capacity = 0;
+  }
 
-    void reset() { length = 0; }
-
-    void deinit() {
-        this->length = 0;
-        this->capacity = 0;
-    }
-
-    usize size() { return length; }
+  usize size() { return length; }
 };
 
 }; // namespace quark

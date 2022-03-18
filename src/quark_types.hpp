@@ -35,35 +35,35 @@ struct mat4;
 // INTERNAL STUFF YOU DONT NEED TO WORRY ABOUT
 
 struct vec3packed {
-    f32 x;
-    f32 y;
-    f32 z;
-    vec3 to_vec3() {
-        vec3 ret;
-        ret.x = x;
-        ret.y = y;
-        ret.z = z;
-        return ret;
-    };
+  f32 x;
+  f32 y;
+  f32 z;
+  vec3 to_vec3() {
+    vec3 ret;
+    ret.x = x;
+    ret.y = y;
+    ret.z = z;
+    return ret;
+  };
 };
 
 // mat3 mul(mat3 lhs, mat3 rhs);
 struct mat3 {
-    vec3 xs;
-    vec3 ys;
-    vec3 zs;
-    vec3& operator[](usize i) { return ((vec3*)this)[i]; }
-    // mat3 operator*(mat3& other) { return mul(*this, other); };
+  vec3 xs;
+  vec3 ys;
+  vec3 zs;
+  vec3& operator[](usize i) { return ((vec3*)this)[i]; }
+  // mat3 operator*(mat3& other) { return mul(*this, other); };
 };
 
 // mat4 mul(mat4 lhs, mat4 rhs);
 struct mat4 {
-    vec4 xs;
-    vec4 ys;
-    vec4 zs;
-    vec4 ws;
-    vec4& operator[](usize i) { return ((vec4*)this)[i]; }
-    // mat4 operator*(mat4& other) { return mul(*this, other); };
+  vec4 xs;
+  vec4 ys;
+  vec4 zs;
+  vec4 ws;
+  vec4& operator[](usize i) { return ((vec4*)this)[i]; }
+  // mat4 operator*(mat4& other) { return mul(*this, other); };
 };
 
 }; // namespace quark

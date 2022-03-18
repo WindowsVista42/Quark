@@ -16,7 +16,7 @@ template <typename T> static T* try_get_component(entt::entity e) { return regis
 
 template <typename T> static T& get_asset(const char* name) { return *assets.get<T>(name); }
 template <typename T> static T* get_all_asset(const char* name) { return *assets.get_all<T>(name); }
-template <typename T> static T* try_get_asset(const char* name) { return 0; }//assets.try_get<T>(name); }
+template <typename T> static T* try_get_asset(const char* name) { return 0; } // assets.try_get<T>(name); }
 template <typename T> static usize get_asset_count() { return assets.size<T>(); }
 
 static btCollisionShape* create_box_shape(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
@@ -24,106 +24,106 @@ static btCollisionShape* create_sphere_shape(f32 radius) { return new btSphereSh
 static btCollisionShape* create_capsule_shape(f32 radius, f32 height) { return new btCapsuleShape(radius, height); }
 
 union RbUserData {
-    void* ptr;
-    struct {
-        entt::entity e;
-        int pad;
-    };
+  void* ptr;
+  struct {
+    entt::entity e;
+    int pad;
+  };
 };
 
 static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 origin, f32 mass) {
-    btTransform transform;
-    transform.setIdentity();
-    transform.setOrigin({origin.x, origin.y, origin.z});
+  btTransform transform;
+  transform.setIdentity();
+  transform.setOrigin({origin.x, origin.y, origin.z});
 
-    bool is_dynamic(mass != 0.0f);
+  bool is_dynamic(mass != 0.0f);
 
-    btVector3 local_inertia = {};
-    if (is_dynamic) {
-        shape->calculateLocalInertia(mass, local_inertia);
-    }
+  btVector3 local_inertia = {};
+  if (is_dynamic) {
+    shape->calculateLocalInertia(mass, local_inertia);
+  }
 
-    btDefaultMotionState* motion_state = new btDefaultMotionState(transform);
-    btRigidBody::btRigidBodyConstructionInfo rb_info(mass, motion_state, shape, local_inertia);
-    btRigidBody* body = new btRigidBody(rb_info);
+  btDefaultMotionState* motion_state = new btDefaultMotionState(transform);
+  btRigidBody::btRigidBodyConstructionInfo rb_info(mass, motion_state, shape, local_inertia);
+  btRigidBody* body = new btRigidBody(rb_info);
 
-    RbUserData user_data;
-    user_data.e = e;
-    body->setUserPointer(user_data.ptr);
+  RbUserData user_data;
+  user_data.e = e;
+  body->setUserPointer(user_data.ptr);
 
-    return body;
+  return body;
 }
 
 static void set_user_data(btCollisionObject* t, entt::entity e) {
-    RbUserData data;
-    data.e = e;
-    t->setUserPointer(data.ptr);
+  RbUserData data;
+  data.e = e;
+  t->setUserPointer(data.ptr);
 }
 
 static void set_user_data(btRigidBody* t, entt::entity e) {
-    RbUserData data;
-    data.e = e;
-    t->setUserPointer(data.ptr);
+  RbUserData data;
+  data.e = e;
+  t->setUserPointer(data.ptr);
 }
 
 static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
-    add_component(e, Pos{pos});
-    add_component(e, Rot{rot});
-    add_component(e, Scl{scl});
+  add_component(e, Pos{pos});
+  add_component(e, Rot{rot});
+  add_component(e, Scl{scl});
 }
 
 enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
 
 static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags) {
-    add_component(e, Col{col});
-    add_component(e, mesh);
+  add_component(e, Col{col});
+  add_component(e, mesh);
 
-    switch (render_flags) {
-    case (RENDER_LIT): {
-        add_component(e, LitPass{});
-    } break;
-    case (RENDER_SOLID): {
-        add_component(e, SolidPass{});
-    } break;
-    case (RENDER_WIREFRAME): {
-        add_component(e, WireframePass{});
-    } break;
-    }
+  switch (render_flags) {
+  case (RENDER_LIT): {
+    add_component(e, LitPass{});
+  } break;
+  case (RENDER_SOLID): {
+    add_component(e, SolidPass{});
+  } break;
+  case (RENDER_WIREFRAME): {
+    add_component(e, WireframePass{});
+  } break;
+  }
 }
 
 static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
-    btCollisionObject* collision_object = new btCollisionObject();
+  btCollisionObject* collision_object = new btCollisionObject();
 
-    btTransform transform;
+  btTransform transform;
 
-    transform.setOrigin({pos.x.x, pos.x.y, pos.x.z});
-    transform.setRotation({rot.x.x, rot.x.y, rot.x.z, rot.x.w});
+  transform.setOrigin({pos.x.x, pos.x.y, pos.x.z});
+  transform.setRotation({rot.x.x, rot.x.y, rot.x.z, rot.x.w});
 
-    collision_object->setWorldTransform(transform);
-    collision_object->setCollisionShape(create_box_shape(scl.x));
-    collision_object->setCollisionFlags(0);
+  collision_object->setWorldTransform(transform);
+  collision_object->setCollisionShape(create_box_shape(scl.x));
+  collision_object->setCollisionFlags(0);
 
-    set_user_data(collision_object, e);
+  set_user_data(collision_object, e);
 
-    physics_world->addCollisionObject(collision_object);
-    add_component(e, collision_object);
+  physics_world->addCollisionObject(collision_object);
+  add_component(e, collision_object);
 }
 
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
 
 static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-    auto body = create_rb(e, shape, pos.x, mass);
+  auto body = create_rb(e, shape, pos.x, mass);
 
-    physics_world->addRigidBody(body, 1, 1);
-    add_component(e, body);
+  physics_world->addRigidBody(body, 1, 1);
+  add_component(e, body);
 }
 
 static void add_moving_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
-    auto body = create_rb(e, shape, pos.x, mass);
-    body->setLinearVelocity({vel.x, vel.y, vel.z});
+  auto body = create_rb(e, shape, pos.x, mass);
+  body->setLinearVelocity({vel.x, vel.y, vel.z});
 
-    physics_world->addRigidBody(body, 1, 1);
-    add_component(e, body);
+  physics_world->addRigidBody(body, 1, 1);
+  add_component(e, body);
 }
 
 static void add_parent_components(entt::entity e, entt::entity p) {
@@ -133,12 +133,12 @@ static void add_parent_components(entt::entity e, entt::entity p) {
   Children* children = try_get_component<Children>(p);
 
   // add children component to parent if they dont exist
-  if(children == 0) {
+  if (children == 0) {
     add_component(p, Children{0, {}});
     children = try_get_component<Children>(p);
   }
 
-  if(children->count >= 15) {
+  if (children->count >= 15) {
     panic("Tried to add more than 15 children to entity!");
   }
 
@@ -160,10 +160,7 @@ struct TResult {
   Scl out_scl;
 };
 
-static auto mul_transform(
-    Pos a_pos, Rot a_rot, Scl a_scl,
-    Pos b_pos, Rot b_rot, Scl b_scl
-) {
+static auto mul_transform(Pos a_pos, Rot a_rot, Scl a_scl, Pos b_pos, Rot b_rot, Scl b_scl) {
   TResult result;
 
   result.out_pos = mul_transform_position(a_pos, b_pos, b_rot, b_scl);
@@ -176,7 +173,7 @@ static auto mul_transform(
 
 static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, RelScl rel_scl) {
   Parent* p = try_get_component<Parent>(e);
-  if(p == 0) {
+  if (p == 0) {
     panic("Please add parent components to child before calling add_relative_transform_components!\n");
   }
 
@@ -201,6 +198,6 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
   return t;
 }
 
-};
+}; // namespace quark
 
-#endif //QUARK_HELPERS_HPP
+#endif // QUARK_HELPERS_HPP

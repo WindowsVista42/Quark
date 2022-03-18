@@ -23,40 +23,40 @@ namespace internal {
 
 // Internal Types
 struct DeferredPushConstant {
-    mat4 world_view_projection; // 64 bytes
-    vec4 world_rotation;
-    vec4 world_position; // w is texture index
-    vec4 world_scale;
+  mat4 world_view_projection; // 64 bytes
+  vec4 world_rotation;
+  vec4 world_position; // w is texture index
+  vec4 world_scale;
 };
 
 struct DebugPushConstant {
-    vec4 color;
-    mat4 world_view_projection;
+  vec4 color;
+  mat4 world_view_projection;
 };
 
 struct RenderData {
-    Pos pos;
-    Rot rot;
-    Scl scl;
-    Mesh mesh;
+  Pos pos;
+  Rot rot;
+  Scl scl;
+  Mesh mesh;
 };
 
 struct RenderConstants {
-    LightData lights[1024];
-    u32 light_count;
-    u32 _pad0;
-    u32 _pad1;
-    u32 _pad2;
-    vec4 camera_direction;
-    vec4 camera_position;
-    f32 time;
+  LightData lights[1024];
+  u32 light_count;
+  u32 _pad0;
+  u32 _pad1;
+  u32 _pad2;
+  vec4 camera_direction;
+  vec4 camera_position;
+  f32 time;
 };
 
 struct CullData {
-    f32 frustum[4];
-    f32 dist_cull;
-    f32 znear;
-    f32 zfar;
+  f32 frustum[4];
+  f32 dist_cull;
+  f32 znear;
+  f32 zfar;
 };
 
 // Internal Globals
@@ -80,7 +80,7 @@ inline std::vector<VkImageView> swapchain_image_views; // Swapchain image views
 inline VkFormat swapchain_format;                      // Swapchain image format
 
 inline AllocatedImage global_depth_image; // Global depth buffer
-inline AllocatedImage sun_depth_image; // Sunlight depth buffer
+inline AllocatedImage sun_depth_image;    // Sunlight depth buffer
 
 inline VkQueue graphics_queue; // Graphics queue
 inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
@@ -106,18 +106,18 @@ inline VkDescriptorSetLayout render_constants_layout;
 inline VkDescriptorPool global_descriptor_pool;
 
 struct RenderEffect {
-    // Same thing with this, without some kind of reference counting this becomes quite annoying to keep track of
-    VkPipelineLayout layout;
-    VkPipeline pipeline;
-    VkRenderPass render_pass;
+  // Same thing with this, without some kind of reference counting this becomes quite annoying to keep track of
+  VkPipelineLayout layout;
+  VkPipeline pipeline;
+  VkRenderPass render_pass;
 
-    // Not sure about this
-    // If these are all just pointers anyways im not sure it makes no difference to copy them around and shit
-    // The only thing that i dont really like about this is that it becomes a pain to keep track of when these
-    // get destroyed without some kind of reference counting
-    VkFramebuffer* framebuffers;
-    VkDescriptorSetLayout descriptor_layout;
-    VkDescriptorPool descriptor_pool;
+  // Not sure about this
+  // If these are all just pointers anyways im not sure it makes no difference to copy them around and shit
+  // The only thing that i dont really like about this is that it becomes a pain to keep track of when these
+  // get destroyed without some kind of reference counting
+  VkFramebuffer* framebuffers;
+  VkDescriptorSetLayout descriptor_layout;
+  VkDescriptorPool descriptor_pool;
 };
 
 inline RenderEffect lit_shadow_effect;
@@ -141,9 +141,9 @@ inline VkPipelineLayout depth_prepass_pipeline_layout; // Debug pipeline layout
 inline VkPipeline depth_prepass_pipeline;              // Depth only sun pipeline thing
 inline VkRenderPass depth_prepass_render_pass;         // Sunlight render pass
 
-inline VkFramebuffer* framebuffers; // Common framebuffers
+inline VkFramebuffer* framebuffers;               // Common framebuffers
 inline VkFramebuffer* depth_prepass_framebuffers; // Common framebuffers
-inline VkFramebuffer* depth_only_framebuffers; // Depth framebuffers
+inline VkFramebuffer* depth_only_framebuffers;    // Depth framebuffers
 
 inline usize frame_count = 0;     // Current frame number
 inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
