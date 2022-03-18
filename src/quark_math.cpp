@@ -104,6 +104,7 @@ f32 quark::wrap(f32 x, f32 min, f32 max) {
 }
 f32 quark::wrap(f32 x, f32 v) { return wrap(x, 0.0f, v); }
 vec3 quark::normalize(vec3 v) { return v / sqrtf(dot(v, v)); }
+f32 quark::magnitude(vec3 v) { return sqrtf(dot(v, v)); }
 vec3 quark::cross(vec3 a, vec3 b) {
   // clang-format: off
   vec3 output = {a.y * b.z - b.y * a.z, a.z * b.x - b.z * a.x, a.x * b.y - b.x * a.y};
@@ -134,17 +135,11 @@ bool quark::partial_equal(vec3 lhs, vec3 rhs) { return lhs.x == rhs.x || lhs.y =
 bool quark::not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x && lhs.y != rhs.y && lhs.z != rhs.z; }
 bool quark::partial_not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x || lhs.y != rhs.y || lhs.z != rhs.z; }
 vec3 quark::spherical_to_cartesian(vec2 spherical) {
-  vec3 output = {
+  return vec3{
       cosf(spherical.x) * sinf(spherical.y),
       sinf(spherical.x) * sinf(spherical.y),
-      cosf(spherical.y),
+      -cosf(spherical.y),
   };
-
-  // Sean: We do this so that +x is forward.
-  output.x = -output.x;
-  output.y = -output.y;
-
-  return output;
 }
 vec3 quark::add(vec3 lhs, vec3 rhs) {
   vec3 output = {
@@ -155,6 +150,7 @@ vec3 quark::add(vec3 lhs, vec3 rhs) {
   return output;
 }
 mat4 quark::look_dir(vec3 eye, vec3 dir, vec3 up) {
+  dir = -dir; //Sean: left handed coordinates that are being wonk
   vec3 f = normalize(dir);
   vec3 s = normalize(cross(up, f));
   vec3 u = cross(f, s);
@@ -330,4 +326,12 @@ vec4 quark::mul_quat(vec4 qa, vec4 qb) {
   q.w = qa.w * qb.w - qa.x * qb.x - qa.y * qb.y - qa.z * qb.z;
 
   return q;
+}
+
+bool quark::vec3_eq(vec3 a, vec3 b) {
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+bool quark::vec3_ne(vec3 a, vec3 b) {
+  return !vec3_eq(a, b);
 }

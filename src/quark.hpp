@@ -38,6 +38,7 @@
 #include "quark_math.hpp"
 #include "quark_types.hpp"
 #include "quark_utils.hpp"
+#include "quark_binds.hpp"
 
 namespace quark {
 

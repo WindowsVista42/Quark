@@ -65,6 +65,7 @@ f32 wrap(f32 x, f32 min, f32 max);
 f32 wrap(f32 x, f32 v);
 
 vec3 normalize(vec3 v);
+f32 magnitude(vec3 v);
 
 vec3 cross(vec3 a, vec3 b);
 
@@ -106,6 +107,9 @@ void print(const char* prefix, vec2 i);
 void print(const char* prefix, vec3 i);
 void print(const char* prefix, vec4 i);
 void print(const char* prefix, mat4 x);
+
+bool vec3_eq(vec3 a, vec3 b);
+bool vec3_ne(vec3 a, vec3 b);
 
 }; // namespace quark
 
