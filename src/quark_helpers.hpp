@@ -1,4 +1,5 @@
 #pragma once
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #ifndef QUARK_HELPERS_HPP
 #define QUARK_HELPERS_HPP
 
@@ -54,16 +55,28 @@ static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 orig
   return body;
 }
 
-static void set_user_data(btCollisionObject* t, entt::entity e) {
+static entt::entity get_co_entity(const btCollisionObject* obj) {
   RbUserData data;
-  data.e = e;
-  t->setUserPointer(data.ptr);
+  data.ptr = obj->getUserPointer();
+  return data.e;
 }
 
-static void set_user_data(btRigidBody* t, entt::entity e) {
+static void set_co_entity(btCollisionObject* obj, entt::entity e) {
   RbUserData data;
   data.e = e;
-  t->setUserPointer(data.ptr);
+  obj->setUserPointer(data.ptr);
+}
+
+static entt::entity get_rb_entity(btRigidBody* body) {
+  RbUserData data;
+  data.ptr = body->getUserPointer();
+  return data.e;
+}
+
+static void set_rb_entity(btRigidBody* body, entt::entity e) {
+  RbUserData data;
+  data.e = e;
+  body->setUserPointer(data.ptr);
 }
 
 static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
@@ -103,7 +116,7 @@ static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
   collision_object->setCollisionShape(create_box_shape(scl.x));
   collision_object->setCollisionFlags(0);
 
-  set_user_data(collision_object, e);
+  set_co_entity(collision_object, e);
 
   physics_world->addCollisionObject(collision_object);
   add_component(e, collision_object);
@@ -223,6 +236,107 @@ static vec3 to_vec3 (btVector3 a) {
 
 static vec4 to_vec4 (btQuaternion a) {
   return vec4{a.x(), a.y(), a.z(), a.w()};
+}
+
+static const btTransform& get_transform(btRigidBody* body) {
+  return body->getWorldTransform();
+}
+
+static btTransform& get_mut_transform(btRigidBody* body) {
+  return body->getWorldTransform();
+}
+
+static const btTransform& get_transform(btCollisionObject* obj) {
+  return obj->getWorldTransform();
+}
+
+static btTransform& get_mut_transform(btCollisionObject* obj) {
+  return obj->getWorldTransform();
+}
+
+static vec3 get_rb_position(btRigidBody* body) {
+  btVector3 btv = get_rb_transform(body).getOrigin();
+  return vec3{btv.x(), btv.y(), btv.z()};
+}
+
+static void set_rb_position(btRigidBody* body, vec3 pos) {
+  btVector3 btv = {pos.x, pos.y, pos.z};
+  body->getWorldTransform().setOrigin(btv);
+}
+
+static vec4 get_rb_rotation(btRigidBody* body) {
+  btQuaternion btq = get_rb_transform(body).getRotation();
+  return vec4{btq.x(), btq.y(), btq.z(), btq.w()};
+}
+
+static void set_rb_rotation(btRigidBody* body, vec4 rot) {
+  btQuaternion btq = {rot.x, rot.y, rot.z, rot.w};
+  body->getWorldTransform().setRotation(btq);
+}
+
+static vec3 get_rb_velocity(btRigidBody* body) {
+  btVector3 btv = body->getLinearVelocity();
+  return vec3{btv.x(), btv.y(), btv.z()};
+}
+
+static void set_rb_velocity(btRigidBody* body, vec3 vel) {
+  body->setLinearVelocity({vel.x, vel.y, vel.z});
+}
+
+static void set_rb_angular_factor(btRigidBody* body, vec3 af) {
+  body->setAngularFactor({af.x, af.y, af.z});
+}
+
+static vec3 get_co_position(btCollisionObject* obj) {
+  btVector3 btv = get_transform(obj).getOrigin();
+  return vec3{btv.x(), btv.y(), btv.z()};
+}
+
+static void set_co_position(btCollisionObject* obj, vec3 pos) {
+  btVector3 btv = {pos.x, pos.y, pos.z};
+  obj->getWorldTransform().setOrigin(btv);
+}
+
+static vec4 get_co_rotation(btCollisionObject* obj) {
+  btQuaternion btq = get_transform(obj).getRotation();
+  return vec4{btq.x(), btq.y(), btq.z(), btq.w()};
+}
+
+static void set_co_rotation(btCollisionObject* obj, vec4 rot) {
+  btQuaternion btq = {rot.x, rot.y, rot.z, rot.w};
+  obj->getWorldTransform().setRotation(btq);
+}
+
+static void activate_rb(btRigidBody* body, bool force_activation = false) {
+  body->activate(force_activation);
+}
+
+static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
+  if(result.hasHit()) {
+    return get_co_entity(result.m_collisionObject);
+  } else {
+    return entt::null;
+  }
+}
+
+static btCollisionWorld::ClosestRayResultCallback get_ray_test_closest_result(vec3 from, vec3 to) {
+  btVector3 btfrom = {from.x, from.y, from.z};
+  btVector3 btto = {to.x, to.y, to.z};
+
+  btCollisionWorld::ClosestRayResultCallback result(btfrom, btto);
+  physics_world->rayTest(btfrom, btto, result);
+
+  return result;
+}
+
+static const btCollisionObject* get_ray_test_closest_objet(vec3 from, vec3 to) {
+  auto result = get_ray_test_closest_result(from, to);
+  return result.m_collisionObject;
+}
+
+static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
+  auto result = get_ray_test_closest_result(from, to);
+  return get_rt_entity(result);
 }
 
 }; // namespace quark
