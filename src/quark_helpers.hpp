@@ -21,7 +21,7 @@ template <typename T> static usize get_asset_count() { return assets.size<T>(); 
 
 static btCollisionShape* create_box_shape(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
 static btCollisionShape* create_sphere_shape(f32 radius) { return new btSphereShape(radius); }
-static btCollisionShape* create_capsule_shape(f32 radius, f32 height) { return new btCapsuleShape(radius, height); }
+static btCollisionShape* create_capsule_shape(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
 
 union RbUserData {
   void* ptr;
@@ -118,6 +118,14 @@ static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollis
   add_component(e, body);
 }
 
+static btRigidBody* add_and_give_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
+  auto body = create_rb(e, shape, pos.x, mass);
+
+  physics_world->addRigidBody(body, 1, 1);
+  add_component(e, body);
+  return body;
+}
+
 static void add_moving_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
   auto body = create_rb(e, shape, pos.x, mass);
   body->setLinearVelocity({vel.x, vel.y, vel.z});
@@ -196,6 +204,25 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
   add_component(e, t.out_scl);
 
   return t;
+}
+
+
+static btTransform get_rb_transform(btRigidBody* body) {
+  btTransform transform;
+  if (body->getMotionState()) {
+    body->getMotionState()->getWorldTransform(transform);
+  } else {
+    transform = body->getWorldTransform();
+  }
+  return transform;
+}
+
+static vec3 to_vec3 (btVector3 a) {
+  return vec3{a.x(), a.y(), a.z()};
+}
+
+static vec4 to_vec4 (btQuaternion a) {
+  return vec4{a.x(), a.y(), a.z(), a.w()};
 }
 
 }; // namespace quark
