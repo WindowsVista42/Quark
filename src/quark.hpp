@@ -32,13 +32,13 @@
 #include "quark_allocators.hpp"
 #include "quark_asset_manager.hpp"
 
+#include "quark_binds.hpp"
 #include "quark_colors.hpp"
 #include "quark_consts.hpp"
 #include "quark_game.hpp"
 #include "quark_math.hpp"
 #include "quark_types.hpp"
 #include "quark_utils.hpp"
-#include "quark_binds.hpp"
 
 namespace quark {
 

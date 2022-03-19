@@ -150,7 +150,7 @@ vec3 quark::add(vec3 lhs, vec3 rhs) {
   return output;
 }
 mat4 quark::look_dir(vec3 eye, vec3 dir, vec3 up) {
-  dir = -dir; //Sean: left handed coordinates that are being wonk
+  dir = -dir; // Sean: left handed coordinates that are being wonk
   vec3 f = normalize(dir);
   vec3 s = normalize(cross(up, f));
   vec3 u = cross(f, s);
@@ -328,10 +328,6 @@ vec4 quark::mul_quat(vec4 qa, vec4 qb) {
   return q;
 }
 
-bool quark::vec3_eq(vec3 a, vec3 b) {
-  return a.x == b.x && a.y == b.y && a.z == b.z;
-}
+bool quark::vec3_eq(vec3 a, vec3 b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
 
-bool quark::vec3_ne(vec3 a, vec3 b) {
-  return !vec3_eq(a, b);
-}
+bool quark::vec3_ne(vec3 a, vec3 b) { return !vec3_eq(a, b); }

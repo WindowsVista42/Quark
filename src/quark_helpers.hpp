@@ -219,7 +219,6 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
   return t;
 }
 
-
 static btTransform get_rb_transform(btRigidBody* body) {
   btTransform transform;
   if (body->getMotionState()) {
@@ -230,29 +229,17 @@ static btTransform get_rb_transform(btRigidBody* body) {
   return transform;
 }
 
-static vec3 to_vec3 (btVector3 a) {
-  return vec3{a.x(), a.y(), a.z()};
-}
+static vec3 to_vec3(btVector3 a) { return vec3{a.x(), a.y(), a.z()}; }
 
-static vec4 to_vec4 (btQuaternion a) {
-  return vec4{a.x(), a.y(), a.z(), a.w()};
-}
+static vec4 to_vec4(btQuaternion a) { return vec4{a.x(), a.y(), a.z(), a.w()}; }
 
-static const btTransform& get_transform(btRigidBody* body) {
-  return body->getWorldTransform();
-}
+static const btTransform& get_transform(btRigidBody* body) { return body->getWorldTransform(); }
 
-static btTransform& get_mut_transform(btRigidBody* body) {
-  return body->getWorldTransform();
-}
+static btTransform& get_mut_transform(btRigidBody* body) { return body->getWorldTransform(); }
 
-static const btTransform& get_transform(btCollisionObject* obj) {
-  return obj->getWorldTransform();
-}
+static const btTransform& get_transform(btCollisionObject* obj) { return obj->getWorldTransform(); }
 
-static btTransform& get_mut_transform(btCollisionObject* obj) {
-  return obj->getWorldTransform();
-}
+static btTransform& get_mut_transform(btCollisionObject* obj) { return obj->getWorldTransform(); }
 
 static vec3 get_rb_position(btRigidBody* body) {
   btVector3 btv = get_rb_transform(body).getOrigin();
@@ -279,13 +266,9 @@ static vec3 get_rb_velocity(btRigidBody* body) {
   return vec3{btv.x(), btv.y(), btv.z()};
 }
 
-static void set_rb_velocity(btRigidBody* body, vec3 vel) {
-  body->setLinearVelocity({vel.x, vel.y, vel.z});
-}
+static void set_rb_velocity(btRigidBody* body, vec3 vel) { body->setLinearVelocity({vel.x, vel.y, vel.z}); }
 
-static void set_rb_angular_factor(btRigidBody* body, vec3 af) {
-  body->setAngularFactor({af.x, af.y, af.z});
-}
+static void set_rb_angular_factor(btRigidBody* body, vec3 af) { body->setAngularFactor({af.x, af.y, af.z}); }
 
 static vec3 get_co_position(btCollisionObject* obj) {
   btVector3 btv = get_transform(obj).getOrigin();
@@ -307,12 +290,10 @@ static void set_co_rotation(btCollisionObject* obj, vec4 rot) {
   obj->getWorldTransform().setRotation(btq);
 }
 
-static void activate_rb(btRigidBody* body, bool force_activation = false) {
-  body->activate(force_activation);
-}
+static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
 
 static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
-  if(result.hasHit()) {
+  if (result.hasHit()) {
     return get_co_entity(result.m_collisionObject);
   } else {
     return entt::null;

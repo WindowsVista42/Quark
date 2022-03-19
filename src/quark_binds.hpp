@@ -1,5 +1,5 @@
-#ifndef QUARK_BINDS_HPP 
-#define QUARK_BINDS_HPP 
+#ifndef QUARK_BINDS_HPP
+#define QUARK_BINDS_HPP
 
 #include <quark.hpp>
 
@@ -23,24 +23,24 @@ static void update_bind(GLFWwindow* window, Bind* bind) {
   bool mouse_button_down = false;
   bool joystick_button_down = false;
 
-  if(bind->key_bind && glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
+  if (bind->key_bind && glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
     keyboard_button_down = true;
   }
 
-  if(bind->mouse_bind && glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
+  if (bind->mouse_bind && glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
     mouse_button_down = true;
   }
 
   // TODO sean: make this work
   GLFWgamepadstate state;
-  if(bind->gamepad_bind && glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-    if(state.buttons[bind->gamepad_bind]) {
+  if (bind->gamepad_bind && glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
+    if (state.buttons[bind->gamepad_bind]) {
       joystick_button_down = true;
     }
   }
 
-  if(keyboard_button_down || mouse_button_down || joystick_button_down) {
-    if(!bind->down) {
+  if (keyboard_button_down || mouse_button_down || joystick_button_down) {
+    if (!bind->down) {
       bind->just_pressed = true;
     } else {
       bind->just_pressed = false;
@@ -53,8 +53,8 @@ static void update_bind(GLFWwindow* window, Bind* bind) {
 };
 
 static void update_key_bind(GLFWwindow* window, Bind* bind) {
-  if(glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
-    if(!bind->down) {
+  if (glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
+    if (!bind->down) {
       bind->just_pressed = true;
     } else {
       bind->just_pressed = false;
@@ -67,8 +67,8 @@ static void update_key_bind(GLFWwindow* window, Bind* bind) {
 }
 
 static void update_mouse_bind(GLFWwindow* window, Bind* bind) {
-  if(glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
-    if(!bind->down) {
+  if (glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
+    if (!bind->down) {
       bind->just_pressed = true;
     } else {
       bind->just_pressed = false;
@@ -80,6 +80,6 @@ static void update_mouse_bind(GLFWwindow* window, Bind* bind) {
   }
 }
 
-};
+}; // namespace quark
 
-#endif //QUARK_BINDS_HPP
+#endif // QUARK_BINDS_HPP
