@@ -47,6 +47,7 @@ inline AssetManager assets;
 inline entt::basic_registry<entt::entity> registry;
 
 inline bool enable_performance_statistics = false;
+inline const char* window_name = "Quark Game Engine";
 inline f32 dt = 1.0f / 60.0f; // Frame delta time
 inline f32 tt = 0.0f;         // Total elapsed time
 

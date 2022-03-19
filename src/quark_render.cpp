@@ -162,7 +162,7 @@ void quark::internal::init_window() {
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-  window_ptr = glfwCreateWindow(window_w, window_h, "My Game Engine", 0, 0);
+  window_ptr = glfwCreateWindow(window_w, window_h, window_name, 0, 0);
 
   glfwSetInputMode(window_ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   if (glfwRawMouseMotionSupported()) {
