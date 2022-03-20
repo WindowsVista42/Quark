@@ -111,19 +111,15 @@ static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
 
   transform.setOrigin({pos.x.x, pos.x.y, pos.x.z});
   transform.setRotation({rot.x.x, rot.x.y, rot.x.z, rot.x.w});
-  printf("here!\n");
 
   collision_object->setWorldTransform(transform);
   collision_object->setCollisionShape(create_box_shape(scl.x));
   collision_object->setCollisionFlags(0);
-  printf("here!\n");
 
   set_co_entity(collision_object, e);
-  printf("here 9!\n");
 
   physics_world->addCollisionObject(collision_object);
   add_component(e, collision_object);
-  printf("here 8!\n");
 }
 
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };

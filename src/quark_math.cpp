@@ -207,7 +207,7 @@ mat4 quark::rotate(vec4 q) {
 
   // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
 
-  mat4 m = {};
+  mat4 m = MAT4_IDENTITY;
 
   f32 xx = q.x * q.x;
   f32 xy = q.x * q.y;
@@ -329,3 +329,10 @@ vec4 quark::mul_quat(vec4 qa, vec4 qb) {
 bool quark::vec3_eq(vec3 a, vec3 b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
 
 bool quark::vec3_ne(vec3 a, vec3 b) { return !vec3_eq(a, b); }
+
+mat4 quark::translate_rotate_scale(vec3 pos, quat rot, vec3 scl) {
+  mat4 translation_m = translate(pos);
+  mat4 rotation_m = rotate(rot);
+  mat4 scale_m = scale(scl);
+  return translation_m * rotation_m * scale_m;
+}

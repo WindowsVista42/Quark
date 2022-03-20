@@ -141,7 +141,9 @@ struct vec4 {
   const f32& operator[](int i) const;
 };
 
-struct quat : public vec4 {};
+struct quat : public vec4 {
+  quat(vec4 v) { *this = *(quat*)&v; }
+};
 
 struct mat2 {
   vec2 xs, ys;

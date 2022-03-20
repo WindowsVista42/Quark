@@ -103,6 +103,8 @@ vec4 axis_angle(vec3 axis, f32 angle);
 vec3 rotate(vec3 v, vec4 q);
 mat4 rotate(vec4 q);
 
+mat4 translate_rotate_scale(vec3 pos, quat rot, vec3 scl);
+
 void print(const char* prefix, vec2 i);
 void print(const char* prefix, vec3 i);
 void print(const char* prefix, vec4 i);

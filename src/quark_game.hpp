@@ -31,6 +31,16 @@ TRANSPARENT_TYPE(RelPos, vec3); /* Relative world position */
 TRANSPARENT_TYPE(RelRot, vec4); /* Relative world rotation (quaternion) */
 TRANSPARENT_TYPE(RelScl, vec3); /* Relative world scale */
 
+#define BETTER_TRANSPARENT_TYPE(name, inner)                                                                                                         \
+  struct name : public inner {                                                                                                                       \
+    using inner::inner;                                                                                                                              \
+    name(inner v) { *this = *(inner*)&v; }                                                                                                           \
+  };
+
+BETTER_TRANSPARENT_TYPE(PPos, vec3);
+
+#undef BETTER_TRANSPARENT_TYPE
+
 #undef TRANSPARENT_TYPE
 
 template <const usize B, const usize A> struct VertexInputDescription {

@@ -1064,6 +1064,8 @@ void update_view_stuff(int width, int height) {
   projection_matrix = perspective(radians(camera_fov), camera_aspect, camera_znear, camera_zfar);
   view_matrix = look_dir(camera_position, camera_direction, VEC3_UNIT_Z);
 
+  view_projection_matrix = projection_matrix * view_matrix;
+
   // Calculate updated frustum
   if (!quark::internal::pause_frustum_culling) {
     mat4 projection_matrix_t = transpose(projection_matrix);
@@ -1084,8 +1086,7 @@ void update_view_stuff(int width, int height) {
     cull_data.lod_step = 1.5f;
 
     {
-      mat4 m = quark::mul(projection_matrix, view_matrix);
-      m = transpose(m);
+      mat4 m = transpose(view_projection_matrix);
       planes[0] = m[3] + m[0];
       planes[1] = m[3] - m[0];
       planes[2] = m[3] + m[1];
@@ -1094,8 +1095,6 @@ void update_view_stuff(int width, int height) {
       planes[5] = m[3] - m[2];
     }
   }
-
-  view_projection_matrix = quark::mul(projection_matrix, view_matrix);
 }
 
 void quark::begin_shadow_rendering() {
@@ -1262,11 +1261,7 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
 
   DeferredPushConstant dpc;
 
-  mat4 translation_m = translate(pos.x);
-  mat4 rotation_m = rotate(rot.x);
-  mat4 scale_m = scale(scl.x);
-  mat4 world_m = translation_m * rotation_m * scale_m;
-
+  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
   dpc.world_view_projection = view_projection_matrix * world_m;
 
   dpc.world_rotation = rot.x;
@@ -1405,35 +1400,23 @@ void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
   DebugPushConstant pcd;
   pcd.color = col.x;
 
-  mat4 translation_m = translate(pos.x);
-  mat4 rotation_m = rotate(rot.x);
-  mat4 scale_m = scale(scl.x);
-  mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
-
-  pcd.world_view_projection = quark::mul(view_projection_matrix, world_m);
+  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  pcd.world_view_projection = view_projection_matrix * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
 void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-  mat4 translation_m = translate(pos.x);
-  mat4 rotation_m = rotate(rot.x);
-  mat4 scale_m = scale(scl.x);
-  mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
-
-  mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
+  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  mat4 world_view_projection = view_projection_matrix * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
 void quark::draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-  mat4 translation_m = translate(pos.x);
-  mat4 rotation_m = rotate(rot.x);
-  mat4 scale_m = scale(scl.x);
-  mat4 world_m = quark::mul(quark::mul(translation_m, rotation_m), scale_m);
-
+  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
   mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
