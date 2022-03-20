@@ -1159,10 +1159,10 @@ void quark::begin_forward_rendering() {
   update_view_stuff(window_w, window_h);
 
   VkClearValue color_clear;
-  color_clear.color.float32[0] = PURE_BLACK.x[0];
-  color_clear.color.float32[1] = PURE_BLACK.x[1];
-  color_clear.color.float32[2] = PURE_BLACK.x[2];
-  color_clear.color.float32[3] = PURE_BLACK.x[3];
+  color_clear.color.float32[0] = PURE_BLACK[0];
+  color_clear.color.float32[1] = PURE_BLACK[1];
+  color_clear.color.float32[2] = PURE_BLACK[2];
+  color_clear.color.float32[3] = PURE_BLACK[3];
 
   VkClearValue depth_clear;
   depth_clear.depthStencil.depth = 1.0f;
@@ -1194,10 +1194,10 @@ void quark::begin_forward_rendering() {
     auto lights = registry.view<Pos, Col, Light>();
     for (auto [e, pos, col] : lights.each()) {
       vec4 p;
-      p.xyz = pos.x;
+      p.xyz = pos;
       p.w = 50.0f;
       rc_data->lights[counter].position = p;
-      rc_data->lights[counter].color = col.x;
+      rc_data->lights[counter].color = col;
       counter += 1;
     }
 
@@ -1261,12 +1261,12 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
 
   DeferredPushConstant dpc;
 
-  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  mat4 world_m = translate_rotate_scale(pos, rot, scl);
   dpc.world_view_projection = view_projection_matrix * world_m;
 
-  dpc.world_rotation = rot.x;
-  dpc.world_position.xyz = pos.x;
-  dpc.world_scale.xyz = scl.x;
+  dpc.world_rotation = rot;
+  dpc.world_position.xyz = pos;
+  dpc.world_scale.xyz = scl;
   u32 texture_index = 0;
   dpc.world_position.w = *(f32*)&texture_index;
 
@@ -1305,7 +1305,7 @@ void quark::end_lit_pass() {
 }
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
-  vec3 center = pos.x;
+  vec3 center = pos;
   // center.y *= -1.0f;
   center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
   center = center;
@@ -1329,11 +1329,11 @@ bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
     vec3 max;
   };
 
-  scl.x *= 1.5f;
+  scl *= 1.5f;
 
   Box box = {
-      pos.x - scl.x,
-      pos.x + scl.x,
+      pos - scl,
+      pos + scl,
   };
 
   for_every(i, 6) {
@@ -1398,9 +1398,9 @@ void quark::end_wireframe_pass() {}
 
 void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
   DebugPushConstant pcd;
-  pcd.color = col.x;
+  pcd.color = col;
 
-  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  mat4 world_m = translate_rotate_scale(pos, rot, scl);
   pcd.world_view_projection = view_projection_matrix * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
@@ -1408,7 +1408,7 @@ void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
 }
 
 void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = view_projection_matrix * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
@@ -1416,7 +1416,7 @@ void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
 }
 
 void quark::draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh) {
-  mat4 world_m = translate_rotate_scale(pos.x, rot.x, scl.x);
+  mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);

@@ -14,33 +14,32 @@ namespace quark {
 using namespace quark;
 
 // Game types
-#define TRANSPARENT_TYPE(name, inner)                                                                                                                \
+#define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
   struct name {                                                                                                                                      \
     inner x;                                                                                                                                         \
     operator inner&() { return *(inner*)this; }                                                                                                      \
   }
 
-TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule); /* Vulkan shader module */
-TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);   /* Vulkan shader module */
-TRANSPARENT_TYPE(Pos, vec3);                        /* Global world position */
-TRANSPARENT_TYPE(Rot, vec4);                        /* Global world rotation (quaternion) */
-TRANSPARENT_TYPE(Scl, vec3);                        /* Global world scale */
-TRANSPARENT_TYPE(Col, vec4);                        /* Color */
-
-TRANSPARENT_TYPE(RelPos, vec3); /* Relative world position */
-TRANSPARENT_TYPE(RelRot, vec4); /* Relative world rotation (quaternion) */
-TRANSPARENT_TYPE(RelScl, vec3); /* Relative world scale */
-
-#define BETTER_TRANSPARENT_TYPE(name, inner)                                                                                                         \
+#define TRANSPARENT_TYPE(name, inner)                                                                                                                \
   struct name : public inner {                                                                                                                       \
     using inner::inner;                                                                                                                              \
-    name(inner v) { *this = *(inner*)&v; }                                                                                                           \
+    name() {}                                                                                                                                        \
+    name(inner v) { *this = *(name*)&v; }                                                                                                            \
   };
 
-BETTER_TRANSPARENT_TYPE(PPos, vec3);
+OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule); /* Vulkan shader module */
+OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);   /* Vulkan shader module */
 
-#undef BETTER_TRANSPARENT_TYPE
+TRANSPARENT_TYPE(Pos, vec3); /* Global world position */
+TRANSPARENT_TYPE(Rot, quat); /* Global world rotation (quaternion) */
+TRANSPARENT_TYPE(Scl, vec3); /* Global world scale */
+TRANSPARENT_TYPE(Col, vec4); /* Color */
 
+TRANSPARENT_TYPE(RelPos, vec3); /* Relative world position */
+TRANSPARENT_TYPE(RelRot, quat); /* Relative world rotation (quaternion) */
+TRANSPARENT_TYPE(RelScl, vec3); /* Relative world scale */
+
+#undef OLD_TRANSPARENT_TYPE
 #undef TRANSPARENT_TYPE
 
 template <const usize B, const usize A> struct VertexInputDescription {

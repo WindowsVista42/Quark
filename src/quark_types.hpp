@@ -142,6 +142,7 @@ struct vec4 {
 };
 
 struct quat : public vec4 {
+  quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
 };
 

@@ -1,5 +1,4 @@
 #pragma once
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #ifndef QUARK_HELPERS_HPP
 #define QUARK_HELPERS_HPP
 
@@ -109,11 +108,11 @@ static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
 
   btTransform transform;
 
-  transform.setOrigin({pos.x.x, pos.x.y, pos.x.z});
-  transform.setRotation({rot.x.x, rot.x.y, rot.x.z, rot.x.w});
+  transform.setOrigin({pos.x, pos.y, pos.z});
+  transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 
   collision_object->setWorldTransform(transform);
-  collision_object->setCollisionShape(create_box_shape(scl.x));
+  collision_object->setCollisionShape(create_box_shape(scl));
   collision_object->setCollisionFlags(0);
 
   set_co_entity(collision_object, e);
@@ -125,14 +124,14 @@ static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
 
 static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-  auto body = create_rb(e, shape, pos.x, mass);
+  auto body = create_rb(e, shape, pos, mass);
 
   physics_world->addRigidBody(body, 1, 1);
   add_component(e, body);
 }
 
 static btRigidBody* add_and_give_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-  auto body = create_rb(e, shape, pos.x, mass);
+  auto body = create_rb(e, shape, pos, mass);
 
   physics_world->addRigidBody(body, 1, 1);
   add_component(e, body);
@@ -140,7 +139,7 @@ static btRigidBody* add_and_give_rigid_body_components(entt::entity e, Pos pos, 
 }
 
 static void add_moving_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
-  auto body = create_rb(e, shape, pos.x, mass);
+  auto body = create_rb(e, shape, pos, mass);
   body->setLinearVelocity({vel.x, vel.y, vel.z});
 
   physics_world->addRigidBody(body, 1, 1);
@@ -169,9 +168,9 @@ static void add_parent_components(entt::entity e, entt::entity p) {
 }
 
 static Pos mul_transform_position(Pos a_pos, Pos b_pos, Rot b_rot, Scl b_scl) {
-  a_pos.x *= b_scl.x;
-  a_pos.x = rotate(a_pos.x, b_rot.x);
-  a_pos.x += b_pos.x;
+  a_pos *= b_scl;
+  a_pos = rotate(a_pos, b_rot);
+  a_pos += b_pos;
   return a_pos;
 };
 
@@ -185,9 +184,9 @@ static auto mul_transform(Pos a_pos, Rot a_rot, Scl a_scl, Pos b_pos, Rot b_rot,
   TResult result;
 
   result.out_pos = mul_transform_position(a_pos, b_pos, b_rot, b_scl);
-  result.out_rot = Rot{mul_quat(a_rot.x, b_rot.x)};
+  result.out_rot = Rot{mul_quat(a_rot, b_rot)};
 
-  result.out_scl = Scl{a_scl.x * b_scl.x};
+  result.out_scl = Scl{a_scl * b_scl};
 
   return result;
 }
@@ -202,15 +201,15 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
   add_component(e, RelRot{rel_rot});
   add_component(e, RelScl{rel_scl});
 
-  Pos pos = Pos{rel_pos.x};
-  Rot rot = Rot{rel_rot.x};
-  Scl scl = Scl{rel_scl.x};
+  Pos pos = Pos{rel_pos};
+  Rot rot = Rot{rel_rot};
+  Scl scl = Scl{rel_scl};
 
   Pos p_pos = get_component<Pos>(p->parent);
   Rot p_rot = get_component<Rot>(p->parent);
   Scl p_scl = get_component<Scl>(p->parent);
 
-  auto t = mul_transform(Pos{rel_pos.x}, Rot{rel_rot.x}, Scl{rel_scl.x}, p_pos, p_rot, p_scl);
+  auto t = mul_transform(Pos{rel_pos}, Rot{rel_rot}, Scl{rel_scl}, p_pos, p_rot, p_scl);
 
   add_component(e, t.out_pos);
   add_component(e, t.out_rot);
@@ -228,10 +227,6 @@ static btTransform get_rb_transform(btRigidBody* body) {
   }
   return transform;
 }
-
-static vec3 to_vec3(btVector3 a) { return vec3{a.x(), a.y(), a.z()}; }
-
-static vec4 to_vec4(btQuaternion a) { return vec4{a.x(), a.y(), a.z(), a.w()}; }
 
 static const btTransform& get_transform(btRigidBody* body) { return body->getWorldTransform(); }
 
