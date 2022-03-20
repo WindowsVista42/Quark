@@ -39,8 +39,8 @@ template <const usize B, const usize A> struct VertexInputDescription {
 };
 
 struct VertexPNT {
-  vec3packed position;
-  vec3packed normal;
+  vec3 position;
+  vec3 normal;
   vec2 texture;
 
   static const VertexInputDescription<1, 3> input_description;
@@ -62,9 +62,9 @@ inline const VertexInputDescription<1, 3> VertexPNT::input_description = {
 // clang-format on
 
 struct VertexPNC {
-  vec3packed position;
-  vec3packed normal;
-  vec3packed color;
+  vec3 position;
+  vec3 normal;
+  vec3 color;
 
   static const VertexInputDescription<1, 3> input_description;
 };

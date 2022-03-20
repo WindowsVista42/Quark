@@ -106,9 +106,7 @@ f32 quark::wrap(f32 x, f32 v) { return wrap(x, 0.0f, v); }
 vec3 quark::normalize(vec3 v) { return v / sqrtf(dot(v, v)); }
 f32 quark::magnitude(vec3 v) { return sqrtf(dot(v, v)); }
 vec3 quark::cross(vec3 a, vec3 b) {
-  // clang-format: off
   vec3 output = {a.y * b.z - b.y * a.z, a.z * b.x - b.z * a.x, a.x * b.y - b.x * a.y};
-  // clang-format: on
   return output;
 }
 f32 quark::dot(vec3 lhs, vec3 rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z); }

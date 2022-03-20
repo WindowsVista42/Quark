@@ -8,6 +8,7 @@ set(CMAKE_C_VERSION 11)
 
 add_library(Quark STATIC
     src/quark_render.cpp
+    src/quark_types.cpp
     src/quark_math.cpp
     src/quark_physics.cpp
     src/quark.cpp

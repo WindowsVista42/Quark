@@ -1265,9 +1265,9 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
   mat4 translation_m = translate(pos.x);
   mat4 rotation_m = rotate(rot.x);
   mat4 scale_m = scale(scl.x);
-  mat4 world_m = mul(mul(translation_m, rotation_m), scale_m);
+  mat4 world_m = translation_m * rotation_m * scale_m;
 
-  dpc.world_view_projection = mul(view_projection_matrix, world_m);
+  dpc.world_view_projection = view_projection_matrix * world_m;
 
   dpc.world_rotation = rot.x;
   dpc.world_position.xyz = pos.x;
@@ -1310,10 +1310,10 @@ void quark::end_lit_pass() {
 }
 
 bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
-  vec3 center = pos.x.xyz;
+  vec3 center = pos.x;
   // center.y *= -1.0f;
   center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
-  center = center.xyz;
+  center = center;
   f32 radius = 3.0f;
 
   bool visible = true;

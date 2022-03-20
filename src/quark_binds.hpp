@@ -6,6 +6,8 @@
 namespace quark {
 using namespace quark;
 
+constexpr int QUARK_UNBOUND = -1;
+
 struct Bind {
   i32 key_bind;
   i32 mouse_bind;
@@ -23,17 +25,17 @@ static void update_bind(GLFWwindow* window, Bind* bind) {
   bool mouse_button_down = false;
   bool joystick_button_down = false;
 
-  if (bind->key_bind && glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
+  if (bind->key_bind != QUARK_UNBOUND && glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
     keyboard_button_down = true;
   }
 
-  if (bind->mouse_bind && glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
+  if (bind->mouse_bind != QUARK_UNBOUND && glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
     mouse_button_down = true;
   }
 
   // TODO sean: make this work
   GLFWgamepadstate state;
-  if (bind->gamepad_bind && glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
+  if (bind->gamepad_bind != QUARK_UNBOUND && glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
     if (state.buttons[bind->gamepad_bind]) {
       joystick_button_down = true;
     }
