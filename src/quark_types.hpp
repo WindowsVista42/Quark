@@ -7,7 +7,6 @@
 namespace quark {
 using namespace quark;
 
-// Typedefs
 typedef float f32;
 typedef double f64;
 
@@ -23,8 +22,7 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 typedef uintptr_t usize;
 
-typedef float builtin_vec4 __attribute__((ext_vector_type(4)));
-
+// Two component vector
 struct vec2 {
   f32 x, y;
 
@@ -56,6 +54,7 @@ struct vec2 {
   f32& operator[](usize i);
 };
 
+// Three component vector
 struct vec3 {
   union {
     struct {
@@ -96,6 +95,7 @@ struct vec3 {
   f32& operator[](usize i);
 };
 
+// Four component vector
 struct vec4 {
   union {
     struct {
@@ -141,11 +141,13 @@ struct vec4 {
   const f32& operator[](int i) const;
 };
 
+// Quaternion
 struct quat : public vec4 {
   quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
 };
 
+// Two by two matrix
 struct mat2 {
   vec2 xs, ys;
 
@@ -156,6 +158,7 @@ struct mat2 {
   vec2& operator[](usize i);
 };
 
+// Three by three matrix
 struct mat3 {
   vec3 xs, ys, zs;
 
@@ -166,6 +169,7 @@ struct mat3 {
   vec3& operator[](usize i);
 };
 
+// Four by four matrix
 struct mat4 {
   vec4 xs, ys, zs, ws;
 

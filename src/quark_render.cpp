@@ -746,7 +746,7 @@ VkVertexShader* quark::internal::load_vert_shader(std::string* path) {
   module_create_info.pNext = 0;
 
   VkVertexShader* vert_shader = (VkVertexShader*)render_alloc.alloc(sizeof(VkVertexShader));
-  vk_check(vkCreateShaderModule(device, &module_create_info, 0, &vert_shader->x));
+  vk_check(vkCreateShaderModule(device, &module_create_info, 0, &vert_shader->_));
 
   // printf("Loaded shader: %s\n", path->c_str());
 
@@ -782,7 +782,7 @@ VkFragmentShader* quark::internal::load_frag_shader(std::string* path) {
   module_create_info.pNext = 0;
 
   VkFragmentShader* frag_shader = (VkFragmentShader*)render_alloc.alloc(sizeof(VkFragmentShader));
-  vk_check(vkCreateShaderModule(device, &module_create_info, 0, &frag_shader->x));
+  vk_check(vkCreateShaderModule(device, &module_create_info, 0, &frag_shader->_));
 
   // printf("Loaded shader: %s\n", path->c_str());
 
@@ -1191,7 +1191,7 @@ void quark::begin_forward_rendering() {
     RenderConstants* rc_data = (RenderConstants*)rc_ptr;
 
     u32 counter = 0;
-    auto lights = registry.view<Pos, Col, Light>();
+    auto lights = registry.view<Pos, Col, IsLight>();
     for (auto [e, pos, col] : lights.each()) {
       vec4 p;
       p.xyz = pos;
@@ -1429,7 +1429,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    auto shadow_pass = registry.view<Pos, Rot, Scl, Mesh, ShadowsEnabled>();
+    auto shadow_pass = registry.view<Pos, Rot, Scl, Mesh, UseShadowPass>();
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_shadow(pos, rot, scl, mesh);
@@ -1452,7 +1452,7 @@ void quark::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_solid_pass();
-    auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, SolidPass>();
+    auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, UseSolidPass>();
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1461,7 +1461,7 @@ void quark::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    auto wireframe_pass = registry.view<Pos, Rot, Scl, Mesh, Col, WireframePass>();
+    auto wireframe_pass = registry.view<Pos, Rot, Scl, Mesh, Col, UseWireframePass>();
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1470,7 +1470,7 @@ void quark::render_frame(bool end_forward) {
     end_wireframe_pass();
 
     begin_lit_pass();
-    auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, LitPass>();
+    auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, UseLitPass>();
     for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         add_to_render_batch(pos, rot, scl, mesh);

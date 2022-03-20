@@ -14,12 +14,15 @@ namespace quark {
 using namespace quark;
 
 // Game types
+
+// Define a transparent struct with the inner value being referenced as _
 #define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
   struct name {                                                                                                                                      \
-    inner x;                                                                                                                                         \
+    inner _;                                                                                                                                         \
     operator inner&() { return *(inner*)this; }                                                                                                      \
   }
 
+// Define a transparent struct that is truly transparent with the inner value
 #define TRANSPARENT_TYPE(name, inner)                                                                                                                \
   struct name : public inner {                                                                                                                       \
     using inner::inner;                                                                                                                              \
@@ -27,26 +30,43 @@ using namespace quark;
     name(inner v) { *this = *(name*)&v; }                                                                                                            \
   };
 
-OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule); /* Vulkan shader module */
-OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);   /* Vulkan shader module */
+// Vulkan fragment shader module
+OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
 
-TRANSPARENT_TYPE(Pos, vec3); /* Global world position */
-TRANSPARENT_TYPE(Rot, quat); /* Global world rotation (quaternion) */
-TRANSPARENT_TYPE(Scl, vec3); /* Global world scale */
-TRANSPARENT_TYPE(Col, vec4); /* Color */
+// Vulkan vertex shader module
+OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
 
-TRANSPARENT_TYPE(RelPos, vec3); /* Relative world position */
-TRANSPARENT_TYPE(RelRot, quat); /* Relative world rotation (quaternion) */
-TRANSPARENT_TYPE(RelScl, vec3); /* Relative world scale */
+// Global world position
+TRANSPARENT_TYPE(Pos, vec3);
+
+// Global world rotation (quaternion)
+TRANSPARENT_TYPE(Rot, quat);
+
+// Global world scale
+TRANSPARENT_TYPE(Scl, vec3);
+
+// Color
+TRANSPARENT_TYPE(Col, vec4);
+
+// World position relative to parent
+TRANSPARENT_TYPE(RelPos, vec3);
+
+// World rotation (quaternion) relative to parent
+TRANSPARENT_TYPE(RelRot, quat);
+
+// World scale relative to parent
+TRANSPARENT_TYPE(RelScl, vec3);
 
 #undef OLD_TRANSPARENT_TYPE
 #undef TRANSPARENT_TYPE
 
+// Vertex input desription helper
 template <const usize B, const usize A> struct VertexInputDescription {
   VkVertexInputBindingDescription bindings[B];
   VkVertexInputAttributeDescription attributes[A];
 };
 
+// Vertex storing Position Normal Texture
 struct VertexPNT {
   vec3 position;
   vec3 normal;
@@ -70,6 +90,7 @@ inline const VertexInputDescription<1, 3> VertexPNT::input_description = {
 };
 // clang-format on
 
+// Vertex storing Position Normal Color
 struct VertexPNC {
   vec3 position;
   vec3 normal;
@@ -93,11 +114,13 @@ inline const VertexInputDescription<1, 3> VertexPNC::input_description = {
 };
 // clang-format on
 
+// An allocated buffer on the gpu
 struct AllocatedBuffer {
   VmaAllocation alloc;
   VkBuffer buffer;
 };
 
+// An allocated image on the gpu
 struct AllocatedImage {
   VmaAllocation alloc;
   VkImage image;
@@ -111,7 +134,7 @@ struct AllocatedImage {
 //     AllocatedBuffer alloc_buffer;
 // };
 
-// index into mesh metadata array
+// A handle to mesh data
 struct Mesh {
   u32 offset;
   u32 size;
@@ -119,6 +142,7 @@ struct Mesh {
   // u32 offset;
 };
 
+// Frustum culling data
 struct CullData {
   mat4 view;
 
@@ -130,35 +154,44 @@ struct CullData {
   // f32 pyramid_width, pyramid_height;
 };
 
-struct LightData {
+// Internal light structure.
+// Adding this component directly wont do anything.
+// Instead add Position, Color, IsLight components for a light.
+struct InternalLight {
   vec4 position;
   vec4 color;
 };
 
 // TAGS
 
-// Which shading pass you want to use
-//
-struct SolidPass {};
-struct WireframePass {};
-struct LitPass {};
+// Render this entity with a solid color render pass
+struct UseSolidPass {};
 
-// Lighting tags
-struct Light {};
-struct ShadowsEnabled {};
+// Render this entity with a wireframe color render pass
+struct UseWireframePass {};
+
+// Render this entity with a diffuse lighting render pass
+struct UseLitPass {};
+
+// Render this entity with a shadow render pass
+struct UseShadowPass {};
+
+// Treat this entity as a light
+struct IsLight {};
 
 // Parent-Child relationships
+// For now we only support 2 level entity hierarchies
+// That is to say: Entity0 -> Entity1 -> Entity2
+
+// Parent of this entity
 struct Parent {
   entt::entity parent;
 };
 
+// Children of this entity
 struct Children {
   i32 count;
   entt::entity children[15]; // TODO sean: move this to some kind of allocator?
-};
-
-struct ParentL1 {
-  entt::entity parent;
 };
 
 }; // namespace quark

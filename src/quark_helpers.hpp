@@ -92,13 +92,13 @@ static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32
 
   switch (render_flags) {
   case (RENDER_LIT): {
-    add_component(e, LitPass{});
+    add_component(e, UseLitPass{});
   } break;
   case (RENDER_SOLID): {
-    add_component(e, SolidPass{});
+    add_component(e, UseSolidPass{});
   } break;
   case (RENDER_WIREFRAME): {
-    add_component(e, WireframePass{});
+    add_component(e, UseWireframePass{});
   } break;
   }
 }
