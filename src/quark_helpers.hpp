@@ -3,6 +3,9 @@
 #define QUARK_HELPERS_HPP
 
 #include "quark.hpp"
+#include <BulletCollision/btBulletCollisionCommon.h>
+#include <BulletDynamics/btBulletDynamicsCommon.h>
+//btSimulationIslandManager.h>
 
 namespace quark {
 
@@ -13,6 +16,7 @@ entt::entity static new_entity() { return registry.create(); }
 template <typename T> static void add_component(entt::entity e, T t) { registry.emplace<T>(e, t); }
 template <typename T> static T& get_component(entt::entity e) { return registry.get<T>(e); }
 template <typename T> static T* try_get_component(entt::entity e) { return registry.try_get<T>(e); }
+template <typename... T> static bool has_components(entt::entity e) { return registry.all_of<T...>(e); }
 
 template <typename T> static T& get_asset(const char* name) { return *assets.get<T>(name); }
 template <typename T> static T* get_all_asset(const char* name) { return *assets.get_all<T>(name); }
@@ -22,6 +26,8 @@ template <typename T> static usize get_asset_count() { return assets.size<T>(); 
 static btCollisionShape* create_box_shape(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
 static btCollisionShape* create_sphere_shape(f32 radius) { return new btSphereShape(radius); }
 static btCollisionShape* create_capsule_shape(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
+
+static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
 
 union RbUserData {
   void* ptr;
@@ -50,6 +56,8 @@ static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 orig
   RbUserData user_data;
   user_data.e = e;
   body->setUserPointer(user_data.ptr);
+
+  body->setSleepingThresholds(1e-7, 1e-7);
 
   return body;
 }
@@ -111,13 +119,15 @@ static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
   transform.setOrigin({pos.x, pos.y, pos.z});
   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 
+  auto shape = create_box_shape(scl);
+
   collision_object->setWorldTransform(transform);
-  collision_object->setCollisionShape(create_box_shape(scl));
+  collision_object->setCollisionShape(shape);
   collision_object->setCollisionFlags(0);
 
   set_co_entity(collision_object, e);
 
-  physics_world->addCollisionObject(collision_object);
+  //physics_world->addCollisionObject(collision_object);
   add_component(e, collision_object);
 }
 
@@ -126,15 +136,17 @@ enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISIO
 static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
   auto body = create_rb(e, shape, pos, mass);
 
-  physics_world->addRigidBody(body, 1, 1);
+  //physics_world->addRigidBody(body, 1, 1);
   add_component(e, body);
+  activate_rb(body);
 }
 
 static btRigidBody* add_and_give_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
   auto body = create_rb(e, shape, pos, mass);
 
-  physics_world->addRigidBody(body, 1, 1);
+  //physics_world->addRigidBody(body, 1, 1);
   add_component(e, body);
+  activate_rb(body);
   return body;
 }
 
@@ -142,8 +154,9 @@ static void add_moving_rigid_body_components(entt::entity e, Pos pos, Scl scl, b
   auto body = create_rb(e, shape, pos, mass);
   body->setLinearVelocity({vel.x, vel.y, vel.z});
 
-  physics_world->addRigidBody(body, 1, 1);
+  //physics_world->addRigidBody(body, 1, 1);
   add_component(e, body);
+  activate_rb(body);
 }
 
 static void add_parent_components(entt::entity e, entt::entity p) {
@@ -285,8 +298,6 @@ static void set_co_rotation(btCollisionObject* obj, vec4 rot) {
   obj->getWorldTransform().setRotation(btq);
 }
 
-static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
-
 static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
   if (result.hasHit()) {
     return get_co_entity(result.m_collisionObject);
@@ -314,6 +325,47 @@ static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
   auto result = get_ray_test_closest_result(from, to);
   return get_rt_entity(result);
 }
+
+static void delete_entity(entt::entity e) {
+  registry.destroy(e);
+}
+
+static void delete_rb(btRigidBody* body) {
+  delete body->getMotionState();
+  delete body->getCollisionShape();
+  physics_world->removeRigidBody(body);
+  delete body;
+}
+
+static void delete_co(btCollisionObject* obj) {
+  delete obj->getCollisionShape();
+  physics_world->removeCollisionObject(obj);
+  delete obj;
+}
+
+namespace internal {
+
+static void add_rb_to_world(entt::registry& reg, entt::entity e) {
+  btRigidBody* body = reg.get<btRigidBody*>(e);
+  physics_world->addRigidBody(body, 1, 1);
+};
+
+static void add_co_to_world(entt::registry& reg, entt::entity e) {
+  btCollisionObject* obj = reg.get<btCollisionObject*>(e);
+  physics_world->addCollisionObject(obj);
+};
+
+static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
+  btRigidBody* body = reg.get<btRigidBody*>(e);
+  delete_rb(body);
+};
+
+static void remove_co_from_world(entt::registry& reg, entt::entity e) {
+  btCollisionObject* obj = reg.get<btCollisionObject*>(e);
+  delete_co(obj);
+}
+
+};
 
 }; // namespace quark
 

@@ -134,6 +134,8 @@ void end_shadow_rendering();
 
 void render_frame(bool end_forward);
 
+// Physics Helpers
+
 }; // namespace quark
 
 #include "quark_helpers.hpp"

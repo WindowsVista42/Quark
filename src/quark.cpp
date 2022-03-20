@@ -20,6 +20,12 @@ void quark::init() {
   assets.add_type(internal::load_frag_shader, internal::unload_shader, ".frag.spv");
   assets.add_type(internal::load_obj_mesh, internal::unload_mesh, ".obj");
 
+  registry.on_construct<btRigidBody*>().connect<&internal::add_rb_to_world>();
+  registry.on_destroy<btRigidBody*>().connect<&internal::remove_rb_from_world>();
+
+  registry.on_construct<btCollisionObject*>().connect<&internal::add_co_to_world>();
+  registry.on_destroy<btCollisionObject*>().connect<&internal::remove_co_from_world>();
+
   internal::init_window();
   internal::init_vulkan();
 
