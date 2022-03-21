@@ -54,9 +54,6 @@ TRANSPARENT_TYPE(RelPos, vec3);
 // World rotation (quaternion) relative to parent
 TRANSPARENT_TYPE(RelRot, quat);
 
-// World scale relative to parent
-TRANSPARENT_TYPE(RelScl, vec3);
-
 #undef OLD_TRANSPARENT_TYPE
 #undef TRANSPARENT_TYPE
 

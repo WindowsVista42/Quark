@@ -180,31 +180,27 @@ static void add_parent_components(entt::entity e, entt::entity p) {
   children->count += 1;
 }
 
-static Pos mul_transform_position(Pos a_pos, Pos b_pos, Rot b_rot, Scl b_scl) {
-  a_pos *= b_scl;
-  a_pos = rotate(a_pos, b_rot);
-  a_pos += b_pos;
-  return a_pos;
+static Pos mul_transform_position(RelPos rel_pos, Pos base_pos, Rot base_rot) {
+  rel_pos = rotate(rel_pos, base_rot);
+  rel_pos += base_pos;
+  return rel_pos;
 };
 
 struct TResult {
   Pos out_pos;
   Rot out_rot;
-  Scl out_scl;
 };
 
-static auto mul_transform(Pos a_pos, Rot a_rot, Scl a_scl, Pos b_pos, Rot b_rot, Scl b_scl) {
+static auto mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot) {
   TResult result;
 
-  result.out_pos = mul_transform_position(a_pos, b_pos, b_rot, b_scl);
-  result.out_rot = Rot{mul_quat(a_rot, b_rot)};
-
-  result.out_scl = Scl{a_scl * b_scl};
+  result.out_pos = mul_transform_position(rel_pos, base_pos, base_rot);
+  result.out_rot = Rot{mul_quat(rel_rot, base_rot)};
 
   return result;
 }
 
-static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, RelScl rel_scl) {
+static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, Scl scl) {
   Parent* p = try_get_component<Parent>(e);
   if (p == 0) {
     panic("Please add parent components to child before calling add_relative_transform_components!\n");
@@ -212,21 +208,20 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
 
   add_component(e, RelPos{rel_pos});
   add_component(e, RelRot{rel_rot});
-  add_component(e, RelScl{rel_scl});
+
 
   Pos pos = Pos{rel_pos};
   Rot rot = Rot{rel_rot};
-  Scl scl = Scl{rel_scl};
 
   Pos p_pos = get_component<Pos>(p->parent);
   Rot p_rot = get_component<Rot>(p->parent);
   Scl p_scl = get_component<Scl>(p->parent);
 
-  auto t = mul_transform(Pos{rel_pos}, Rot{rel_rot}, Scl{rel_scl}, p_pos, p_rot, p_scl);
+  auto t = mul_transform(Pos{rel_pos}, Rot{rel_rot}, p_pos, p_rot);
 
-  add_component(e, t.out_pos);
-  add_component(e, t.out_rot);
-  add_component(e, t.out_scl);
+  add_component(e, Pos{t.out_pos});
+  add_component(e, Rot{t.out_rot});
+  add_component(e, Scl{scl});
 
   return t;
 }
