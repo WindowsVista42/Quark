@@ -338,6 +338,10 @@ static void delete_co(btCollisionObject* obj) {
   delete obj;
 }
 
+static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) {
+  body->applyForce(force, rel_pos);
+};
+
 namespace internal {
 
 static void add_rb_to_world(entt::registry& reg, entt::entity e) {

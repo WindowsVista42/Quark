@@ -33,6 +33,9 @@ void vec2::operator/=(vec2 v) { *this = *this / v; };
 
 vec2 vec2::operator-() { return {-x, -y}; }
 
+bool vec2::operator==(vec2 v) {return (this->x == v.x && this->y == v.y); }
+bool vec2::operator!=(vec2 v) {return !(*this == v); }
+
 f32& vec2::operator[](usize i) { return ((f32*)this)[i]; };
 
 // vec3
@@ -57,6 +60,12 @@ vec3::vec3(f32 x, vec2 yz) {
   this->z = yz.y;
 }
 
+vec3::vec3(btVector3 v) {
+  this->x = v.x();
+  this->y = v.y();
+  this->z = v.z();
+}
+
 vec3 vec3::operator+(f32 v) { return {x + v, y + v, z + v}; }
 vec3 vec3::operator-(f32 v) { return {x - v, y - v, z - v}; }
 vec3 vec3::operator*(f32 v) { return {x * v, y * v, z * v}; }
@@ -76,6 +85,17 @@ void vec3::operator+=(vec3 v) { *this = *this + v; };
 void vec3::operator-=(vec3 v) { *this = *this - v; };
 void vec3::operator*=(vec3 v) { *this = *this * v; };
 void vec3::operator/=(vec3 v) { *this = *this / v; };
+
+bool vec3::operator==(vec3 v) {
+  return this->x == v.x && this->y == v.y && this->z == v.z;
+};
+bool vec3::operator!=(vec3 v) {
+  return !(*this == v);
+}
+
+vec3::operator btVector3() {
+    return {this->x, this->y, this->z};
+};
 
 vec3 vec3::operator-() { return {-x, -y, -z}; }
 

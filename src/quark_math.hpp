@@ -20,8 +20,8 @@ const mat4 MAT4_IDENTITY = {
     {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
-f32 length(vec3 vector);
-f32 length_recip(vec3 vector);
+//f32 length(vec3 vector);
+//f32 length_recip(vec3 vector);
 // vec3 normalize(vec3 vector);
 vec3 cross(vec3 lhs, vec3 rhs);
 f32 dot(vec3 lhs, vec3 rhs);
@@ -54,6 +54,7 @@ mat4 rotate(f32 angle, vec3 axis);
 
 mat4 transpose(mat4 a);
 
+f32 length(vec2 x);
 f32 length(vec3 x);
 f32 length_recip(vec3 x);
 
@@ -64,12 +65,14 @@ vec4 mul_quat(vec4 qa, vec4 qb);
 f32 wrap(f32 x, f32 min, f32 max);
 f32 wrap(f32 x, f32 v);
 
+vec2 normalize(vec2 v);
 vec3 normalize(vec3 v);
 f32 magnitude(vec3 v);
 
 vec3 cross(vec3 a, vec3 b);
 
 f32 dot(vec3 lhs, vec3 rhs);
+f32 dot(vec2 a, vec2 b);
 
 f32 clamp(f32 x, f32 min, f32 max);
 

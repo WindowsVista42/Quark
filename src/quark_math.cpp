@@ -92,6 +92,7 @@ mat4 quark::transpose(mat4 a) {
       {a[0][3], a[1][3], a[2][3], a[3][3]},
   };
 };
+f32 quark::length(vec2 x) { return sqrtf(dot(x, x)); }
 f32 quark::length(vec3 x) { return sqrtf(dot(x, x)); }
 f32 quark::length_recip(vec3 x) { return 1.0f / length(x); }
 f32 quark::wrap(f32 x, f32 min, f32 max) {
@@ -103,12 +104,15 @@ f32 quark::wrap(f32 x, f32 min, f32 max) {
   return x;
 }
 f32 quark::wrap(f32 x, f32 v) { return wrap(x, 0.0f, v); }
+vec2 quark::normalize(vec2 v) { return v / sqrtf(dot(v, v)); }
 vec3 quark::normalize(vec3 v) { return v / sqrtf(dot(v, v)); }
 f32 quark::magnitude(vec3 v) { return sqrtf(dot(v, v)); }
 vec3 quark::cross(vec3 a, vec3 b) {
   vec3 output = {a.y * b.z - b.y * a.z, a.z * b.x - b.z * a.x, a.x * b.y - b.x * a.y};
   return output;
 }
+
+f32 quark::dot(vec2 a, vec2 b) { return (a.x * b.x) + (a.y * b.y); };
 f32 quark::dot(vec3 lhs, vec3 rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z); }
 f32 quark::dot(vec4 lhs, vec4 rhs) { return (lhs.x * rhs.x) + (lhs.y * rhs.y) + (lhs.z * rhs.z) + (lhs.w * rhs.w); }
 f32 quark::clamp(f32 x, f32 min, f32 max) {

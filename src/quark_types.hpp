@@ -3,6 +3,7 @@
 #define QUARK_TYPES_HPP
 
 #include <cstdint>
+#include <btBulletDynamicsCommon.h>
 
 namespace quark {
 using namespace quark;
@@ -51,6 +52,9 @@ struct vec2 {
 
   vec2 operator-();
 
+  bool operator==(vec2 v);
+  bool operator!=(vec2 v);
+
   f32& operator[](usize i);
 };
 
@@ -69,6 +73,7 @@ struct vec3 {
   vec3(f32 x, f32 y, f32 z);
   vec3(vec2 xy, f32 z);
   vec3(f32 x, vec2 yz);
+  vec3(btVector3 v);
 
   vec3 operator+(f32 v);
   vec3 operator-(f32 v);
@@ -90,9 +95,14 @@ struct vec3 {
   void operator*=(vec3 v);
   void operator/=(vec3 v);
 
+  bool operator==(vec3 v);
+  bool operator!=(vec3 v);
+
   vec3 operator-();
 
   f32& operator[](usize i);
+
+  operator btVector3();
 };
 
 // Four component vector

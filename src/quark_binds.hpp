@@ -54,32 +54,52 @@ static void update_bind(GLFWwindow* window, Bind* bind) {
   }
 };
 
+//static void update_key_bind(GLFWwindow* window, Bind* bind) {
+//  if (glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
+//    if (!bind->down) {
+//      bind->just_pressed = true;
+//    } else {
+//      bind->just_pressed = false;
+//    }
+//    bind->down = true;
+//  } else {
+//    bind->down = false;
+//    bind->just_pressed = false;
+//  }
+//}
+
 static void update_key_bind(GLFWwindow* window, Bind* bind) {
-  if (glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
-    if (!bind->down) {
-      bind->just_pressed = true;
-    } else {
-      bind->just_pressed = false;
-    }
-    bind->down = true;
-  } else {
+  if (glfwGetKey(window, bind->key_bind) != GLFW_PRESS) {
     bind->down = false;
     bind->just_pressed = false;
+    return;
   }
+
+  if (bind->down) {
+    // bind->down = true; // implicit
+    bind->just_pressed = false;
+    return;
+  }
+
+  bind->down = true;
+  bind->just_pressed = true;
 }
 
 static void update_mouse_bind(GLFWwindow* window, Bind* bind) {
-  if (glfwGetMouseButton(window, bind->mouse_bind) == GLFW_PRESS) {
-    if (!bind->down) {
-      bind->just_pressed = true;
-    } else {
-      bind->just_pressed = false;
-    }
-    bind->down = true;
-  } else {
+  if (glfwGetMouseButton(window, bind->mouse_bind) != GLFW_PRESS) {
     bind->down = false;
     bind->just_pressed = false;
+    return;
   }
+
+  if (bind->down) {
+    // bind->down = true; // implicit
+    bind->just_pressed = false;
+    return;
+  }
+
+  bind->down = true;
+  bind->just_pressed = true;
 }
 
 }; // namespace quark
