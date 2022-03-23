@@ -70,6 +70,7 @@ struct vec3 {
   };
 
   vec3();
+  vec3(f32 a);
   vec3(f32 x, f32 y, f32 z);
   vec3(vec2 xy, f32 z);
   vec3(f32 x, vec2 yz);
@@ -160,6 +161,10 @@ struct vec4 {
 struct quat : public vec4 {
   quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
+
+  operator btQuaternion() {
+    return btQuaternion{x, y, z, w};
+  };
 };
 
 // Two by two matrix

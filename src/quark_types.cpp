@@ -42,6 +42,12 @@ f32& vec2::operator[](usize i) { return ((f32*)this)[i]; };
 
 vec3::vec3() {}
 
+vec3::vec3(f32 a) {
+  this->x = a;
+  this->y = a;
+  this->z = a;
+};
+
 vec3::vec3(f32 x, f32 y, f32 z) {
   this->x = x;
   this->y = y;

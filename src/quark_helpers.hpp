@@ -159,16 +159,16 @@ static void add_moving_rigid_body_components(entt::entity e, Pos pos, Scl scl, b
   activate_rb(body);
 }
 
-static void add_parent_components(entt::entity e, entt::entity p) {
+static void add_parent_components(entt::entity e, entt::entity parent) {
   // add parent
-  add_component<Parent>(e, Parent{p});
+  add_component<Parent>(e, Parent{parent});
 
-  Children* children = try_get_component<Children>(p);
+  Children* children = try_get_component<Children>(parent);
 
   // add children component to parent if they dont exist
   if (children == 0) {
-    add_component(p, Children{0, {}});
-    children = try_get_component<Children>(p);
+    add_component(parent, Children{0, {}});
+    children = try_get_component<Children>(parent);
   }
 
   if (children->count >= 15) {
@@ -209,13 +209,13 @@ static TResult add_relative_transform_components(entt::entity e, RelPos rel_pos,
   add_component(e, RelPos{rel_pos});
   add_component(e, RelRot{rel_rot});
 
+  //TODO(sean): use syncronize_child_transform_with_parent
 
   Pos pos = Pos{rel_pos};
   Rot rot = Rot{rel_rot};
 
   Pos p_pos = get_component<Pos>(p->parent);
   Rot p_rot = get_component<Rot>(p->parent);
-  Scl p_scl = get_component<Scl>(p->parent);
 
   auto t = mul_transform(Pos{rel_pos}, Rot{rel_rot}, p_pos, p_rot);
 
@@ -319,6 +319,10 @@ static const btCollisionObject* get_ray_test_closest_objet(vec3 from, vec3 to) {
 static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
   auto result = get_ray_test_closest_result(from, to);
   return get_rt_entity(result);
+}
+
+static bool get_ray_test_hit(vec3 from, vec3 to) {
+  return get_ray_test_closest_result(from, to).hasHit();
 }
 
 static void delete_entity(entt::entity e) {
