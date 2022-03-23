@@ -80,6 +80,11 @@ struct vec3 {
   vec3 operator*(f32 v);
   vec3 operator/(f32 v);
 
+  vec3 operator+(f32 v) const;
+  vec3 operator-(f32 v) const;
+  vec3 operator*(f32 v) const;
+  vec3 operator/(f32 v) const;
+
   vec3 operator+(vec3 v);
   vec3 operator-(vec3 v);
   vec3 operator*(vec3 v);
