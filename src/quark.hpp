@@ -27,6 +27,7 @@
 #include <entt/entity/registry.hpp>
 
 #include <btBulletDynamicsCommon.h>
+#include <BulletCollision/CollisionDispatch/btGhostObject.h>
 
 // Public API
 #include "quark_allocators.hpp"

@@ -1,5 +1,6 @@
 #define QUARK_INTERNALS
 #include "quark.hpp"
+#include <BulletCollision/CollisionDispatch/btGhostObject.h>
 
 using namespace quark;
 using namespace internal;
@@ -12,4 +13,5 @@ void quark::internal::init_physics() {
   physics_world = new btDiscreteDynamicsWorld(physics_dispatcher, physics_overlapping_pair_cache, physics_solver, physics_config);
 
   physics_world->setGravity({0, 0, -10.0f});
+  physics_world->getPairCache()->setInternalGhostPairCallback(new btGhostPairCallback());
 }

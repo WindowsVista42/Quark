@@ -26,6 +26,9 @@ void quark::init() {
   registry.on_construct<btCollisionObject*>().connect<&internal::add_co_to_world>();
   registry.on_destroy<btCollisionObject*>().connect<&internal::remove_co_from_world>();
 
+  registry.on_construct<btGhostObject*>().connect<&internal::add_go_to_world>();
+  registry.on_destroy<btGhostObject*>().connect<&internal::remove_go_from_world>();
+
   internal::init_window();
   internal::init_vulkan();
 

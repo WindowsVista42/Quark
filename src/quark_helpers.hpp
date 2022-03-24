@@ -342,30 +342,46 @@ static void delete_co(btCollisionObject* obj) {
   delete obj;
 }
 
+static void delete_go(btGhostObject* ghost_obj) {
+  delete ghost_obj->getCollisionShape();
+  physics_world->removeCollisionObject(ghost_obj);
+  delete ghost_obj;
+}
+
 static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) {
   body->applyForce(force, rel_pos);
-};
+}
 
 namespace internal {
 
 static void add_rb_to_world(entt::registry& reg, entt::entity e) {
   btRigidBody* body = reg.get<btRigidBody*>(e);
   physics_world->addRigidBody(body, 1, 1);
-};
+}
 
 static void add_co_to_world(entt::registry& reg, entt::entity e) {
   btCollisionObject* obj = reg.get<btCollisionObject*>(e);
   physics_world->addCollisionObject(obj);
-};
+}
+
+static void add_go_to_world(entt::registry& reg, entt::entity e) {
+  btGhostObject* ghost_obj = reg.get<btGhostObject*>(e);
+  physics_world->addCollisionObject(ghost_obj, btBroadphaseProxy::AllFilter, btBroadphaseProxy::AllFilter);
+}
 
 static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
   btRigidBody* body = reg.get<btRigidBody*>(e);
   delete_rb(body);
-};
+}
 
 static void remove_co_from_world(entt::registry& reg, entt::entity e) {
   btCollisionObject* obj = reg.get<btCollisionObject*>(e);
   delete_co(obj);
+}
+
+static void remove_go_from_world(entt::registry& reg, entt::entity e) {
+  btGhostObject* ghost_obj = reg.get<btGhostObject*>(e);
+  delete_go(ghost_obj);
 }
 
 };
