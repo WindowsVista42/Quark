@@ -87,7 +87,8 @@ inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue
 inline VkQueue present_queue;  // Present queue
 
 inline u32 graphics_queue_family; // Graphics queue family index
-inline u32 transfer_queue_family; // Transfer queue family index, gets set as the graphics queue family if we dont have a transfer queue
+inline u32 transfer_queue_family; // Transfer queue family index, gets set as the graphics queue family if we dont have
+                                  // a transfer queue
 inline u32 present_queue_family;  // Present queue family index
 
 inline VkCommandPool transfer_cmd_pool; // Transfer command pool
@@ -98,7 +99,8 @@ inline VkSemaphore present_semaphore[FRAME_OVERLAP];
 inline VkSemaphore render_semaphore[FRAME_OVERLAP];
 inline VkFence render_fence[FRAME_OVERLAP];
 
-inline RenderConstants render_constants; // We dont want this to have multiple copies because we want the most curernt version
+inline RenderConstants
+    render_constants; // We dont want this to have multiple copies because we want the most curernt version
 inline AllocatedBuffer render_constants_gpu[FRAME_OVERLAP];
 inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 
@@ -168,7 +170,8 @@ static void framebuffer_resize_callback(GLFWwindow* window, int width, int heigh
 VkCommandBuffer begin_quick_commands();
 void end_quick_commands(VkCommandBuffer command_buffer);
 AllocatedBuffer create_allocated_buffer(usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
-AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
+AllocatedImage create_allocated_image(
+    u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
 void init_window();
 void init_vulkan();

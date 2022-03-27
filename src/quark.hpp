@@ -17,6 +17,7 @@
 #include <VkBootstrap.h>
 
 #ifndef QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
+//#define QUARK_INTERNALS
 #define VMA_IMPLEMENTATION
 #endif
 
@@ -26,8 +27,8 @@
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 
-#include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <btBulletDynamicsCommon.h>
 
 // Public API
 #include "quark_allocators.hpp"
@@ -42,6 +43,7 @@
 #include "quark_utils.hpp"
 
 namespace quark {
+using namespace quark;
 
 // Globals
 inline AssetManager assets;

@@ -54,19 +54,19 @@ static void update_bind(GLFWwindow* window, Bind* bind) {
   }
 };
 
-//static void update_key_bind(GLFWwindow* window, Bind* bind) {
-//  if (glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
-//    if (!bind->down) {
-//      bind->just_pressed = true;
-//    } else {
-//      bind->just_pressed = false;
-//    }
-//    bind->down = true;
-//  } else {
-//    bind->down = false;
-//    bind->just_pressed = false;
-//  }
-//}
+// static void update_key_bind(GLFWwindow* window, Bind* bind) {
+//   if (glfwGetKey(window, bind->key_bind) == GLFW_PRESS) {
+//     if (!bind->down) {
+//       bind->just_pressed = true;
+//     } else {
+//       bind->just_pressed = false;
+//     }
+//     bind->down = true;
+//   } else {
+//     bind->down = false;
+//     bind->just_pressed = false;
+//   }
+// }
 
 static void update_key_bind(GLFWwindow* window, Bind* bind) {
   if (glfwGetKey(window, bind->key_bind) != GLFW_PRESS) {

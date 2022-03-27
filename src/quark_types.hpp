@@ -2,8 +2,8 @@
 #ifndef QUARK_TYPES_HPP
 #define QUARK_TYPES_HPP
 
-#include <cstdint>
 #include <btBulletDynamicsCommon.h>
+#include <cstdint>
 
 namespace quark {
 using namespace quark;
@@ -162,9 +162,7 @@ struct quat : public vec4 {
   quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
 
-  operator btQuaternion() {
-    return btQuaternion{x, y, z, w};
-  };
+  operator btQuaternion() { return btQuaternion{x, y, z, w}; };
 };
 
 // Two by two matrix

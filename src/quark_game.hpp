@@ -16,18 +16,18 @@ using namespace quark;
 // Game types
 
 // Define a transparent struct with the inner value being referenced as _
-#define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
-  struct name {                                                                                                                                      \
-    inner _;                                                                                                                                         \
-    operator inner&() { return *(inner*)this; }                                                                                                      \
+#define OLD_TRANSPARENT_TYPE(name, inner)                                                                              \
+  struct name {                                                                                                        \
+    inner _;                                                                                                           \
+    operator inner&() { return *(inner*)this; }                                                                        \
   }
 
 // Define a transparent struct that is truly transparent with the inner value
-#define TRANSPARENT_TYPE(name, inner)                                                                                                                \
-  struct name : public inner {                                                                                                                       \
-    using inner::inner;                                                                                                                              \
-    name() {}                                                                                                                                        \
-    name(inner v) { *this = *(name*)&v; }                                                                                                            \
+#define TRANSPARENT_TYPE(name, inner)                                                                                  \
+  struct name : public inner {                                                                                         \
+    using inner::inner;                                                                                                \
+    name() {}                                                                                                          \
+    name(inner v) { *this = *(name*)&v; }                                                                              \
   };
 
 // Vulkan fragment shader module

@@ -138,8 +138,8 @@ bool quark::not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x && lhs.y != rh
 bool quark::partial_not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x || lhs.y != rhs.y || lhs.z != rhs.z; }
 vec3 quark::spherical_to_cartesian(vec2 spherical) {
   return vec3{
+      -sinf(spherical.x) * sinf(spherical.y),
       cosf(spherical.x) * sinf(spherical.y),
-      sinf(spherical.x) * sinf(spherical.y),
       -cosf(spherical.y),
   };
 }
@@ -153,6 +153,11 @@ vec3 quark::add(vec3 lhs, vec3 rhs) {
 }
 mat4 quark::look_dir(vec3 eye, vec3 dir, vec3 up) {
   dir = -dir; // Sean: left handed coordinates that are being wonk
+  // dir.y = -dir.y;
+  // eye.y = -eye.y;
+  // f32 copy = dir.x;
+  // dir.x = -dir.y;
+  // dir.y = copy;
   vec3 f = normalize(dir);
   vec3 s = normalize(cross(up, f));
   vec3 u = cross(f, s);
@@ -247,19 +252,19 @@ void quark::print(const char* prefix, vec2 i) {
   printf("%s"
          "(%f, %f)"
          "\n",
-         prefix, i.x, i.y);
+      prefix, i.x, i.y);
 }
 void quark::print(const char* prefix, vec3 i) {
   printf("%s"
          "(%f, %f, %f)"
          "\n",
-         prefix, i.x, i.y, i.z);
+      prefix, i.x, i.y, i.z);
 }
 void quark::print(const char* prefix, vec4 i) {
   printf("%s"
          "(%f, %f, %f, %f)"
          "\n",
-         prefix, i.x, i.y, i.z, i.w);
+      prefix, i.x, i.y, i.z, i.w);
 }
 void quark::print(const char* prefix, mat4 x) {
   printf("%s"
@@ -268,8 +273,8 @@ void quark::print(const char* prefix, mat4 x) {
          "(%f, %f, %f, %f)\n"
          "(%f, %f, %f, %f)\n"
          "\n",
-         prefix, x[0][0], x[0][1], x[0][2], x[0][3], x[1][0], x[1][1], x[1][2], x[1][3], x[2][0], x[2][1], x[2][2], x[2][3], x[3][0], x[3][1],
-         x[3][2], x[3][3]);
+      prefix, x[0][0], x[0][1], x[0][2], x[0][3], x[1][0], x[1][1], x[1][2], x[1][3], x[2][0], x[2][1], x[2][2],
+      x[2][3], x[3][0], x[3][1], x[3][2], x[3][3]);
 }
 mat4 quark::mul(mat4 m0, mat4 m1) {
   return {

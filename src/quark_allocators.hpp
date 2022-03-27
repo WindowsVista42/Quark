@@ -15,13 +15,13 @@
 namespace quark {
 using namespace quark;
 
-#define vk_check(x)                                                                                                                                  \
-  do {                                                                                                                                               \
-    VkResult err = x;                                                                                                                                \
-    if (err) {                                                                                                                                       \
-      std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
-      panic("");                                                                                                                                     \
-    }                                                                                                                                                \
+#define vk_check(x)                                                                                                    \
+  do {                                                                                                                 \
+    VkResult err = x;                                                                                                  \
+    if (err) {                                                                                                         \
+      std::cout << "Detected Vulkan error: " << err << '\n';                                                           \
+      panic("");                                                                                                       \
+    }                                                                                                                  \
   } while (0)
 
 struct LinearAllocator {

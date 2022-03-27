@@ -20,9 +20,9 @@ const mat4 MAT4_IDENTITY = {
     {0.0f, 0.0f, 0.0f, 1.0f},
 };
 
-//f32 length(vec3 vector);
-//f32 length_recip(vec3 vector);
-// vec3 normalize(vec3 vector);
+// f32 length(vec3 vector);
+// f32 length_recip(vec3 vector);
+//  vec3 normalize(vec3 vector);
 vec3 cross(vec3 lhs, vec3 rhs);
 f32 dot(vec3 lhs, vec3 rhs);
 f32 dot(vec4 lhs, vec4 rhs);

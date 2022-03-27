@@ -33,8 +33,8 @@ void vec2::operator/=(vec2 v) { *this = *this / v; };
 
 vec2 vec2::operator-() { return {-x, -y}; }
 
-bool vec2::operator==(vec2 v) {return (this->x == v.x && this->y == v.y); }
-bool vec2::operator!=(vec2 v) {return !(*this == v); }
+bool vec2::operator==(vec2 v) { return (this->x == v.x && this->y == v.y); }
+bool vec2::operator!=(vec2 v) { return !(*this == v); }
 
 f32& vec2::operator[](usize i) { return ((f32*)this)[i]; };
 
@@ -97,16 +97,10 @@ void vec3::operator-=(vec3 v) { *this = *this - v; };
 void vec3::operator*=(vec3 v) { *this = *this * v; };
 void vec3::operator/=(vec3 v) { *this = *this / v; };
 
-bool vec3::operator==(vec3 v) {
-  return this->x == v.x && this->y == v.y && this->z == v.z;
-};
-bool vec3::operator!=(vec3 v) {
-  return !(*this == v);
-}
+bool vec3::operator==(vec3 v) { return this->x == v.x && this->y == v.y && this->z == v.z; };
+bool vec3::operator!=(vec3 v) { return !(*this == v); }
 
-vec3::operator btVector3() {
-    return {this->x, this->y, this->z};
-};
+vec3::operator btVector3() { return {this->x, this->y, this->z}; };
 
 vec3 vec3::operator-() { return {-x, -y, -z}; }
 
@@ -210,11 +204,11 @@ mat3 mat3::operator-(mat3 v) { return {xs - v.xs, ys - v.ys, zs - v.zs}; }
 mat3 mat3::operator*(mat3 v) {
   return {
       {(xs.x * v.xs.x) + (xs.y * v.ys.x) + (xs.z * v.zs.x), (xs.x * v.xs.y) + (xs.y * v.ys.y) + (xs.z * v.zs.y),
-       (xs.x * v.xs.z) + (xs.y * v.ys.z) + (xs.z * v.zs.z)},
+          (xs.x * v.xs.z) + (xs.y * v.ys.z) + (xs.z * v.zs.z)},
       {(ys.x * v.xs.x) + (ys.y * v.ys.x) + (ys.z * v.zs.x), (ys.x * v.xs.y) + (ys.y * v.ys.y) + (ys.z * v.zs.y),
-       (ys.x * v.xs.z) + (ys.y * v.ys.z) + (ys.z * v.zs.z)},
+          (ys.x * v.xs.z) + (ys.y * v.ys.z) + (ys.z * v.zs.z)},
       {(zs.x * v.xs.x) + (zs.y * v.ys.x) + (zs.z * v.zs.x), (zs.x * v.xs.y) + (zs.y * v.ys.y) + (zs.z * v.zs.y),
-       (zs.x * v.xs.z) + (zs.y * v.ys.z) + (zs.z * v.zs.z)},
+          (zs.x * v.xs.z) + (zs.y * v.ys.z) + (zs.z * v.zs.z)},
   };
 }
 
@@ -224,15 +218,22 @@ mat4 mat4::operator+(mat4 v) { return {xs + v.xs, ys + v.ys, zs + v.zs, ws + v.w
 mat4 mat4::operator-(mat4 v) { return {xs - v.xs, ys - v.ys, zs - v.zs, ws - v.ws}; }
 
 mat4 mat4::operator*(mat4 v) {
-  return {
-      {(xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w), (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
-       (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w), (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)},
-      {(xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w), (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
-       (xs.z * v.ys.x) + (ys.z * v.ys.y) + (zs.z * v.ys.z) + (ws.z * v.ys.w), (xs.w * v.ys.x) + (ys.w * v.ys.y) + (zs.w * v.ys.z) + (ws.w * v.ys.w)},
-      {(xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w), (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
-       (xs.z * v.zs.x) + (ys.z * v.zs.y) + (zs.z * v.zs.z) + (ws.z * v.zs.w), (xs.w * v.zs.x) + (ys.w * v.zs.y) + (zs.w * v.zs.z) + (ws.w * v.zs.w)},
-      {(xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w), (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
-       (xs.z * v.ws.x) + (ys.z * v.ws.y) + (zs.z * v.ws.z) + (ws.z * v.ws.w), (xs.w * v.ws.x) + (ys.w * v.ws.y) + (zs.w * v.ws.z) + (ws.w * v.ws.w)}};
+  return {{(xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w),
+              (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
+              (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w),
+              (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)},
+      {(xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w),
+          (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
+          (xs.z * v.ys.x) + (ys.z * v.ys.y) + (zs.z * v.ys.z) + (ws.z * v.ys.w),
+          (xs.w * v.ys.x) + (ys.w * v.ys.y) + (zs.w * v.ys.z) + (ws.w * v.ys.w)},
+      {(xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w),
+          (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
+          (xs.z * v.zs.x) + (ys.z * v.zs.y) + (zs.z * v.zs.z) + (ws.z * v.zs.w),
+          (xs.w * v.zs.x) + (ys.w * v.zs.y) + (zs.w * v.zs.z) + (ws.w * v.zs.w)},
+      {(xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w),
+          (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
+          (xs.z * v.ws.x) + (ys.z * v.ws.y) + (zs.z * v.ws.z) + (ws.z * v.ws.w),
+          (xs.w * v.ws.x) + (ys.w * v.ws.y) + (zs.w * v.ws.z) + (ws.w * v.ws.w)}};
 }
 
 vec4& mat4::operator[](usize i) { return ((vec4*)this)[i]; }
