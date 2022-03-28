@@ -137,6 +137,7 @@ bool quark::partial_equal(vec3 lhs, vec3 rhs) { return lhs.x == rhs.x || lhs.y =
 bool quark::not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x && lhs.y != rhs.y && lhs.z != rhs.z; }
 bool quark::partial_not_equal(vec3 lhs, vec3 rhs) { return lhs.x != rhs.x || lhs.y != rhs.y || lhs.z != rhs.z; }
 vec3 quark::spherical_to_cartesian(vec2 spherical) {
+  // y+ forward, x+ right, z+ up
   return vec3{
       -sinf(spherical.x) * sinf(spherical.y),
       cosf(spherical.x) * sinf(spherical.y),
@@ -152,12 +153,8 @@ vec3 quark::add(vec3 lhs, vec3 rhs) {
   return output;
 }
 mat4 quark::look_dir(vec3 eye, vec3 dir, vec3 up) {
+  // y+ forward, x+ right, z+ up
   dir = -dir; // Sean: left handed coordinates that are being wonk
-  // dir.y = -dir.y;
-  // eye.y = -eye.y;
-  // f32 copy = dir.x;
-  // dir.x = -dir.y;
-  // dir.y = copy;
   vec3 f = normalize(dir);
   vec3 s = normalize(cross(up, f));
   vec3 u = cross(f, s);

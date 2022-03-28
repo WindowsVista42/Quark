@@ -42,6 +42,9 @@ static void update_children(); // update_entity_hierarchies();
 static void sync_child_transform(Position& child_pos, Rotation& child_rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent); // static void synchronize_child_transform_with_parent(Pos& pos, Rot& rot, RelPos rel_pos, RelRot rel_rot, Parent parent);
 
 namespace internal {};
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace internal;
+#endif
 }; // namespace ecs
 
 }; // namespace quark

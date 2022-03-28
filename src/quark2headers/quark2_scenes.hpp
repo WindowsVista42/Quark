@@ -14,6 +14,9 @@ inline void (*update_func)();
 inline void (*deinit_func)();
 
 namespace internal {};
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace internal;
+#endif
 }; // namespace scenes
 
 }; // namespace quark

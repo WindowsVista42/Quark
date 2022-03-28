@@ -4,6 +4,7 @@
 
 // clang-format off
 #include "quark2_deps.hpp"
+#include "quark2_utils.hpp"
 #include "quark2_math.hpp"
 #include "quark2_types.hpp"
 #include "quark2_alloc.hpp"

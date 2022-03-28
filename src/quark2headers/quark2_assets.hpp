@@ -48,6 +48,7 @@ public:
   template <typename T> void add_raw_data(const char* name, T* data);
 };
 }; // namespace types
+using namespace types;
 
 template <typename T> T& get(const char* name);
 template <typename T> T* try_get(const char* name);
@@ -58,8 +59,8 @@ template <typename T> void add_loader(T* (*loader)(std::string*), void (*unloade
 template <typename T, typename T2>
 void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext);
 
-void load(const std::filesystem::path& path);
-void load_directory(const char* dir);
+static void load(const std::filesystem::path& path);
+static void load_directory(const char* dir);
 template <typename T> bool is_loaded(const char* name);
 template <typename T> void add_raw_data(const char* name, T* data);
 
@@ -82,11 +83,18 @@ inline std::unordered_map<std::type_index, void (*)(void*)> type_unloaders;
 inline std::unordered_map<std::type_index, std::unordered_map<std::string, void*>> assets;
 
 template <typename T> const std::type_index idx_of();
+
+//inline AssetManager assets2;
 }; // namespace internal
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace internal;
+#endif
 }; // namespace assets
 
 }; // namespace quark
 
 using namespace quark::assets::types;
+
+#include "quark2_assets_impl.hpp"
 
 #endif

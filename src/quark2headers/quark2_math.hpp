@@ -7,6 +7,8 @@
 namespace quark {
 namespace math {
 namespace types {
+#define MB 1000000
+
 typedef float f32;
 typedef double f64;
 
@@ -111,8 +113,6 @@ struct vec3 {
 
   operator btVector3();
 };
-
-vec3 const vec3::zero{0, 0, 0};
 
 // Four component vector
 struct vec4 {
@@ -314,9 +314,20 @@ bool vec3_eq(vec3 a, vec3 b);
 bool vec3_ne(vec3 a, vec3 b);
 
 namespace internal {};
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace internal;
+#endif
 }; // namespace math
 }; // namespace quark
 
 using namespace quark::math::types;
+namespace math = quark::math;
+using math::vec2;
+using math::vec3;
+using math::vec4;
+using math::quat;
+using math::mat2;
+using math::mat3;
+using math::mat4;
 
 #endif // QUARK_MATH_HPP

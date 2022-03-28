@@ -142,6 +142,7 @@ void render_frame(bool end_forward);
 }; // namespace quark
 
 #include "quark_helpers.hpp"
+#include "quark_ecs.hpp"
 #include "quark_internal.hpp"
 
 #endif // QUARK_HPP

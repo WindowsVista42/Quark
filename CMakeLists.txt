@@ -14,6 +14,10 @@ add_library(Quark STATIC
     src/quark.cpp
 
     src/quark2headers/quark2.cpp
+    src/quark2headers/quark2_math.cpp
+    src/quark2headers/quark2_physics.cpp
+    src/quark2headers/quark2_renderer.cpp
+    #src/quark2headers/quark2.cpp
 )
 
 add_subdirectory(lib/glfw)

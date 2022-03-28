@@ -14,8 +14,8 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-#ifndef QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
-#define QUARK_INTERNALS
+// Sean: this macro is needded because vma is really fucky if you define it multiple times
+#ifndef EXPOSE_ENGINE_INTERNALS
 #define VMA_IMPLEMENTATION
 #endif
 

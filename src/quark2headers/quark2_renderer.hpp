@@ -43,17 +43,17 @@ void end_frame();
 
 namespace internal {
 namespace types {
-//  // Frustum culling data
-//  struct CullData {
-//    mat4 view;
-//
-//    f32 p00, p22, znear, zfar;
-//    f32 frustum[4];
-//    f32 lod_base, lod_step;
-//
-//    int dist_cull;
-//    // f32 pyramid_width, pyramid_height;
-//  };
+// Frustum culling data
+struct CullData {
+  mat4 view;
+
+  f32 p00, p22, znear, zfar;
+  f32 frustum[4];
+  f32 lod_base, lod_step;
+
+  int dist_cull;
+  // f32 pyramid_width, pyramid_height;
+};
 
 struct RawLight {
   vec4 position;
@@ -91,12 +91,12 @@ struct RenderConstants {
   f32 time;
 };
 
-struct CullData {
-  f32 frustum[4];
-  f32 dist_cull;
-  f32 znear;
-  f32 zfar;
-};
+//struct CullData {
+//  f32 frustum[4];
+//  f32 dist_cull;
+//  f32 znear;
+//  f32 zfar;
+//};
 
 struct RenderEffect {
   // Same thing with this, without some kind of reference counting this becomes quite annoying to keep track of
@@ -125,6 +125,60 @@ OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
 
 // Vulkan vertex shader module
 OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
+
+// Vertex input desription helper
+template <const usize B, const usize A> struct VertexInputDescription {
+  VkVertexInputBindingDescription bindings[B];
+  VkVertexInputAttributeDescription attributes[A];
+};
+
+// Vertex storing Position Normal Texture
+struct VertexPNT {
+  vec3 position;
+  vec3 normal;
+  vec2 texture;
+
+  static const VertexInputDescription<1, 3> input_description;
+};
+
+// clang-format off
+inline const VertexInputDescription<1, 3> VertexPNT::input_description = {
+    .bindings = {
+        // binding, stride
+        { 0, sizeof(VertexPNT) },
+    },
+    .attributes = {
+        // location, binding, format, offset
+        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT, position) },
+        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT,   normal) },
+        { 2, 0,    VK_FORMAT_R32G32_SFLOAT, offsetof(VertexPNT,  texture) },
+    }
+};
+// clang-format on
+
+// Vertex storing Position Normal Color
+struct VertexPNC {
+  vec3 position;
+  vec3 normal;
+  vec3 color;
+
+  static const VertexInputDescription<1, 3> input_description;
+};
+
+// clang-format off
+inline const VertexInputDescription<1, 3> VertexPNC::input_description = {
+    .bindings = {
+        // binding, stride
+        { 0, sizeof(VertexPNC) },
+    },
+    .attributes = {
+        // binding, location, format, offset
+        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC, position) },
+        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC,   normal) },
+        { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC,    color) },
+    }
+};
+// clang-format on
 }; // namespace types
 using namespace types;
 
@@ -224,14 +278,14 @@ inline vec4 planes[6];
 inline LinearAllocator render_alloc;
 inline VmaAllocator gpu_alloc;
 
-static void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
-static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
+void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
 VkCommandBuffer begin_quick_commands();
 void end_quick_commands(VkCommandBuffer command_buffer);
 AllocatedBuffer create_allocated_buffer(usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
 AllocatedImage create_allocated_image(
-    u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
+   u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
 void init_window();
 void init_vulkan();
@@ -280,7 +334,7 @@ void print_performance_statistics();
 void update_camera();
 
 void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh);
-template <typename F> void flush_render_batch(F f);
+template <typename F> static void flush_render_batch(F f);
 
 void begin_forward_rendering();
 void end_forward_rendering();
@@ -306,10 +360,17 @@ void end_wireframe_pass();
 void draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh);
 
 }; // namespace internal
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace internal;
+#endif
 }; // namespace renderer
 
 }; // namespace quark
 
 using namespace quark::renderer::types;
+
+#ifdef EXPOSE_ENGINE_INTERNALS
+using namespace quark::renderer::internal::types;
+#endif
 
 #endif
