@@ -2,7 +2,7 @@
 #ifndef QUARK_INTERNAL_HPP
 #define QUARK_INTERNAL_HPP
 
-#define QUARK_INTERNALS
+#define EXPOSE_QUARK_INTERNALS
 #include <vk_mem_alloc.h>
 
 #define GLFW_INCLUDE_VULKAN
@@ -64,9 +64,9 @@ struct CullData {
 #define OP_TIMEOUT 1000000000
 #define FRAME_OVERLAP 2
 
-inline i32 window_w = 800; // Current window width
-inline i32 window_h = 600; // Current window height
-inline bool framebuffer_resized = false;
+//inline i32 window_w = 800; // Current window width
+//inline i32 window_h = 600; // Current window height
+//inline bool framebuffer_resized = false;
 
 inline VkInstance instance;                      // Vulkan instance
 inline VkDebugUtilsMessengerEXT debug_messenger; // Vulkan debug messenger

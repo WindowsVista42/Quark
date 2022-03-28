@@ -1,4 +1,4 @@
-#define QUARK_INTERNALS
+#define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
 

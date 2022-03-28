@@ -11,6 +11,7 @@ add_library(Quark STATIC
     src/quark_types.cpp
     src/quark_math.cpp
     src/quark_physics.cpp
+    src/quark_platform.cpp
     src/quark.cpp
 
     src/quark2headers/quark2.cpp

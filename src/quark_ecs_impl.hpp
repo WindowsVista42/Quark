@@ -11,7 +11,7 @@ using namespace ecs;
 
 static entt::entity create() { return registry.create(); };
 static void destroy(entt::entity e) { registry.destroy(e); }
-static void recursively_destroy(entt::entity e) {
+static void recursively_destroy(entt::entity e, bool destroy_root) {
   // TLDR sean: recursively deletes children two layers deep
   Children* children0 = ecs::try_get<Children>(e);
   if (children0) { // layer0 has children
@@ -50,7 +50,9 @@ static void recursively_destroy(entt::entity e) {
     }
   }
 
-  destroy(e);
+  if(destroy_root) {
+    destroy(e);
+  }
 }
 
 template <typename T> static void add(entt::entity e, T t) { registry.emplace<T>(e, t); }
@@ -71,13 +73,14 @@ static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32
   switch (render_flags) {
   case (RENDER_LIT): {
     ecs::add(e, UseLitPass{});
-  } break;
+  } return;
   case (RENDER_SOLID): {
     ecs::add(e, UseSolidPass{});
-  } break;
+  } return;
   case (RENDER_WIREFRAME): {
     ecs::add(e, UseWireframePass{});
-  } break;
+    ecs::add(e, IsTransparent{});
+  } return;
   }
 }
 

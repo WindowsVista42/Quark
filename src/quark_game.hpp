@@ -2,13 +2,12 @@
 #ifndef QUARK_GAME_HPP
 #define QUARK_GAME_HPP
 
-#include "quark_types.hpp"
-#include <vulkan/vulkan.h>
-
-#include <entt/entity/entity.hpp>
-
-#define QUARK_INTERNALS
-#include <vk_mem_alloc.h>
+#include "quark.hpp"
+//#include <vulkan/vulkan.h>
+//
+//#include <entt/entity/entity.hpp>
+//
+//#include <vk_mem_alloc.h>
 
 namespace quark {
 using namespace quark;
@@ -175,6 +174,8 @@ struct UseShadowPass {};
 
 // Treat this entity as a light
 struct IsLight {};
+
+struct IsTransparent {};
 
 // Parent-Child relationships
 // For now we only support 2 level entity hierarchies

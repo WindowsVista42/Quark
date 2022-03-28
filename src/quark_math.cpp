@@ -1,7 +1,7 @@
-#define QUARK_INTERNALS
 #include <cmath>
 #include <iostream>
 
+#define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
 
 using namespace quark;

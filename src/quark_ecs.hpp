@@ -14,12 +14,17 @@ struct Transform {
 
 enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
+
+typedef entt::entity Entity;
+
 }; // namespace types
 using namespace types;
 
+constexpr Entity null = entt::null;
+
 static entt::entity create();
 static void destroy(entt::entity e);
-static void recursively_destroy(entt::entity e);
+static void recursively_destroy(entt::entity e, bool destroy_root = true);
 
 template <typename T> void add(entt::entity e, T t);
 template <typename T> T& get(entt::entity e);
@@ -43,7 +48,7 @@ static void update_entity_hierarchies();
 static void synchronize_child_transform_with_parent(Pos& pos, Rot& rot, RelPos rel_pos, RelRot rel_rot, Parent parent);
 
 namespace internal {};
-#ifdef EXPOSE_ENGINE_INTERNALS
+#ifdef EXPOSE_QUARK_INTERNALS
 using namespace internal;
 #endif
 }; // namespace ecs

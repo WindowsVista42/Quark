@@ -1,4 +1,5 @@
-#include <quark_types.hpp>
+#define EXPOSE_QUARK_INTERNALS
+#include "quark.hpp"
 
 using namespace quark;
 

@@ -16,7 +16,7 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-#ifndef QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
+#ifndef EXPOSE_QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
 //#define QUARK_INTERNALS
 #define VMA_IMPLEMENTATION
 #endif
@@ -32,9 +32,9 @@
 
 // Public API
 #include "quark_allocators.hpp"
-#include "quark_asset_manager.hpp"
+//#include "quark_asset_manager.hpp"
 
-#include "quark_binds.hpp"
+//#include "quark_binds.hpp"
 #include "quark_colors.hpp"
 #include "quark_consts.hpp"
 #include "quark_game.hpp"
@@ -46,15 +46,15 @@ namespace quark {
 using namespace quark;
 
 // Globals
-inline AssetManager assets;
+//inline AssetManager asset_manager;
 inline entt::basic_registry<entt::entity> registry;
 
 inline bool enable_performance_statistics = false;
-inline const char* window_name = "Quark Game Engine";
+//inline const char* window_name = "Quark Game Engine";
 inline f32 dt = 1.0f / 60.0f; // Frame delta time
 inline f32 tt = 0.0f;         // Total elapsed time
 
-inline GLFWwindow* window_ptr; // GLFW window pointer
+//inline GLFWwindow* window_ptr; // GLFW window pointer
 
 inline mat4 projection_matrix;
 inline mat4 view_matrix;
@@ -135,12 +135,14 @@ void begin_shadow_rendering();
 void draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh);
 void end_shadow_rendering();
 
-void render_frame(bool end_forward);
+void render_frame(bool end_forward = true);
 
 // Physics Helpers
 
 }; // namespace quark
 
+#include "quark_platform.hpp"
+#include "quark_assets.hpp"
 #include "quark_helpers.hpp"
 #include "quark_ecs.hpp"
 #include "quark_internal.hpp"

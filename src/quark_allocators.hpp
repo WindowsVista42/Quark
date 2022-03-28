@@ -9,7 +9,7 @@
 
 #include <atomic>
 
-#define QUARK_INTERNALS
+#define EXPOSE_QUARK_INTERNALS
 #include <vk_mem_alloc.h>
 
 namespace quark {

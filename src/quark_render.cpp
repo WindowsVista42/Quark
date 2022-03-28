@@ -1,9 +1,10 @@
-#define QUARK_INTERNALS
+#define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
 //#include "quark_internal.hpp"
 
 using namespace quark;
 using namespace internal;
+using namespace platform;
 
 #define vk_check(x)                                                                                                    \
   do {                                                                                                                 \
@@ -164,16 +165,16 @@ void quark::internal::init_window() {
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-  window_ptr = glfwCreateWindow(window_w, window_h, window_name, 0, 0);
+  window = glfwCreateWindow(window_w, window_h, window_name, 0, 0);
 
-  glfwSetInputMode(window_ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   if (glfwRawMouseMotionSupported()) {
-    glfwSetInputMode(window_ptr, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
   }
 
-  glfwSetCursorPosCallback(window_ptr, quark::internal::update_cursor_position);
+  glfwSetCursorPosCallback(window, quark::internal::update_cursor_position);
 
-  glfwGetFramebufferSize(window_ptr, &window_w, &window_h);
+  glfwGetFramebufferSize(window, &window_w, &window_h);
 }
 
 void quark::internal::init_vulkan() {
@@ -198,7 +199,7 @@ void quark::internal::init_vulkan() {
   instance = vkb_inst.instance;
   debug_messenger = vkb_inst.debug_messenger;
 
-  glfwCreateWindowSurface(instance, window_ptr, 0, &surface);
+  glfwCreateWindowSurface(instance, window, 0, &surface);
 
   VkPhysicalDeviceFeatures device_features = {};
   device_features.fillModeNonSolid = VK_TRUE;
@@ -481,13 +482,13 @@ void quark::internal::init_pipelines() {
 
   shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shader_stages[0].module = *assets.get<VkVertexShader>("common");
+  shader_stages[0].module = assets::get<VkVertexShader>("common");
   shader_stages[0].pName = "main";
   shader_stages[0].pNext = 0;
 
   shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shader_stages[1].module = *assets.get<VkFragmentShader>("lit_shadow");
+  shader_stages[1].module = assets::get<VkFragmentShader>("lit_shadow");
   shader_stages[1].pName = "main";
   shader_stages[1].pNext = 0;
 
@@ -612,8 +613,8 @@ void quark::internal::init_pipelines() {
   vk_check(vkCreatePipelineLayout(device, &pipeline_layout_info, 0, &color_pipeline_layout));
 
   // Color pipeline
-  shader_stages[0].module = *assets.get<VkVertexShader>("color");
-  shader_stages[1].module = *assets.get<VkFragmentShader>("color");
+  shader_stages[0].module = assets::get<VkVertexShader>("color");
+  shader_stages[1].module = assets::get<VkFragmentShader>("color");
   rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
   rasterization_info.lineWidth = 1.0f;
   pipeline_info.layout = color_pipeline_layout;
@@ -638,7 +639,7 @@ void quark::internal::init_pipelines() {
   rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
   pipeline_info.stageCount = 1;
-  shader_stages[0].module = *assets.get<VkVertexShader>("depth_only");
+  shader_stages[0].module = assets::get<VkVertexShader>("depth_only");
   shader_stages[1].module = 0;
 
   // viewport.minDepth = 0.0f;
@@ -951,7 +952,7 @@ void quark::internal::deinit_descriptors() {
 
 void quark::internal::deinit_buffers_and_images() {
   // Destroy vma buffers
-  assets.unload_all(".obj");
+  assets::unload_all(".obj");
 
   for_every(i, FRAME_OVERLAP) {
     vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc);
@@ -959,8 +960,8 @@ void quark::internal::deinit_buffers_and_images() {
 }
 
 void quark::internal::deinit_shaders() {
-  assets.unload_all(".vert.spv");
-  assets.unload_all(".frag.spv");
+  assets::unload_all(".vert.spv");
+  assets::unload_all(".frag.spv");
 }
 
 void quark::internal::deinit_allocators() {
@@ -1007,14 +1008,14 @@ void quark::internal::deinit_vulkan() {
 }
 
 void quark::internal::deinit_window() {
-  glfwDestroyWindow(window_ptr);
+  glfwDestroyWindow(window);
   glfwTerminate();
 }
 
 void quark::internal::resize_swapchain() {
-  glfwGetFramebufferSize(window_ptr, &window_w, &window_h);
+  glfwGetFramebufferSize(window, &window_w, &window_h);
   while (window_w == 0 || window_h == 0) {
-    glfwGetFramebufferSize(window_ptr, &window_w, &window_h);
+    glfwGetFramebufferSize(window, &window_w, &window_h);
     glfwWaitEvents();
   }
 
@@ -1453,7 +1454,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>();
+    auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>(entt::exclude_t<IsTransparent>());
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1464,6 +1465,15 @@ void quark::render_frame(bool end_forward) {
 
   begin_forward_rendering();
   {
+    begin_lit_pass();
+    auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, UseLitPass>();
+    for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
+      if (box_in_frustum(pos, scl)) {
+        add_to_render_batch(pos, rot, scl, mesh);
+      }
+    }
+    end_lit_pass();
+
     begin_solid_pass();
     auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, UseSolidPass>();
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
@@ -1481,15 +1491,6 @@ void quark::render_frame(bool end_forward) {
       }
     }
     end_wireframe_pass();
-
-    begin_lit_pass();
-    auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, UseLitPass>();
-    for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        add_to_render_batch(pos, rot, scl, mesh);
-      }
-    }
-    end_lit_pass();
   }
 
   if (end_forward) {

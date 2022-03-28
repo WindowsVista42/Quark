@@ -1,6 +1,6 @@
 #include <thread>
 
-#define QUARK_INTERNALS
+#define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
 
 using namespace quark;
@@ -16,9 +16,9 @@ void quark::init() {
   render_data_count = 0;
   render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
 
-  assets.add_type(internal::load_vert_shader, internal::unload_shader, ".vert.spv");
-  assets.add_type(internal::load_frag_shader, internal::unload_shader, ".frag.spv");
-  assets.add_type(internal::load_obj_mesh, internal::unload_mesh, ".obj");
+  assets::add_type(internal::load_vert_shader, internal::unload_shader, ".vert.spv");
+  assets::add_type(internal::load_frag_shader, internal::unload_shader, ".frag.spv");
+  assets::add_type(internal::load_obj_mesh, internal::unload_mesh, ".obj");
 
   registry.on_construct<btRigidBody*>().connect<&internal::add_rb_to_world>();
   registry.on_destroy<btRigidBody*>().connect<&internal::remove_rb_from_world>();
@@ -45,7 +45,7 @@ void quark::init() {
       internal::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   internal::gpu_vertex_tracker.init(100 * MB);
 
-  assets.load_directory("assets");
+  assets::load_directory("assets");
 
   internal::init_swapchain();
   internal::init_command_pools_and_buffers();
@@ -71,11 +71,10 @@ void quark::init() {
 }
 
 void quark::run() {
-  bool window_should_close;
   do {
     auto frame_begin_time = std::chrono::high_resolution_clock::now();
 
-    window_should_close = glfwWindowShouldClose(window_ptr);
+    //window_should_close = platform:::close_window();
 
     if (update_func != 0) {
       (*quark::update_func)();
@@ -88,7 +87,7 @@ void quark::run() {
     auto frame_end_time = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
     tt += dt;
-  } while (!window_should_close);
+  } while (!platform::window_should_close);
 }
 
 void quark::deinit() {
