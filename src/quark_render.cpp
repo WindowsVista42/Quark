@@ -1462,7 +1462,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    auto shadow_pass = registry.view<Pos, Rot, Scl, Mesh, UseShadowPass>();
+    auto shadow_pass = registry.group<UseShadowPass>(entt::get<Pos, Rot, Scl, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_shadow(pos, rot, scl, mesh);
@@ -1473,7 +1473,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    auto depth_prepass = registry.view<Pos, Rot, Scl, Mesh>(entt::exclude_t<IsTransparent>());
+    auto depth_prepass = registry.group<>(entt::get<Pos, Rot, Scl, Mesh>, entt::exclude<IsTransparent>);
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1485,7 +1485,7 @@ void quark::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    auto lit_pass = registry.view<Pos, Rot, Scl, Mesh, UseLitPass>();
+    auto lit_pass = registry.group<UseLitPass>(entt::get<Pos, Rot, Scl, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         add_to_render_batch(pos, rot, scl, mesh);
@@ -1494,7 +1494,7 @@ void quark::render_frame(bool end_forward) {
     end_lit_pass();
 
     begin_solid_pass();
-    auto solid_pass = registry.view<Pos, Rot, Scl, Mesh, Col, UseSolidPass>();
+    auto solid_pass = registry.group<UseSolidPass>(entt::get<Pos, Rot, Scl, Mesh, Col>);
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1503,7 +1503,7 @@ void quark::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    auto wireframe_pass = registry.view<Pos, Rot, Scl, Mesh, Col, UseWireframePass>();
+    auto wireframe_pass = registry.group<UseWireframePass>(entt::get<Pos, Rot, Scl, Mesh, Col>);
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);

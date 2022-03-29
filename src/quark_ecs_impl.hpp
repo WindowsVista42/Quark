@@ -176,7 +176,8 @@ static void update_entity_hierarchies() {
   // loads parents multiple times
 
   // Parents of children
-  auto view_layer0 = registry.view<Rot, Children>(entt::exclude_t<Parent>());
+  //auto view_layer0 = registry.view<Rot, Children>(entt::exclude_t<Parent>());
+  auto view_layer0 = registry.group<>(entt::get<Rot, Children>, entt::exclude<Parent>);
   for (auto [e, rot, children] : view_layer0.each()) {
     // rot = axis_angle(normalize(vec3{2.0, 1.0, 0.0}), tt);
     // rot = Rot{q};
@@ -184,13 +185,15 @@ static void update_entity_hierarchies() {
 
   // Read these first because they are guaranteed layer 1
   f32 a = 0.0;
-  auto view_layer1 = registry.view<RelPos, RelRot, Pos, Rot, Parent, Children>();
+  //auto view_layer1 = registry.view<RelPos, RelRot, Pos, Rot, Parent, Children>();
+  auto view_layer1 = registry.group<>(entt::get<RelPos, RelRot, Pos, Rot, Parent, Children>);
   for (auto [e, rel_pos, rel_rot, pos, rot, parent, children] : view_layer1.each()) {
     synchronize_child_transform_with_parent(pos, rot, rel_pos, rel_rot, parent);
   }
 
   // Read these second because they are either layer 1 or or layer 2
-  auto view_layer2 = registry.view<RelPos, RelRot, Pos, Rot, Parent>(entt::exclude_t<Children>());
+  //auto view_layer2 = registry.view<RelPos, RelRot, Pos, Rot, Parent>(entt::exclude_t<Children>());
+  auto view_layer2 = registry.group<>(entt::get<RelPos, RelRot, Pos, Rot, Parent>, entt::exclude<Children>);
   for (auto [e, rel_pos, rel_rot, pos, rot, parent] : view_layer2.each()) {
     synchronize_child_transform_with_parent(pos, rot, rel_pos, rel_rot, parent);
   }
