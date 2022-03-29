@@ -624,8 +624,11 @@ void quark::internal::init_pipelines() {
   rasterization_info.cullMode = VK_CULL_MODE_NONE;
   rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
   rasterization_info.lineWidth = 2.0f;
+  depth_stencil_info.depthTestEnable = VK_FALSE;
 
   vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &wireframe_pipeline));
+
+  depth_stencil_info.depthTestEnable = VK_TRUE;
 
   // Sun pipeline layout
   pipeline_layout_info.setLayoutCount = 0;
