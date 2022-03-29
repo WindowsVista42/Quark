@@ -165,7 +165,23 @@ void quark::internal::init_window() {
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+  const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+  if(window_w < 0) {
+    window_w = vid_mode->width;
+  }
+
+  if(window_h < 0) {
+    window_h = vid_mode->height;
+  }
+
   window = glfwCreateWindow(window_w, window_h, window_name, 0, 0);
+  glfwSetWindowPos(window, 0, 0);
+
+  if(window_is_fullscreen) {
+    glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, window_w, window_h, vid_mode->refreshRate);
+  }
 
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   if (glfwRawMouseMotionSupported()) {

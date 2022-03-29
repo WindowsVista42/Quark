@@ -23,6 +23,7 @@ inline Window* window; // GLFW window pointer
 inline const char* window_name = "Quark Game Engine";
 inline i32 window_w = 800;
 inline i32 window_h = 600;
+inline bool window_is_fullscreen = false;
 
 inline vec2 mouse_pos; // During first person this gets reset every frame
 inline vec2 mouse_delta;
