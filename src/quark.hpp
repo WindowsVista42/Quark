@@ -16,13 +16,12 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-#ifndef EXPOSE_QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
-//#define QUARK_INTERNALS
-#define VMA_IMPLEMENTATION
-#endif
+//#ifndef EXPOSE_QUARK_INTERNALS // Sean: this macro is needded because vma is really fucky
+////#define QUARK_INTERNALS
+//#define VMA_IMPLEMENTATION
+//#endif
 
 #include <tiny_obj_loader.h>
-#include <vk_mem_alloc.h>
 
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
@@ -82,7 +81,6 @@ inline vec4 planes[6];
 inline LinearAllocator scratch_alloc;
 inline LinearAllocator render_alloc;
 // inline FixedBufferAllocator level_alloc;
-inline VmaAllocator gpu_alloc;
 
 // inline AtomicGpuLinearAllocator texture_alloc;
 

@@ -14,10 +14,10 @@ add_library(Quark STATIC
     src/quark_platform.cpp
     src/quark.cpp
 
-    src/quark2headers/quark2.cpp
-    src/quark2headers/quark2_math.cpp
-    src/quark2headers/quark2_physics.cpp
-    src/quark2headers/quark2_renderer.cpp
+    #src/quark2headers/quark2.cpp
+    #src/quark2headers/quark2_math.cpp
+    #src/quark2headers/quark2_physics.cpp
+    #src/quark2headers/quark2_renderer.cpp
     #src/quark2headers/quark2.cpp
 )
 
@@ -39,6 +39,50 @@ target_include_directories(Quark PUBLIC src)
 set_target_properties(Quark PROPERTIES PUBLIC_HEADER quark.hpp)
 
 include_directories(lib/vk-bootstrap/src)
+
+target_precompile_headers(Quark #PUBLIC
+  #src/quark.hpp
+  PUBLIC
+  #lib/entt/src/entt/entt.hpp
+  #lib/entt/src/entt/entity/entity.hpp
+  #lib/glfw/include/GLFW/glfw3.h
+  #lib/glfw/include/GLFW/glfw3native.h
+  #lib/tinyobjloader/tiny_obj_loader.h
+  #lib/vk-bootstrap/src/VkBootstrap.h
+  #lib/VulkanMemoryAllocator/include/vk_mem_alloc.h
+  <cstdint>
+  <cstdio>
+  <iostream>
+  <vector>
+  <filesystem>
+  <string>
+  <typeindex>
+  <unordered_map>
+  <math.h>
+  #<GLFW/glfw3.h>
+  <VkBootstrap.h>
+  <tiny_obj_loader.h>
+  <vk_mem_alloc.h>
+  <entt/entity/entity.hpp>
+  <entt/entity/registry.hpp>
+  <BulletCollision/CollisionDispatch/btGhostObject.h>
+  <btBulletDynamicsCommon.h>
+
+  #PRIVATE
+  src/quark_math.hpp
+  src/quark_assets.hpp
+  src/quark_assets_impl.hpp
+  src/quark_colors.hpp
+  src/quark_ecs.hpp
+  src/quark_ecs_impl.hpp
+  src/quark_game.hpp
+  src/quark_internal.hpp
+  src/quark_platform.hpp
+  src/quark_utils.hpp
+  src/quark_allocators.hpp
+  src/quark_helpers.hpp
+  src/quark_types.hpp
+)
 
 target_link_libraries(Quark
     Vulkan::Vulkan

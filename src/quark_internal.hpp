@@ -3,7 +3,7 @@
 #define QUARK_INTERNAL_HPP
 
 #define EXPOSE_QUARK_INTERNALS
-#include <vk_mem_alloc.h>
+//#include <vk_mem_alloc.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -14,12 +14,28 @@
 #include "quark_game.hpp"
 #include "quark_types.hpp"
 
+#include <vk_mem_alloc.h>
+
 namespace quark {
 
 using namespace quark;
 
 // Internals
 namespace internal {
+
+// An allocated buffer on the gpu
+struct AllocatedBuffer {
+  VmaAllocation alloc;
+  VkBuffer buffer;
+};
+
+// An allocated image on the gpu
+struct AllocatedImage {
+  VmaAllocation alloc;
+  VkImage image;
+  VkImageView view;
+  VkFormat format;
+};
 
 // Internal Types
 struct DeferredPushConstant {
@@ -67,6 +83,8 @@ struct CullData {
 //inline i32 window_w = 800; // Current window width
 //inline i32 window_h = 600; // Current window height
 //inline bool framebuffer_resized = false;
+
+inline VmaAllocator gpu_alloc;
 
 inline VkInstance instance;                      // Vulkan instance
 inline VkDebugUtilsMessengerEXT debug_messenger; // Vulkan debug messenger

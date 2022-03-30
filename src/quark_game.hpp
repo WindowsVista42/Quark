@@ -110,20 +110,6 @@ inline const VertexInputDescription<1, 3> VertexPNC::input_description = {
 };
 // clang-format on
 
-// An allocated buffer on the gpu
-struct AllocatedBuffer {
-  VmaAllocation alloc;
-  VkBuffer buffer;
-};
-
-// An allocated image on the gpu
-struct AllocatedImage {
-  VmaAllocation alloc;
-  VkImage image;
-  VkImageView view;
-  VkFormat format;
-};
-
 // struct Mesh {
 //     void* data;
 //     usize size;
