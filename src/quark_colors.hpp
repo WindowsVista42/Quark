@@ -18,14 +18,14 @@ using namespace quark;
 //   return {0.0, 0.0, 0.0, 1.0};
 // }
 
-inline const Col PURE_RED = {{1.0f, 0.0f, 0.0f, 1.0f}};
-inline const Col PURE_YELLOW = {{1.0f, 1.0f, 0.0f, 1.0f}};
-inline const Col PURE_GREEN = {{0.0f, 1.0f, 0.0f, 1.0f}};
-inline const Col PURE_CYAN = {{0.0f, 1.0f, 1.0f, 1.0f}};
-inline const Col PURE_BLUE = {{0.0f, 0.0f, 1.0f, 1.0f}};
-inline const Col PURE_PURPLE = {{1.0f, 0.0f, 1.0f, 1.0f}};
-inline const Col PURE_WHITE = {{1.0f, 1.0f, 1.0f, 1.0f}};
-inline const Col PURE_BLACK = {{0.0f, 0.0f, 0.0f, 1.0f}};
+inline const Color PURE_RED = {{1.0f, 0.0f, 0.0f, 1.0f}};
+inline const Color PURE_YELLOW = {{1.0f, 1.0f, 0.0f, 1.0f}};
+inline const Color PURE_GREEN = {{0.0f, 1.0f, 0.0f, 1.0f}};
+inline const Color PURE_CYAN = {{0.0f, 1.0f, 1.0f, 1.0f}};
+inline const Color PURE_BLUE = {{0.0f, 0.0f, 1.0f, 1.0f}};
+inline const Color PURE_PURPLE = {{1.0f, 0.0f, 1.0f, 1.0f}};
+inline const Color PURE_WHITE = {{1.0f, 1.0f, 1.0f, 1.0f}};
+inline const Color PURE_BLACK = {{0.0f, 0.0f, 0.0f, 1.0f}};
 
 // inline const Col RED = hex_to_col(0xcc241d);
 // inline const Col YELLOW = hex_to_col(0xd79921);

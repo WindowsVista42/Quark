@@ -8,8 +8,8 @@ namespace quark {
 namespace ecs {
 namespace types {
 struct Transform {
-  Pos pos;
-  Rot rot;
+  Position pos;
+  Rotation rot;
 };
 
 enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
@@ -33,19 +33,19 @@ template <typename... T> bool has(entt::entity e);
 
 static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl);
 static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags);
-static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl);
-static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass);
+static void add_raycast_components(entt::entity e, Position pos, Rotation rot, Scale scl);
+static void add_rigid_body_components(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass);
 static void add_parent_components(entt::entity e, entt::entity parent);
-static Transform add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, Scl scl);
+static Transform add_relative_transform_components(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
 
-//static Pos mul_transform_position(RelPos rel_pos, Pos base_pos, Rot base_rot);
-//static Transform mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot);
-static Transform mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot);
+//static Position mul_transform_position(RelPos rel_pos, Pos base_pos, Rotation base_rot);
+//static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Pos base_pos, Rotation base_rot);
+static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot);
 
 //static void update_children(); // update_entity_hierarchies();
 static void update_entity_hierarchies();
-//static void sync_child_transform(Pos& child_pos, Rot& child_rot, RelPos rel_pos, RelRot rel_rot, Parent parent); // void synchronize_child_transform_with_parent(Pos& pos, Rot& rot, RelPos rel_pos, RelRot rel_rot, Parent parent);
-static void synchronize_child_transform_with_parent(Pos& pos, Rot& rot, RelPos rel_pos, RelRot rel_rot, Parent parent);
+//static void sync_child_transform(Position& child_pos, Rotation& child_rot, RelPos rel_pos, RelRotation rel_rot, Parent parent); // void synchronize_child_transform_with_parent(Pos& pos, Rotation& rot, RelPos rel_pos, RelRotation rel_rot, Parent parent);
+static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
 
 namespace internal {};
 #ifdef EXPOSE_QUARK_INTERNALS

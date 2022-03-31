@@ -161,6 +161,9 @@ struct vec4 {
 struct quat : public vec4 {
   quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
+  quat(f32 x, f32 y, f32 z, f32 w) {
+    x = x; y = y; z = z; w = w;
+  }
 
   operator btQuaternion() { return btQuaternion{x, y, z, w}; };
 };

@@ -51,9 +51,9 @@ struct DebugPushConstant {
 };
 
 struct RenderData {
-  Pos pos;
-  Rot rot;
-  Scl scl;
+  Position pos;
+  Rotation rot;
+  Scale scl;
   Mesh mesh;
 };
 
@@ -205,8 +205,8 @@ void init_descriptors();
 
 void init_physics();
 
-bool sphere_in_frustum(Pos pos, Rot rot, Scl scl);
-bool box_in_frustum(Pos pos, Scl Scl);
+bool sphere_in_frustum(Position pos, Rotation rot, Scale scl);
+bool box_in_frustum(Position pos, Scale Scale);
 
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);

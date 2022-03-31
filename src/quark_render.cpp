@@ -832,6 +832,8 @@ void quark::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* 
   vmaUnmapMemory(gpu_alloc, gpu_vertex_buffer.alloc);
 }
 
+// TOOD(sean): Calculate the scale of the obj mesh and do *something* to
+// allow the user to query the scale of the mesh for aabb stuff
 Mesh* quark::internal::load_obj_mesh(std::string* path) {
   // TODO(sean): load obj model using tinyobjloader
   tinyobj::attrib_t attrib;
@@ -858,6 +860,9 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
   usize memsize = size * sizeof(VertexPNT);
   VertexPNT* data = (VertexPNT*)render_alloc.alloc(memsize);
   usize count = 0;
+
+  vec3 max_ext = {0.0f, 0.0f, 0.0f};
+  vec3 min_ext = {0.0f, 0.0f, 0.0f};
 
   for_every(s, shapes.size()) {
     isize index_offset = 0;
@@ -893,12 +898,46 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
         new_vert.texture.x = tx;
         new_vert.texture.y = ty;
 
+        if(new_vert.position.x > max_ext.x) { max_ext.x = new_vert.position.x; }
+        if(new_vert.position.y > max_ext.y) { max_ext.y = new_vert.position.y; }
+        if(new_vert.position.z > max_ext.z) { max_ext.z = new_vert.position.z; }
+
+        if(new_vert.position.x < min_ext.x) { min_ext.x = new_vert.position.x; }
+        if(new_vert.position.y < min_ext.y) { min_ext.y = new_vert.position.y; }
+        if(new_vert.position.z < min_ext.z) { min_ext.z = new_vert.position.z; }
+
+        // normalize vertex positions to -1, 1
+        //f32 current_distance = length(new_vert.position) / sqrt_3;
+        //if(current_distance > largest_distance) {
+        //  largest_distance = current_distance;
+        //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
+        //}
+
         data[count] = new_vert;
         count += 1;
       }
 
       index_offset += fv;
     }
+  }
+
+  vec3 ext;
+  ext.x = (max_ext.x - min_ext.x);
+  ext.y = (max_ext.y - min_ext.y);
+  ext.z = (max_ext.z - min_ext.z);
+
+  //f32 largest_side = 0.0f;
+  //if(ext.x > largest_side) { largest_side = ext.x; }
+  //if(ext.y > largest_side) { largest_side = ext.y; }
+  //if(ext.z > largest_side) { largest_side = ext.z; }
+
+  auto path_path = std::filesystem::path(*path);
+  mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
+  print("extents: ", ext);
+
+  // normalize vertex positions to -1, 1
+  for(usize i  = 0; i < size; i += 1) {
+    data[i].position /= (ext * 0.5f);
   }
 
   Mesh* mesh = (Mesh*)render_alloc.alloc(sizeof(Mesh));
@@ -1222,7 +1261,7 @@ void quark::begin_forward_rendering() {
     RenderConstants* rc_data = (RenderConstants*)rc_ptr;
 
     u32 counter = 0;
-    auto lights = registry.view<Pos, Col, IsLight>();
+    auto lights = registry.view<Position, Color, IsLight>();
     for (auto [e, pos, col] : lights.each()) {
       vec4 p;
       p.xyz = pos;
@@ -1286,11 +1325,13 @@ void quark::end_frame() {
   frame_count += 1;
 }
 
-void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
+void quark::draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize index) {
   // if(counter > 10) { return; }
   // counter += 1;
 
   DeferredPushConstant dpc;
+
+  //mesh_scls[]
 
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   dpc.world_view_projection = view_projection_matrix * world_m;
@@ -1309,6 +1350,7 @@ void quark::draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index) {
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
   // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
+  //mesh_sizes[mesh.index], mesh_offsets[mesh.index]
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
@@ -1336,7 +1378,7 @@ void quark::end_lit_pass() {
   render_data_count = 0;
 }
 
-bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
+bool quark::internal::sphere_in_frustum(Position pos, Rotation rot, Scale scl) {
   vec3 center = pos;
   // center.y *= -1.0f;
   center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
@@ -1355,7 +1397,7 @@ bool quark::internal::sphere_in_frustum(Pos pos, Rot rot, Scl scl) {
   return visible;
 };
 
-bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
+bool quark::internal::box_in_frustum(Position  pos, Scale scl) {
   struct Box {
     vec3 min;
     vec3 max;
@@ -1389,7 +1431,7 @@ bool quark::internal::box_in_frustum(Pos pos, Scl scl) {
   return true;
 }
 
-void quark::add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+void quark::add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   if (render_data_count == RENDER_DATA_MAX_COUNT) {
     panic("You have rendered too many items or something!\n");
   }
@@ -1428,7 +1470,7 @@ void quark::begin_wireframe_pass() {
 
 void quark::end_wireframe_pass() {}
 
-void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
+void quark::draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {
   DebugPushConstant pcd;
   pcd.color = col;
 
@@ -1440,7 +1482,7 @@ void quark::draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh) {
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+void quark::draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = view_projection_matrix * world_m;
 
@@ -1449,7 +1491,7 @@ void quark::draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh) {
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh) {
+void quark::draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
 
@@ -1464,7 +1506,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    const auto shadow_pass = registry.group<UseShadowPass>(entt::get<Pos, Rot, Scl, Mesh>);
+    const auto shadow_pass = registry.group<UseShadowPass>(entt::get<Position, Rotation, Scale, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_shadow(pos, rot, scl, mesh);
@@ -1475,7 +1517,7 @@ void quark::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass = registry.group<>(entt::get<Pos, Rot, Scl, Mesh>, entt::exclude<IsTransparent>);
+    const auto depth_prepass = registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1487,7 +1529,7 @@ void quark::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    const auto lit_pass = registry.group<UseLitPass>(entt::get<Pos, Rot, Scl, Mesh>);
+    const auto lit_pass = registry.group<UseLitPass>(entt::get<Position, Rotation, Scale, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         add_to_render_batch(pos, rot, scl, mesh);
@@ -1496,7 +1538,7 @@ void quark::render_frame(bool end_forward) {
     end_lit_pass();
 
     begin_solid_pass();
-    const auto solid_pass = registry.group<UseSolidPass>(entt::get<Pos, Rot, Scl, Mesh, Col>);
+    const auto solid_pass = registry.group<UseSolidPass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1505,10 +1547,24 @@ void quark::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    const auto wireframe_pass = registry.group<UseWireframePass>(entt::get<Pos, Rot, Scl, Mesh, Col>);
+    const auto wireframe_pass = registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
+      }
+    }
+
+    if (enable_physics_bounding_box_visor) {
+      Mesh mesh = assets::get<Mesh>("cube");
+      const auto physics_rb_pass = registry.group<>(entt::get<Position, Rotation, Color, btRigidBody*>);
+      for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
+        btVector3 aabb_min, aabb_max;
+        rb->getAabb(aabb_min, aabb_max);
+        vec3 scl = (aabb_min  - aabb_max) / 2.0f;
+
+        if (box_in_frustum(pos, scl)) {
+          draw_color(pos, rot, scl, col, mesh);
+        }
       }
     }
     end_wireframe_pass();

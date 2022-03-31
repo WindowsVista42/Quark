@@ -96,6 +96,10 @@ inline btBroadphaseInterface* physics_overlapping_pair_cache;
 inline btSequentialImpulseConstraintSolver* physics_solver;
 inline btDiscreteDynamicsWorld* physics_world;
 
+// Map of meshes offsets to mesh dimensions
+inline std::unordered_map<std::string, Scale> mesh_scales;
+inline bool enable_physics_bounding_box_visor = false;
+
 // Functions
 void init();
 void run();
@@ -107,10 +111,10 @@ void begin_frame();
 void end_frame();
 
 void begin_lit_pass();
-void draw_lit(Pos pos, Rot rot, Scl scl, Mesh mesh, usize index);
+void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize index);
 void end_lit_pass();
 
-void add_to_render_batch(Pos pos, Rot rot, Scl scl, Mesh mesh);
+void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh);
 
 template <typename F> void flush_render_batch(F f);
 
@@ -120,17 +124,17 @@ void end_solid_pass();
 void begin_wireframe_pass();
 void end_wireframe_pass();
 
-void draw_color(Pos pos, Rot rot, Scl scl, Col col, Mesh mesh);
+void draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh);
 
 void begin_forward_rendering();
 void end_forward_rendering();
 
 void begin_depth_prepass_rendering();
-void draw_depth(Pos pos, Rot rot, Scl scl, Mesh mesh);
+void draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh);
 void end_depth_prepass_rendering();
 
 void begin_shadow_rendering();
-void draw_shadow(Pos pos, Rot rot, Scl scl, Mesh mesh);
+void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh);
 void end_shadow_rendering();
 
 void render_frame(bool end_forward = true);

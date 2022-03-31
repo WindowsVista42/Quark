@@ -184,7 +184,7 @@ static void set_rb_entity(btRigidBody* body, entt::entity e) {
 //  children->count += 1;
 //}
 
-static Pos mul_transform_position(RelPos rel_pos, Pos base_pos, Rot base_rot) {
+static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
   rel_pos = rotate(rel_pos, base_rot);
   rel_pos += base_pos;
   return rel_pos;

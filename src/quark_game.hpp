@@ -36,22 +36,22 @@ OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
 OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
 
 // Global world position
-TRANSPARENT_TYPE(Pos, vec3);
+TRANSPARENT_TYPE(Position, vec3);
 
 // Global world rotation (quaternion)
-TRANSPARENT_TYPE(Rot, quat);
+TRANSPARENT_TYPE(Rotation, quat);
 
 // Global world scale
-TRANSPARENT_TYPE(Scl, vec3);
+TRANSPARENT_TYPE(Scale, vec3);
 
 // Color
-TRANSPARENT_TYPE(Col, vec4);
+TRANSPARENT_TYPE(Color, vec4);
 
 // World position relative to parent
-TRANSPARENT_TYPE(RelPos, vec3);
+TRANSPARENT_TYPE(RelPosition, vec3);
 
 // World rotation (quaternion) relative to parent
-TRANSPARENT_TYPE(RelRot, quat);
+TRANSPARENT_TYPE(RelRotation, quat);
 
 #undef OLD_TRANSPARENT_TYPE
 #undef TRANSPARENT_TYPE
