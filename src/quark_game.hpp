@@ -3,6 +3,7 @@
 #define QUARK_GAME_HPP
 
 #include "quark.hpp"
+#include <array>
 //#include <vulkan/vulkan.h>
 //
 //#include <entt/entity/entity.hpp>
@@ -115,6 +116,10 @@ inline const VertexInputDescription<1, 3> VertexPNC::input_description = {
 //     usize size;
 //     AllocatedBuffer alloc_buffer;
 // };
+
+struct TestReflect {
+  f32 x, y, z;
+};
 
 // A handle to mesh data
 struct Mesh {

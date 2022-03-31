@@ -148,5 +148,6 @@ void render_frame(bool end_forward = true);
 #include "quark_helpers.hpp"
 #include "quark_ecs.hpp"
 #include "quark_internal.hpp"
+#include "quark_reflect.hpp"
 
 #endif // QUARK_HPP

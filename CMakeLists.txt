@@ -69,19 +69,19 @@ target_precompile_headers(Quark #PUBLIC
   <btBulletDynamicsCommon.h>
 
   #PRIVATE
-  src/quark_math.hpp
-  src/quark_assets.hpp
-  src/quark_assets_impl.hpp
-  src/quark_colors.hpp
-  src/quark_ecs.hpp
-  src/quark_ecs_impl.hpp
-  src/quark_game.hpp
-  src/quark_internal.hpp
-  src/quark_platform.hpp
-  src/quark_utils.hpp
-  src/quark_allocators.hpp
-  src/quark_helpers.hpp
-  src/quark_types.hpp
+  #src/quark_math.hpp
+  #src/quark_assets.hpp
+  #src/quark_assets_impl.hpp
+  #src/quark_colors.hpp
+  #src/quark_ecs.hpp
+  #src/quark_ecs_impl.hpp
+  #src/quark_game.hpp
+  #src/quark_internal.hpp
+  #src/quark_platform.hpp
+  #src/quark_utils.hpp
+  #src/quark_allocators.hpp
+  #src/quark_helpers.hpp
+  #src/quark_types.hpp
 )
 
 target_link_libraries(Quark
