@@ -5,20 +5,14 @@ namespace quark {
 namespace platform {
 using namespace platform;
 
-//static Bind new_bind(const int key, const int joy, const int mouse) {
-//  return Bind{key, joy, mouse};
-//}
-void close_window() {
-  window_should_close = true;
-}
+// static Bind new_bind(const int key, const int joy, const int mouse) {
+//   return Bind{key, joy, mouse};
+// }
+void close_window() { window_should_close = true; }
 
-int get_key(const int key) {
-  return glfwGetKey(window, key);
-}
+int get_key(const int key) { return glfwGetKey(window, key); }
 
-void update_bind(Bind* bind) {
-  panic("unimplemented!");
-}
+void update_bind(Bind* bind) { panic("unimplemented!"); }
 
 void update_key_bind(Bind* bind) {
   if (glfwGetKey(window, bind->key_bind) != GLFW_PRESS) {
@@ -54,5 +48,5 @@ void update_mouse_bind(Bind* bind) {
   bind->just_pressed = true;
 }
 
-};
-};
+}; // namespace platform
+}; // namespace quark

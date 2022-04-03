@@ -50,7 +50,7 @@ static void recursively_destroy(entt::entity e, bool destroy_root) {
     }
   }
 
-  if(destroy_root) {
+  if (destroy_root) {
     destroy(e);
   }
 }
@@ -66,21 +66,26 @@ static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 sc
   ecs::add(e, Scale{scl});
 }
 
-static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags) {
+static void add_render_components(
+    entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
   ecs::add(e, Color{col});
   ecs::add(e, mesh);
 
   switch (render_flags) {
   case (RENDER_LIT): {
     ecs::add(e, UseLitPass{});
-  } return;
+  } break;
   case (RENDER_SOLID): {
     ecs::add(e, UseSolidPass{});
-  } return;
+  } break;
   case (RENDER_WIREFRAME): {
     ecs::add(e, UseWireframePass{});
     ecs::add(e, IsTransparent{});
-  } return;
+  } break;
+  }
+
+  if (render_shadows) {
+    ecs::add(e, UseShadowPass{});
   }
 }
 
@@ -133,7 +138,8 @@ static void add_parent_components(entt::entity e, entt::entity parent) {
   children->count += 1;
 }
 
-static Transform add_relative_transform_components(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
+static Transform add_relative_transform_components(
+    entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
   Parent* p = ecs::try_get<Parent>(e);
   if (p == 0) {
     panic("Please add parent components to child before calling add_relative_transform_components!\n");
@@ -159,15 +165,15 @@ static Transform add_relative_transform_components(entt::entity e, RelPosition r
   return t;
 }
 
-//static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
+// static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
 static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot) {
-  return Transform {
-    mul_transform_position(rel_pos, base_pos, base_rot),
-    Rotation{mul_quat(rel_rot, base_rot)},
+  return Transform{
+      mul_transform_position(rel_pos, base_pos, base_rot),
+      Rotation{mul_quat(rel_rot, base_rot)},
   };
 }
 
-//static void update_children(); // 
+// static void update_children(); //
 static void update_entity_hierarchies() {
   // pros:
   // simpler
@@ -176,7 +182,7 @@ static void update_entity_hierarchies() {
   // loads parents multiple times
 
   // Parents of children
-  //auto view_layer0 = registry.view<Rotation, Children>(entt::exclude_t<Parent>());
+  // auto view_layer0 = registry.view<Rotation, Children>(entt::exclude_t<Parent>());
   auto view_layer0 = registry.group<>(entt::get<Rotation, Children>, entt::exclude<Parent>);
   for (auto [e, rot, children] : view_layer0.each()) {
     // rot = axis_angle(normalize(vec3{2.0, 1.0, 0.0}), tt);
@@ -185,15 +191,17 @@ static void update_entity_hierarchies() {
 
   // Read these first because they are guaranteed layer 1
   f32 a = 0.0;
-  //auto view_layer1 = registry.view<RelPosition, RelRotation, Position, Rotation, Parent, Children>();
+  // auto view_layer1 = registry.view<RelPosition, RelRotation, Position, Rotation, Parent, Children>();
   auto view_layer1 = registry.group<>(entt::get<RelPosition, RelRotation, Position, Rotation, Parent, Children>);
   for (auto [e, rel_pos, rel_rot, pos, rot, parent, children] : view_layer1.each()) {
     synchronize_child_transform_with_parent(pos, rot, rel_pos, rel_rot, parent);
   }
 
   // Read these second because they are either layer 1 or or layer 2
-  //auto view_layer2 = registry.view<RelPosition, RelRotation, Position, Rotation, Parent>(entt::exclude_t<Children>());
-  auto view_layer2 = registry.group<>(entt::get<RelPosition, RelRotation, Position, Rotation, Parent>, entt::exclude<Children>);
+  // auto view_layer2 = registry.view<RelPosition, RelRotation, Position, Rotation,
+  // Parent>(entt::exclude_t<Children>());
+  auto view_layer2 =
+      registry.group<>(entt::get<RelPosition, RelRotation, Position, Rotation, Parent>, entt::exclude<Children>);
   for (auto [e, rel_pos, rel_rot, pos, rot, parent] : view_layer2.each()) {
     synchronize_child_transform_with_parent(pos, rot, rel_pos, rel_rot, parent);
   }
@@ -210,7 +218,8 @@ static void update_entity_hierarchies() {
   //}
 }
 
-static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
+static void synchronize_child_transform_with_parent(
+    Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
   Position p_pos = ecs::get<Position>(parent.parent);
   Rotation p_rot = ecs::get<Rotation>(parent.parent);
 

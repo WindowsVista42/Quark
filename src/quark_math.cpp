@@ -186,15 +186,27 @@ mat4 quark::perspective(f32 fov, f32 asp, f32 z_near, f32 z_far) {
   f32 b = (z_near + z_far) * inv_length;
   f32 c = (2.0f * z_near * z_far) * inv_length;
 
-  mat4 output = {
+  return mat4{
       .xs = {a, 0.0f, 0.0f, 0.0f},
       .ys = {0.0f, -f, 0.0f, 0.0f},
       .zs = {0.0f, 0.0f, b, -1.0f},
       .ws = {0.0f, 0.0f, c, 0.0f},
   };
-
-  return output;
 }
+
+mat4 quark::orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 z_near, f32 z_far) {
+  f32 rcp_w = 1.0f / (right - left);
+  f32 rcp_h = 1.0f / (top - bottom);
+  f32 r = 1.0f / (z_far - z_near);
+
+  return mat4{
+      {rcp_w + rcp_w, 0.0f, 0.0f, 0.0f},
+      {0.0f, rcp_h + rcp_h, 0.0f, 0.0f},
+      {0.0f, 0.0f, r, 0.0f},
+      {-(left + right) * rcp_w, -(top + bottom) * rcp_h, r * z_near, 1.0f},
+  };
+}
+
 vec4 quark::axis_angle(vec3 axis, f32 angle) {
   f32 half_angle = angle / 2.0f;
   vec4 quat;

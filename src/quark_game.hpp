@@ -30,11 +30,11 @@ using namespace quark;
     name(inner v) { *this = *(name*)&v; }                                                                              \
   };
 
-// Vulkan fragment shader module
-OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
-
-// Vulkan vertex shader module
-OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
+//// Vulkan fragment shader module
+// OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
+//
+//// Vulkan vertex shader module
+// OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
 
 // Global world position
 TRANSPARENT_TYPE(Position, vec3);

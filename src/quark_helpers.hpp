@@ -11,17 +11,17 @@ namespace quark {
 
 using namespace quark;
 
-entt::entity static new_entity() { return registry.create(); }
+// entt::entity static new_entity() { return registry.create(); }
 
-//template <typename T> static void add_component(entt::entity e, T t) { registry.emplace<T>(e, t); }
-//template <typename T> static T& get_component(entt::entity e) { return registry.get<T>(e); }
-//template <typename T> static T* try_get_component(entt::entity e) { return registry.try_get<T>(e); }
-//template <typename... T> static bool has_components(entt::entity e) { return registry.all_of<T...>(e); }
+// template <typename T> static void add_component(entt::entity e, T t) { registry.emplace<T>(e, t); }
+// template <typename T> static T& get_component(entt::entity e) { return registry.get<T>(e); }
+// template <typename T> static T* try_get_component(entt::entity e) { return registry.try_get<T>(e); }
+// template <typename... T> static bool has_components(entt::entity e) { return registry.all_of<T...>(e); }
 
-template <typename T> static T& get_asset(const char* name) { return *assets.get<T>(name); }
-template <typename T> static T* get_all_asset(const char* name) { return *assets.get_all<T>(name); }
-template <typename T> static T* try_get_asset(const char* name) { return 0; } // assets.try_get<T>(name); }
-template <typename T> static usize get_asset_count() { return assets.size<T>(); }
+// template <typename T> static T& get_asset(const char* name) { return *assets.get<T>(name); }
+// template <typename T> static T* get_all_asset(const char* name) { return *assets.get_all<T>(name); }
+// template <typename T> static T* try_get_asset(const char* name) { return 0; } // assets.try_get<T>(name); }
+// template <typename T> static usize get_asset_count() { return assets.size<T>(); }
 
 static btCollisionShape* create_box_shape(vec3 half_dim) {
   return new btBoxShape({half_dim.x, half_dim.y, half_dim.z});
@@ -88,101 +88,101 @@ static void set_rb_entity(btRigidBody* body, entt::entity e) {
   body->setUserPointer(data.ptr);
 }
 
-//static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
-//  add_component(e, Pos{pos});
-//  add_component(e, Rot{rot});
-//  add_component(e, Scl{scl});
-//}
+// static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
+//   add_component(e, Pos{pos});
+//   add_component(e, Rot{rot});
+//   add_component(e, Scl{scl});
+// }
 
-//enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
+// enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
 //
-//static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags) {
-//  add_component(e, Col{col});
-//  add_component(e, mesh);
+// static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags) {
+//   add_component(e, Col{col});
+//   add_component(e, mesh);
 //
-//  switch (render_flags) {
-//  case (RENDER_LIT): {
-//    add_component(e, UseLitPass{});
-//  } break;
-//  case (RENDER_SOLID): {
-//    add_component(e, UseSolidPass{});
-//  } break;
-//  case (RENDER_WIREFRAME): {
-//    add_component(e, UseWireframePass{});
-//  } break;
-//  }
-//}
+//   switch (render_flags) {
+//   case (RENDER_LIT): {
+//     add_component(e, UseLitPass{});
+//   } break;
+//   case (RENDER_SOLID): {
+//     add_component(e, UseSolidPass{});
+//   } break;
+//   case (RENDER_WIREFRAME): {
+//     add_component(e, UseWireframePass{});
+//   } break;
+//   }
+// }
 //
-//static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
-//  btCollisionObject* collision_object = new btCollisionObject();
+// static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
+//   btCollisionObject* collision_object = new btCollisionObject();
 //
-//  btTransform transform;
+//   btTransform transform;
 //
-//  transform.setOrigin({pos.x, pos.y, pos.z});
-//  transform.setRotation({rot.x, rot.y, rot.z, rot.w});
+//   transform.setOrigin({pos.x, pos.y, pos.z});
+//   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 //
-//  auto shape = create_box_shape(scl);
+//   auto shape = create_box_shape(scl);
 //
-//  collision_object->setWorldTransform(transform);
-//  collision_object->setCollisionShape(shape);
-//  collision_object->setCollisionFlags(0);
+//   collision_object->setWorldTransform(transform);
+//   collision_object->setCollisionShape(shape);
+//   collision_object->setCollisionFlags(0);
 //
-//  set_co_entity(collision_object, e);
+//   set_co_entity(collision_object, e);
 //
-//  // physics_world->addCollisionObject(collision_object);
-//  add_component(e, collision_object);
-//}
+//   // physics_world->addCollisionObject(collision_object);
+//   add_component(e, collision_object);
+// }
 //
-//enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
+// enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
 //
-//static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-//  auto body = create_rb(e, shape, pos, mass);
+// static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
+//   auto body = create_rb(e, shape, pos, mass);
 //
-//  // physics_world->addRigidBody(body, 1, 1);
-//  add_component(e, body);
-//  activate_rb(body);
-//}
+//   // physics_world->addRigidBody(body, 1, 1);
+//   add_component(e, body);
+//   activate_rb(body);
+// }
 //
-//static btRigidBody* add_and_give_rigid_body_components(
-//    entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-//  auto body = create_rb(e, shape, pos, mass);
+// static btRigidBody* add_and_give_rigid_body_components(
+//     entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
+//   auto body = create_rb(e, shape, pos, mass);
 //
-//  // physics_world->addRigidBody(body, 1, 1);
-//  add_component(e, body);
-//  activate_rb(body);
-//  return body;
-//}
+//   // physics_world->addRigidBody(body, 1, 1);
+//   add_component(e, body);
+//   activate_rb(body);
+//   return body;
+// }
 //
-//static void add_moving_rigid_body_components(
-//    entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
-//  auto body = create_rb(e, shape, pos, mass);
-//  body->setLinearVelocity({vel.x, vel.y, vel.z});
+// static void add_moving_rigid_body_components(
+//     entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
+//   auto body = create_rb(e, shape, pos, mass);
+//   body->setLinearVelocity({vel.x, vel.y, vel.z});
 //
-//  // physics_world->addRigidBody(body, 1, 1);
-//  add_component(e, body);
-//  activate_rb(body);
-//}
+//   // physics_world->addRigidBody(body, 1, 1);
+//   add_component(e, body);
+//   activate_rb(body);
+// }
 //
-//static void add_parent_components(entt::entity e, entt::entity parent) {
-//  // add parent
-//  add_component<Parent>(e, Parent{parent});
+// static void add_parent_components(entt::entity e, entt::entity parent) {
+//   // add parent
+//   add_component<Parent>(e, Parent{parent});
 //
-//  Children* children = try_get_component<Children>(parent);
+//   Children* children = try_get_component<Children>(parent);
 //
-//  // add children component to parent if they dont exist
-//  if (children == 0) {
-//    add_component(parent, Children{0, {}});
-//    children = try_get_component<Children>(parent);
-//  }
+//   // add children component to parent if they dont exist
+//   if (children == 0) {
+//     add_component(parent, Children{0, {}});
+//     children = try_get_component<Children>(parent);
+//   }
 //
-//  if (children->count >= 15) {
-//    panic("Tried to add more than 15 children to entity!");
-//  }
+//   if (children->count >= 15) {
+//     panic("Tried to add more than 15 children to entity!");
+//   }
 //
-//  // add child
-//  children->children[children->count] = e;
-//  children->count += 1;
-//}
+//   // add child
+//   children->children[children->count] = e;
+//   children->count += 1;
+// }
 
 static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
   rel_pos = rotate(rel_pos, base_rot);
@@ -190,45 +190,45 @@ static Position mul_transform_position(RelPosition rel_pos, Position base_pos, R
   return rel_pos;
 };
 
-//struct TResult {
-//  Pos out_pos;
-//  Rot out_rot;
-//};
+// struct TResult {
+//   Pos out_pos;
+//   Rot out_rot;
+// };
 //
-//static TResult mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot) {
-//  TResult result;
+// static TResult mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot) {
+//   TResult result;
 //
-//  result.out_pos = mul_transform_position(rel_pos, base_pos, base_rot);
-//  result.out_rot = Rot{mul_quat(rel_rot, base_rot)};
+//   result.out_pos = mul_transform_position(rel_pos, base_pos, base_rot);
+//   result.out_rot = Rot{mul_quat(rel_rot, base_rot)};
 //
-//  return result;
-//}
+//   return result;
+// }
 
-//static Transform add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, Scl scl) {
-//  Parent* p = try_get_component<Parent>(e);
-//  if (p == 0) {
-//    panic("Please add parent components to child before calling add_relative_transform_components!\n");
-//  }
+// static Transform add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, Scl scl) {
+//   Parent* p = try_get_component<Parent>(e);
+//   if (p == 0) {
+//     panic("Please add parent components to child before calling add_relative_transform_components!\n");
+//   }
 //
-//  add_component(e, RelPos{rel_pos});
-//  add_component(e, RelRot{rel_rot});
+//   add_component(e, RelPos{rel_pos});
+//   add_component(e, RelRot{rel_rot});
 //
-//  // TODO(sean): use syncronize_child_transform_with_parent
+//   // TODO(sean): use syncronize_child_transform_with_parent
 //
-//  Pos pos = Pos{rel_pos};
-//  Rot rot = Rot{rel_rot};
+//   Pos pos = Pos{rel_pos};
+//   Rot rot = Rot{rel_rot};
 //
-//  Pos p_pos = get_component<Pos>(p->parent);
-//  Rot p_rot = get_component<Rot>(p->parent);
+//   Pos p_pos = get_component<Pos>(p->parent);
+//   Rot p_rot = get_component<Rot>(p->parent);
 //
-//  auto t = ecs::mul_transform(Pos{rel_pos}, Rot{rel_rot}, p_pos, p_rot);
+//   auto t = ecs::mul_transform(Pos{rel_pos}, Rot{rel_rot}, p_pos, p_rot);
 //
-//  add_component(e, Pos{t.pos});
-//  add_component(e, Rot{t.rot});
-//  add_component(e, Scl{scl});
+//   add_component(e, Pos{t.pos});
+//   add_component(e, Rot{t.rot});
+//   add_component(e, Scl{scl});
 //
-//  return t;
-//}
+//   return t;
+// }
 
 static btTransform get_rb_transform(btRigidBody* body) {
   btTransform transform;
@@ -327,7 +327,7 @@ static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
 
 static bool get_ray_test_hit(vec3 from, vec3 to) { return get_ray_test_closest_result(from, to).hasHit(); }
 
-static void delete_entity(entt::entity e) { registry.destroy(e); }
+// static void delete_entity(entt::entity e) { registry.destroy(e); }
 
 static void delete_rb(btRigidBody* body) {
   delete body->getMotionState();

@@ -28,20 +28,20 @@ struct LinearAllocator {
 private:
   u8* data;
   usize length;
-  usize capacity;
+  usize cap;
 
 public:
   void init(usize capacity) {
     this->data = (u8*)malloc(capacity);
     this->length = 0;
-    this->capacity = capacity;
+    this->cap = capacity;
   }
 
   u8* alloc(usize size) {
     usize new_length = this->length + size;
 
     // TODO: figure out how I want to conditional enable this
-    if (new_length > this->capacity) {
+    if (new_length > this->cap) {
       panic("Failed to allocate to FixedBufferAllocator!");
     }
 
@@ -55,8 +55,10 @@ public:
   void deinit() {
     free(this->data);
     this->length = 0;
-    this->capacity = 0;
+    this->cap = 0;
   }
+
+  usize capacity() { return cap; }
 };
 
 // struct AtomicGpuLinearAllocator {

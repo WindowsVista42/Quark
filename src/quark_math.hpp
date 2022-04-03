@@ -100,6 +100,7 @@ mat4 look_dir(vec3 eye, vec3 dir, vec3 up);
 mat4 look_at(vec3 eye, vec3 center, vec3 up);
 
 mat4 perspective(f32 fov, f32 asp, f32 z_near, f32 z_far);
+mat4 orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 z_near, f32 z_far);
 
 vec4 axis_angle(vec3 axis, f32 angle);
 

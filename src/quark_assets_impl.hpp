@@ -53,51 +53,51 @@ template <typename T> std::vector<std::string> get_all() {
 template <typename T> usize size() { return assets_data.at(idx_of<T>()).size(); }
 
 static void load(const std::filesystem::path& path) {
-    std::string filename = path.filename().u8string();
-    auto first_dot = filename.find_first_of('.');
+  std::string filename = path.filename().u8string();
+  auto first_dot = filename.find_first_of('.');
 
-    std::string extension = filename.substr(first_dot, filename.size());
-    filename = filename.substr(0, first_dot);
+  std::string extension = filename.substr(first_dot, filename.size());
+  filename = filename.substr(0, first_dot);
 
-    if (ext_to_type.find(extension) != ext_to_type.end()) {
-      name_to_path.insert(std::make_pair(filename, path));
+  if (ext_to_type.find(extension) != ext_to_type.end()) {
+    name_to_path.insert(std::make_pair(filename, path));
 
-      std::type_index i = ext_to_type.at(extension);
-      std::string s = path.u8string();
+    std::type_index i = ext_to_type.at(extension);
+    std::string s = path.u8string();
 
-      void* data = (*type_loaders.at(i))(&s);
+    void* data = (*type_loaders.at(i))(&s);
 
-      assets_data.at(i).insert(std::make_pair(filename, data));
+    assets_data.at(i).insert(std::make_pair(filename, data));
 
-      printf("Loaded: %s%s\n", filename.c_str(), extension.c_str());
-    }
+    printf("Loaded: %s%s\n", filename.c_str(), extension.c_str());
+  }
 }
 
 static void load_directory(const char* dir) {
-    using std::filesystem::recursive_directory_iterator;
-    for (recursive_directory_iterator it(dir), end; it != end; it++) {
-      if (!std::filesystem::is_directory(it->path())) {
-        load(it->path());
-      }
+  using std::filesystem::recursive_directory_iterator;
+  for (recursive_directory_iterator it(dir), end; it != end; it++) {
+    if (!std::filesystem::is_directory(it->path())) {
+      load(it->path());
     }
+  }
 }
 
 template <typename T> void add_loader(T* (*loader)(std::string*), void (*unloader)(T*), const char* char_ext) {
-    std::string extension(char_ext);
-    const std::type_index i = idx_of<T>();
+  std::string extension(char_ext);
+  const std::type_index i = idx_of<T>();
 
 #ifdef DEBUG
-    if (type_to_ext.find(i) != type_to_ext.end()) {
-      printf("You have already added '%s' to the asset manager!\n", char_ext);
-      exit(1);
-    }
+  if (type_to_ext.find(i) != type_to_ext.end()) {
+    printf("You have already added '%s' to the asset manager!\n", char_ext);
+    exit(1);
+  }
 #endif
 
-    type_to_ext.insert(std::make_pair(i, extension));
-    ext_to_type.insert(std::make_pair(extension, i));
-    type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
-    type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
-    assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
+  type_to_ext.insert(std::make_pair(i, extension));
+  ext_to_type.insert(std::make_pair(extension, i));
+  type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
+  type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
+  assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
 }
 
 template <typename T, typename T2>
@@ -106,17 +106,17 @@ void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* cha
   const std::type_index i = idx_of<T>();
 
 #ifdef DEBUG
-    if (type_to_ext.find(i) != type_to_ext.end()) {
-      printf("You have already added '%s' to the asset manager!\n", char_ext);
-      exit(1);
-    }
+  if (type_to_ext.find(i) != type_to_ext.end()) {
+    printf("You have already added '%s' to the asset manager!\n", char_ext);
+    exit(1);
+  }
 #endif
 
-    type_to_ext.insert(std::make_pair(i, extension));
-    ext_to_type.insert(std::make_pair(extension, i));
-    type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
-    type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
-    assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
+  type_to_ext.insert(std::make_pair(i, extension));
+  ext_to_type.insert(std::make_pair(extension, i));
+  type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
+  type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
+  assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
 }
 
 template <typename T> bool is_loaded(const char* name) {
@@ -124,8 +124,7 @@ template <typename T> bool is_loaded(const char* name) {
   return assets_data.at(i).find(std::string(name)) != assets_data.at(i).end();
 }
 
-template <typename T> void add_raw_data(const char* name, T* data) {
-}
+template <typename T> void add_raw_data(const char* name, T* data) {}
 
 template <typename T> void unload(const char* name) {
   // TODO(sean): move to user freeing of this
@@ -153,22 +152,21 @@ static void unload_all(const char* char_ext) {
   assets_data.erase(ty);
 }
 
-template <typename T> void reload(const char* name) {
-}
+template <typename T> void reload(const char* name) {}
 
 static void print_all() {
-    for (auto a = assets_data.begin(); a != assets_data.end(); a++) {
-      for (auto it = a->second.begin(); it != a->second.end(); it++) {
-        printf("Asset: '%s'\n", it->first.c_str());
-      }
+  for (auto a = assets_data.begin(); a != assets_data.end(); a++) {
+    for (auto it = a->second.begin(); it != a->second.end(); it++) {
+      printf("Asset: '%s'\n", it->first.c_str());
     }
+  }
 }
 
 namespace internal {
 template <typename T> const std::type_index idx_of() { return std::type_index(typeid(T)); };
-};
+}; // namespace internal
 
-};
-};
+}; // namespace assets
+}; // namespace quark
 
 #endif

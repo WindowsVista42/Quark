@@ -4,9 +4,17 @@
 //#include "quark_internal.hpp"
 #define VMA_IMPLEMENTATION
 
+// using namespace quark;
+using namespace quark::platform;
+using namespace quark::renderer::internal;
+using namespace quark::renderer;
+// using namespace quark::math;
 using namespace quark;
-using namespace internal;
-using namespace platform;
+
+// namespace quark {
+// namespace renderer {
+
+// using namespace internal;
 
 #define vk_check(x)                                                                                                    \
   do {                                                                                                                 \
@@ -80,7 +88,7 @@ VkImageViewCreateInfo get_img_view_info(VkFormat format, VkImage image, VkImageA
   return view_info;
 }
 
-VkCommandBuffer quark::internal::begin_quick_commands() {
+VkCommandBuffer quark::renderer::internal::begin_quick_commands() {
   VkCommandBufferAllocateInfo allocate_info = {};
   allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -100,7 +108,7 @@ VkCommandBuffer quark::internal::begin_quick_commands() {
   return command_buffer;
 }
 
-void quark::internal::end_quick_commands(VkCommandBuffer command_buffer) {
+void quark::renderer::internal::end_quick_commands(VkCommandBuffer command_buffer) {
   vkEndCommandBuffer(command_buffer);
 
   VkSubmitInfo submit_info = {};
@@ -114,7 +122,7 @@ void quark::internal::end_quick_commands(VkCommandBuffer command_buffer) {
   vkFreeCommandBuffers(device, transfer_cmd_pool, 1, &command_buffer);
 }
 
-AllocatedBuffer quark::internal::create_allocated_buffer(
+AllocatedBuffer quark::renderer::internal::create_allocated_buffer(
     usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
   AllocatedBuffer alloc_buffer = {};
 
@@ -131,7 +139,7 @@ AllocatedBuffer quark::internal::create_allocated_buffer(
   return alloc_buffer;
 }
 
-AllocatedImage quark::internal::create_allocated_image(
+AllocatedImage quark::renderer::internal::create_allocated_image(
     u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
   AllocatedImage image = {};
   image.format = format;
@@ -158,7 +166,7 @@ AllocatedImage quark::internal::create_allocated_image(
   return image;
 }
 
-void quark::internal::init_window() {
+void quark::renderer::internal::init_window() {
   glfwInit();
 
   if (!glfwVulkanSupported()) {
@@ -170,18 +178,18 @@ void quark::internal::init_window() {
 
   const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-  if(window_w < 0) {
+  if (window_w < 0) {
     window_w = vid_mode->width;
   }
 
-  if(window_h < 0) {
+  if (window_h < 0) {
     window_h = vid_mode->height;
   }
 
   window = glfwCreateWindow(window_w, window_h, window_name, 0, 0);
   glfwSetWindowPos(window, 0, 0);
 
-  if(window_is_fullscreen) {
+  if (window_is_fullscreen) {
     glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, window_w, window_h, vid_mode->refreshRate);
   }
 
@@ -190,12 +198,12 @@ void quark::internal::init_window() {
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
   }
 
-  glfwSetCursorPosCallback(window, quark::internal::update_cursor_position);
+  glfwSetCursorPosCallback(window, internal::update_cursor_position);
 
   glfwGetFramebufferSize(window, &window_w, &window_h);
 }
 
-void quark::internal::init_vulkan() {
+void quark::renderer::internal::init_vulkan() {
   u32 glfw_extension_count;
   const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
@@ -266,7 +274,7 @@ void quark::internal::init_vulkan() {
   }
 }
 
-void quark::internal::init_swapchain() {
+void quark::renderer::internal::init_swapchain() {
   // Swapchain creation
   vkb::SwapchainBuilder swapchain_builder{physical_device, device, surface};
 
@@ -288,7 +296,7 @@ void quark::internal::init_swapchain() {
       1024, 1024, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void quark::internal::init_command_pools_and_buffers() {
+void quark::renderer::internal::init_command_pools_and_buffers() {
   // create_command_pool(graphics_cmd_pool, graphics_queue_family);
   // create_command_pool(transfer_cmd_pool, transfer_queue_family);
 
@@ -312,7 +320,7 @@ void quark::internal::init_command_pools_and_buffers() {
   }
 }
 
-void quark::internal::init_render_passes() {
+void quark::renderer::internal::init_render_passes() {
   VkAttachmentDescription color_attachment = {};
   color_attachment.format = swapchain_format;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -381,7 +389,7 @@ void quark::internal::init_render_passes() {
   vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &depth_only_render_pass));
 }
 
-void quark::internal::init_framebuffers() {
+void quark::renderer::internal::init_framebuffers() {
   VkFramebufferCreateInfo framebuffer_info = {};
   framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebuffer_info.renderPass = render_pass;
@@ -434,7 +442,7 @@ void quark::internal::init_framebuffers() {
   }
 }
 
-void quark::internal::init_sync_objects() {
+void quark::renderer::internal::init_sync_objects() {
   VkFenceCreateInfo fence_info = {};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -452,9 +460,9 @@ void quark::internal::init_sync_objects() {
   }
 }
 
-void quark::internal::copy_staging_buffers_to_gpu() {
-  AllocatedBuffer old_buffer = quark::internal::gpu_vertex_buffer;
-  LinearAllocationTracker old_tracker = quark::internal::gpu_vertex_tracker;
+void quark::renderer::internal::copy_staging_buffers_to_gpu() {
+  AllocatedBuffer old_buffer = internal::gpu_vertex_buffer;
+  LinearAllocationTracker old_tracker = internal::gpu_vertex_tracker;
 
   gpu_vertex_buffer = create_allocated_buffer(old_tracker.size() * sizeof(VertexPNT),
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -478,7 +486,7 @@ void quark::internal::copy_staging_buffers_to_gpu() {
   vmaDestroyBuffer(gpu_alloc, old_buffer.buffer, old_buffer.alloc);
 }
 
-void quark::internal::init_pipelines() {
+void quark::renderer::internal::init_pipelines() {
   VkPushConstantRange push_constant = {};
   push_constant.offset = 0;
   push_constant.size = sizeof(DeferredPushConstant);
@@ -685,7 +693,7 @@ void quark::internal::init_pipelines() {
   vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_only_pipeline));
 }
 
-void quark::internal::init_buffers() {
+void quark::renderer::internal::init_buffers() {
   for_every(i, FRAME_OVERLAP) {
     auto buffer_size = sizeof(RenderConstants);
 
@@ -719,7 +727,7 @@ void quark::internal::init_buffers() {
   }
 }
 
-void quark::internal::init_descriptors() {
+void quark::renderer::internal::init_descriptors() {
   // Create descriptor layouts
   VkDescriptorSetLayoutBinding rc_buffer_binding = {};
   rc_buffer_binding.binding = 0;
@@ -753,7 +761,7 @@ void quark::internal::init_descriptors() {
   vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
 }
 
-VkVertexShader* quark::internal::load_vert_shader(std::string* path) {
+VkVertexShader* quark::renderer::internal::load_vert_shader(std::string* path) {
   FILE* fp = fopen(path->c_str(), "rb");
 
   fseek(fp, 0, SEEK_END);
@@ -789,7 +797,7 @@ VkVertexShader* quark::internal::load_vert_shader(std::string* path) {
 
   return vert_shader;
 }
-VkFragmentShader* quark::internal::load_frag_shader(std::string* path) {
+VkFragmentShader* quark::renderer::internal::load_frag_shader(std::string* path) {
   FILE* fp = fopen(path->c_str(), "rb");
 
   fseek(fp, 0, SEEK_END);
@@ -818,11 +826,11 @@ VkFragmentShader* quark::internal::load_frag_shader(std::string* path) {
   return frag_shader;
 }
 
-void quark::internal::unload_shader(VkShaderModule* shader) { vkDestroyShaderModule(device, *shader, 0); }
+void quark::renderer::internal::unload_shader(VkShaderModule* shader) { vkDestroyShaderModule(device, *shader, 0); }
 
 // TODO: update this to use one big buffer and atomically increment some numbers into it.
 // Update this so we are not doing extra copies
-void quark::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
+void quark::renderer::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
   mesh->size = size;
   mesh->offset = gpu_vertex_tracker.alloc(size);
 
@@ -834,7 +842,7 @@ void quark::internal::create_mesh(void* data, usize size, usize elemsize, Mesh* 
 
 // TOOD(sean): Calculate the scale of the obj mesh and do *something* to
 // allow the user to query the scale of the mesh for aabb stuff
-Mesh* quark::internal::load_obj_mesh(std::string* path) {
+Mesh* quark::renderer::internal::load_obj_mesh(std::string* path) {
   // TODO(sean): load obj model using tinyobjloader
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -898,17 +906,29 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
         new_vert.texture.x = tx;
         new_vert.texture.y = ty;
 
-        if(new_vert.position.x > max_ext.x) { max_ext.x = new_vert.position.x; }
-        if(new_vert.position.y > max_ext.y) { max_ext.y = new_vert.position.y; }
-        if(new_vert.position.z > max_ext.z) { max_ext.z = new_vert.position.z; }
+        if (new_vert.position.x > max_ext.x) {
+          max_ext.x = new_vert.position.x;
+        }
+        if (new_vert.position.y > max_ext.y) {
+          max_ext.y = new_vert.position.y;
+        }
+        if (new_vert.position.z > max_ext.z) {
+          max_ext.z = new_vert.position.z;
+        }
 
-        if(new_vert.position.x < min_ext.x) { min_ext.x = new_vert.position.x; }
-        if(new_vert.position.y < min_ext.y) { min_ext.y = new_vert.position.y; }
-        if(new_vert.position.z < min_ext.z) { min_ext.z = new_vert.position.z; }
+        if (new_vert.position.x < min_ext.x) {
+          min_ext.x = new_vert.position.x;
+        }
+        if (new_vert.position.y < min_ext.y) {
+          min_ext.y = new_vert.position.y;
+        }
+        if (new_vert.position.z < min_ext.z) {
+          min_ext.z = new_vert.position.z;
+        }
 
         // normalize vertex positions to -1, 1
-        //f32 current_distance = length(new_vert.position) / sqrt_3;
-        //if(current_distance > largest_distance) {
+        // f32 current_distance = length(new_vert.position) / sqrt_3;
+        // if(current_distance > largest_distance) {
         //  largest_distance = current_distance;
         //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
         //}
@@ -926,17 +946,17 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
   ext.y = (max_ext.y - min_ext.y);
   ext.z = (max_ext.z - min_ext.z);
 
-  //f32 largest_side = 0.0f;
-  //if(ext.x > largest_side) { largest_side = ext.x; }
-  //if(ext.y > largest_side) { largest_side = ext.y; }
-  //if(ext.z > largest_side) { largest_side = ext.z; }
+  // f32 largest_side = 0.0f;
+  // if(ext.x > largest_side) { largest_side = ext.x; }
+  // if(ext.y > largest_side) { largest_side = ext.y; }
+  // if(ext.z > largest_side) { largest_side = ext.z; }
 
   auto path_path = std::filesystem::path(*path);
   mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
   print("extents: ", ext);
 
   // normalize vertex positions to -1, 1
-  for(usize i  = 0; i < size; i += 1) {
+  for (usize i = 0; i < size; i += 1) {
     data[i].position /= (ext * 0.5f);
   }
 
@@ -945,7 +965,7 @@ Mesh* quark::internal::load_obj_mesh(std::string* path) {
   return mesh;
 }
 
-Mesh* quark::internal::load_vbo_mesh(std::string* path) {
+Mesh* quark::renderer::internal::load_vbo_mesh(std::string* path) {
   // Sean: VBO file format:
   // https://github.com/microsoft/DirectXMesh/blob/master/Meshconvert/Mesh.cpp
   u32 vertex_count;
@@ -993,10 +1013,10 @@ Mesh* quark::internal::load_vbo_mesh(std::string* path) {
   return mesh;
 }
 
-void quark::internal::unload_mesh(Mesh* mesh) {
+void quark::renderer::internal::unload_mesh(Mesh* mesh) {
 } // vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
 
-void quark::internal::deinit_sync_objects() {
+void quark::renderer::internal::deinit_sync_objects() {
   for_every(i, FRAME_OVERLAP) {
     vkDestroyFence(device, render_fence[i], 0);
 
@@ -1005,12 +1025,12 @@ void quark::internal::deinit_sync_objects() {
   }
 }
 
-void quark::internal::deinit_descriptors() {
+void quark::renderer::internal::deinit_descriptors() {
   vkDestroyDescriptorSetLayout(device, render_constants_layout, 0);
   vkDestroyDescriptorPool(device, global_descriptor_pool, 0);
 }
 
-void quark::internal::deinit_buffers_and_images() {
+void quark::renderer::internal::deinit_buffers_and_images() {
   // Destroy vma buffers
   assets::unload_all(".obj");
 
@@ -1019,19 +1039,19 @@ void quark::internal::deinit_buffers_and_images() {
   }
 }
 
-void quark::internal::deinit_shaders() {
+void quark::renderer::internal::deinit_shaders() {
   assets::unload_all(".vert.spv");
   assets::unload_all(".frag.spv");
 }
 
-void quark::internal::deinit_allocators() {
+void quark::renderer::internal::deinit_allocators() {
   render_alloc.deinit();
   scratch_alloc.deinit();
   vmaDestroyBuffer(gpu_alloc, gpu_vertex_buffer.buffer, gpu_vertex_buffer.alloc);
   vmaDestroyAllocator(gpu_alloc);
 }
 
-void quark::internal::deinit_pipelines() {
+void quark::renderer::internal::deinit_pipelines() {
   vkDestroyPipelineLayout(device, lit_pipeline_layout, 0);
   vkDestroyPipelineLayout(device, color_pipeline_layout, 0);
   vkDestroyPipeline(device, lit_pipeline, 0);
@@ -1039,18 +1059,18 @@ void quark::internal::deinit_pipelines() {
   vkDestroyPipeline(device, wireframe_pipeline, 0);
 }
 
-void quark::internal::deinit_framebuffers() {
+void quark::renderer::internal::deinit_framebuffers() {
   for_every(index, swapchain_image_views.size()) { vkDestroyFramebuffer(device, framebuffers[index], 0); }
 }
 
-void quark::internal::deinit_render_passes() { vkDestroyRenderPass(device, render_pass, 0); }
+void quark::renderer::internal::deinit_render_passes() { vkDestroyRenderPass(device, render_pass, 0); }
 
-void quark::internal::deinit_command_pools_and_buffers() {
+void quark::renderer::internal::deinit_command_pools_and_buffers() {
   for_every(i, FRAME_OVERLAP) { vkDestroyCommandPool(device, graphics_cmd_pool[i], 0); }
   vkDestroyCommandPool(device, transfer_cmd_pool, 0);
 }
 
-void quark::internal::deinit_swapchain() {
+void quark::renderer::internal::deinit_swapchain() {
   // Destroy depth texture
   vkDestroyImageView(device, global_depth_image.view, 0);
   vmaDestroyImage(gpu_alloc, global_depth_image.image, global_depth_image.alloc);
@@ -1060,19 +1080,19 @@ void quark::internal::deinit_swapchain() {
   for_every(index, swapchain_image_views.size()) { vkDestroyImageView(device, swapchain_image_views[index], 0); }
 }
 
-void quark::internal::deinit_vulkan() {
+void quark::renderer::internal::deinit_vulkan() {
   vkDestroyDevice(device, 0);
   vkDestroySurfaceKHR(instance, surface, 0);
   vkb::destroy_debug_utils_messenger(instance, debug_messenger);
   vkDestroyInstance(instance, 0);
 }
 
-void quark::internal::deinit_window() {
+void quark::renderer::internal::deinit_window() {
   glfwDestroyWindow(window);
   glfwTerminate();
 }
 
-void quark::internal::resize_swapchain() {
+void quark::renderer::internal::resize_swapchain() {
   glfwGetFramebufferSize(window, &window_w, &window_h);
   while (window_w == 0 || window_h == 0) {
     glfwGetFramebufferSize(window, &window_w, &window_h);
@@ -1094,7 +1114,7 @@ void quark::internal::resize_swapchain() {
   init_pipelines();
 }
 
-void quark::begin_frame() {
+void quark::renderer::begin_frame() {
 
   // TODO Sean: dont block the thread
   vk_check(vkWaitForFences(device, 1, &render_fence[frame_index], true, OP_TIMEOUT));
@@ -1122,7 +1142,12 @@ void quark::begin_frame() {
   vk_check(vkBeginCommandBuffer(main_cmd_buf[frame_index], &command_begin_info));
 }
 
-void update_view_stuff(int width, int height) {
+enum PROJECTION_TYPE {
+  PERSPECTIVE_PROJECTION,
+  ORTHOGRAPHIC_PROJECTION,
+};
+
+void update_view_stuff(int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION) {
   f32 camera_aspect = (f32)width / (f32)height;
 
   // VkViewport viewport[1] = {{0, 0, (f32)width, (f32)height, 0.0f, 1.0f}};
@@ -1131,13 +1156,20 @@ void update_view_stuff(int width, int height) {
   // VkRect2D scissor[1] = {{0, 0, (u32)width, (u32)height}};
   // vkCmdSetScissor(main_cmd_buf[frame_index], 0, 1, scissor);
 
-  projection_matrix = perspective(radians(camera_fov), camera_aspect, camera_znear, camera_zfar);
-  view_matrix = look_dir(camera_position, camera_direction, VEC3_UNIT_Z);
+  if (projection_type == PERSPECTIVE_PROJECTION) {
+    projection_matrix = perspective(radians(camera.fov), camera_aspect, camera.znear, camera.zfar);
+  } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
+    projection_matrix = orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
+  } else {
+    projection_matrix = perspective(radians(camera.fov), camera_aspect, camera.znear, camera.zfar);
+  }
+
+  view_matrix = look_dir(camera.pos, camera.dir, VEC3_UNIT_Z);
 
   view_projection_matrix = projection_matrix * view_matrix;
 
   // Calculate updated frustum
-  if (!quark::internal::pause_frustum_culling) {
+  if (!quark::renderer::internal::pause_frustum_culling) {
     mat4 projection_matrix_t = transpose(projection_matrix);
 
     auto normalize_plane = [](vec4 p) { return p / length(p.xyz); };
@@ -1167,8 +1199,20 @@ void update_view_stuff(int width, int height) {
   }
 }
 
-void quark::begin_shadow_rendering() {
-  update_view_stuff(1024, 1024);
+void quark::renderer::internal::begin_shadow_rendering() {
+  Camera old_cam = camera;
+  ////camera.dir = spherical_to_cartesian({camera.spherical_dir.x, 0.1f});
+  ////print("dir: ", camera.dir);
+  ////camera.pos = {0.0f, 0.0f, 20.0f};
+  // camera.znear = 0.1f;
+  // camera.zfar= 40.0f;
+  // update_view_stuff(1024, 1024);
+  // camera = old_cam;
+
+  vec3 new_pos = camera.pos + vec3{0.0f, 0.0f, 200.0f};
+  projection_matrix = perspective(0.1f, 1.0f, 0.1f, 1000.0f);
+  view_matrix = look_at(new_pos, camera.pos + (camera.dir * 10.0f), VEC3_UNIT_Z);
+  view_projection_matrix = projection_matrix * view_matrix;
 
   VkClearValue depth_clear;
   depth_clear.depthStencil.depth = 1.0f;
@@ -1194,9 +1238,9 @@ void quark::begin_shadow_rendering() {
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-void quark::end_shadow_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
+void quark::renderer::internal::end_shadow_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
-void quark::begin_depth_prepass_rendering() {
+void quark::renderer::internal::begin_depth_prepass_rendering() {
   update_view_stuff(window_w, window_h);
 
   VkClearValue depth_clear;
@@ -1223,9 +1267,9 @@ void quark::begin_depth_prepass_rendering() {
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-void quark::end_depth_prepass_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
+void quark::renderer::internal::end_depth_prepass_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
-void quark::begin_forward_rendering() {
+void quark::renderer::internal::begin_forward_rendering() {
   update_view_stuff(window_w, window_h);
 
   VkClearValue color_clear;
@@ -1261,7 +1305,7 @@ void quark::begin_forward_rendering() {
     RenderConstants* rc_data = (RenderConstants*)rc_ptr;
 
     u32 counter = 0;
-    auto lights = registry.view<Position, Color, IsLight>();
+    auto lights = ecs::registry.view<Position, Color, IsLight>();
     for (auto [e, pos, col] : lights.each()) {
       vec4 p;
       p.xyz = pos;
@@ -1273,17 +1317,17 @@ void quark::begin_forward_rendering() {
 
     rc_data->light_count = counter;
 
-    rc_data->camera_direction.xyz = camera_direction;
-    rc_data->camera_position.xyz = camera_position;
+    rc_data->camera_direction.xyz = camera.dir;
+    rc_data->camera_position.xyz = camera.pos;
     rc_data->time = tt;
 
     vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
   }
 }
 
-void quark::end_forward_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
+void quark::renderer::internal::end_forward_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
-void quark::end_frame() {
+void quark::renderer::end_frame() {
   vk_check(vkEndCommandBuffer(main_cmd_buf[frame_index]));
 
   VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1314,8 +1358,8 @@ void quark::end_frame() {
 
   VkResult result = vkQueuePresentKHR(graphics_queue, &present_info);
 
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized) {
-    framebuffer_resized = false;
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || quark::renderer::framebuffer_resized) {
+    quark::renderer::framebuffer_resized = false;
     resize_swapchain();
   } else if (result != VK_SUCCESS) {
     panic("Failed to present swapchain image!");
@@ -1325,13 +1369,13 @@ void quark::end_frame() {
   frame_count += 1;
 }
 
-void quark::draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize index) {
+void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize index) {
   // if(counter > 10) { return; }
   // counter += 1;
 
   DeferredPushConstant dpc;
 
-  //mesh_scls[]
+  // mesh_scls[]
 
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   dpc.world_view_projection = view_projection_matrix * world_m;
@@ -1350,11 +1394,11 @@ void quark::draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize ind
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
   // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
-  //mesh_sizes[mesh.index], mesh_offsets[mesh.index]
-  // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
+  // mesh_sizes[mesh.index], mesh_offsets[mesh.index]
+  //  vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
 }
 
-void quark::begin_lit_pass() {
+void quark::renderer::internal::begin_lit_pass() {
   vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline);
   vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1,
       &render_constants_sets[frame_index], 0, 0);
@@ -1363,7 +1407,7 @@ void quark::begin_lit_pass() {
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-void quark::end_lit_pass() {
+void quark::renderer::internal::end_lit_pass() {
   // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
   //     return a.camera_distance < b.camera_distance;
   // });
@@ -1378,7 +1422,7 @@ void quark::end_lit_pass() {
   render_data_count = 0;
 }
 
-bool quark::internal::sphere_in_frustum(Position pos, Rotation rot, Scale scl) {
+bool quark::renderer::internal::sphere_in_frustum(Position pos, Rotation rot, Scale scl) {
   vec3 center = pos;
   // center.y *= -1.0f;
   center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
@@ -1397,7 +1441,7 @@ bool quark::internal::sphere_in_frustum(Position pos, Rotation rot, Scale scl) {
   return visible;
 };
 
-bool quark::internal::box_in_frustum(Position  pos, Scale scl) {
+bool quark::renderer::internal::box_in_frustum(Position pos, Scale scl) {
   struct Box {
     vec3 min;
     vec3 max;
@@ -1431,7 +1475,7 @@ bool quark::internal::box_in_frustum(Position  pos, Scale scl) {
   return true;
 }
 
-void quark::add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+void quark::renderer::internal::add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   if (render_data_count == RENDER_DATA_MAX_COUNT) {
     panic("You have rendered too many items or something!\n");
   }
@@ -1452,25 +1496,25 @@ void quark::add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh
   render_data_count += 1;
 }
 
-void quark::begin_solid_pass() {
+void quark::renderer::internal::begin_solid_pass() {
   vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, solid_pipeline);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-void quark::end_solid_pass() {}
+void quark::renderer::internal::end_solid_pass() {}
 
-void quark::begin_wireframe_pass() {
+void quark::renderer::internal::begin_wireframe_pass() {
   vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipeline);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 }
 
-void quark::end_wireframe_pass() {}
+void quark::renderer::internal::end_wireframe_pass() {}
 
-void quark::draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {
+void quark::renderer::internal::draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {
   DebugPushConstant pcd;
   pcd.color = col;
 
@@ -1482,7 +1526,7 @@ void quark::draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh me
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+void quark::renderer::internal::draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = view_projection_matrix * world_m;
 
@@ -1491,33 +1535,34 @@ void quark::draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+void quark::renderer::internal::draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  mat4 world_view_projection = quark::mul(view_projection_matrix, world_m);
+  mat4 world_view_projection = mul(view_projection_matrix, world_m);
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4),
       &world_view_projection);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
-void quark::render_frame(bool end_forward) {
+void quark::renderer::render_frame(bool end_forward) {
   // Todo Sean: Look into not recalculating frustum stuff?
   // Selectively copy then re-use likely
 
   begin_shadow_rendering();
   {
-    const auto shadow_pass = registry.group<UseShadowPass>(entt::get<Position, Rotation, Scale, Mesh>);
+    const auto shadow_pass = ecs::registry.group<UseShadowPass>(entt::get<Position, Rotation, Scale, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        draw_shadow(pos, rot, scl, mesh);
-      }
+      // if (box_in_frustum(pos, scl)) {
+      draw_shadow(pos, rot, scl, mesh);
+      //}
     }
   }
   end_shadow_rendering();
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass = registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
+    const auto depth_prepass =
+        ecs::registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1529,7 +1574,7 @@ void quark::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    const auto lit_pass = registry.group<UseLitPass>(entt::get<Position, Rotation, Scale, Mesh>);
+    const auto lit_pass = ecs::registry.group<UseLitPass>(entt::get<Position, Rotation, Scale, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         add_to_render_batch(pos, rot, scl, mesh);
@@ -1538,7 +1583,7 @@ void quark::render_frame(bool end_forward) {
     end_lit_pass();
 
     begin_solid_pass();
-    const auto solid_pass = registry.group<UseSolidPass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
+    const auto solid_pass = ecs::registry.group<UseSolidPass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1547,7 +1592,8 @@ void quark::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    const auto wireframe_pass = registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
+    const auto wireframe_pass =
+        ecs::registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1556,11 +1602,11 @@ void quark::render_frame(bool end_forward) {
 
     if (enable_physics_bounding_box_visor) {
       Mesh mesh = assets::get<Mesh>("cube");
-      const auto physics_rb_pass = registry.group<>(entt::get<Position, Rotation, Color, btRigidBody*>);
+      const auto physics_rb_pass = ecs::registry.group<>(entt::get<Position, Rotation, Color, btRigidBody*>);
       for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
         btVector3 aabb_min, aabb_max;
         rb->getAabb(aabb_min, aabb_max);
-        vec3 scl = (aabb_min  - aabb_max) / 2.0f;
+        vec3 scl = (aabb_min - aabb_max) / 2.0f;
 
         if (box_in_frustum(pos, scl)) {
           draw_color(pos, rot, scl, col, mesh);
@@ -1575,7 +1621,7 @@ void quark::render_frame(bool end_forward) {
   }
 }
 
-void quark::internal::print_performance_statistics() {
+void quark::renderer::internal::print_performance_statistics() {
   static f32 timer = 0.0;
   static u32 frame_number = 0;
   static f32 low = 1.0;
@@ -1617,11 +1663,11 @@ void quark::internal::print_performance_statistics() {
   }
 }
 
-static void quark::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
+static void quark::renderer::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
   framebuffer_resized = true;
 }
 
-static void quark::internal::update_cursor_position(GLFWwindow* window, double xpos, double ypos) {
+static void quark::renderer::internal::update_cursor_position(GLFWwindow* window, double xpos, double ypos) {
   vec2 last_pos = mouse_pos;
 
   mouse_pos = {(f32)xpos, (f32)ypos};
@@ -1629,7 +1675,10 @@ static void quark::internal::update_cursor_position(GLFWwindow* window, double x
 
   vec2 mouse_delta = last_pos - mouse_pos;
 
-  view_spherical_dir += mouse_delta * mouse_sensitivity;
-  view_spherical_dir.x = wrap(view_spherical_dir.x, 2.0f * M_PI);
-  view_spherical_dir.y = clamp(view_spherical_dir.y, 0.01f, M_PI - 0.01f);
+  camera.spherical_dir += mouse_delta * config::mouse_sensitivity;
+  camera.spherical_dir.x = wrap(camera.spherical_dir.x, 2.0f * M_PI);
+  camera.spherical_dir.y = clamp(camera.spherical_dir.y, 0.01f, M_PI - 0.01f);
 }
+
+//};
+//};

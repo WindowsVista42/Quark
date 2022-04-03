@@ -31,7 +31,7 @@ inline vec2 mouse_delta;
 void close_window();
 int get_key(const int key);
 
-//static Bind new_bind(const int key = QUARK_UNBOUND, const int joy = QUARK_UNBOUND, const int mouse = QUARK_UNBOUND);
+// static Bind new_bind(const int key = QUARK_UNBOUND, const int joy = QUARK_UNBOUND, const int mouse = QUARK_UNBOUND);
 void update_bind(Bind* bind);
 void update_key_bind(Bind* bind);
 void update_mouse_bind(Bind* bind);
@@ -39,7 +39,7 @@ void update_mouse_bind(Bind* bind);
 namespace internal {
 inline bool framebuffer_resized = false;
 inline bool window_should_close = false;
-};
+}; // namespace internal
 #ifdef EXPOSE_QUARK_INTERNALS
 using namespace internal;
 #endif
