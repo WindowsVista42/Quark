@@ -27,6 +27,8 @@
 #include <entt/entity/registry.hpp>
 
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <BulletCollision/btBulletCollisionCommon.h>
+#include <BulletDynamics/btBulletDynamicsCommon.h>
 #include <btBulletDynamicsCommon.h>
 
 // Public API
@@ -143,8 +145,8 @@ void update_camera();
 }; // namespace quark
 
 #include "quark_assets.hpp"
-#include "quark_ecs.hpp"
 #include "quark_helpers.hpp"
+#include "quark_ecs.hpp"
 #include "quark_internal.hpp"
 #include "quark_platform.hpp"
 #include "quark_reflect.hpp"
