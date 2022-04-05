@@ -36,7 +36,7 @@ struct Camera {
 }; // namespace types
 using namespace types;
 
-inline Camera camera{.spherical_dir = {0.0f, M_PI_2},
+inline Camera global_camera{.spherical_dir = {0.0f, M_PI_2},
     .pos = VEC3_ZERO,
     .dir = VEC3_UNIT_Y,
     .znear = 0.01f,
@@ -94,9 +94,13 @@ struct RenderConstants {
   u32 _pad2;
   vec4 camera_direction;
   vec4 camera_position;
-  f32 time;
+  float time;
+  u32 _pad3;
+  u32 _pad4;
+  u32 _pad5;
+  mat4 sun_view_projection;
 };
-
+ 
 // struct CullData {
 //   f32 frustum[4];
 //   f32 dist_cull;
@@ -274,12 +278,16 @@ inline AllocatedBuffer gpu_vertex_buffer;
 
 inline bool pause_frustum_culling = false;
 
-inline mat4 projection_matrix;
-inline mat4 view_matrix;
-inline mat4 view_projection_matrix;
+//inline mat4 camera_projection;
+//inline mat4 camera_view;
+inline mat4 camera_view_projection;
 
-inline CullData cull_data;
-inline vec4 planes[6];
+//inline mat4 sun_projection;
+//inline mat4 sun_view;
+inline mat4 sun_view_projection;
+
+inline CullData global_cull_data;
+inline vec4 global_planes[6];
 
 inline LinearAllocator render_alloc;
 inline VmaAllocator gpu_alloc;

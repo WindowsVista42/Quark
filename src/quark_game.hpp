@@ -130,16 +130,16 @@ struct Mesh {
 };
 
 // Frustum culling data
-struct CullData {
-  mat4 view;
-
-  f32 p00, p22, znear, zfar;
-  f32 frustum[4];
-  f32 lod_base, lod_step;
-
-  int dist_cull;
-  // f32 pyramid_width, pyramid_height;
-};
+//struct CullData {
+//  mat4 view;
+//
+//  f32 p00, p22, znear, zfar;
+//  f32 frustum[4];
+//  f32 lod_base, lod_step;
+//
+//  int dist_cull;
+//  // f32 pyramid_width, pyramid_height;
+//};
 
 // Internal light structure.
 // Adding this component directly wont do anything.

@@ -508,7 +508,7 @@ void quark::renderer::internal::init_pipelines() {
 
   shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shader_stages[0].module = assets::get<VkVertexShader>("common");
+  shader_stages[0].module = assets::get<VkVertexShader>("lit_shadow");
   shader_stages[0].pName = "main";
   shader_stages[0].pNext = 0;
 
@@ -1147,73 +1147,53 @@ enum PROJECTION_TYPE {
   ORTHOGRAPHIC_PROJECTION,
 };
 
-void update_view_stuff(int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION) {
-  f32 camera_aspect = (f32)width / (f32)height;
-
-  // VkViewport viewport[1] = {{0, 0, (f32)width, (f32)height, 0.0f, 1.0f}};
-  // vkCmdSetViewport(main_cmd_buf[frame_index], 0, 1, viewport);
-
-  // VkRect2D scissor[1] = {{0, 0, (u32)width, (u32)height}};
-  // vkCmdSetScissor(main_cmd_buf[frame_index], 0, 1, scissor);
+void update_matrices(mat4* view_projection, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION) {
+  f32 aspect = (f32)width / (f32)height;
+  mat4 projection, view;
 
   if (projection_type == PERSPECTIVE_PROJECTION) {
-    projection_matrix = perspective(radians(camera.fov), camera_aspect, camera.znear, camera.zfar);
+    projection = perspective(radians(global_camera.fov), aspect, global_camera.znear, global_camera.zfar);
   } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
-    projection_matrix = orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
+    projection = orthographic(5.0f, 5.0f, 5.0f, 5.0f, global_camera.znear, global_camera.zfar);
   } else {
-    projection_matrix = perspective(radians(camera.fov), camera_aspect, camera.znear, camera.zfar);
+    projection = perspective(radians(global_camera.fov), aspect, global_camera.znear, global_camera.zfar);
   }
 
-  view_matrix = look_dir(camera.pos, camera.dir, VEC3_UNIT_Z);
-
-  view_projection_matrix = projection_matrix * view_matrix;
+  view = look_dir(global_camera.pos, global_camera.dir, VEC3_UNIT_Z);
+  *view_projection = projection * view;
 
   // Calculate updated frustum
   if (!quark::renderer::internal::pause_frustum_culling) {
-    mat4 projection_matrix_t = transpose(projection_matrix);
+    mat4 projection_matrix_t = transpose(projection);
 
     auto normalize_plane = [](vec4 p) { return p / length(p.xyz); };
 
     vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
     vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
 
-    cull_data.view = view_matrix;
-    cull_data.p00 = projection_matrix[0][0];
-    cull_data.p22 = projection_matrix[1][1];
-    cull_data.frustum[0] = frustum_x.x;
-    cull_data.frustum[1] = frustum_x.z;
-    cull_data.frustum[2] = frustum_y.y;
-    cull_data.frustum[3] = frustum_y.z;
-    cull_data.lod_base = 10.0f;
-    cull_data.lod_step = 1.5f;
+    global_cull_data.view = view;
+    global_cull_data.p00 = projection[0][0];
+    global_cull_data.p22 = projection[1][1];
+    global_cull_data.frustum[0] = frustum_x.x;
+    global_cull_data.frustum[1] = frustum_x.z;
+    global_cull_data.frustum[2] = frustum_y.y;
+    global_cull_data.frustum[3] = frustum_y.z;
+    global_cull_data.lod_base = 10.0f;
+    global_cull_data.lod_step = 1.5f;
 
     {
-      mat4 m = transpose(view_projection_matrix);
-      planes[0] = m[3] + m[0];
-      planes[1] = m[3] - m[0];
-      planes[2] = m[3] + m[1];
-      planes[3] = m[3] - m[1];
-      planes[4] = m[3] + m[2];
-      planes[5] = m[3] - m[2];
+      mat4 m = transpose(*view_projection);
+      global_planes[0] = m[3] + m[0];
+      global_planes[1] = m[3] - m[0];
+      global_planes[2] = m[3] + m[1];
+      global_planes[3] = m[3] - m[1];
+      global_planes[4] = m[3] + m[2];
+      global_planes[5] = m[3] - m[2];
     }
   }
 }
 
 void quark::renderer::internal::begin_shadow_rendering() {
-  Camera old_cam = camera;
-  ////camera.dir = spherical_to_cartesian({camera.spherical_dir.x, 0.1f});
-  ////print("dir: ", camera.dir);
-  ////camera.pos = {0.0f, 0.0f, 20.0f};
-  // camera.znear = 0.1f;
-  // camera.zfar= 40.0f;
-  // update_view_stuff(1024, 1024);
-  // camera = old_cam;
-
-  vec3 new_pos = camera.pos + vec3{0.0f, 0.0f, 200.0f};
-  projection_matrix = perspective(0.1f, 1.0f, 0.1f, 1000.0f);
-  view_matrix = look_at(new_pos, camera.pos + (camera.dir * 10.0f), VEC3_UNIT_Z);
-  view_projection_matrix = projection_matrix * view_matrix;
-
   VkClearValue depth_clear;
   depth_clear.depthStencil.depth = 1.0f;
 
@@ -1241,7 +1221,7 @@ void quark::renderer::internal::begin_shadow_rendering() {
 void quark::renderer::internal::end_shadow_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
 void quark::renderer::internal::begin_depth_prepass_rendering() {
-  update_view_stuff(window_w, window_h);
+  //update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w, window_h);
 
   VkClearValue depth_clear;
   depth_clear.depthStencil.depth = 1.0f;
@@ -1270,7 +1250,8 @@ void quark::renderer::internal::begin_depth_prepass_rendering() {
 void quark::renderer::internal::end_depth_prepass_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
 void quark::renderer::internal::begin_forward_rendering() {
-  update_view_stuff(window_w, window_h);
+  //update_matrices(&camera_view_projection, window_w, window_h);
+  //update_matrices(window_w, window_h);
 
   VkClearValue color_clear;
   color_clear.color.float32[0] = PURE_BLACK[0];
@@ -1296,6 +1277,10 @@ void quark::renderer::internal::begin_forward_rendering() {
   render_pass_begin_info.pNext = 0;
 
   vkCmdBeginRenderPass(main_cmd_buf[frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, depth_prepass_pipeline);
+
+  VkDeviceSize offset = 0;
+  vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
 
   // Update lights
   {
@@ -1317,9 +1302,11 @@ void quark::renderer::internal::begin_forward_rendering() {
 
     rc_data->light_count = counter;
 
-    rc_data->camera_direction.xyz = camera.dir;
-    rc_data->camera_position.xyz = camera.pos;
+    rc_data->camera_direction.xyz = global_camera.dir;
+    rc_data->camera_position.xyz = global_camera.pos;
     rc_data->time = tt;
+
+    rc_data->sun_view_projection = sun_view_projection;
 
     vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
   }
@@ -1378,7 +1365,7 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
   // mesh_scls[]
 
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  dpc.world_view_projection = view_projection_matrix * world_m;
+  dpc.world_view_projection = camera_view_projection * world_m;
 
   dpc.world_rotation = rot;
   dpc.world_position.xyz = pos;
@@ -1425,18 +1412,18 @@ void quark::renderer::internal::end_lit_pass() {
 bool quark::renderer::internal::sphere_in_frustum(Position pos, Rotation rot, Scale scl) {
   vec3 center = pos;
   // center.y *= -1.0f;
-  center = mul(cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
+  center = mul(global_cull_data.view, vec4{center.x, center.y, center.z, 1.0f}).xyz;
   center = center;
   f32 radius = 3.0f;
 
   bool visible = true;
 
   // left/top/right/bottom plane culling utilizing frustum symmetry
-  visible = visible && center.z * cull_data.frustum[1] - fabs(center.x) * cull_data.frustum[0] > -radius;
-  visible = visible && center.z * cull_data.frustum[3] - fabs(center.y) * cull_data.frustum[2] > -radius;
+  visible = visible && center.z * global_cull_data.frustum[1] - fabs(center.x) * global_cull_data.frustum[0] > -radius;
+  visible = visible && center.z * global_cull_data.frustum[3] - fabs(center.y) * global_cull_data.frustum[2] > -radius;
 
   // near/far plane culling
-  visible = visible && center.z + radius > cull_data.znear && center.z - radius < cull_data.zfar;
+  visible = visible && center.z + radius > global_cull_data.znear && center.z - radius < global_cull_data.zfar;
 
   return visible;
 };
@@ -1456,17 +1443,17 @@ bool quark::renderer::internal::box_in_frustum(Position pos, Scale scl) {
 
   for_every(i, 6) {
     int out = 0;
-    out += (dot(planes[i], vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
-    out += (dot(planes[i], vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
 
-    out += (dot(planes[i], vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
-    out += (dot(planes[i], vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0) ? 1 : 0;
 
-    out += (dot(planes[i], vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
-    out += (dot(planes[i], vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
 
-    out += (dot(planes[i], vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
-    out += (dot(planes[i], vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
+    out += (dot(global_planes[i], vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0) ? 1 : 0;
     if (out == 8) {
       return false;
     }
@@ -1519,7 +1506,7 @@ void quark::renderer::internal::draw_color(Position pos, Rotation rot, Scale scl
   pcd.color = col;
 
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  pcd.world_view_projection = view_projection_matrix * world_m;
+  pcd.world_view_projection = camera_view_projection * world_m;
 
   vkCmdPushConstants(
       main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
@@ -1528,7 +1515,7 @@ void quark::renderer::internal::draw_color(Position pos, Rotation rot, Scale scl
 
 void quark::renderer::internal::draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  mat4 world_view_projection = view_projection_matrix * world_m;
+  mat4 world_view_projection = sun_view_projection * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4),
       &world_view_projection);
@@ -1537,7 +1524,7 @@ void quark::renderer::internal::draw_shadow(Position pos, Rotation rot, Scale sc
 
 void quark::renderer::internal::draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  mat4 world_view_projection = mul(view_projection_matrix, world_m);
+  mat4 world_view_projection = camera_view_projection * world_m;
 
   vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4),
       &world_view_projection);
@@ -1548,16 +1535,28 @@ void quark::renderer::render_frame(bool end_forward) {
   // Todo Sean: Look into not recalculating frustum stuff?
   // Selectively copy then re-use likely
 
+  Camera camera = global_camera;
+
+  global_camera.pos = global_camera.pos + vec3{0.0f, 0.0f, 200.0f};
+  global_camera.dir = normalize((camera.pos + camera.dir * 10.0f) - global_camera.pos);
+  global_camera.znear = 10.0f;
+  global_camera.zfar = 1000.0f;
+  global_camera.fov = 8.0f;
+  update_matrices(&sun_view_projection, 1024, 1024);
+
   begin_shadow_rendering();
   {
     const auto shadow_pass = ecs::registry.group<UseShadowPass>(entt::get<Position, Rotation, Scale, Mesh>);
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
-      // if (box_in_frustum(pos, scl)) {
-      draw_shadow(pos, rot, scl, mesh);
-      //}
+      if (box_in_frustum(pos, scl)) {
+        draw_shadow(pos, rot, scl, mesh);
+      }
     }
   }
   end_shadow_rendering();
+
+  global_camera = camera;
+  update_matrices(&camera_view_projection, window_w, window_h);
 
   begin_depth_prepass_rendering();
   {
@@ -1675,9 +1674,9 @@ static void quark::renderer::internal::update_cursor_position(GLFWwindow* window
 
   vec2 mouse_delta = last_pos - mouse_pos;
 
-  camera.spherical_dir += mouse_delta * config::mouse_sensitivity;
-  camera.spherical_dir.x = wrap(camera.spherical_dir.x, 2.0f * M_PI);
-  camera.spherical_dir.y = clamp(camera.spherical_dir.y, 0.01f, M_PI - 0.01f);
+  global_camera.spherical_dir += mouse_delta * config::mouse_sensitivity;
+  global_camera.spherical_dir.x = wrap(global_camera.spherical_dir.x, 2.0f * M_PI);
+  global_camera.spherical_dir.y = clamp(global_camera.spherical_dir.y, 0.01f, M_PI - 0.01f);
 }
 
 //};
