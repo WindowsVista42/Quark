@@ -207,21 +207,21 @@ mat4 quark::orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 z_near, f
   };
 }
 
-vec4 quark::axis_angle(vec3 axis, f32 angle) {
+quat quark::axis_angle(vec3 axis, f32 angle) {
   f32 half_angle = angle / 2.0f;
   vec4 quat;
   quat.xyz = axis * sin(half_angle);
   quat.w = cos(half_angle);
   return quat;
 }
-vec3 quark::rotate(vec3 v, vec4 q) {
+vec3 quark::rotate(vec3 v, quat q) {
   vec3 u = q.xyz;
   f32 s = q.w;
 
   return v + ((cross(u, v) * s) + cross(u, cross(u, v))) * 2.0f;
 }
 
-mat4 quark::rotate(vec4 q) {
+mat4 quark::rotate(quat q) {
 
   // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
 
@@ -333,7 +333,7 @@ vec4 quark::mul(mat4 m, vec4 v) {
 //
 //   return q;
 // }
-vec4 quark::mul_quat(vec4 qa, vec4 qb) {
+quat quark::mul_quat(quat qa, quat qb) {
   vec4 q;
 
   q.x = qa.w * qb.x + qa.x * qb.w + qa.y * qb.z - qa.z * qb.y;

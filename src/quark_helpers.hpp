@@ -275,6 +275,7 @@ static vec3 get_rb_velocity(btRigidBody* body) {
 
 static void set_rb_velocity(btRigidBody* body, vec3 vel) { body->setLinearVelocity({vel.x, vel.y, vel.z}); }
 
+static vec3 get_rb_angular_factor(btRigidBody* body) { return body->getAngularFactor(); }
 static void set_rb_angular_factor(btRigidBody* body, vec3 af) { body->setAngularFactor({af.x, af.y, af.z}); }
 
 static vec3 get_co_position(btCollisionObject* obj) {

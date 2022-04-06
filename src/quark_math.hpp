@@ -60,7 +60,7 @@ f32 length_recip(vec3 x);
 
 mat4 mul(mat4 m0, mat4 m1);
 vec4 mul(mat4 m, vec4 v);
-vec4 mul_quat(vec4 qa, vec4 qb);
+quat mul_quat(quat qa, quat qb);
 
 f32 wrap(f32 x, f32 min, f32 max);
 f32 wrap(f32 x, f32 v);
@@ -102,10 +102,10 @@ mat4 look_at(vec3 eye, vec3 center, vec3 up);
 mat4 perspective(f32 fov, f32 asp, f32 z_near, f32 z_far);
 mat4 orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 z_near, f32 z_far);
 
-vec4 axis_angle(vec3 axis, f32 angle);
+quat axis_angle(vec3 axis, f32 angle);
 
-vec3 rotate(vec3 v, vec4 q);
-mat4 rotate(vec4 q);
+vec3 rotate(vec3 v, quat q);
+mat4 rotate(quat q);
 
 mat4 translate_rotate_scale(vec3 pos, quat rot, vec3 scl);
 
