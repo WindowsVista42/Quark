@@ -205,12 +205,6 @@ DERIVE_REFL_VERSION(get_co_rotation, btCollisionObject*, vec4);
 DERIVE_REFL_VERSION(get_rb_velocity, btRigidBody*, vec3);
 DERIVE_REFL_VERSION(get_rb_angular_factor, btRigidBody*, vec3);
 
-//static Entity* refl_get_rb_entity(btRigidBody** body) {
-//  Entity* e = (Entity*)scratch_alloc.alloc(sizeof(Entity));
-//  *e = get_rb_entity(*body);
-//  return e;
-//}
-
 static void refl_set_co_entity(btCollisionObject** body, Entity* e) {
   printf("set rb entity!");
 }
@@ -286,17 +280,6 @@ static void init() {
   reflect::add_name<UseShadowPass>("Shadow Pass");
   reflect::add_name<UseSolidPass>("Solid Color Pass");
   reflect::add_name<UseWireframePass>("Wireframe Color pass");
-
-  // reflect::add_inheritance<RelPosition, f32, f32, f32>("x", &RelPosition::x, "y", &RelPosition::y, "z",
-  // &RelPosition::z); reflect::add_inheritance<RelRotation, f32, f32, f32, f32>("x", &RelRotation::x, "y",
-  // &RelRotation::y, "z", &RelRotation::z, "w", &RelRotation::w);
-
-  // reflect::add_fields<Position, f32, f32, f32>("x", &Position::x, "y", &Position::y, "z", &Position::z);
-  // reflect::add_fields<Rotation, f32, f32, f32, f32>("x", &Rotation::x, "y", &Rotation::y, "z", &Rotation::z, "w",
-  // &Rotation::w); reflect::add_fields<Scale, f32, f32, f32>("x", &Scale::x, "y", &Scale::y, "z", &Scale::z);
-  // reflect::add_fields<Color, f32, f32, f32, f32>("r", &Color::x, "g", &Color::y, "b", &Color::z, "a", &Color::w);
-
-  // reflect::add_functions();
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false);
