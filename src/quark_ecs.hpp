@@ -34,7 +34,7 @@ template <typename T> T* try_get(entt::entity e);
 template <typename... T> bool has(entt::entity e);
 
 static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl);
-static void add_render_components( entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
+static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
 static void add_raycast_components(entt::entity e, Position pos, Rotation rot, Scale scl);
 static void add_rigid_body_components(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass);
 static void add_parent_components(entt::entity e, entt::entity parent);
@@ -49,8 +49,7 @@ static void update_entity_hierarchies();
 // static void sync_child_transform(Position& child_pos, Rotation& child_rot, RelPos rel_pos, RelRotation rel_rot,
 // Parent parent); // void synchronize_child_transform_with_parent(Pos& pos, Rotation& rot, RelPos rel_pos, RelRotation
 // rel_rot, Parent parent);
-static void synchronize_child_transform_with_parent(
-    Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
+static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
 
 namespace internal {};
 #ifdef EXPOSE_QUARK_INTERNALS

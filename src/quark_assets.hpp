@@ -55,8 +55,7 @@ template <typename T> std::vector<std::string> get_all();
 template <typename T> static usize size();
 
 template <typename T> void add_loader(T* (*loader)(std::string*), void (*unloader)(T*), const char* char_ext);
-template <typename T, typename T2>
-void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext);
+template <typename T, typename T2> void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext);
 
 static void load(const std::filesystem::path& path);
 static void load_directory(const char* dir);

@@ -100,8 +100,7 @@ template <typename T> void add_loader(T* (*loader)(std::string*), void (*unloade
   assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
 }
 
-template <typename T, typename T2>
-void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext) {
+template <typename T, typename T2> void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext) {
   std::string extension(char_ext);
   const std::type_index i = idx_of<T>();
 

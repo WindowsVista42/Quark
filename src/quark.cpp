@@ -42,8 +42,7 @@ void quark::init() {
   // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
 
   // Init staging buffer and allocation tracker
-  renderer::gpu_vertex_buffer =
-      renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  renderer::gpu_vertex_buffer = renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   renderer::gpu_vertex_tracker.init(100 * MB);
 
   assets::load_directory("assets");
@@ -65,6 +64,8 @@ void quark::init() {
   renderer::init_pipelines();
 
   internal::init_physics();
+
+  reflect::init();
 
   printf("Quark initialized!\n");
 

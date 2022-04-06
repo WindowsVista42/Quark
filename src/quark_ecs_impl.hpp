@@ -66,8 +66,7 @@ static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 sc
   ecs::add(e, Scale{scl});
 }
 
-static void add_render_components(
-    entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
+static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
   ecs::add(e, Color{col});
   ecs::add(e, mesh);
 
@@ -138,8 +137,7 @@ static void add_parent_components(entt::entity e, entt::entity parent) {
   children->count += 1;
 }
 
-static Transform add_relative_transform_components(
-    entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
+static Transform add_relative_transform_components(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
   Parent* p = ecs::try_get<Parent>(e);
   if (p == 0) {
     panic("Please add parent components to child before calling add_relative_transform_components!\n");
@@ -200,8 +198,7 @@ static void update_entity_hierarchies() {
   // Read these second because they are either layer 1 or or layer 2
   // auto view_layer2 = registry.view<RelPosition, RelRotation, Position, Rotation,
   // Parent>(entt::exclude_t<Children>());
-  auto view_layer2 =
-      registry.group<>(entt::get<RelPosition, RelRotation, Position, Rotation, Parent>, entt::exclude<Children>);
+  auto view_layer2 = registry.group<>(entt::get<RelPosition, RelRotation, Position, Rotation, Parent>, entt::exclude<Children>);
   for (auto [e, rel_pos, rel_rot, pos, rot, parent] : view_layer2.each()) {
     synchronize_child_transform_with_parent(pos, rot, rel_pos, rel_rot, parent);
   }
@@ -218,8 +215,7 @@ static void update_entity_hierarchies() {
   //}
 }
 
-static void synchronize_child_transform_with_parent(
-    Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
+static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
   Position p_pos = ecs::get<Position>(parent.parent);
   Rotation p_rot = ecs::get<Rotation>(parent.parent);
 

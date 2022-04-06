@@ -36,12 +36,7 @@ struct Camera {
 }; // namespace types
 using namespace types;
 
-inline Camera global_camera{.spherical_dir = {0.0f, M_PI_2},
-    .pos = VEC3_ZERO,
-    .dir = VEC3_UNIT_Y,
-    .znear = 0.01f,
-    .zfar = 10000.0f,
-    .fov = 90.0f};
+inline Camera global_camera{.spherical_dir = {0.0f, M_PI_2}, .pos = VEC3_ZERO, .dir = VEC3_UNIT_Y, .znear = 0.01f, .zfar = 10000.0f, .fov = 90.0f};
 
 void begin_frame();
 void render_frame(bool end_forward = true);
@@ -100,7 +95,7 @@ struct RenderConstants {
   u32 _pad5;
   mat4 sun_view_projection;
 };
- 
+
 // struct CullData {
 //   f32 frustum[4];
 //   f32 dist_cull;
@@ -124,10 +119,10 @@ struct RenderEffect {
 };
 
 // Define a transparent struct with the inner value being referenced as _
-#define OLD_TRANSPARENT_TYPE(name, inner)                                                                              \
-  struct name {                                                                                                        \
-    inner _;                                                                                                           \
-    operator inner&() { return *(inner*)this; }                                                                        \
+#define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
+  struct name {                                                                                                                                      \
+    inner _;                                                                                                                                         \
+    operator inner&() { return *(inner*)this; }                                                                                                      \
   }
 
 // Vulkan fragment shader module
@@ -230,8 +225,7 @@ inline VkSemaphore present_semaphore[FRAME_OVERLAP];
 inline VkSemaphore render_semaphore[FRAME_OVERLAP];
 inline VkFence render_fence[FRAME_OVERLAP];
 
-inline RenderConstants
-    render_constants; // We dont want this to have multiple copies because we want the most curernt version
+inline RenderConstants render_constants; // We dont want this to have multiple copies because we want the most curernt version
 inline AllocatedBuffer render_constants_gpu[FRAME_OVERLAP];
 inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 
@@ -278,12 +272,12 @@ inline AllocatedBuffer gpu_vertex_buffer;
 
 inline bool pause_frustum_culling = false;
 
-//inline mat4 camera_projection;
-//inline mat4 camera_view;
+// inline mat4 camera_projection;
+// inline mat4 camera_view;
 inline mat4 camera_view_projection;
 
-//inline mat4 sun_projection;
-//inline mat4 sun_view;
+// inline mat4 sun_projection;
+// inline mat4 sun_view;
 inline mat4 sun_view_projection;
 
 inline CullData global_cull_data;
@@ -298,8 +292,7 @@ void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 VkCommandBuffer begin_quick_commands();
 void end_quick_commands(VkCommandBuffer command_buffer);
 AllocatedBuffer create_allocated_buffer(usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
-AllocatedImage create_allocated_image(
-    u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
+AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
 void init_window();
 void init_vulkan();

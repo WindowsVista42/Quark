@@ -8,9 +8,9 @@
 #define for_range(name, start, end) for (usize name = start; name < end; name += 1)
 #define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
 
-#define panic(message)                                                                                                 \
-  fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                           \
-  char* a = 0;                                                                                                         \
+#define panic(message)                                                                                                                               \
+  fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                                                         \
+  char* a = 0;                                                                                                                                       \
   *a = 0
 
 template <typename F> struct __Defer {

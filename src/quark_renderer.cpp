@@ -16,13 +16,13 @@ using namespace quark;
 
 // using namespace internal;
 
-#define vk_check(x)                                                                                                    \
-  do {                                                                                                                 \
-    VkResult err = x;                                                                                                  \
-    if (err) {                                                                                                         \
-      std::cout << "Detected Vulkan error: " << err << '\n';                                                           \
-      panic("");                                                                                                       \
-    }                                                                                                                  \
+#define vk_check(x)                                                                                                                                  \
+  do {                                                                                                                                               \
+    VkResult err = x;                                                                                                                                \
+    if (err) {                                                                                                                                       \
+      std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
+      panic("");                                                                                                                                     \
+    }                                                                                                                                                \
   } while (0)
 
 VkCommandPoolCreateInfo get_cmd_pool_info(u32 queue_family, VkCommandPoolCreateFlags create_flags) {
@@ -122,8 +122,7 @@ void quark::renderer::internal::end_quick_commands(VkCommandBuffer command_buffe
   vkFreeCommandBuffers(device, transfer_cmd_pool, 1, &command_buffer);
 }
 
-AllocatedBuffer quark::renderer::internal::create_allocated_buffer(
-    usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
+AllocatedBuffer quark::renderer::internal::create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
   AllocatedBuffer alloc_buffer = {};
 
   VkBufferCreateInfo buffer_info = {};
@@ -289,11 +288,10 @@ void quark::renderer::internal::init_swapchain() {
   swapchain_image_views = vkb_swapchain.get_image_views().value();
   swapchain_format = vkb_swapchain.image_format;
 
-  global_depth_image = create_allocated_image(
-      window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+  global_depth_image =
+      create_allocated_image(window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-  sun_depth_image = create_allocated_image(
-      1024, 1024, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+  sun_depth_image = create_allocated_image(1024, 1024, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void quark::renderer::internal::init_command_pools_and_buffers() {
@@ -464,8 +462,8 @@ void quark::renderer::internal::copy_staging_buffers_to_gpu() {
   AllocatedBuffer old_buffer = internal::gpu_vertex_buffer;
   LinearAllocationTracker old_tracker = internal::gpu_vertex_tracker;
 
-  gpu_vertex_buffer = create_allocated_buffer(old_tracker.size() * sizeof(VertexPNT),
-      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  gpu_vertex_buffer = create_allocated_buffer(
+      old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
   gpu_vertex_tracker.deinit();
   gpu_vertex_tracker.init(old_tracker.size());
@@ -557,8 +555,7 @@ void quark::renderer::internal::init_pipelines() {
   multisample_info.pNext = 0;
 
   VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-  color_blend_attachment.colorWriteMask =
-      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+  color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   color_blend_attachment.blendEnable = VK_FALSE;
   color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
   color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -697,8 +694,7 @@ void quark::renderer::internal::init_buffers() {
   for_every(i, FRAME_OVERLAP) {
     auto buffer_size = sizeof(RenderConstants);
 
-    render_constants_gpu[i] =
-        create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    render_constants_gpu[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.pNext = 0;
@@ -1013,8 +1009,7 @@ Mesh* quark::renderer::internal::load_vbo_mesh(std::string* path) {
   return mesh;
 }
 
-void quark::renderer::internal::unload_mesh(Mesh* mesh) {
-} // vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
+void quark::renderer::internal::unload_mesh(Mesh* mesh) {} // vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
 
 void quark::renderer::internal::deinit_sync_objects() {
   for_every(i, FRAME_OVERLAP) {
@@ -1034,9 +1029,7 @@ void quark::renderer::internal::deinit_buffers_and_images() {
   // Destroy vma buffers
   assets::unload_all(".obj");
 
-  for_every(i, FRAME_OVERLAP) {
-    vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc);
-  }
+  for_every(i, FRAME_OVERLAP) { vmaDestroyBuffer(gpu_alloc, render_constants_gpu[i].buffer, render_constants_gpu[i].alloc); }
 }
 
 void quark::renderer::internal::deinit_shaders() {
@@ -1121,8 +1114,7 @@ void quark::renderer::begin_frame() {
   vk_check(vkResetFences(device, 1, &render_fence[frame_index]));
 
   // TODO Sean: dont block the thread
-  VkResult result =
-      vkAcquireNextImageKHR(device, swapchain, OP_TIMEOUT, present_semaphore[frame_index], 0, &swapchain_image_index);
+  VkResult result = vkAcquireNextImageKHR(device, swapchain, OP_TIMEOUT, present_semaphore[frame_index], 0, &swapchain_image_index);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     resize_swapchain();
@@ -1221,7 +1213,8 @@ void quark::renderer::internal::begin_shadow_rendering() {
 void quark::renderer::internal::end_shadow_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
 void quark::renderer::internal::begin_depth_prepass_rendering() {
-  //update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w, window_h);
+  // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
+  // window_h);
 
   VkClearValue depth_clear;
   depth_clear.depthStencil.depth = 1.0f;
@@ -1250,8 +1243,8 @@ void quark::renderer::internal::begin_depth_prepass_rendering() {
 void quark::renderer::internal::end_depth_prepass_rendering() { vkCmdEndRenderPass(main_cmd_buf[frame_index]); }
 
 void quark::renderer::internal::begin_forward_rendering() {
-  //update_matrices(&camera_view_projection, window_w, window_h);
-  //update_matrices(window_w, window_h);
+  // update_matrices(&camera_view_projection, window_w, window_h);
+  // update_matrices(window_w, window_h);
 
   VkClearValue color_clear;
   color_clear.color.float32[0] = PURE_BLACK[0];
@@ -1375,8 +1368,7 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
 
   VkDeviceSize offset = 0;
 
-  vkCmdPushConstants(main_cmd_buf[frame_index], lit_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(DeferredPushConstant), &dpc);
+  vkCmdPushConstants(main_cmd_buf[frame_index], lit_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
   // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
   // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
@@ -1387,8 +1379,8 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
 
 void quark::renderer::internal::begin_lit_pass() {
   vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline);
-  vkCmdBindDescriptorSets(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1,
-      &render_constants_sets[frame_index], 0, 0);
+  vkCmdBindDescriptorSets(
+      main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
@@ -1508,8 +1500,7 @@ void quark::renderer::internal::draw_color(Position pos, Rotation rot, Scale scl
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   pcd.world_view_projection = camera_view_projection * world_m;
 
-  vkCmdPushConstants(
-      main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
+  vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -1517,8 +1508,7 @@ void quark::renderer::internal::draw_shadow(Position pos, Rotation rot, Scale sc
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = sun_view_projection * world_m;
 
-  vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4),
-      &world_view_projection);
+  vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -1526,8 +1516,7 @@ void quark::renderer::internal::draw_depth(Position pos, Rotation rot, Scale scl
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = camera_view_projection * world_m;
 
-  vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4),
-      &world_view_projection);
+  vkCmdPushConstants(main_cmd_buf[frame_index], color_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
   vkCmdDraw(main_cmd_buf[frame_index], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -1560,8 +1549,7 @@ void quark::renderer::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass =
-        ecs::registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
+    const auto depth_prepass = ecs::registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1591,8 +1579,7 @@ void quark::renderer::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    const auto wireframe_pass =
-        ecs::registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
+    const auto wireframe_pass = ecs::registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1662,9 +1649,7 @@ void quark::renderer::internal::print_performance_statistics() {
   }
 }
 
-static void quark::renderer::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
-  framebuffer_resized = true;
-}
+static void quark::renderer::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) { framebuffer_resized = true; }
 
 static void quark::renderer::internal::update_cursor_position(GLFWwindow* window, double xpos, double ypos) {
   vec2 last_pos = mouse_pos;

@@ -219,20 +219,17 @@ mat4 mat4::operator+(mat4 v) { return {xs + v.xs, ys + v.ys, zs + v.zs, ws + v.w
 mat4 mat4::operator-(mat4 v) { return {xs - v.xs, ys - v.ys, zs - v.zs, ws - v.ws}; }
 
 mat4 mat4::operator*(mat4 v) {
-  return {{(xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w),
-              (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
-              (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w),
-              (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)},
-      {(xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w),
-          (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
+  return {
+      {(xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w), (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
+          (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w),
+          (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)},
+      {(xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w), (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
           (xs.z * v.ys.x) + (ys.z * v.ys.y) + (zs.z * v.ys.z) + (ws.z * v.ys.w),
           (xs.w * v.ys.x) + (ys.w * v.ys.y) + (zs.w * v.ys.z) + (ws.w * v.ys.w)},
-      {(xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w),
-          (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
+      {(xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w), (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
           (xs.z * v.zs.x) + (ys.z * v.zs.y) + (zs.z * v.zs.z) + (ws.z * v.zs.w),
           (xs.w * v.zs.x) + (ys.w * v.zs.y) + (zs.w * v.zs.z) + (ws.w * v.zs.w)},
-      {(xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w),
-          (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
+      {(xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w), (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
           (xs.z * v.ws.x) + (ys.z * v.ws.y) + (zs.z * v.ws.z) + (ws.z * v.ws.w),
           (xs.w * v.ws.x) + (ys.w * v.ws.y) + (zs.w * v.ws.z) + (ws.w * v.ws.w)}};
 }

@@ -23,9 +23,7 @@ using namespace quark;
 // template <typename T> static T* try_get_asset(const char* name) { return 0; } // assets.try_get<T>(name); }
 // template <typename T> static usize get_asset_count() { return assets.size<T>(); }
 
-static btCollisionShape* create_box_shape(vec3 half_dim) {
-  return new btBoxShape({half_dim.x, half_dim.y, half_dim.z});
-}
+static btCollisionShape* create_box_shape(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
 static btCollisionShape* create_sphere_shape(f32 radius) { return new btSphereShape(radius); }
 static btCollisionShape* create_capsule_shape(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
 
@@ -349,9 +347,7 @@ static void delete_go(btGhostObject* ghost_obj) {
   delete ghost_obj;
 }
 
-static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) {
-  body->applyForce(force, rel_pos);
-}
+static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) { body->applyForce(force, rel_pos); }
 
 namespace internal {
 
