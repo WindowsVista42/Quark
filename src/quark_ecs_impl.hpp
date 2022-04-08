@@ -57,6 +57,7 @@ static void recursively_destroy(entt::entity e, bool destroy_root) {
 
 template <typename T> static void add(entt::entity e, T t) { registry.emplace<T>(e, t); }
 template <typename T> static T& get(entt::entity e) { return registry.get<T>(e); }
+template <typename T> T& get_first() { return registry.get<T>(registry.view<T>().front()); }
 template <typename T> static T* try_get(entt::entity e) { return registry.try_get<T>(e); }
 template <typename... T> static bool has(entt::entity e) { return registry.all_of<T...>(e); }
 

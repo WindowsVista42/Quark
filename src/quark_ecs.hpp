@@ -30,6 +30,7 @@ static void recursively_destroy(entt::entity e, bool destroy_root = true);
 
 template <typename T> void add(entt::entity e, T t);
 template <typename T> T& get(entt::entity e);
+template <typename T> T& get_first();
 template <typename T> T* try_get(entt::entity e);
 template <typename... T> bool has(entt::entity e);
 
