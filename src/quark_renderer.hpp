@@ -338,8 +338,6 @@ void resize_swapchain();
 
 void print_performance_statistics();
 
-void update_camera();
-
 void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh);
 template <typename F> void flush_render_batch(F f);
 

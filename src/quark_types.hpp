@@ -193,6 +193,45 @@ struct mat3 {
   vec3& operator[](usize i);
 };
 
+struct mat3a {
+  vec4 xs, ys, zs;
+
+  static btMatrix3x3 rotate(quat q) {
+    btMatrix3x3 mat;
+    mat.setRotation(q);
+    return mat;
+
+    // mat3 m = {{0,0,0}, {0,0,0}, {0,0,0}};
+
+    // f32 xx = q.x * q.x;
+    // f32 xy = q.x * q.y;
+    // f32 xz = q.x * q.z;
+    // f32 xw = q.x * q.w;
+
+    // f32 yy = q.y * q.y;
+    // f32 yz = q.y * q.z;
+    // f32 yw = q.y * q.w;
+
+    // f32 zz = q.z * q.z;
+    // f32 zw = q.z * q.w;
+
+    //// Sean: this is transposed because we get weird results from bullet3 otherwise
+    // m[0][0] = 1.0f - 2.0f * (yy + zz);
+    // m[1][0] = 2.0f * (xy - zw);
+    // m[2][0] = 2.0f * (xz + yw);
+
+    // m[0][1] = 2.0f * (xy + zw);
+    // m[1][1] = 1.0f - 2.0f * (xx + zz);
+    // m[2][1] = 2.0f * (yz - xw);
+
+    // m[0][2] = 2.0f * (xz - yw);
+    // m[1][2] = 2.0f * (yz + xw);
+    // m[2][2] = 1.0f - 2.0f * (xx + yy);
+
+    // return m;
+  }
+};
+
 // Four by four matrix
 struct mat4 {
   vec4 xs, ys, zs, ws;

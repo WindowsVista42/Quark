@@ -31,11 +31,7 @@
 #include <BulletDynamics/btBulletDynamicsCommon.h>
 #include <btBulletDynamicsCommon.h>
 
-// Public API
 #include "quark_allocators.hpp"
-//#include "quark_asset_manager.hpp"
-
-//#include "quark_binds.hpp"
 #include "quark_colors.hpp"
 #include "quark_consts.hpp"
 #include "quark_game.hpp"
@@ -45,9 +41,6 @@
 
 namespace quark {
 using namespace quark;
-
-// Globals
-// inline AssetManager asset_manager;
 
 inline bool enable_performance_statistics = false;
 // inline const char* window_name = "Quark Game Engine";
@@ -60,14 +53,6 @@ inline void (*init_func)();
 inline void (*update_func)();
 inline void (*deinit_func)();
 
-// Bullet Physics
-
-inline btDefaultCollisionConfiguration* physics_config;
-inline btCollisionDispatcher* physics_dispatcher;
-inline btBroadphaseInterface* physics_overlapping_pair_cache;
-inline btSequentialImpulseConstraintSolver* physics_solver;
-inline btDiscreteDynamicsWorld* physics_world;
-
 // Map of meshes offsets to mesh dimensions
 inline std::unordered_map<std::string, Scale> mesh_scales;
 inline bool enable_physics_bounding_box_visor = false;
@@ -76,13 +61,17 @@ inline bool enable_physics_bounding_box_visor = false;
 void init();
 void run();
 void deinit();
-//
-void update_camera();
+
+static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
+  rel_pos = rotate(rel_pos, base_rot);
+  rel_pos += base_pos;
+  return rel_pos;
+};
 
 }; // namespace quark
 
 #include "quark_assets.hpp"
-#include "quark_helpers.hpp"
+#include "quark_physics.hpp"
 #include "quark_ecs.hpp"
 #include "quark_internal.hpp"
 #include "quark_platform.hpp"

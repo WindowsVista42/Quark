@@ -61,13 +61,13 @@ template <typename T> T& get_first() { return registry.get<T>(registry.view<T>()
 template <typename T> static T* try_get(entt::entity e) { return registry.try_get<T>(e); }
 template <typename... T> static bool has(entt::entity e) { return registry.all_of<T...>(e); }
 
-static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
+static void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
   ecs::add(e, Position{pos});
   ecs::add(e, Rotation{rot});
   ecs::add(e, Scale{scl});
 }
 
-static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
+static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
   ecs::add(e, Color{col});
   ecs::add(e, mesh);
 
@@ -89,7 +89,7 @@ static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32
   }
 }
 
-static void add_raycast_components(entt::entity e, Position pos, Rotation rot, Scale scl) {
+static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
   btCollisionObject* collision_object = new btCollisionObject();
 
   btTransform transform;
@@ -97,27 +97,27 @@ static void add_raycast_components(entt::entity e, Position pos, Rotation rot, S
   transform.setOrigin({pos.x, pos.y, pos.z});
   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 
-  auto shape = create_box_shape(scl);
+  auto shape = physics::create_box(scl);
 
   collision_object->setWorldTransform(transform);
   collision_object->setCollisionShape(shape);
   collision_object->setCollisionFlags(0);
 
-  set_co_entity(collision_object, e);
+  physics::set_co_entity(collision_object, e);
 
   // physics_world->addCollisionObject(collision_object);
   ecs::add(e, collision_object);
 }
 
-static void add_rigid_body_components(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass) {
-  auto body = create_rb(e, shape, pos, mass);
+static void add_rigid_body(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass) {
+  auto body = physics::create_rb(e, shape, pos, mass);
 
   // physics_world->addRigidBody(body, 1, 1);
   ecs::add(e, body);
-  activate_rb(body);
+  physics::activate_rb(body);
 }
 
-static void add_parent_components(entt::entity e, entt::entity parent) {
+static void add_parent(entt::entity e, entt::entity parent) {
   // add parent
   ecs::add<Parent>(e, Parent{parent});
 
@@ -138,10 +138,10 @@ static void add_parent_components(entt::entity e, entt::entity parent) {
   children->count += 1;
 }
 
-static Transform add_relative_transform_components(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
+static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
   Parent* p = ecs::try_get<Parent>(e);
   if (p == 0) {
-    panic("Please add parent components to child before calling add_relative_transform_components!\n");
+    panic("Please add parent to child before calling add_relative_transform!\n");
   }
 
   ecs::add(e, RelPosition{rel_pos});

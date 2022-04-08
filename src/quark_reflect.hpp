@@ -43,8 +43,8 @@ constexpr entt::id_type NULL_HASH = entt::type_hash<NullReflection>();
 
 static void add_if_new(entt::id_type ty_hash) {
   if (reflected_types.find(ty_hash) == reflected_types.end()) {
-    reflected_types.insert(
-        std::make_pair(ty_hash, ReflectionInfo{std::string(""), entt::type_id<NullReflection>(), std::vector<ReflectionField>(), std::vector<ReflectionFunction>()}));
+    reflected_types.insert(std::make_pair(ty_hash,
+        ReflectionInfo{std::string(""), entt::type_id<NullReflection>(), std::vector<ReflectionField>(), std::vector<ReflectionFunction>()}));
     std::cout << "added: " << ty_hash << std::endl;
   }
 }
@@ -176,7 +176,7 @@ template <typename T> static constexpr void add_name(const char* name) {
   add_if_new(type.hash());
 
   ReflectionInfo& refl_info = reflected_types.at(type.hash());
-  if(refl_info.name == "") {
+  if (refl_info.name == "") {
     reflected_types.at(type.hash()).name = std::string(name);
   } else {
     panic("Cant assign name more than once!");
@@ -185,45 +185,36 @@ template <typename T> static constexpr void add_name(const char* name) {
 
 static std::string get_name(entt::id_type type) {
   using namespace internal;
-  if(reflect::has(type)) {
+  if (reflect::has(type)) {
     return reflected_types.at(type).name;
   } else {
     return "";
   }
 }
 
-#define DERIVE_REFL_VERSION(func, type, value) \
-static value* refl_##func(type* t) { \
-  value* e = (value*)scratch_alloc.alloc(sizeof(value)); \
-  *e = func(*t); \
-  return e; \
-} \
+#define DERIVE_REFL_VERSION(func, type, value)                                                                                                       \
+  static value* refl_##func(type* t) {                                                                                                               \
+    value* e = (value*)scratch_alloc.alloc(sizeof(value));                                                                                           \
+    *e = func(*t);                                                                                                                                   \
+    return e;                                                                                                                                        \
+  }
 
+using namespace physics;
 DERIVE_REFL_VERSION(get_co_entity, btCollisionObject*, Entity);
 DERIVE_REFL_VERSION(get_co_position, btCollisionObject*, vec3);
 DERIVE_REFL_VERSION(get_co_rotation, btCollisionObject*, vec4);
 DERIVE_REFL_VERSION(get_rb_velocity, btRigidBody*, vec3);
 DERIVE_REFL_VERSION(get_rb_angular_factor, btRigidBody*, vec3);
 
-static void refl_set_co_entity(btCollisionObject** body, Entity* e) {
-  printf("set rb entity!");
-}
+static void refl_set_co_entity(btCollisionObject** body, Entity* e) { printf("set rb entity!"); }
 
-static void refl_set_co_position(btCollisionObject** body, vec3* e) {
-  printf("set rb position!");
-}
+static void refl_set_co_position(btCollisionObject** body, vec3* e) { printf("set rb position!"); }
 
-static void refl_set_co_rotation(btCollisionObject** body, vec4* e) {
-  printf("set rb rotation!");
-}
+static void refl_set_co_rotation(btCollisionObject** body, vec4* e) { printf("set rb rotation!"); }
 
-static void refl_set_rb_velocity(btRigidBody** body, vec3* e) {
-  printf("set rb velocity!");
-}
+static void refl_set_rb_velocity(btRigidBody** body, vec3* e) { printf("set rb velocity!"); }
 
-static void refl_set_rb_angular_factor(btRigidBody** body, vec3* e) {
-  printf("set rb angular factor!");
-}
+static void refl_set_rb_angular_factor(btRigidBody** body, vec3* e) { printf("set rb angular factor!"); }
 
 static void init() {
   using namespace internal;
@@ -324,14 +315,14 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
     return;
   }
 
-  if(print_name) {
+  if (print_name) {
     std::string it_name;
-    if(use_supplied_name) {
+    if (use_supplied_name) {
       it_name = name;
     } else {
       it_name = reflect::get_name(type);
     }
-    if(it_name != "") {
+    if (it_name != "") {
       std::cout << it_name << std::endl;
     } else {
       std::cout << info.name() << std::endl;

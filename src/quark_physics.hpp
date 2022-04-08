@@ -1,31 +1,14 @@
 #pragma once
-#ifndef QUARK_HELPERS_HPP
-#define QUARK_HELPERS_HPP
-
 #include "quark.hpp"
-// btSimulationIslandManager.h>
 
 namespace quark {
+namespace physics {
 
-using namespace quark;
-
-// entt::entity static new_entity() { return registry.create(); }
-
-// template <typename T> static void add_component(entt::entity e, T t) { registry.emplace<T>(e, t); }
-// template <typename T> static T& get_component(entt::entity e) { return registry.get<T>(e); }
-// template <typename T> static T* try_get_component(entt::entity e) { return registry.try_get<T>(e); }
-// template <typename... T> static bool has_components(entt::entity e) { return registry.all_of<T...>(e); }
-
-// template <typename T> static T& get_asset(const char* name) { return *assets.get<T>(name); }
-// template <typename T> static T* get_all_asset(const char* name) { return *assets.get_all<T>(name); }
-// template <typename T> static T* try_get_asset(const char* name) { return 0; } // assets.try_get<T>(name); }
-// template <typename T> static usize get_asset_count() { return assets.size<T>(); }
-
-static btCollisionShape* create_box_shape(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
-static btCollisionShape* create_sphere_shape(f32 radius) { return new btSphereShape(radius); }
-static btCollisionShape* create_capsule_shape(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
-
-static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
+inline btDefaultCollisionConfiguration* physics_config;
+inline btCollisionDispatcher* physics_dispatcher;
+inline btBroadphaseInterface* physics_overlapping_pair_cache;
+inline btSequentialImpulseConstraintSolver* physics_solver;
+inline btDiscreteDynamicsWorld* physics_world;
 
 union RbUserData {
   void* ptr;
@@ -34,6 +17,12 @@ union RbUserData {
     int pad;
   };
 };
+
+static btCollisionShape* create_box(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
+static btCollisionShape* create_sphere(f32 radius) { return new btSphereShape(radius); }
+static btCollisionShape* create_capsule(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
+
+static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
 
 static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 origin, f32 mass) {
   btTransform transform;
@@ -84,148 +73,6 @@ static void set_rb_entity(btRigidBody* body, entt::entity e) {
   body->setUserPointer(data.ptr);
 }
 
-// static void add_transform_components(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
-//   add_component(e, Pos{pos});
-//   add_component(e, Rot{rot});
-//   add_component(e, Scl{scl});
-// }
-
-// enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
-//
-// static void add_render_components(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags) {
-//   add_component(e, Col{col});
-//   add_component(e, mesh);
-//
-//   switch (render_flags) {
-//   case (RENDER_LIT): {
-//     add_component(e, UseLitPass{});
-//   } break;
-//   case (RENDER_SOLID): {
-//     add_component(e, UseSolidPass{});
-//   } break;
-//   case (RENDER_WIREFRAME): {
-//     add_component(e, UseWireframePass{});
-//   } break;
-//   }
-// }
-//
-// static void add_raycast_components(entt::entity e, Pos pos, Rot rot, Scl scl) {
-//   btCollisionObject* collision_object = new btCollisionObject();
-//
-//   btTransform transform;
-//
-//   transform.setOrigin({pos.x, pos.y, pos.z});
-//   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
-//
-//   auto shape = create_box_shape(scl);
-//
-//   collision_object->setWorldTransform(transform);
-//   collision_object->setCollisionShape(shape);
-//   collision_object->setCollisionFlags(0);
-//
-//   set_co_entity(collision_object, e);
-//
-//   // physics_world->addCollisionObject(collision_object);
-//   add_component(e, collision_object);
-// }
-//
-// enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
-//
-// static void add_rigid_body_components(entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-//   auto body = create_rb(e, shape, pos, mass);
-//
-//   // physics_world->addRigidBody(body, 1, 1);
-//   add_component(e, body);
-//   activate_rb(body);
-// }
-//
-// static btRigidBody* add_and_give_rigid_body_components(
-//     entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass) {
-//   auto body = create_rb(e, shape, pos, mass);
-//
-//   // physics_world->addRigidBody(body, 1, 1);
-//   add_component(e, body);
-//   activate_rb(body);
-//   return body;
-// }
-//
-// static void add_moving_rigid_body_components(
-//     entt::entity e, Pos pos, Scl scl, btCollisionShape* shape, f32 mass, vec3 vel) {
-//   auto body = create_rb(e, shape, pos, mass);
-//   body->setLinearVelocity({vel.x, vel.y, vel.z});
-//
-//   // physics_world->addRigidBody(body, 1, 1);
-//   add_component(e, body);
-//   activate_rb(body);
-// }
-//
-// static void add_parent_components(entt::entity e, entt::entity parent) {
-//   // add parent
-//   add_component<Parent>(e, Parent{parent});
-//
-//   Children* children = try_get_component<Children>(parent);
-//
-//   // add children component to parent if they dont exist
-//   if (children == 0) {
-//     add_component(parent, Children{0, {}});
-//     children = try_get_component<Children>(parent);
-//   }
-//
-//   if (children->count >= 15) {
-//     panic("Tried to add more than 15 children to entity!");
-//   }
-//
-//   // add child
-//   children->children[children->count] = e;
-//   children->count += 1;
-// }
-
-static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
-  rel_pos = rotate(rel_pos, base_rot);
-  rel_pos += base_pos;
-  return rel_pos;
-};
-
-// struct TResult {
-//   Pos out_pos;
-//   Rot out_rot;
-// };
-//
-// static TResult mul_transform(RelPos rel_pos, RelRot rel_rot, Pos base_pos, Rot base_rot) {
-//   TResult result;
-//
-//   result.out_pos = mul_transform_position(rel_pos, base_pos, base_rot);
-//   result.out_rot = Rot{mul_quat(rel_rot, base_rot)};
-//
-//   return result;
-// }
-
-// static Transform add_relative_transform_components(entt::entity e, RelPos rel_pos, RelRot rel_rot, Scl scl) {
-//   Parent* p = try_get_component<Parent>(e);
-//   if (p == 0) {
-//     panic("Please add parent components to child before calling add_relative_transform_components!\n");
-//   }
-//
-//   add_component(e, RelPos{rel_pos});
-//   add_component(e, RelRot{rel_rot});
-//
-//   // TODO(sean): use syncronize_child_transform_with_parent
-//
-//   Pos pos = Pos{rel_pos};
-//   Rot rot = Rot{rel_rot};
-//
-//   Pos p_pos = get_component<Pos>(p->parent);
-//   Rot p_rot = get_component<Rot>(p->parent);
-//
-//   auto t = ecs::mul_transform(Pos{rel_pos}, Rot{rel_rot}, p_pos, p_rot);
-//
-//   add_component(e, Pos{t.pos});
-//   add_component(e, Rot{t.rot});
-//   add_component(e, Scl{scl});
-//
-//   return t;
-// }
-
 static btTransform get_rb_transform(btRigidBody* body) {
   btTransform transform;
   if (body->getMotionState()) {
@@ -257,6 +104,11 @@ static void set_rb_position(btRigidBody* body, vec3 pos) {
 static vec4 get_rb_rotation(btRigidBody* body) {
   btQuaternion btq = get_rb_transform(body).getRotation();
   return vec4{btq.x(), btq.y(), btq.z(), btq.w()};
+}
+
+static quat get_rb_rotation_quat(btRigidBody* body) {
+  btQuaternion btq = get_rb_transform(body).getRotation();
+  return quat{btq.x(), btq.y(), btq.z(), btq.w()};
 }
 
 static void set_rb_rotation(btRigidBody* body, vec4 rot) {
@@ -347,6 +199,9 @@ static void delete_go(btGhostObject* ghost_obj) {
 
 static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) { body->applyForce(force, rel_pos); }
 
+void init();
+void deinit();
+
 namespace internal {
 
 static void add_rb_to_world(entt::registry& reg, entt::entity e) {
@@ -381,6 +236,74 @@ static void remove_go_from_world(entt::registry& reg, entt::entity e) {
 
 }; // namespace internal
 
+namespace types {
+
+struct RigidBody : btRigidBody {
+  // struct AlignmentRigidBody : btCollisionObject {
+  //	btMatrix3x3 m_invInertiaTensorWorld;
+  //	btVector3 m_linearVelocity;
+  //	btVector3 m_angularVelocity;
+  //	btScalar m_inverseMass;
+  //	btVector3 m_linearFactor;
+  //
+  //	btVector3 m_gravity;
+  //	btVector3 m_gravity_acceleration;
+  //	btVector3 m_invInertiaLocal;
+  //	btVector3 m_totalForce;
+  //	btVector3 m_totalTorque;
+  //
+  //	btScalar m_linearDamping;
+  //	btScalar m_angularDamping;
+  //
+  //	bool m_additionalDamping;
+  //	btScalar m_additionalDampingFactor;
+  //	btScalar m_additionalLinearDampingThresholdSqr;
+  //	btScalar m_additionalAngularDampingThresholdSqr;
+  //	btScalar m_additionalAngularDampingFactor;
+  //
+  //	btScalar m_linearSleepingThreshold;
+  //	btScalar m_angularSleepingThreshold;
+  //
+  //	//m_optionalMotionState allows to automatic synchronize the world transform for active objects
+  //	btMotionState* m_optionalMotionState;
+  //
+  //	//keep track of typed constraints referencing this rigid body, to disable collision between linked bodies
+  //	btAlignedObjectArray<btTypedConstraint*> m_constraintRefs;
+  //
+  //	int m_rigidbodyFlags;
+  //
+  //	int m_debugBodyId;
+  //
+  //	ATTRIBUTE_ALIGNED16(btVector3 m_deltaLinearVelocity);
+  //	btVector3 m_deltaAngularVelocity;
+  //	btVector3 m_angularFactor;
+  //	btVector3 m_invMass;
+  //	btVector3 m_pushVelocity;
+  //	btVector3 m_turnVelocity;
+  // };
+
+  const vec3 pos() const { return this->getWorldTransform().getOrigin(); }
+  const quat rot() const { return get_rb_rotation_quat((btRigidBody*)this); }
+  const vec3 linvel() const { return this->getLinearVelocity(); }
+  const vec3 angvel() const { return this->getAngularVelocity(); }
+
+  void pos(vec3 pos) { this->getWorldTransform().setOrigin({pos.x, pos.y, pos.z}); }
+  void rot(quat rot) { this->getWorldTransform().setRotation({rot.x, rot.y, rot.z, rot.w}); }
+  void linvel(vec3 linvel) { this->setLinearVelocity({linvel.x, linvel.y, linvel.z}); }
+  void angvel(vec3 angvel) { this->setAngularVelocity({angvel.x, angvel.y, angvel.z}); }
+
+  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
+  void apply(vec3 force, vec3 rel_pos = VEC3_ZERO) { this->applyForce(force, rel_pos); }
+};
+
+}; // namespace types
+
+#ifdef EXPOSE_QUARK_INTERNALS
+using namespace internal;
+#endif
+
+}; // namespace physics
 }; // namespace quark
 
-#endif // QUARK_HELPERS_HPP
+using namespace quark::physics;
+using namespace quark::physics::types;
