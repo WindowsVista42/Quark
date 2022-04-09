@@ -90,7 +90,7 @@ static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_fla
 }
 
 static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
-  btCollisionObject* collision_object = new btCollisionObject();
+  CollisionBody* coll = new CollisionBody();
 
   btTransform transform;
 
@@ -99,22 +99,20 @@ static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
 
   auto shape = physics::create_box(scl);
 
-  collision_object->setWorldTransform(transform);
-  collision_object->setCollisionShape(shape);
-  collision_object->setCollisionFlags(0);
+  coll->transform(transform);
+  coll->shape(shape);
+  coll->flags(0);
+  coll->entity(e);
 
-  physics::set_co_entity(collision_object, e);
-
-  // physics_world->addCollisionObject(collision_object);
-  ecs::add(e, collision_object);
+  ecs::add(e, coll);
 }
 
 static void add_rigid_body(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass) {
-  auto body = physics::create_rb(e, shape, pos, mass);
+  RigidBody* body = (RigidBody*)physics::create_rb(e, shape, pos, mass);
 
   // physics_world->addRigidBody(body, 1, 1);
-  ecs::add(e, body);
-  physics::activate_rb(body);
+  ecs::add<RigidBody*>(e, body);
+  body->activate();
 }
 
 static void add_parent(entt::entity e, entt::entity parent) {

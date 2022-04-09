@@ -168,6 +168,7 @@ struct quat : public vec4 {
     w = w;
   }
 
+  quat(btQuaternion q) { x = q.x(); y = q.y(); z = q.z(); w = q.w(); }
   operator btQuaternion() { return btQuaternion{x, y, z, w}; };
 };
 

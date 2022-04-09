@@ -20,14 +20,14 @@ void quark::init() {
   assets::add_type(renderer::load_frag_shader, renderer::unload_shader, ".frag.spv");
   assets::add_type(renderer::load_obj_mesh, renderer::unload_mesh, ".obj");
 
-  ecs::registry.on_construct<btRigidBody*>().connect<&physics::add_rb_to_world>();
-  ecs::registry.on_destroy<btRigidBody*>().connect<&physics::remove_rb_from_world>();
+  ecs::registry.on_construct<RigidBody*>().connect<&physics::add_rb_to_world>();
+  ecs::registry.on_destroy<RigidBody*>().connect<&physics::remove_rb_from_world>();
 
-  ecs::registry.on_construct<btCollisionObject*>().connect<&physics::add_co_to_world>();
-  ecs::registry.on_destroy<btCollisionObject*>().connect<&physics::remove_co_from_world>();
+  ecs::registry.on_construct<CollisionBody*>().connect<&physics::add_co_to_world>();
+  ecs::registry.on_destroy<CollisionBody*>().connect<&physics::remove_co_from_world>();
 
-  ecs::registry.on_construct<btGhostObject*>().connect<&physics::add_go_to_world>();
-  ecs::registry.on_destroy<btGhostObject*>().connect<&physics::remove_go_from_world>();
+  ecs::registry.on_construct<GhostBody*>().connect<&physics::add_go_to_world>();
+  ecs::registry.on_destroy<GhostBody*>().connect<&physics::remove_go_from_world>();
 
   renderer::init_window();
   renderer::init_vulkan();
