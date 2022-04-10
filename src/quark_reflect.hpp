@@ -207,10 +207,10 @@ static std::string get_name(entt::id_type type) {
 //DERIVE_REFL_VERSION(RigidBody::angfac);
 
 template <typename T, typename V>
-static V* refl(V(T::*func)(), T* t) {
-  V* v = (V*)scratch_alloc.alloc(sizeof(V));
-  *v = (t->*func)();
-  return v;
+static void* refl(V(T::*func)(), void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = (((T*)t)->*func)();
+  return (void*)v;
 };
 
 static void refl_set_co_entity(btCollisionObject** body, Entity* e) { printf("set rb entity!"); }

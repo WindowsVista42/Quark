@@ -4,6 +4,12 @@
 namespace quark {
 namespace physics {
 
+inline btDefaultCollisionConfiguration* physics_config;
+inline btCollisionDispatcher* physics_dispatcher;
+inline btBroadphaseInterface* physics_overlapping_pair_cache;
+inline btSequentialImpulseConstraintSolver* physics_solver;
+inline btDiscreteDynamicsWorld* physics_world;
+
 namespace types {
 
 union RbUserData {
@@ -18,34 +24,6 @@ class RigidBody : btRigidBody {
 public:
   using btRigidBody::operator new;
   using btRigidBody::operator delete;
-
-  //static btTransform s_transform(RigidBody* rb) { return rb->getWorldTransform(); } // check if this is going to work in 100% of the cases
-  //static vec3 s_pos(RigidBody* rb) { return rb->getWorldTransform().getOrigin(); }
-  //static quat s_rot(RigidBody* rb) { return rb->getWorldTransform().getRotation(); }
-  //static vec3 s_linvel(RigidBody* rb) { return rb->getLinearVelocity(); }
-  //static vec3 s_angvel(RigidBody* rb) { return rb->getAngularVelocity(); }
-  //static vec3 s_linfac(RigidBody* rb) { return rb->getLinearFactor(); }
-  //static vec3 s_angfac(RigidBody* rb) { return rb->getAngularFactor(); }
-  //static vec3 s_lindamp(RigidBody* rb) { return rb->getLinearDamping(); }
-  //static vec3 s_angdamp(RigidBody* rb) { return rb->getAngularDamping(); }
-  //static entt::entity s_entity(RigidBody* rb) { RbUserData rud = {.ptr = rb->getUserPointer()}; return rud.e; }
-
-  //static void s_transform(RigidBody* rb, btTransform transform) { rb->setWorldTransform(transform); }
-  //static void s_pos(RigidBody* rb, vec3 pos) { rb->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
-  //static void s_rot(RigidBody* rb, quat rot) { rb->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
-  //static void s_linvel(RigidBody* rb, vec3 linvel) { rb->setLinearVelocity(btVector3(linvel.x, linvel.y, linvel.z)); }
-  //static void s_angvel(RigidBody* rb, vec3 angvel) { rb->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
-  //static void s_linfac(RigidBody* rb, vec3 fac) { rb->setLinearFactor(fac); }
-  //static void s_angfac(RigidBody* rb, vec3 fac) { rb->setAngularFactor(fac); }
-  //static void s_activate(RigidBody* rb, bool force_activation = false) { ((btRigidBody*)rb)->activate(force_activation); }
-  //static void s_add_force(RigidBody* rb, vec3 force, vec3 rel_pos = VEC3_ZERO) { rb->applyForce(force, rel_pos); }
-  //static void s_add_impulse(RigidBody* rb, vec3 impulse, vec3 rel_pos = VEC3_ZERO) { rb->applyImpulse(impulse, rel_pos); }
-  //static void s_add_torque(RigidBody* rb, vec3 torque) { rb->applyTorque(torque); }
-  //static void s_entity(RigidBody* rb, entt::entity e) { RbUserData rud = {.e = e}; rb->setUserPointer(rud.ptr); }
-  //static void s_shape(RigidBody* rb, btCollisionShape* shape) { rb->setCollisionShape(shape); }
-  //static void s_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
-  //static void s_thresholds(RigidBody* rb, f32 lin, f32 ang) { rb->setSleepingThresholds(lin,ang); }
-  //static void s_collision_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
 
   btTransform transform() { return this->getWorldTransform(); } // check if this is going to work in 100% of the cases
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
@@ -140,15 +118,55 @@ public:
   }
 };
 
+
+static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
+  if (result.hasHit()) {
+    return ((CollisionBody*)(result.m_collisionObject))->entity();
+  } else {
+    return entt::null;
+  }
+}
+
+static btCollisionWorld::ClosestRayResultCallback get_ray_test_closest_result(vec3 from, vec3 to) {
+  btVector3 btfrom = {from.x, from.y, from.z};
+  btVector3 btto = {to.x, to.y, to.z};
+
+  btCollisionWorld::ClosestRayResultCallback result(btfrom, btto);
+  physics_world->rayTest(btfrom, btto, result);
+
+  return result;
+}
+
+static const btCollisionObject* get_ray_test_closest_objet(vec3 from, vec3 to) {
+  auto result = get_ray_test_closest_result(from, to);
+  return result.m_collisionObject;
+}
+
+static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
+  auto result = get_ray_test_closest_result(from, to);
+  return get_rt_entity(result);
+}
+
+static bool get_ray_test_hit(vec3 from, vec3 to) { return get_ray_test_closest_result(from, to).hasHit(); }
+
+class NearestRayrestRayrestRay : btCollisionWorld::ClosestRayResultCallback {
+public:
+  static NearestRayrestRayrestRay test(vec3 from, vec3 to) {
+    btCollisionWorld::ClosestRayResultCallback result(from, to);
+    physics_world->rayTest(from, to, result);
+    return *(NearestRayrestRayrestRay*)&result;
+  }
+
+  bool hit() { return this->hasHit(); }
+  entt::entity entity() { return hit() ? ((CollisionBody*)m_collisionObject)->entity() : entt::null; }
+  CollisionBody* collision() { return hit() ? (CollisionBody*)m_collisionObject : 0; }
+  vec3 pos() { return this->m_hitPointWorld; }
+  vec3 norm() { return this->m_hitNormalWorld; }
+};
+
 }; // namespace types
 
 using namespace types;
-
-inline btDefaultCollisionConfiguration* physics_config;
-inline btCollisionDispatcher* physics_dispatcher;
-inline btBroadphaseInterface* physics_overlapping_pair_cache;
-inline btSequentialImpulseConstraintSolver* physics_solver;
-inline btDiscreteDynamicsWorld* physics_world;
 
 static btCollisionShape* create_box(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
 static btCollisionShape* create_sphere(f32 radius) { return new btSphereShape(radius); }
