@@ -19,33 +19,33 @@ public:
   using btRigidBody::operator new;
   using btRigidBody::operator delete;
 
-  static btTransform s_transform(RigidBody* rb) { return rb->getWorldTransform(); } // check if this is going to work in 100% of the cases
-  static vec3 s_pos(RigidBody* rb) { return rb->getWorldTransform().getOrigin(); }
-  static quat s_rot(RigidBody* rb) { return rb->getWorldTransform().getRotation(); }
-  static vec3 s_linvel(RigidBody* rb) { return rb->getLinearVelocity(); }
-  static vec3 s_angvel(RigidBody* rb) { return rb->getAngularVelocity(); }
-  static vec3 s_linfac(RigidBody* rb) { return rb->getLinearFactor(); }
-  static vec3 s_angfac(RigidBody* rb) { return rb->getAngularFactor(); }
-  static vec3 s_lindamp(RigidBody* rb) { return rb->getLinearDamping(); }
-  static vec3 s_angdamp(RigidBody* rb) { return rb->getAngularDamping(); }
-  static entt::entity s_entity(RigidBody* rb) { RbUserData rud = {.ptr = rb->getUserPointer()}; return rud.e; }
+  //static btTransform s_transform(RigidBody* rb) { return rb->getWorldTransform(); } // check if this is going to work in 100% of the cases
+  //static vec3 s_pos(RigidBody* rb) { return rb->getWorldTransform().getOrigin(); }
+  //static quat s_rot(RigidBody* rb) { return rb->getWorldTransform().getRotation(); }
+  //static vec3 s_linvel(RigidBody* rb) { return rb->getLinearVelocity(); }
+  //static vec3 s_angvel(RigidBody* rb) { return rb->getAngularVelocity(); }
+  //static vec3 s_linfac(RigidBody* rb) { return rb->getLinearFactor(); }
+  //static vec3 s_angfac(RigidBody* rb) { return rb->getAngularFactor(); }
+  //static vec3 s_lindamp(RigidBody* rb) { return rb->getLinearDamping(); }
+  //static vec3 s_angdamp(RigidBody* rb) { return rb->getAngularDamping(); }
+  //static entt::entity s_entity(RigidBody* rb) { RbUserData rud = {.ptr = rb->getUserPointer()}; return rud.e; }
 
-  static void s_transform(RigidBody* rb, btTransform transform) { rb->setWorldTransform(transform); }
-  static void s_pos(RigidBody* rb, vec3 pos) { rb->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
-  static void s_rot(RigidBody* rb, quat rot) { rb->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
-  static void s_linvel(RigidBody* rb, vec3 linvel) { rb->setLinearVelocity(btVector3(linvel.x, linvel.y, linvel.z)); }
-  static void s_angvel(RigidBody* rb, vec3 angvel) { rb->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
-  static void s_linfac(RigidBody* rb, vec3 fac) { rb->setLinearFactor(fac); }
-  static void s_angfac(RigidBody* rb, vec3 fac) { rb->setAngularFactor(fac); }
-  static void s_activate(RigidBody* rb, bool force_activation = false) { ((btRigidBody*)rb)->activate(force_activation); }
-  static void s_add_force(RigidBody* rb, vec3 force, vec3 rel_pos = VEC3_ZERO) { rb->applyForce(force, rel_pos); }
-  static void s_add_impulse(RigidBody* rb, vec3 impulse, vec3 rel_pos = VEC3_ZERO) { rb->applyImpulse(impulse, rel_pos); }
-  static void s_add_torque(RigidBody* rb, vec3 torque) { rb->applyTorque(torque); }
-  static void s_entity(RigidBody* rb, entt::entity e) { RbUserData rud = {.e = e}; rb->setUserPointer(rud.ptr); }
-  static void s_shape(RigidBody* rb, btCollisionShape* shape) { rb->setCollisionShape(shape); }
-  static void s_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
-  static void s_thresholds(RigidBody* rb, f32 lin, f32 ang) { rb->setSleepingThresholds(lin,ang); }
-  static void s_collision_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
+  //static void s_transform(RigidBody* rb, btTransform transform) { rb->setWorldTransform(transform); }
+  //static void s_pos(RigidBody* rb, vec3 pos) { rb->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
+  //static void s_rot(RigidBody* rb, quat rot) { rb->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
+  //static void s_linvel(RigidBody* rb, vec3 linvel) { rb->setLinearVelocity(btVector3(linvel.x, linvel.y, linvel.z)); }
+  //static void s_angvel(RigidBody* rb, vec3 angvel) { rb->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
+  //static void s_linfac(RigidBody* rb, vec3 fac) { rb->setLinearFactor(fac); }
+  //static void s_angfac(RigidBody* rb, vec3 fac) { rb->setAngularFactor(fac); }
+  //static void s_activate(RigidBody* rb, bool force_activation = false) { ((btRigidBody*)rb)->activate(force_activation); }
+  //static void s_add_force(RigidBody* rb, vec3 force, vec3 rel_pos = VEC3_ZERO) { rb->applyForce(force, rel_pos); }
+  //static void s_add_impulse(RigidBody* rb, vec3 impulse, vec3 rel_pos = VEC3_ZERO) { rb->applyImpulse(impulse, rel_pos); }
+  //static void s_add_torque(RigidBody* rb, vec3 torque) { rb->applyTorque(torque); }
+  //static void s_entity(RigidBody* rb, entt::entity e) { RbUserData rud = {.e = e}; rb->setUserPointer(rud.ptr); }
+  //static void s_shape(RigidBody* rb, btCollisionShape* shape) { rb->setCollisionShape(shape); }
+  //static void s_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
+  //static void s_thresholds(RigidBody* rb, f32 lin, f32 ang) { rb->setSleepingThresholds(lin,ang); }
+  //static void s_collision_flags(RigidBody* rb, int flags) { rb->setCollisionFlags(flags); }
 
   btTransform transform() { return this->getWorldTransform(); } // check if this is going to work in 100% of the cases
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
@@ -154,8 +154,6 @@ static btCollisionShape* create_box(vec3 half_dim) { return new btBoxShape({half
 static btCollisionShape* create_sphere(f32 radius) { return new btSphereShape(radius); }
 static btCollisionShape* create_capsule(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
 
-static void activate_rb(btRigidBody* body, bool force_activation = false) { body->activate(force_activation); }
-
 static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 origin, f32 mass) {
   btTransform transform;
   transform.setIdentity();
@@ -178,106 +176,9 @@ static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 orig
   return (btRigidBody*)body;
 }
 
-static entt::entity get_co_entity(const btCollisionObject* obj) {
-  RbUserData data;
-  data.ptr = obj->getUserPointer();
-  return data.e;
-}
-
-static void set_co_entity(btCollisionObject* obj, entt::entity e) {
-  RbUserData data;
-  data.e = e;
-  obj->setUserPointer(data.ptr);
-}
-
-static entt::entity get_rb_entity(btRigidBody* body) {
-  RbUserData data;
-  data.ptr = body->getUserPointer();
-  return data.e;
-}
-
-static void set_rb_entity(btRigidBody* body, entt::entity e) {
-  RbUserData data;
-  data.e = e;
-  body->setUserPointer(data.ptr);
-}
-
-static btTransform get_rb_transform(btRigidBody* body) {
-  btTransform transform;
-  if (body->getMotionState()) {
-    body->getMotionState()->getWorldTransform(transform);
-  } else {
-    transform = body->getWorldTransform();
-  }
-  return transform;
-}
-
-static const btTransform& get_transform(btRigidBody* body) { return body->getWorldTransform(); }
-
-static btTransform& get_mut_transform(btRigidBody* body) { return body->getWorldTransform(); }
-
-static const btTransform& get_transform(btCollisionObject* obj) { return obj->getWorldTransform(); }
-
-static btTransform& get_mut_transform(btCollisionObject* obj) { return obj->getWorldTransform(); }
-
-static vec3 get_rb_position(btRigidBody* body) {
-  btVector3 btv = get_rb_transform(body).getOrigin();
-  return vec3{btv.x(), btv.y(), btv.z()};
-}
-
-static void set_rb_position(btRigidBody* body, vec3 pos) {
-  btVector3 btv = {pos.x, pos.y, pos.z};
-  body->getWorldTransform().setOrigin(btv);
-}
-
-static vec4 get_rb_rotation(btRigidBody* body) {
-  btQuaternion btq = get_rb_transform(body).getRotation();
-  return vec4{btq.x(), btq.y(), btq.z(), btq.w()};
-}
-
-static quat get_rb_rotation_quat(btRigidBody* body) {
-  btQuaternion btq = get_rb_transform(body).getRotation();
-  return quat{btq.x(), btq.y(), btq.z(), btq.w()};
-}
-
-static void set_rb_rotation(btRigidBody* body, vec4 rot) {
-  btQuaternion btq = {rot.x, rot.y, rot.z, rot.w};
-  body->getWorldTransform().setRotation(btq);
-}
-
-static vec3 get_rb_velocity(btRigidBody* body) {
-  btVector3 btv = body->getLinearVelocity();
-  return vec3{btv.x(), btv.y(), btv.z()};
-}
-
-static void set_rb_velocity(btRigidBody* body, vec3 vel) { body->setLinearVelocity({vel.x, vel.y, vel.z}); }
-
-static vec3 get_rb_angular_factor(btRigidBody* body) { return body->getAngularFactor(); }
-static void set_rb_angular_factor(btRigidBody* body, vec3 af) { body->setAngularFactor({af.x, af.y, af.z}); }
-
-static vec3 get_co_position(btCollisionObject* obj) {
-  btVector3 btv = get_transform(obj).getOrigin();
-  return vec3{btv.x(), btv.y(), btv.z()};
-}
-
-static void set_co_position(btCollisionObject* obj, vec3 pos) {
-  btVector3 btv = {pos.x, pos.y, pos.z};
-  obj->getWorldTransform().setOrigin(btv);
-}
-
-static vec4 get_co_rotation(btCollisionObject* obj) {
-  btQuaternion btq = get_transform(obj).getRotation();
-  return vec4{btq.x(), btq.y(), btq.z(), btq.w()};
-}
-
-static void set_co_rotation(btCollisionObject* obj, vec4 rot) {
-  btQuaternion btq = {rot.x, rot.y, rot.z, rot.w};
-  obj->getWorldTransform().setRotation(btq);
-}
-
 static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
   if (result.hasHit()) {
-    return get_co_entity(result.m_collisionObject);
+    return ((CollisionBody*)(result.m_collisionObject))->entity();
   } else {
     return entt::null;
   }
@@ -325,8 +226,6 @@ static void delete_go(btGhostObject* ghost_obj) {
   physics_world->removeCollisionObject(ghost_obj);
   delete ghost_obj;
 }
-
-static void apply_rb_force(btRigidBody* body, vec3 force, vec3 rel_pos = VEC3_ZERO) { body->applyForce(force, rel_pos); }
 
 void init();
 void deinit();

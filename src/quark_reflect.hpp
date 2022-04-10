@@ -199,12 +199,19 @@ static std::string get_name(entt::id_type type) {
     return e;                                                                                                                                        \
   }
 
-using namespace physics;
-DERIVE_REFL_VERSION(get_co_entity, btCollisionObject*, Entity);
-DERIVE_REFL_VERSION(get_co_position, btCollisionObject*, vec3);
-DERIVE_REFL_VERSION(get_co_rotation, btCollisionObject*, vec4);
-DERIVE_REFL_VERSION(get_rb_velocity, btRigidBody*, vec3);
-DERIVE_REFL_VERSION(get_rb_angular_factor, btRigidBody*, vec3);
+//using namespace physics;
+//DERIVE_REFL_VERSION(RigidBody::entity);
+//DERIVE_REFL_VERSION(RigidBody::pos);
+//DERIVE_REFL_VERSION(RigidBody::rot);
+//DERIVE_REFL_VERSION(RigidBody::linvel);
+//DERIVE_REFL_VERSION(RigidBody::angfac);
+
+template <typename T, typename V>
+static V* refl(V(T::*func)(), T* t) {
+  V* v = (V*)scratch_alloc.alloc(sizeof(V));
+  *v = (t->*func)();
+  return v;
+};
 
 static void refl_set_co_entity(btCollisionObject** body, Entity* e) { printf("set rb entity!"); }
 
@@ -241,11 +248,11 @@ static void init() {
   reflect::add_inheritance<btRigidBody*, btCollisionObject*>();
   reflect::add_inheritance<btGhostObject*, btCollisionObject*>();
 
-  reflect::add_function<btCollisionObject*, Entity>("Entity", refl_get_co_entity, refl_set_co_entity);
-  reflect::add_function<btCollisionObject*, vec3>("Position", refl_get_co_position, refl_set_co_position);
-  reflect::add_function<btCollisionObject*, vec4>("Rotation", refl_get_co_rotation, refl_set_co_rotation);
-  reflect::add_function<btRigidBody*, vec3>("Velocity", refl_get_rb_velocity, refl_set_rb_velocity);
-  reflect::add_function<btRigidBody*, vec3>("Angular Factor", refl_get_rb_angular_factor, refl_set_rb_angular_factor);
+  //reflect::add_function<btCollisionObject*, Entity>("Entity", refl_get_co_entity, refl_set_co_entity);
+  //reflect::add_function<btCollisionObject*, vec3>("Position", refl_get_co_position, refl_set_co_position);
+  //reflect::add_function<btCollisionObject*, vec4>("Rotation", refl_get_co_rotation, refl_set_co_rotation);
+  //reflect::add_function<btRigidBody*, vec3>("Velocity", refl_get_rb_velocity, refl_set_rb_velocity);
+  //reflect::add_function<btRigidBody*, vec3>("Angular Factor", refl_get_rb_angular_factor, refl_set_rb_angular_factor);
 
   reflect::add_name<vec2>("vec2");
   reflect::add_name<vec3>("vec3");
