@@ -9,6 +9,12 @@ namespace ecs {
 using namespace quark;
 using namespace ecs;
 
+static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
+  rel_pos = rotate(rel_pos, base_rot);
+  rel_pos += base_pos;
+  return rel_pos;
+};
+
 static entt::entity create() { return registry.create(); };
 static void destroy(entt::entity e) { registry.destroy(e); }
 static void recursively_destroy(entt::entity e, bool destroy_root) {

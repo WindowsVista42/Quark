@@ -241,11 +241,11 @@ static void init() {
   reflect::add_inheritance<btRigidBody*, btCollisionObject*>();
   reflect::add_inheritance<btGhostObject*, btCollisionObject*>();
 
-  reflect::add_function<btCollisionObject*, Entity>("Physics Body Parent Entity", refl_get_co_entity, refl_set_co_entity);
-  reflect::add_function<btCollisionObject*, vec3>("Physics Body Position", refl_get_co_position, refl_set_co_position);
-  reflect::add_function<btCollisionObject*, vec4>("Physics Body Rotation", refl_get_co_rotation, refl_set_co_rotation);
-  reflect::add_function<btRigidBody*, vec3>("Rigid Body Velocity", refl_get_rb_velocity, refl_set_rb_velocity);
-  reflect::add_function<btRigidBody*, vec3>("Rigid Body Angular Factor", refl_get_rb_angular_factor, refl_set_rb_angular_factor);
+  reflect::add_function<btCollisionObject*, Entity>("Entity", refl_get_co_entity, refl_set_co_entity);
+  reflect::add_function<btCollisionObject*, vec3>("Position", refl_get_co_position, refl_set_co_position);
+  reflect::add_function<btCollisionObject*, vec4>("Rotation", refl_get_co_rotation, refl_set_co_rotation);
+  reflect::add_function<btRigidBody*, vec3>("Velocity", refl_get_rb_velocity, refl_set_rb_velocity);
+  reflect::add_function<btRigidBody*, vec3>("Angular Factor", refl_get_rb_angular_factor, refl_set_rb_angular_factor);
 
   reflect::add_name<vec2>("vec2");
   reflect::add_name<vec3>("vec3");
@@ -273,45 +273,46 @@ static void init() {
   reflect::add_name<UseWireframePass>("Wireframe Color pass");
 }
 
-static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false);
+static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");
+static void print_components(Entity e);
 
 static void* calc_offset(void* data, usize offset) { return (char*)data + offset; }
 
-static void print_ptr(void* data, std::string& name, entt::type_info type) {
+static void print_ptr(void* data, std::string& name, entt::type_info type, std::string tab) {
   using namespace internal;
 
   auto hash = type.hash();
   if (hash == I32_HASH) {
-    printf("%s: %d\n", name.c_str(), *(i32*)data);
+    printf("%s%s: %d\n", tab.c_str(), name.c_str(), *(i32*)data);
   } else if (hash == U32_HASH) {
-    printf("%s: %u\n", name.c_str(), *(u32*)data);
+    printf("%s%s: %u\n", tab.c_str(), name.c_str(), *(u32*)data);
   } else if (hash == F32_HASH) {
-    printf("%s: %f\n", name.c_str(), *(f32*)data);
+    printf("%s%s: %f\n", tab.c_str(), name.c_str(), *(f32*)data);
   } else if (hash == USIZE_HASH) {
-    printf("%s: %llu\n", name.c_str(), *(usize*)data);
+    printf("%s%s: %llu\n", tab.c_str(), name.c_str(), *(usize*)data);
   } else if (hash == ISIZE_HASH) {
-    printf("%s: %lld\n", name.c_str(), *(isize*)data);
+    printf("%s%s: %lld\n", tab.c_str(), name.c_str(), *(isize*)data);
   } else if (hash == CSTR_HASH) {
-    printf("%s: %s\n", name.c_str(), *(char**)data);
+    printf("%s%s: %s\n", tab.c_str(), name.c_str(), *(char**)data);
   } else if (hash == ENTITY_HASH) {
-    printf("%s: %u\n", name.c_str(), *(Entity*)data);
+    printf("%s%s: %u\n", tab.c_str(), name.c_str(), *(Entity*)data);
   } else {
-    std::cout << name << ": " << type.name() << std::endl;
+    std::cout << tab << name << ": " << type.name() << std::endl;
   }
 }
 
-static void call_getter_func(void (*func)(), void* data, std::string& name, entt::type_info type, entt::type_info value) {
+static void call_getter_func(void (*func)(), void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
   auto f = (void* (*)(void*))func;
   void* v = (*f)(data);
-  print_reflection(v, name, value, true, true);
+  print_reflection(v, name, value, true, true, tab + " ");
 }
 
-static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name) {
+static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
   using namespace internal;
   entt::id_type type = info.hash();
 
   if (is_base_type(type)) {
-    print_ptr(data, name, info);
+    print_ptr(data, name, info, tab);
     return;
   }
 
@@ -323,9 +324,9 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
       it_name = reflect::get_name(type);
     }
     if (it_name != "") {
-      std::cout << it_name << std::endl;
+      std::cout << tab << it_name << std::endl;
     } else {
-      std::cout << info.name() << std::endl;
+      std::cout << tab << info.name() << std::endl;
     }
   }
 
@@ -335,18 +336,18 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
 
   auto inheritance = reflect::get_inheritance(type);
   if (inheritance.hash() != NULL_HASH) {
-    print_reflection(data, std::string(inheritance.name()), inheritance);
+    print_reflection(data, std::string(inheritance.name()), inheritance, false, false, tab);
   }
 
   auto& fields = reflect::get_fields(type);
   for (auto& field : fields) {
-    print_reflection(calc_offset(data, field.offset), field.name, field.type, true);
+    print_reflection(calc_offset(data, field.offset), field.name, field.type, true, false, tab + "  ");
   }
 
   auto& functions = reflect::get_functions(type);
   for (auto& function : functions) {
     // recurse?
-    call_getter_func(function.getter, data, function.name, info, function.value);
+    call_getter_func(function.getter, data, function.name, info, function.value, tab + "  ");
   }
 }
 
@@ -360,7 +361,7 @@ static void print_components(Entity e) {
       entt::type_info info = storage.type();
       entt::id_type type = info.hash();
 
-      print_reflection(data, "", info, true);
+      print_reflection(data, "", info, true, false, "");
     }
   }
 

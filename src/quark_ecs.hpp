@@ -44,6 +44,7 @@ static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, Rel
 // static Position mul_transform_position(RelPos rel_pos, Pos base_pos, Rotation base_rot);
 // static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Pos base_pos, Rotation base_rot);
 static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot);
+static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
 
 // static void update_children(); // update_entity_hierarchies();
 static void update_entity_hierarchies();

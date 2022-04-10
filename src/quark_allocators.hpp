@@ -3,10 +3,6 @@
 #define QUARK_ALLOCATORS_HPP
 
 #include <iostream>
-
-#include "quark_types.hpp"
-#include "quark_utils.hpp"
-
 #include <atomic>
 
 #define EXPOSE_QUARK_INTERNALS
@@ -121,6 +117,8 @@ public:
 
   usize size() { return length; }
 };
+
+inline LinearAllocator scratch_alloc;
 
 }; // namespace quark
 
