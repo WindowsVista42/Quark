@@ -12,6 +12,13 @@ inline btDiscreteDynamicsWorld* physics_world;
 
 namespace types {
 
+class CollisionShape : btCollisionShape {
+public:
+  static CollisionShape* box(vec3 halfdim) { return (CollisionShape*)(new btBoxShape({halfdim.x, halfdim.y, halfdim.z})); }
+  static CollisionShape* sphere(f32 radius) { return (CollisionShape*)(new btSphereShape(radius)); }
+  static CollisionShape* capsule(f32 height, f32 radius) { return (CollisionShape*)(new btCapsuleShape(height, radius)); }
+};
+
 union RbUserData {
   void* ptr;
   struct {
@@ -48,7 +55,7 @@ public:
   void add_impulse(vec3 impulse, vec3 rel_pos = VEC3_ZERO) { this->applyImpulse(impulse, rel_pos); }
   void add_torque(vec3 torque) { this->applyTorque(torque); }
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
-  void shape(btCollisionShape* shape) { this->setCollisionShape(shape); }
+  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
   void flags(int flags) { this->setCollisionFlags(flags); }
   void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
   void collision_flags(int flags) { this->setCollisionFlags(flags); }
@@ -74,7 +81,7 @@ public:
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
   void transform(btTransform transform) { this->setWorldTransform(transform); }
 
-  void shape(btCollisionShape* shape) { this->setCollisionShape(shape); }
+  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
   void flags(int flags) { this->setCollisionFlags(flags); }
 
   void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
@@ -106,7 +113,7 @@ public:
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
   void transform(btTransform transform) { this->setWorldTransform(transform); }
 
-  void shape(btCollisionShape* shape) { this->setCollisionShape(shape); }
+  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
   void flags(int flags) { this->setCollisionFlags(flags); }
 
   void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
@@ -118,43 +125,12 @@ public:
   }
 };
 
-
-static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
-  if (result.hasHit()) {
-    return ((CollisionBody*)(result.m_collisionObject))->entity();
-  } else {
-    return entt::null;
-  }
-}
-
-static btCollisionWorld::ClosestRayResultCallback get_ray_test_closest_result(vec3 from, vec3 to) {
-  btVector3 btfrom = {from.x, from.y, from.z};
-  btVector3 btto = {to.x, to.y, to.z};
-
-  btCollisionWorld::ClosestRayResultCallback result(btfrom, btto);
-  physics_world->rayTest(btfrom, btto, result);
-
-  return result;
-}
-
-static const btCollisionObject* get_ray_test_closest_objet(vec3 from, vec3 to) {
-  auto result = get_ray_test_closest_result(from, to);
-  return result.m_collisionObject;
-}
-
-static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
-  auto result = get_ray_test_closest_result(from, to);
-  return get_rt_entity(result);
-}
-
-static bool get_ray_test_hit(vec3 from, vec3 to) { return get_ray_test_closest_result(from, to).hasHit(); }
-
-class NearestRayrestRayrestRay : btCollisionWorld::ClosestRayResultCallback {
+class NearestRay : btCollisionWorld::ClosestRayResultCallback {
 public:
-  static NearestRayrestRayrestRay test(vec3 from, vec3 to) {
+  static NearestRay test(vec3 from, vec3 to) {
     btCollisionWorld::ClosestRayResultCallback result(from, to);
     physics_world->rayTest(from, to, result);
-    return *(NearestRayrestRayrestRay*)&result;
+    return *(NearestRay*)&result;
   }
 
   bool hit() { return this->hasHit(); }
@@ -168,11 +144,7 @@ public:
 
 using namespace types;
 
-static btCollisionShape* create_box(vec3 half_dim) { return new btBoxShape({half_dim.x, half_dim.y, half_dim.z}); }
-static btCollisionShape* create_sphere(f32 radius) { return new btSphereShape(radius); }
-static btCollisionShape* create_capsule(f32 height, f32 radius) { return new btCapsuleShape(height, radius); }
-
-static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 origin, f32 mass) {
+static btRigidBody* create_rb(entt::entity e, CollisionShape* shape, vec3 origin, f32 mass) {
   btTransform transform;
   transform.setIdentity();
   transform.setOrigin({origin.x, origin.y, origin.z});
@@ -181,11 +153,11 @@ static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 orig
 
   btVector3 local_inertia = {};
   if (is_dynamic) {
-    shape->calculateLocalInertia(mass, local_inertia);
+    ((btCollisionShape*)shape)->calculateLocalInertia(mass, local_inertia);
   }
 
   btDefaultMotionState* motion_state = new btDefaultMotionState(transform);
-  btRigidBody::btRigidBodyConstructionInfo rb_info(mass, motion_state, shape, local_inertia);
+  btRigidBody::btRigidBodyConstructionInfo rb_info(mass, motion_state, (btCollisionShape*)shape, local_inertia);
   RigidBody* body = (RigidBody*)(new btRigidBody(rb_info));
 
   body->entity(e);
@@ -193,38 +165,6 @@ static btRigidBody* create_rb(entt::entity e, btCollisionShape* shape, vec3 orig
 
   return (btRigidBody*)body;
 }
-
-static entt::entity get_rt_entity(const btCollisionWorld::ClosestRayResultCallback& result) {
-  if (result.hasHit()) {
-    return ((CollisionBody*)(result.m_collisionObject))->entity();
-  } else {
-    return entt::null;
-  }
-}
-
-static btCollisionWorld::ClosestRayResultCallback get_ray_test_closest_result(vec3 from, vec3 to) {
-  btVector3 btfrom = {from.x, from.y, from.z};
-  btVector3 btto = {to.x, to.y, to.z};
-
-  btCollisionWorld::ClosestRayResultCallback result(btfrom, btto);
-  physics_world->rayTest(btfrom, btto, result);
-
-  return result;
-}
-
-static const btCollisionObject* get_ray_test_closest_objet(vec3 from, vec3 to) {
-  auto result = get_ray_test_closest_result(from, to);
-  return result.m_collisionObject;
-}
-
-static entt::entity get_ray_test_closest_entity(vec3 from, vec3 to) {
-  auto result = get_ray_test_closest_result(from, to);
-  return get_rt_entity(result);
-}
-
-static bool get_ray_test_hit(vec3 from, vec3 to) { return get_ray_test_closest_result(from, to).hasHit(); }
-
-// static void delete_entity(entt::entity e) { registry.destroy(e); }
 
 static void delete_rb(btRigidBody* body) {
   delete body->getMotionState();

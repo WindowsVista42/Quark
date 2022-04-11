@@ -103,7 +103,7 @@ static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
   transform.setOrigin({pos.x, pos.y, pos.z});
   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 
-  auto shape = physics::create_box(scl);
+  auto shape = CollisionShape::box(scl);
 
   coll->transform(transform);
   coll->shape(shape);
@@ -113,7 +113,7 @@ static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
   ecs::add(e, coll);
 }
 
-static void add_rigid_body(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass) {
+static void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass) {
   RigidBody* body = (RigidBody*)physics::create_rb(e, shape, pos, mass);
 
   // physics_world->addRigidBody(body, 1, 1);

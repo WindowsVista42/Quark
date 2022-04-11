@@ -37,7 +37,7 @@ template <typename... T> bool has(entt::entity e);
 static void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl);
 static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
 static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl);
-static void add_rigid_body(entt::entity e, Position pos, Scale scl, btCollisionShape* shape, f32 mass);
+static void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass);
 static void add_parent(entt::entity e, entt::entity parent);
 static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
 
