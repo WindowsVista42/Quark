@@ -32,7 +32,12 @@ public:
   using btRigidBody::operator new;
   using btRigidBody::operator delete;
 
-  btTransform transform() { return this->getWorldTransform(); } // check if this is going to work in 100% of the cases
+//class get : btRigidBody {
+//public:
+  btTransform transform() {
+    // check if this is going to work in 100% of the cases
+    return this->getWorldTransform();
+  };
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
   quat rot() { return this->getWorldTransform().getRotation(); }
   vec3 linvel() { return this->getLinearVelocity(); }
@@ -42,7 +47,13 @@ public:
   vec3 lindamp() { return this->getLinearDamping(); }
   vec3 angdamp() { return this->getAngularDamping(); }
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
+  //vec3 pos2() { return this->getWorldTransform().getOrigin(); }
 
+  static vec3 pos_s(RigidBody* rb) { return rb->getWorldTransform().getOrigin(); }
+//};
+//
+//class set : btRigidBody {
+//public:
   void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
@@ -59,6 +70,7 @@ public:
   void flags(int flags) { this->setCollisionFlags(flags); }
   void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
   void collision_flags(int flags) { this->setCollisionFlags(flags); }
+//};
 };
 
 class CollisionBody : btCollisionObject {

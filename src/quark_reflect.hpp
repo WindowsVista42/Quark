@@ -13,8 +13,13 @@ struct ReflectionField {
 struct ReflectionFunction {
   std::string name;
   entt::type_info value; // type of V
-  void (*getter)();      // --> V (*getter)(T);
-  void (*setter)();      // --> void (*setter)(T, V);
+  void (*get)();
+  void* (*getter)(void*);      // --> V (*getter)(T);
+  //void (*setter)();      // --> void (*setter)(T, V);
+  //void (*get_call)();    // --> V* (*)(F*, T*);
+  //void* getter;
+  //void* setter;
+  //void* get_call;
   // Function signatures might need to take T* and V* so we can transparently operate using void*
 };
 
@@ -153,10 +158,26 @@ static bool has(int type_hash) {
   return reflected_types.find(type_hash) != reflected_types.end();
 }
 
-template <typename T, typename V> static constexpr void add_function(const char* name, V* (*getter)(T*), void (*setter)(T*, V*)) {
+template <typename T, typename V, V (T::*F)()>
+static void* refl2(void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = (((T*)t)->*F)();
+  return (void*)v;
+};
+
+
+template <typename T, typename V, V (*F)(T*)>
+static void* refl4(void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = (*F)((T*)t);
+  return (void*)v;
+};
+
+template <typename T, typename V, void* (*F)(void*)>
+static constexpr void add_function(const char* name) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
-  entt::type_info type = entt::type_id<T>();
+  entt::type_info type = entt::type_id<T*>();
   entt::type_info value = entt::type_id<V>();
   add_if_new(type.hash());
 
@@ -164,9 +185,26 @@ template <typename T, typename V> static constexpr void add_function(const char*
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
-      .getter = (void (*)())getter,
-      .setter = (void (*)())setter,
+      .getter = F,// (void (*)())get,
+      //.setter = //(void (*)())set,
+      //.get_call = //(void (*)())refl2<T,V>//(void (*)())refl2<T, V>
   });
+}
+
+/*
+template <typename T, typename V>
+static void* refl(V (T::*func)(), void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = (((T*)t)->*func)();
+  return (void*)v;
+};
+*/
+
+template <typename T, typename V>
+static constexpr void add_get(
+    const char* name,
+    void* (*refl)(V (T::*)(), void* t)
+) {
 }
 
 template <typename T> static constexpr void add_name(const char* name) {
@@ -192,12 +230,12 @@ static std::string get_name(entt::id_type type) {
   }
 }
 
-#define DERIVE_REFL_VERSION(func, type, value)                                                                                                       \
-  static value* refl_##func(type* t) {                                                                                                               \
-    value* e = (value*)scratch_alloc.alloc(sizeof(value));                                                                                           \
-    *e = func(*t);                                                                                                                                   \
-    return e;                                                                                                                                        \
-  }
+//#define DERIVE_REFL_VERSION(func, type, value)                                                                                                       \
+//  static value* refl_##func(type* t) {                                                                                                               \
+//    value* e = (value*)scratch_alloc.alloc(sizeof(value));                                                                                           \
+//    *e = func(*t);                                                                                                                                   \
+//    return e;                                                                                                                                        \
+//  }
 
 //using namespace physics;
 //DERIVE_REFL_VERSION(RigidBody::entity);
@@ -206,12 +244,26 @@ static std::string get_name(entt::id_type type) {
 //DERIVE_REFL_VERSION(RigidBody::linvel);
 //DERIVE_REFL_VERSION(RigidBody::angfac);
 
-template <typename T, typename V>
-static void* refl(V(T::*func)(), void* t) {
-  V* v = (V*)malloc(sizeof(V));
-  *v = (((T*)t)->*func)();
-  return (void*)v;
-};
+//template <typename T, typename V>
+//static void* refl(V (T::*func)(), void* t) {
+//  V* v = (V*)malloc(sizeof(V));
+//  *v = (((T*)t)->*func)();
+//  return (void*)v;
+//};
+
+//template <typename T, typename V, typename F = V (T::*)()>
+//static void* refl2(F f, void* t) {
+//  V* v = (V*)malloc(sizeof(V));
+//  *v = (((T*)t)->*f)();
+//  return (void*)v;
+//};
+
+//template <typename T, typename V, typename F>
+//static void* refl3(void* t) {
+//  V* v = (V*)malloc(sizeof(V));
+//  *v = F(t);
+//  return (void*)v;
+//};
 
 static void refl_set_co_entity(btCollisionObject** body, Entity* e) { printf("set rb entity!"); }
 
@@ -308,10 +360,16 @@ static void print_ptr(void* data, std::string& name, entt::type_info type, std::
   }
 }
 
-static void call_getter_func(void (*func)(), void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
-  auto f = (void* (*)(void*))func;
-  void* v = (*f)(data);
-  print_reflection(v, name, value, true, true, tab + " ");
+static void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
+  printf("here!\n");
+  auto getter = function.getter;
+  printf("%llu", getter);
+  //auto f = (void* (*)(void*))func;
+  //void* v = (*get_call_f)((void*)get_f, data);
+  //auto l = ((RigidBody*)(data))->pos();
+  //printf("%f, %f, %f\n", l.x, l.y, l.z);
+  //void* v = (*getter)(data);
+  //print_reflection(v, name, value, true, true, tab + " ");
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
@@ -351,18 +409,23 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
     print_reflection(calc_offset(data, field.offset), field.name, field.type, true, false, tab + "  ");
   }
 
+  if(info.hash() == entt::type_hash<btRigidBody*>()) {
+    vec3 l = ((btRigidBody*)data)->getWorldTransform().getOrigin();//((RigidBody*)data)->pos();
+    printf("%f, %f, %f\n", l.x, l.y, l.z);
+  }
+
   auto& functions = reflect::get_functions(type);
   for (auto& function : functions) {
     // recurse?
-    call_getter_func(function.getter, data, function.name, info, function.value, tab + "  ");
+    call_getter_func(function, data, function.name, info, function.value, tab + "  ");
   }
 }
 
 static void print_components(Entity e) {
   using namespace internal;
 
-  for (auto&& curr : ecs::registry.storage()) {
-    if (auto& storage = curr.second; storage.contains(e)) {
+  for(auto [id, storage] : ecs::registry.storage()) {
+    if (storage.contains(e)) {
       // we have a component
       void* data = storage.get(e);
       entt::type_info info = storage.type();
@@ -371,6 +434,16 @@ static void print_components(Entity e) {
       print_reflection(data, "", info, true, false, "");
     }
   }
+  //for (auto&& curr : ecs::registry.storage()) {
+  //  if (auto& storage = curr.second; storage.contains(e)) {
+  //    // we have a component
+  //    void* data = storage.get(e);
+  //    entt::type_info info = storage.type();
+  //    entt::id_type type = info.hash();
+
+  //    print_reflection(data, "", info, true, false, "");
+  //  }
+  //}
 
   scratch_alloc.reset();
 }
