@@ -349,69 +349,6 @@ static void init() {
   reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque", true);
   reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force", true);
   reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque", true);
-
-  reflect::add_name<vec2>("vec2");
-  reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
-
-  reflect::add_name<vec3>("vec3");
-  reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
-
-  reflect::add_name<vec4>("vec4");
-  reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);
-
-  reflect::add_name<Mesh>("Mesh");
-  reflect::add_fields("offset", &Mesh::offset, "size", &Mesh::size);
-
-  reflect::add_name<Parent>("Parent");
-  reflect::add_fields("parent", &Parent::parent);
-
-  reflect::add_name<Children>("Children");
-  reflect::add_fields("count", &Children::count, "children", &Children::children);
-
-  reflect::add_name<Position>("Position");
-  reflect::add_inheritance<Position, vec3>();
-
-  reflect::add_name<Rotation>("Rotation");
-  reflect::add_inheritance<Rotation, vec4>();
-
-  reflect::add_name<Scale>("Scale");
-  reflect::add_inheritance<Scale, vec3>();
-
-  reflect::add_name<Color>("Color");
-  reflect::add_inheritance<Color, vec4>();
-
-  reflect::add_name<RelPosition>("Relative Position");
-  reflect::add_inheritance<RelPosition, vec3>();
-
-  reflect::add_name<RelRotation>("Relative Rotation");
-  reflect::add_inheritance<RelRotation, vec4>();
-
-  reflect::add_name<CollisionBody*>("CollisionBody");
-  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position", true);
-  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation", true);
-  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity", true);
-  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape", true);
-
-  reflect::add_name<GhostBody*>("GhostBody");
-  reflect::add_inheritance<GhostBody*, CollisionBody*>();
-
-  reflect::add_name<RigidBody*>("RigidBody");
-  reflect::add_inheritance<RigidBody*, CollisionBody*>();
-  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity", true);
-  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening", true);
-  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening", true);
-  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque", true);
-
-  reflect::add_name<UseLitPass>("Lighting Pass");
-  reflect::add_name<UseShadowPass>("Shadow Pass");
-  reflect::add_name<UseSolidPass>("Solid Color Pass");
-  reflect::add_name<UseWireframePass>("Wireframe Color pass");
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");
