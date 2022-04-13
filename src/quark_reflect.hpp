@@ -478,6 +478,7 @@ static void print_components(Entity e) {
     }
   }
 
+  printf("\n");
   scratch_alloc.reset();
 }
 
