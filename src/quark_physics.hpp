@@ -33,28 +33,26 @@ public:
   using btRigidBody::operator delete;
   using btRigidBody::btRigidBody;
 
-//class get : btRigidBody {
-//public:
-  btTransform transform() {
-    // check if this is going to work in 100% of the cases
-    return this->getWorldTransform();
-  };
+// getters
+
+  btTransform transform() { return this->getWorldTransform(); };
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
   quat rot() { return this->getWorldTransform().getRotation(); }
   vec3 linvel() { return this->getLinearVelocity(); }
   vec3 angvel() { return this->getAngularVelocity(); }
   vec3 linfac() { return this->getLinearFactor(); }
   vec3 angfac() { return this->getAngularFactor(); }
-  vec3 lindamp() { return this->getLinearDamping(); }
-  vec3 angdamp() { return this->getAngularDamping(); }
+  f32 lindamp() { return this->getLinearDamping(); }
+  f32 angdamp() { return this->getAngularDamping(); }
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
-  //vec3 pos2() { return this->getWorldTransform().getOrigin(); }
+  CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
+  bool active() { return this->isActive(); }
 
-  static vec3 pos_s(RigidBody* rb) { return rb->getWorldTransform().getOrigin(); }
-//};
-//
-//class set : btRigidBody {
-//public:
+  vec3 force() { return this->getTotalForce(); }
+  vec3 torque() { return this->getTotalTorque(); }
+
+// setters
+
   void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
@@ -62,12 +60,21 @@ public:
   void angvel(vec3 angvel) { this->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
   void linfac(vec3 fac) { this->setLinearFactor(fac); }
   void angfac(vec3 fac) { this->setAngularFactor(fac); }
-  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
+  void lindamp(f32 damp) { this->setDamping(damp, this->angdamp()); }
+  void angdamp(f32 damp) { this->setDamping(this->lindamp(), damp); }
+  void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
+  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
+  void active(bool state) { if (state) { ((btRigidBody*)this)->activate(); }; }
+
+  void add_force_central(vec3 force) { this->applyCentralForce(force); }
+  void add_impulse_central(vec3 impulse) { this->applyCentralImpulse(impulse); }
+
   void add_force(vec3 force, vec3 rel_pos = VEC3_ZERO) { this->applyForce(force, rel_pos); }
   void add_impulse(vec3 impulse, vec3 rel_pos = VEC3_ZERO) { this->applyImpulse(impulse, rel_pos); }
   void add_torque(vec3 torque) { this->applyTorque(torque); }
-  void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
-  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
+
+  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
+
   void flags(int flags) { this->setCollisionFlags(flags); }
   void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
   void collision_flags(int flags) { this->setCollisionFlags(flags); }

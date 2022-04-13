@@ -13,14 +13,8 @@ struct ReflectionField {
 struct ReflectionFunction {
   std::string name;
   entt::type_info value; // type of V
-  void (*get)();
-  void* (*getter)(void*);      // --> V (*getter)(T);
-  //void (*setter)();      // --> void (*setter)(T, V);
-  //void (*get_call)();    // --> V* (*)(F*, T*);
-  //void* getter;
-  //void* setter;
-  //void* get_call;
-  // Function signatures might need to take T* and V* so we can transparently operate using void*
+  void* (*get)(void*);   // --> V (T::*getter)();
+  void (*set)(void*);    // --> void (T::*setter)(V);
 };
 
 struct ReflectionInfo {
@@ -172,6 +166,13 @@ static void* refl5(void* t) {
   return (void*)v;
 }
 
+template <typename T, typename V, V (T::*F)()>
+static V* refl5a(T* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = ((*(T**)t)->*F)();
+  return v;
+}
+
 template <typename T, typename V, V (*F)(T*)>
 static void* refl4(void* t) {
   V* v = (V*)malloc(sizeof(V));
@@ -179,43 +180,89 @@ static void* refl4(void* t) {
   return (void*)v;
 }
 
-template <typename T, typename V, V (T::*F)()>
-static constexpr void add_function(const char* name, const bool is_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
+template <typename T, typename V>
+static void* reflz(V (*F)(T*), void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = (*F)((T*)t);
+  return (void*)v;
+}
+
+template <typename T, typename V, V (T::*GET)(), void (T::*SET)(V)>
+static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
   entt::type_info type = entt::type_id<T>();
   entt::type_info value = entt::type_id<V>();
-  if(is_ptr) { type = entt::type_id<T*>(); } 
+  if(reads_ptr) { type = entt::type_id<T*>(); } 
   add_if_new(type.hash());
 
   void* (*get)(void*) = 0;
-  if (is_ptr) { get = refl5<T, V, F>; }
-  else { get = refl2<T, V, F>; }
+  if (reads_ptr) { get = refl5<T, V, GET>; }
+  else { get = refl2<T, V, GET>; }
+
+  void (*set)(void*) = 0;
+  //if (reads_ptr) { set = refl5<T, V, SET>; }
+  //else { set = refl2<T, V, SET>; }
 
   ReflectionInfo& refl_info = reflected_types.at(type.hash());
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
-      .getter = get,// (void (*)())get,
-      //.setter = //(void (*)())set,
-      //.get_call = //(void (*)())refl2<T,V>//(void (*)())refl2<T, V>
+      .get = get,
+      .set = set,
   });
 }
 
-/*
-template <typename T, typename V>
-static void* refl(V (T::*func)(), void* t) {
-  V* v = (V*)malloc(sizeof(V));
-  *v = (((T*)t)->*func)();
-  return (void*)v;
-};
-*/
+template <typename T, typename V, V (T::*GET)(), int b>
+static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
+  using namespace internal;
 
-template <typename T, typename V>
-static constexpr void add_get(
-    const char* name,
-    void* (*refl)(V (T::*)(), void* t)
-) {
+  entt::type_info type = entt::type_id<T>();
+  entt::type_info value = entt::type_id<V>();
+  if(reads_ptr) { type = entt::type_id<T*>(); } 
+  add_if_new(type.hash());
+
+  void* (*get)(void*) = 0;
+  if (reads_ptr) { get = refl5<T, V, GET>; }
+  else { get = refl2<T, V, GET>; }
+
+  void (*set)(void*) = 0;
+  //if (reads_ptr) { set = refl5<T, V, SET>; }
+  //else { set = refl2<T, V, SET>; }
+
+  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  refl_info.functions.push_back(ReflectionFunction{
+      .name = std::string(name),
+      .value = value,
+      .get = get,
+      .set = set,
+  });
+}
+
+template <typename T, typename V, int a, void (T::*SET)(V)>
+static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
+  using namespace internal;
+
+  entt::type_info type = entt::type_id<T>();
+  entt::type_info value = entt::type_id<V>();
+  if(reads_ptr) { type = entt::type_id<T*>(); } 
+  add_if_new(type.hash());
+
+  void* (*get)(void*) = 0;
+  //if (reads_ptr) { get = refl5<T, V, GET>; }
+  //else { get = refl2<T, V, GET>; }
+
+  void (*set)(void*) = 0;
+  //if (reads_ptr) { set = refl5<T, V, SET>; }
+  //else { set = refl2<T, V, SET>; }
+
+  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  refl_info.functions.push_back(ReflectionFunction{
+      .name = std::string(name),
+      .value = value,
+      .get = get,
+      .set = set,
+  });
 }
 
 template <typename T> static constexpr void add_name(const char* name) {
@@ -241,56 +288,34 @@ static std::string get_name(entt::id_type type) {
   }
 }
 
-//#define DERIVE_REFL_VERSION(func, type, value)                                                                                                       \
-//  static value* refl_##func(type* t) {                                                                                                               \
-//    value* e = (value*)scratch_alloc.alloc(sizeof(value));                                                                                           \
-//    *e = func(*t);                                                                                                                                   \
-//    return e;                                                                                                                                        \
-//  }
-
-//using namespace physics;
-//DERIVE_REFL_VERSION(RigidBody::entity);
-//DERIVE_REFL_VERSION(RigidBody::pos);
-//DERIVE_REFL_VERSION(RigidBody::rot);
-//DERIVE_REFL_VERSION(RigidBody::linvel);
-//DERIVE_REFL_VERSION(RigidBody::angfac);
-
-//template <typename T, typename V>
-//static void* refl(V (T::*func)(), void* t) {
-//  V* v = (V*)malloc(sizeof(V));
-//  *v = (((T*)t)->*func)();
-//  return (void*)v;
-//};
-
-//template <typename T, typename V, typename F = V (T::*)()>
-//static void* refl2(F f, void* t) {
-//  V* v = (V*)malloc(sizeof(V));
-//  *v = (((T*)t)->*f)();
-//  return (void*)v;
-//};
-
-//template <typename T, typename V, typename F>
-//static void* refl3(void* t) {
-//  V* v = (V*)malloc(sizeof(V));
-//  *v = F(t);
-//  return (void*)v;
-//};
-
-static void refl_set_co_entity(btCollisionObject** body, Entity* e) { printf("set rb entity!"); }
-
-static void refl_set_co_position(btCollisionObject** body, vec3* e) { printf("set rb position!"); }
-
-static void refl_set_co_rotation(btCollisionObject** body, vec4* e) { printf("set rb rotation!"); }
-
-static void refl_set_rb_velocity(btRigidBody** body, vec3* e) { printf("set rb velocity!"); }
-
-static void refl_set_rb_angular_factor(btRigidBody** body, vec3* e) { printf("set rb angular factor!"); }
-
 static void init() {
   using namespace internal;
 
   // IMPLICIT BASE TYPES
   // i32, f32, u32, usize, isize, char*, Entity, ...
+
+  reflect::add_name<vec2>("vec2");
+  reflect::add_name<vec3>("vec3");
+  reflect::add_name<vec4>("vec4");
+  reflect::add_name<Position>("Position");
+  reflect::add_name<Rotation>("Rotation");
+  reflect::add_name<Scale>("Scale");
+  reflect::add_name<Color>("Color");
+
+  reflect::add_name<Parent>("Parent");
+  reflect::add_name<Children>("Children");
+  reflect::add_name<RelPosition>("Relative Position");
+  reflect::add_name<RelRotation>("Relative Rotation");
+
+  reflect::add_name<Mesh>("Mesh");
+  reflect::add_name<UseLitPass>("Lighting Pass");
+  reflect::add_name<UseShadowPass>("Shadow Pass");
+  reflect::add_name<UseSolidPass>("Solid Color Pass");
+  reflect::add_name<UseWireframePass>("Wireframe Color pass");
+
+  reflect::add_name<CollisionBody*>("CollisionBody");
+  reflect::add_name<GhostBody*>("GhostBody");
+  reflect::add_name<RigidBody*>("RigidBody");
 
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
   reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
@@ -304,38 +329,84 @@ static void init() {
   reflect::add_inheritance<Rotation, vec4>();
   reflect::add_inheritance<Scale, vec3>();
   reflect::add_inheritance<Color, vec4>();
-
   reflect::add_inheritance<RelPosition, vec3>();
   reflect::add_inheritance<RelRotation, vec4>();
+  reflect::add_inheritance<GhostBody*, CollisionBody*>();
+  reflect::add_inheritance<RigidBody*, CollisionBody*>();
 
-  reflect::add_inheritance<btRigidBody*, btCollisionObject*>();
-  reflect::add_inheritance<btGhostObject*, btCollisionObject*>();
+  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position", true);
+  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation", true);
+  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity", true);
+  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape", true);
 
-  //reflect::add_function<btCollisionObject*, Entity>("Entity", refl_get_co_entity, refl_set_co_entity);
-  //reflect::add_function<btCollisionObject*, vec3>("Position", refl_get_co_position, refl_set_co_position);
-  //reflect::add_function<btCollisionObject*, vec4>("Rotation", refl_get_co_rotation, refl_set_co_rotation);
-  //reflect::add_function<btRigidBody*, vec3>("Velocity", refl_get_rb_velocity, refl_set_rb_velocity);
-  //reflect::add_function<btRigidBody*, vec3>("Angular Factor", refl_get_rb_angular_factor, refl_set_rb_angular_factor);
+  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity", true);
+  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening", true);
+  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening", true);
+  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque", true);
 
   reflect::add_name<vec2>("vec2");
+  reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
+
   reflect::add_name<vec3>("vec3");
+  reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
+
   reflect::add_name<vec4>("vec4");
-
-  reflect::add_name<Position>("Position");
-  reflect::add_name<Rotation>("Rotation");
-  reflect::add_name<Scale>("Scale");
-  reflect::add_name<Color>("Color");
-
-  reflect::add_name<RelPosition>("Relative Position");
-  reflect::add_name<RelRotation>("Relative Rotation");
+  reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);
 
   reflect::add_name<Mesh>("Mesh");
-  reflect::add_name<Parent>("Parent");
-  reflect::add_name<Children>("Children");
+  reflect::add_fields("offset", &Mesh::offset, "size", &Mesh::size);
 
-  reflect::add_name<btRigidBody*>("Rigid Body");
-  reflect::add_name<btCollisionObject*>("Collision Object");
-  reflect::add_name<btGhostObject*>("Ghost Object");
+  reflect::add_name<Parent>("Parent");
+  reflect::add_fields("parent", &Parent::parent);
+
+  reflect::add_name<Children>("Children");
+  reflect::add_fields("count", &Children::count, "children", &Children::children);
+
+  reflect::add_name<Position>("Position");
+  reflect::add_inheritance<Position, vec3>();
+
+  reflect::add_name<Rotation>("Rotation");
+  reflect::add_inheritance<Rotation, vec4>();
+
+  reflect::add_name<Scale>("Scale");
+  reflect::add_inheritance<Scale, vec3>();
+
+  reflect::add_name<Color>("Color");
+  reflect::add_inheritance<Color, vec4>();
+
+  reflect::add_name<RelPosition>("Relative Position");
+  reflect::add_inheritance<RelPosition, vec3>();
+
+  reflect::add_name<RelRotation>("Relative Rotation");
+  reflect::add_inheritance<RelRotation, vec4>();
+
+  reflect::add_name<CollisionBody*>("CollisionBody");
+  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position", true);
+  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation", true);
+  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity", true);
+  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape", true);
+
+  reflect::add_name<GhostBody*>("GhostBody");
+  reflect::add_inheritance<GhostBody*, CollisionBody*>();
+
+  reflect::add_name<RigidBody*>("RigidBody");
+  reflect::add_inheritance<RigidBody*, CollisionBody*>();
+  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity", true);
+  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening", true);
+  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening", true);
+  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse", true);
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque", true);
 
   reflect::add_name<UseLitPass>("Lighting Pass");
   reflect::add_name<UseShadowPass>("Shadow Pass");
@@ -379,9 +450,10 @@ static void* get_pos(void* rbv) {
 }
 
 static void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
-  auto getter = function.getter;
-  void* v = (*getter)(data);
-  print_reflection(v, name, value, true, true, tab + " ");
+  if(auto get = function.get; get != 0) {
+    void* v = (*get)(data);
+    print_reflection(v, name, value, true, true, tab + " ");
+  }
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
