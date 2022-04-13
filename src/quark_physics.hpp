@@ -17,6 +17,8 @@ public:
   static CollisionShape* box(vec3 halfdim) { return (CollisionShape*)(new btBoxShape({halfdim.x, halfdim.y, halfdim.z})); }
   static CollisionShape* sphere(f32 radius) { return (CollisionShape*)(new btSphereShape(radius)); }
   static CollisionShape* capsule(f32 height, f32 radius) { return (CollisionShape*)(new btCapsuleShape(height, radius)); }
+
+  i32 type() { return this->m_shapeType; }
 };
 
 union RbUserData {
@@ -25,6 +27,38 @@ union RbUserData {
     entt::entity e;
     int pad;
   };
+};
+
+class CollisionBody : btCollisionObject {
+public:
+  using btCollisionObject::operator new;
+  using btCollisionObject::operator delete;
+  using btCollisionObject::CF_NO_CONTACT_RESPONSE;
+  using btCollisionObject::CF_CHARACTER_OBJECT;
+
+// getters
+
+  btTransform transform() { return this->getWorldTransform(); };
+  vec3 pos() { return this->getWorldTransform().getOrigin(); }
+  quat rot() { return this->getWorldTransform().getRotation(); }
+
+  entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
+  CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
+  i32 flags() { return this->getCollisionFlags(); }
+  bool active() { return this->isActive(); }
+
+// setters
+
+  void transform(btTransform transform) { this->setWorldTransform(transform); }
+  void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
+  void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
+
+  void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
+  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
+  void flags(int flags) { this->setCollisionFlags(flags); }
+  void active(bool state) { if (state) { ((btCollisionObject*)this)->activate(); } }
+
+  void activate(bool force_activation = false) { ((btCollisionObject*)this)->activate(force_activation); }
 };
 
 class RigidBody : btRigidBody {
@@ -44,8 +78,10 @@ public:
   vec3 angfac() { return this->getAngularFactor(); }
   f32 lindamp() { return this->getLinearDamping(); }
   f32 angdamp() { return this->getAngularDamping(); }
+
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
   CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
+  i32 flags() { return this->getCollisionFlags(); }
   bool active() { return this->isActive(); }
 
   vec3 force() { return this->getTotalForce(); }
@@ -62,9 +98,12 @@ public:
   void angfac(vec3 fac) { this->setAngularFactor(fac); }
   void lindamp(f32 damp) { this->setDamping(damp, this->angdamp()); }
   void angdamp(f32 damp) { this->setDamping(this->lindamp(), damp); }
+  void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
+
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
   void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
-  void active(bool state) { if (state) { ((btRigidBody*)this)->activate(); }; }
+  void flags(int flags) { this->setCollisionFlags(flags); }
+  void active(bool state) { if (state) { ((btCollisionObject*)this)->activate(); } }
 
   void add_force_central(vec3 force) { this->applyCentralForce(force); }
   void add_impulse_central(vec3 impulse) { this->applyCentralImpulse(impulse); }
@@ -73,76 +112,40 @@ public:
   void add_impulse(vec3 impulse, vec3 rel_pos = VEC3_ZERO) { this->applyImpulse(impulse, rel_pos); }
   void add_torque(vec3 torque) { this->applyTorque(torque); }
 
-  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
-
-  void flags(int flags) { this->setCollisionFlags(flags); }
-  void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
-  void collision_flags(int flags) { this->setCollisionFlags(flags); }
+  void activate(bool force_activation = false) { ((btCollisionObject*)this)->activate(force_activation); }
 //};
 };
 
-class CollisionBody : btCollisionObject {
-public:
-  using btCollisionObject::operator new;
-  using btCollisionObject::operator delete;
-  using btCollisionObject::CF_NO_CONTACT_RESPONSE;
-  using btCollisionObject::CF_CHARACTER_OBJECT;
-
-  const vec3 pos() const { return this->getWorldTransform().getOrigin(); }
-  const quat rot() const { return this->getWorldTransform().getRotation(); }
-
-  const entt::entity entity() const {
-    RbUserData data;
-    data.ptr = this->getUserPointer();
-    return data.e;
-  }
-
-  void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
-  void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
-  void transform(btTransform transform) { this->setWorldTransform(transform); }
-
-  void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
-  void flags(int flags) { this->setCollisionFlags(flags); }
-
-  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
-
-  void entity(entt::entity e) {
-    RbUserData data;
-    data.e = e;
-    this->setUserPointer(data.ptr);
-  }
-};
-
-class GhostBody : btGhostObject {
+class GhostBody : public btGhostObject {
 public:
   using btGhostObject::operator new;
   using btGhostObject::operator delete;
 
-  const vec3 pos() const { return this->getWorldTransform().getOrigin(); }
-  const quat rot() const { return this->getWorldTransform().getRotation(); }
+// getters
 
-  const entt::entity entity() const {
-    RbUserData data;
-    data.ptr = this->getUserPointer();
-    return data.e;
-  }
+  btTransform transform() { return this->getWorldTransform(); };
+  vec3 pos() { return this->getWorldTransform().getOrigin(); }
+  quat rot() { return this->getWorldTransform().getRotation(); }
 
-  const usize num_overlapping() const { return this->getNumOverlappingObjects(); }
+  entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
+  CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
+  i32 flags() { return this->getCollisionFlags(); }
+  bool active() { return this->isActive(); }
 
+  usize num_overlapping() { return this->getNumOverlappingObjects(); }
+
+// setters
+
+  void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
-  void transform(btTransform transform) { this->setWorldTransform(transform); }
 
+  void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
   void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
   void flags(int flags) { this->setCollisionFlags(flags); }
+  void active(bool state) { if (state) { ((btCollisionObject*)this)->activate(); } }
 
-  void activate(bool force_activation = false) { ((btRigidBody*)this)->activate(force_activation); }
-
-  void entity(entt::entity e) {
-    RbUserData data;
-    data.e = e;
-    this->setUserPointer(data.ptr);
-  }
+  void activate(bool force_activation = false) { ((btCollisionObject*)this)->activate(force_activation); }
 };
 
 class NearestRay : btCollisionWorld::ClosestRayResultCallback {

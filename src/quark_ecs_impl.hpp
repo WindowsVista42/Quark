@@ -118,6 +118,7 @@ static void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionSha
 
   // physics_world->addRigidBody(body, 1, 1);
   ecs::add<RigidBody*>(e, body);
+
   body->activate();
 }
 
