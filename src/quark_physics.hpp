@@ -31,6 +31,7 @@ class RigidBody : btRigidBody {
 public:
   using btRigidBody::operator new;
   using btRigidBody::operator delete;
+  using btRigidBody::btRigidBody;
 
 //class get : btRigidBody {
 //public:
@@ -156,7 +157,7 @@ public:
 
 using namespace types;
 
-static btRigidBody* create_rb(entt::entity e, CollisionShape* shape, vec3 origin, f32 mass) {
+static RigidBody* create_rb(entt::entity e, CollisionShape* shape, vec3 origin, f32 mass) {
   btTransform transform;
   transform.setIdentity();
   transform.setOrigin({origin.x, origin.y, origin.z});
@@ -170,12 +171,12 @@ static btRigidBody* create_rb(entt::entity e, CollisionShape* shape, vec3 origin
 
   btDefaultMotionState* motion_state = new btDefaultMotionState(transform);
   btRigidBody::btRigidBodyConstructionInfo rb_info(mass, motion_state, (btCollisionShape*)shape, local_inertia);
-  RigidBody* body = (RigidBody*)(new btRigidBody(rb_info));
+  RigidBody* body = new RigidBody(rb_info);
 
   body->entity(e);
   body->thresholds(1e-7, 1e-7);
 
-  return (btRigidBody*)body;
+  return body;
 }
 
 static void delete_rb(btRigidBody* body) {

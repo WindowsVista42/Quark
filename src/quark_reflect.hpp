@@ -163,29 +163,40 @@ static void* refl2(void* t) {
   V* v = (V*)malloc(sizeof(V));
   *v = (((T*)t)->*F)();
   return (void*)v;
-};
+}
 
+template <typename T, typename V, V (T::*F)()>
+static void* refl5(void* t) {
+  V* v = (V*)malloc(sizeof(V));
+  *v = ((*(T**)t)->*F)();
+  return (void*)v;
+}
 
 template <typename T, typename V, V (*F)(T*)>
 static void* refl4(void* t) {
   V* v = (V*)malloc(sizeof(V));
   *v = (*F)((T*)t);
   return (void*)v;
-};
+}
 
-template <typename T, typename V, void* (*F)(void*)>
-static constexpr void add_function(const char* name) {//V (T::*get)(), void (T::*set)(V)) {
+template <typename T, typename V, V (T::*F)()>
+static constexpr void add_function(const char* name, const bool is_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
-  entt::type_info type = entt::type_id<T*>();
+  entt::type_info type = entt::type_id<T>();
   entt::type_info value = entt::type_id<V>();
+  if(is_ptr) { type = entt::type_id<T*>(); } 
   add_if_new(type.hash());
+
+  void* (*get)(void*) = 0;
+  if (is_ptr) { get = refl5<T, V, F>; }
+  else { get = refl2<T, V, F>; }
 
   ReflectionInfo& refl_info = reflected_types.at(type.hash());
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
-      .getter = F,// (void (*)())get,
+      .getter = get,// (void (*)())get,
       //.setter = //(void (*)())set,
       //.get_call = //(void (*)())refl2<T,V>//(void (*)())refl2<T, V>
   });
@@ -360,16 +371,17 @@ static void print_ptr(void* data, std::string& name, entt::type_info type, std::
   }
 }
 
+static void* get_pos(void* rbv) {
+  RigidBody* rb = (RigidBody*)rbv;
+  vec3* d = (vec3*)malloc(sizeof(vec3));
+  *d = rb->pos();
+  return (void*)d;
+}
+
 static void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
-  printf("here!\n");
   auto getter = function.getter;
-  printf("%llu", getter);
-  //auto f = (void* (*)(void*))func;
-  //void* v = (*get_call_f)((void*)get_f, data);
-  //auto l = ((RigidBody*)(data))->pos();
-  //printf("%f, %f, %f\n", l.x, l.y, l.z);
-  //void* v = (*getter)(data);
-  //print_reflection(v, name, value, true, true, tab + " ");
+  void* v = (*getter)(data);
+  print_reflection(v, name, value, true, true, tab + " ");
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
@@ -409,11 +421,6 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
     print_reflection(calc_offset(data, field.offset), field.name, field.type, true, false, tab + "  ");
   }
 
-  if(info.hash() == entt::type_hash<btRigidBody*>()) {
-    vec3 l = ((btRigidBody*)data)->getWorldTransform().getOrigin();//((RigidBody*)data)->pos();
-    printf("%f, %f, %f\n", l.x, l.y, l.z);
-  }
-
   auto& functions = reflect::get_functions(type);
   for (auto& function : functions) {
     // recurse?
@@ -424,8 +431,8 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
 static void print_components(Entity e) {
   using namespace internal;
 
-  for(auto [id, storage] : ecs::registry.storage()) {
-    if (storage.contains(e)) {
+  for(auto&& curr : ecs::registry.storage()) {
+    if (auto& storage = curr.second; storage.contains(e)) {
       // we have a component
       void* data = storage.get(e);
       entt::type_info info = storage.type();
