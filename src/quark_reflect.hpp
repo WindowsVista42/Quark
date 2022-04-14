@@ -1,6 +1,8 @@
 #pragma once
 #include "quark.hpp"
 
+//TODO(sean): fewer std::string's flying around please
+
 namespace quark {
 namespace reflect {
 
@@ -32,10 +34,12 @@ using writer_func = void (*)(void* dst, void* src);
 
   printer_func printer;
   writer_func writer;
+  usize size;
 };
 
 namespace internal {
 inline std::unordered_map<entt::id_type, ReflectionInfo> reflected_types;
+inline std::unordered_map<std::string, entt::id_type> name_to_type;
 inline std::unordered_map<entt::id_type, BaseType> base_types;
 
 constexpr entt::id_type I32_HASH = entt::type_hash<i32>();
@@ -110,13 +114,13 @@ void write_generic(void* dst, void* src) {
 template <typename T>
 static void add_base_type(BaseType::printer_func printer, BaseType::writer_func writer) {
   using namespace internal;
-  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{printer, writer}));
+  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{printer, writer, sizeof(T)}));
 }
 
 template <typename T>
 static void add_base_type_automatic() {
   using namespace internal;
-  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{print_generic<T>, write_generic<T>}));
+  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{print_generic<T>, write_generic<T>, sizeof(T)}));
 }
 
 static bool is_base_type(entt::id_type id) {
@@ -341,7 +345,11 @@ template <typename T> static constexpr void add_name(const char* name) {
 
   ReflectionInfo& refl_info = reflected_types.at(type.hash());
   if (refl_info.name == "") {
-    reflected_types.at(type.hash()).name = std::string(name);
+
+    name_to_type.erase(std::string(type.name()));
+    name_to_type.insert(std::make_pair(std::string(name), type.hash()));
+
+    refl_info.name = std::string(name);
   } else {
     panic("Cant assign name more than once!");
   }
@@ -495,7 +503,6 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
     return;
   }
 
-
   if (print_name) {
     std::string it_name;
     if (use_supplied_name) {
@@ -549,17 +556,118 @@ static void print_components(Entity e) {
   scratch_alloc.reset();
 }
 
-// only really valid for the current frame or until components are deleted from the ecs
-//struct EntityComponents {
-//  std::vector<ReflectedItemData> fields;
-//  std::vector<ReflectedItemFunc> functions;
-//};
+//static void* get(const char* name, Entity e) {
+//  using namespace internal;
 //
-//static EntityComponents entity_components(Entity e) {
-//  EntityComponents ec;
+//  for (auto&& curr : ecs::registry.storage()) {
+//    if (auto& storage = curr.second; storage.contains(e)) {
+//      // we have a component
+//      void* data = storage.get(e);
+//      entt::type_info info = storage.type();
+//      entt::id_type type = info.hash();
 //
-//  return ec;
+//      if(type == name_to_type.at(name)) {
+//        return data;
+//      }
+//    }
+//  }
+//
+//  return 0;
 //}
+
+//static void* get(const char* names[2], Entity e) {
+//  using namespace internal;
+//
+//  for (auto&& curr : ecs::registry.storage()) {
+//    if (auto& storage = curr.second; storage.contains(e)) {
+//      // we have a component
+//      void* data = storage.get(e);
+//      entt::type_info info = storage.type();
+//      entt::id_type type = info.hash();
+//
+//      if(type == name_to_type.at(names[0])) {
+//        ReflectionInfo& refl_info = reflected_types.at(type);
+//
+//        // check if we found the field
+//
+//        if(refl_info.inheritance.hash() != NULL_HASH) {
+//          // recursively inspect inheritance
+//          refl_info = reflected_types.at(refl_info.inheritance.hash());
+//        }
+//
+//        std::vector<ReflectionField>& fields = refl_info.fields;
+//        for(int i = 0; i < fields.size(); i += 1) {
+//          if(fields[i].name == names[1]) {
+//            // recursively inspect fields
+//            return calc_offset(data, fields[i].offset);
+//          }
+//        }
+//
+//        std::vector<ReflectionFunction>& functions = refl_info.functions;
+//        for(int i = 0; i < functions.size(); i += 1) {
+//          if(functions[i].name == names[1]) {
+//            // recursively inspect functions
+//            return (*functions[i].get)(data);
+//          }
+//        }
+//      }
+//    }
+//  }
+//
+//  return 0;
+//}
+
+template <usize N>
+static void* get(std::array<const char*, N> names, Entity e) {
+  using namespace internal;
+
+  for (auto&& curr : ecs::registry.storage()) {
+    if (auto& storage = curr.second; storage.contains(e)) {
+      // we have a component
+      void* data = storage.get(e);
+      entt::type_info info = storage.type();
+      entt::id_type type = info.hash();
+
+      if(type == name_to_type.at(names[0])) {
+        ReflectionInfo& refl_info = reflected_types.at(type);
+
+        // check if we found the field
+
+        if(refl_info.inheritance.hash() != NULL_HASH) {
+          // recursively inspect inheritance
+          refl_info = reflected_types.at(refl_info.inheritance.hash());
+        }
+
+        std::vector<ReflectionField>& fields = refl_info.fields;
+        for(int i = 0; i < fields.size(); i += 1) {
+          if(fields[i].name == names[1]) {
+            // recursively inspect fields
+            return calc_offset(data, fields[i].offset);
+          }
+        }
+
+        std::vector<ReflectionFunction>& functions = refl_info.functions;
+        for(int i = 0; i < functions.size(); i += 1) {
+          if(functions[i].name == names[1]) {
+            // recursively inspect functions
+            return (*functions[i].get)(data);
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+static void* get(std::array<const char*, 1> names, Entity e) { return get<1>(names, e); }
+static void* get(std::array<const char*, 2> names, Entity e) { return get<2>(names, e); }
+static void* get(std::array<const char*, 3> names, Entity e) { return get<3>(names, e); }
+static void* get(std::array<const char*, 4> names, Entity e) { return get<4>(names, e); }
+static void* get(std::array<const char*, 5> names, Entity e) { return get<5>(names, e); }
+static void* get(std::array<const char*, 6> names, Entity e) { return get<6>(names, e); }
+static void* get(std::array<const char*, 7> names, Entity e) { return get<7>(names, e); }
+static void* get(std::array<const char*, 8> names, Entity e) { return get<8>(names, e); }
 
 }; // namespace reflect
 }; // namespace quark
