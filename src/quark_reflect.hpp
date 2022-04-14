@@ -26,10 +26,17 @@ struct ReflectionInfo {
 
 struct NullReflection {};
 
+struct BaseType {
+using printer_func = void (*)(void* data);
+using writer_func = void (*)(void* dst, void* src);
+
+  printer_func printer;
+  writer_func writer;
+};
+
 namespace internal {
-// inline std::unordered_map<entt::id_type, Slice<ReflectionField>> type_fields;
-// inline std::unordered_map<entt::id_type, entt::id_type> type_inheritance;
 inline std::unordered_map<entt::id_type, ReflectionInfo> reflected_types;
+inline std::unordered_map<entt::id_type, BaseType> base_types;
 
 constexpr entt::id_type I32_HASH = entt::type_hash<i32>();
 constexpr entt::id_type U32_HASH = entt::type_hash<u32>();
@@ -50,11 +57,71 @@ static void add_if_new(entt::id_type ty_hash) {
 }
 
 }; // namespace internal
+template <typename T>
+void print_generic(void* data);
 
-static constexpr bool is_base_type(entt::id_type id) {
+template <typename T>
+void print_generic(void* data) {
+  if constexpr (std::is_floating_point<T>::value) {
+    std::cout << std::setprecision(4) << std::fixed << *(T*)data;
+    return;
+  }
+
+  if constexpr (std::is_array_v<T>) {
+    for(usize i = 0; i < std::extent<T>::value; i += 1) {
+      using TI = typename std::remove_extent<T>::type;
+      print_generic<TI>((void*)((TI*)data + i));
+    }
+    return;
+  }
+
+  std::cout << *(T*)data;
+}
+
+static void print_entity(void* data) {
+  printf("%d", *(Entity*)data);
+}
+
+static void print_entity15(void* data) {
+  for(usize i = 0; i < std::extent<Entity[15]>::value; i += 1) {
+    print_entity((void*)((Entity*)data + i));
+    if(i != std::extent<Entity[15]>::value - 1) { printf(", "); }
+  }
+}
+
+static void write_entity(void* dst, void* src) {
+  *(Entity*)dst = *(Entity*)src;
+}
+
+static void write_entity15(void* dst, void* src) {
+  for(usize i = 0; i < std::extent<Entity[15]>::value; i += 1) {
+    *((Entity*)dst + i) = *((Entity*)src + i);
+  }
+}
+
+template <typename T>
+void write_generic(void* dst, void* src) {
+  if constexpr (std::is_same<T, char*>::value || std::is_array<T>::value) { // malloc and strcpy?
+  } else {
+    *(T*)dst = *(T*)src;
+  }
+}
+
+template <typename T>
+static void add_base_type(BaseType::printer_func printer, BaseType::writer_func writer) {
   using namespace internal;
-  return id == I32_HASH || id == U32_HASH || id == F32_HASH || id == USIZE_HASH || id == ISIZE_HASH || id == CSTR_HASH || id == ENTITY_HASH ||
-         id == NULL_HASH || id == BOOL_HASH || id == entt::type_hash<entt::entity[15]>();
+  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{printer, writer}));
+}
+
+template <typename T>
+static void add_base_type_automatic() {
+  using namespace internal;
+  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{print_generic<T>, write_generic<T>}));
+}
+
+static bool is_base_type(entt::id_type id) {
+  using namespace internal;
+  return base_types.find(id) != base_types.end();
 }
 
 template <typename T, typename U> constexpr size_t offsetOf(U T::*member) { return (char*)&((T*)0->*member) - (char*)0; }
@@ -292,8 +359,26 @@ static std::string get_name(entt::id_type type) {
 static void init() {
   using namespace internal;
 
-  // IMPLICIT BASE TYPES
-  // bool, i32, f32, u32, usize, isize, char*, Entity, Entity[15], ...
+  reflect::add_base_type_automatic<bool>();
+  reflect::add_base_type_automatic<char>();
+
+  reflect::add_base_type_automatic<i8>();
+  reflect::add_base_type_automatic<i16>();
+  reflect::add_base_type_automatic<i32>();
+  reflect::add_base_type_automatic<i64>();
+  reflect::add_base_type_automatic<isize>();
+
+  reflect::add_base_type_automatic<u8>();
+  reflect::add_base_type_automatic<u16>();
+  reflect::add_base_type_automatic<u32>();
+  reflect::add_base_type_automatic<u64>();
+  reflect::add_base_type_automatic<usize>();
+
+  reflect::add_base_type_automatic<f32>();
+  reflect::add_base_type_automatic<f64>();
+
+  reflect::add_base_type<Entity>(print_entity, write_entity);
+  reflect::add_base_type<Entity[15]>(print_entity15, write_entity15);
 
   reflect::add_name<vec2>("vec2");
   reflect::add_name<vec3>("vec3");
@@ -378,29 +463,10 @@ static void print_ptr(void* data, std::string& name, entt::type_info type, std::
   using namespace internal;
 
   auto hash = type.hash();
-  if (hash == I32_HASH) {
-    printf("%s%s: %d\n", tab.c_str(), name.c_str(), *(i32*)data);
-  } else if (hash == U32_HASH) {
-    printf("%s%s: %u\n", tab.c_str(), name.c_str(), *(u32*)data);
-  } else if (hash == F32_HASH) {
-    printf("%s%s: %f\n", tab.c_str(), name.c_str(), *(f32*)data);
-  } else if (hash == USIZE_HASH) {
-    printf("%s%s: %llu\n", tab.c_str(), name.c_str(), *(usize*)data);
-  } else if (hash == ISIZE_HASH) {
-    printf("%s%s: %lld\n", tab.c_str(), name.c_str(), *(isize*)data);
-  } else if (hash == CSTR_HASH) {
-    printf("%s%s: %s\n", tab.c_str(), name.c_str(), *(char**)data);
-  } else if (hash == ENTITY_HASH) {
-    printf("%s%s: %u\n", tab.c_str(), name.c_str(), *(Entity*)data);
-  } else if (hash == BOOL_HASH) {
-    printf("%s%s: %s\n", tab.c_str(), name.c_str(), *(bool*)data ? "true" : "false");
-  } else if (hash == entt::type_hash<entt::entity[15]>()) {
-    for(int i = 0; i < 15; i += 1) {
-      char buf[128];
-      sprintf(buf, "Entity %d", i);
-      auto a = std::string(buf);
-      print_ptr((Entity*)data + i, a, entt::type_id<Entity>(), tab + "  ");
-    }
+  if(is_base_type(hash)) {
+    printf("%s%s: ", tab.c_str(), name.c_str());
+    (*base_types.at(hash).printer)(data);
+    printf("\n");
   } else {
     std::cout << tab << name << ": " << type.name() << std::endl;
   }
@@ -428,6 +494,7 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
     print_ptr(data, name, info, tab);
     return;
   }
+
 
   if (print_name) {
     std::string it_name;
@@ -481,6 +548,18 @@ static void print_components(Entity e) {
   printf("\n");
   scratch_alloc.reset();
 }
+
+// only really valid for the current frame or until components are deleted from the ecs
+//struct EntityComponents {
+//  std::vector<ReflectedItemData> fields;
+//  std::vector<ReflectedItemFunc> functions;
+//};
+//
+//static EntityComponents entity_components(Entity e) {
+//  EntityComponents ec;
+//
+//  return ec;
+//}
 
 }; // namespace reflect
 }; // namespace quark
