@@ -12,13 +12,70 @@ inline btDiscreteDynamicsWorld* physics_world;
 
 namespace types {
 
-class CollisionShape : btCollisionShape {
+class BoxShape : btBoxShape {
 public:
-  static CollisionShape* box(vec3 halfdim) { return (CollisionShape*)(new btBoxShape({halfdim.x, halfdim.y, halfdim.z})); }
-  static CollisionShape* sphere(f32 radius) { return (CollisionShape*)(new btSphereShape(radius)); }
-  static CollisionShape* capsule(f32 height, f32 radius) { return (CollisionShape*)(new btCapsuleShape(height, radius)); }
+  static constexpr auto in_place_delete = true;
+
+  using btBoxShape::btBoxShape;
 
   i32 type() { return this->m_shapeType; }
+  vec3 half_dim() { return this->getHalfExtentsWithoutMargin(); }
+
+  vec3 calc_local_inertia(f32 mass) {
+    btVector3 local_inertia = {};
+    this->calculateLocalInertia(mass, local_inertia);
+    return local_inertia;
+  }
+};
+
+class SphereShape : btSphereShape {
+public:
+  static constexpr auto in_place_delete = true;
+
+  using btSphereShape::btSphereShape;
+
+  i32 type() { return this->m_shapeType; }
+  vec3 radius() { return this->getRadius(); }
+
+  vec3 calc_local_inertia(f32 mass) {
+    btVector3 local_inertia = {};
+    this->calculateLocalInertia(mass, local_inertia);
+    return local_inertia;
+  }
+};
+
+class CapsuleShape : btCapsuleShape {
+public:
+  static constexpr auto in_place_delete = true;
+
+  using btCapsuleShape::btCapsuleShape;
+
+  i32 type() { return this->m_shapeType; }
+  vec3 radius() { return this->getRadius(); }
+  vec3 half_height() { return this->getHalfHeight(); }
+
+  vec3 calc_local_inertia(f32 mass) {
+    btVector3 local_inertia = {};
+    this->calculateLocalInertia(mass, local_inertia);
+    return local_inertia;
+  }
+};
+
+class CollisionShape : btCollisionShape {
+public:
+  static constexpr auto in_place_delete = true;
+
+  static CollisionShape* box(vec3 halfdim) { return new BoxShape({halfdim.x, halfdim.y, halfdim.z}); }
+  static CollisionShape* sphere(f32 radius) { return new SphereShape(radius); }
+  static CollisionShape* capsule(f32 height, f32 radius) { return new CapsuleShape(height, radius); }
+
+  i32 type() { return this->m_shapeType; }
+
+  vec3 calc_local_inertia(f32 mass) {
+    btVector3 local_inertia = {};
+    this->calculateLocalInertia(mass, local_inertia);
+    return local_inertia;
+  }
 };
 
 union RbUserData {
@@ -31,10 +88,14 @@ union RbUserData {
 
 class CollisionBody : btCollisionObject {
 public:
+  static constexpr auto in_place_delete = true;
+
   using btCollisionObject::operator new;
   using btCollisionObject::operator delete;
   using btCollisionObject::CF_NO_CONTACT_RESPONSE;
   using btCollisionObject::CF_CHARACTER_OBJECT;
+
+// constructors and destructors
 
 // getters
 
@@ -63,9 +124,44 @@ public:
 
 class RigidBody : btRigidBody {
 public:
+  static constexpr auto in_place_delete = true;
+
   using btRigidBody::operator new;
   using btRigidBody::operator delete;
   using btRigidBody::btRigidBody;
+
+// constructors and destructors
+
+  struct CreateInfo {
+		f32 mass;
+		Transform start_transform;
+
+		CollisionShape* collision_shape = 0;
+		vec3 local_inertia = {0.0f};
+		f32 lindamp = 0.0f;
+		f32 angdamp = 0.0f;
+
+		f32 friction = 0.5f;
+		f32 rolling_friction = 0.0f;
+		f32 spinning_friction = 0.0f;
+
+		f32 restitution;
+
+		f32 linear_sleeping_threshold;
+		f32 angular_sleeping_threshold;
+
+    bool additional_damping;
+    f32 additional_damping_factor;
+		btScalar additional_linear_damping_threshold_sqr;
+		btScalar additional_angular_damping_threshold_sqr;
+		btScalar additional_angular_damping_factor;
+  };
+
+  static RigidBody create(CreateInfo create_info) {
+    btRigidBody::btRigidBodyConstructionInfo rb_info(0, 0, 0, {});
+    auto self = RigidBody(rb_info);
+    self.
+  }
 
 // getters
 
@@ -118,6 +214,8 @@ public:
 
 class GhostBody : public btGhostObject {
 public:
+  static constexpr auto in_place_delete = true;
+
   using btGhostObject::operator new;
   using btGhostObject::operator delete;
 
@@ -185,6 +283,23 @@ static RigidBody* create_rb(entt::entity e, CollisionShape* shape, vec3 origin, 
 
   body->entity(e);
   body->thresholds(1e-7, 1e-7);
+
+  return body;
+}
+
+static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 mass) {
+  vec3 local_inertia = {0};
+  if(mass != 0.0f) {
+    local_inertia = shape->calc_local_inertia(mass);
+  }
+
+  btTransform transform = btTransform::getIdentity();
+  transform.setOrigin(origin);
+  btRigidBody::btRigidBodyConstructionInfo rb_info(mass, 0, (btCollisionShape*)shape, local_inertia);
+  RigidBody body = RigidBody(rb_info);
+
+  body.entity(e);
+  body.thresholds(1e-7, 1e-7);
 
   return body;
 }
