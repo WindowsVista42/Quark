@@ -9,6 +9,9 @@ using namespace renderer;
 void quark::init() {
   using namespace quark;
 
+  entt::storage_traits<Entity, RigidBody>::storage_type& storage = ecs::registry.storage<RigidBody>();
+    entt::storage_traits<Entity, RigidBody>::storage_type::basic_storage();
+
   scratch_alloc.init(100 * MB);
   render_alloc.init(100 * MB);
 
@@ -28,6 +31,9 @@ void quark::init() {
 
   ecs::registry.on_construct<GhostBody>().connect<&physics::add_go_to_world>();
   ecs::registry.on_destroy<GhostBody>().connect<&physics::remove_go_from_world>();
+
+  //printf("RigidBody in place delete: %d\n", entt::component_traits<RigidBody>::in_place_delete ? 1 : 0);
+  //printf("RigidBody in place delete: %d\n", RigidBody::in_place_delete ? 1 : 0);
 
   renderer::init_window();
   renderer::init_vulkan();

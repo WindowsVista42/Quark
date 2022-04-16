@@ -1535,7 +1535,7 @@ void quark::renderer::render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    const auto shadow_pass = ecs::registry.group<UseShadowPass>(entt::get<Position, Rotation, Scale, Mesh>);
+    const auto shadow_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, UseShadowPass>();
     for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_shadow(pos, rot, scl, mesh);
@@ -1549,7 +1549,7 @@ void quark::renderer::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass = ecs::registry.group<>(entt::get<Position, Rotation, Scale, Mesh>, entt::exclude<IsTransparent>);
+    const auto depth_prepass = ecs::registry.view<Position, Rotation, Scale, Mesh>(entt::exclude<IsTransparent>);
     for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_depth(pos, rot, scl, mesh);
@@ -1561,7 +1561,7 @@ void quark::renderer::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    const auto lit_pass = ecs::registry.group<UseLitPass>(entt::get<Position, Rotation, Scale, Mesh>);
+    const auto lit_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, UseLitPass>();
     for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         add_to_render_batch(pos, rot, scl, mesh);
@@ -1570,7 +1570,7 @@ void quark::renderer::render_frame(bool end_forward) {
     end_lit_pass();
 
     begin_solid_pass();
-    const auto solid_pass = ecs::registry.group<UseSolidPass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
+    const auto solid_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, Color, UseSolidPass>();
     for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1579,7 +1579,7 @@ void quark::renderer::render_frame(bool end_forward) {
     end_solid_pass();
 
     begin_wireframe_pass();
-    const auto wireframe_pass = ecs::registry.group<UseWireframePass>(entt::get<Position, Rotation, Scale, Mesh, Color>);
+    const auto wireframe_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, Color, UseWireframePass>();
     for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
       if (box_in_frustum(pos, scl)) {
         draw_color(pos, rot, scl, col, mesh);
@@ -1587,17 +1587,17 @@ void quark::renderer::render_frame(bool end_forward) {
     }
 
     if (enable_physics_bounding_box_visor) {
-      Mesh mesh = assets::get<Mesh>("cube");
-      const auto physics_rb_pass = ecs::registry.group<>(entt::get<Position, Rotation, Color, btRigidBody*>);
-      for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
-        btVector3 aabb_min, aabb_max;
-        rb->getAabb(aabb_min, aabb_max);
-        vec3 scl = (aabb_min - aabb_max) / 2.0f;
+      //Mesh mesh = assets::get<Mesh>("cube");
+      //const auto physics_rb_pass = ecs::registry.view<Position, Rotation, Color, RigidBody>();
+      //for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
+      //  //btVector3 aabb_min, aabb_max;
+      //  Aabb aabb = rb->aabb(aabb_min, aabb_max);
+      //  vec3 scl = (aabb_min - aabb_max) / 2.0f;
 
-        if (box_in_frustum(pos, scl)) {
-          draw_color(pos, rot, scl, col, mesh);
-        }
-      }
+      //  if (box_in_frustum(pos, scl)) {
+      //    draw_color(pos, rot, scl, col, mesh);
+      //  }
+      //}
     }
     end_wireframe_pass();
   }

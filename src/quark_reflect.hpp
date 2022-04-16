@@ -561,6 +561,10 @@ static void print_components(Entity e) {
       entt::type_info info = storage.type();
       entt::id_type type = info.hash();
 
+      if(storage.policy() == entt::deletion_policy::in_place) {
+        std::cout << info.name() << std::endl;
+      };
+
       print_reflection(data, "", info, true, false, "  ");
     }
   }

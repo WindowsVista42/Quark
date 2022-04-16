@@ -122,7 +122,7 @@ public:
   void activate(bool force_activation = false) { ((btCollisionObject*)this)->activate(force_activation); }
 };
 
-class RigidBody : btRigidBody {
+class RigidBody : btRigidBody, public entt::component_traits<RigidBody> {
 public:
   static constexpr auto in_place_delete = true;
 
@@ -326,19 +326,16 @@ static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 ma
 
 static void delete_rb(btRigidBody* body) {
   //delete body->getCollisionShape();
-  physics_world->removeRigidBody(body);
   //delete body;
 }
 
 static void delete_co(btCollisionObject* obj) {
   //delete obj->getCollisionShape();
-  physics_world->removeCollisionObject(obj);
   //delete obj;
 }
 
 static void delete_go(btGhostObject* ghost_obj) {
   //delete ghost_obj->getCollisionShape();
-  physics_world->removeCollisionObject(ghost_obj);
   //delete ghost_obj;
 }
 
@@ -366,18 +363,34 @@ static void add_go_to_world(entt::registry& reg, entt::entity e) {
 }
 
 static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
-  RigidBody& body = reg.get<RigidBody>(e);
-  delete_rb((btRigidBody*)&body);
+  // entt uses a "swap and pop" deletion method for removing components from entities
+  // this means that we need to get the last Rigid body in the chain
+  // remove it from the physic world
+
+  Entity last_e = reg.storage<RigidBody>().at(reg.storage<RigidBody>().size() - 1);
+  RigidBody* last_ptr = &reg.storage<RigidBody>().get(last_e);
+  RigidBody* this_ptr = &reg.storage<RigidBody>().get(e);
+
+  physics_world->removeRigidBody((btRigidBody*)this_ptr);
+  physics_world->removeRigidBody((btRigidBody*)last_ptr);
+  physics_world->addRigidBody((btRigidBody*)this_ptr);
+  //delete_rb((btRigidBody*)&body);
 }
 
 static void remove_co_from_world(entt::registry& reg, entt::entity e) {
-  CollisionBody& obj = reg.get<CollisionBody>(e);
-  delete_co((btCollisionObject*)&obj);
+  printf("here!\n");
+  CollisionBody* obj = &reg.get<CollisionBody>(e);
+  printf("%llu\n", (usize)obj);
+  physics_world->removeCollisionObject((btCollisionObject*)obj);
+  //delete_co((btCollisionObject*)&obj);
 }
 
 static void remove_go_from_world(entt::registry& reg, entt::entity e) {
-  GhostBody& ghost = reg.get<GhostBody>(e);
-  delete_go((btGhostObject*)&ghost);
+  printf("here!\n");
+  GhostBody* ghost = &reg.get<GhostBody>(e);
+  printf("%llu\n", (usize)ghost);
+  physics_world->removeCollisionObject((btGhostObject*)ghost);
+  //delete_go((btGhostObject*)&ghost);
 }
 
 }; // namespace internal
