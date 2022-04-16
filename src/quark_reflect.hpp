@@ -407,9 +407,14 @@ static void init() {
   reflect::add_name<UseSolidPass>("Solid Color Pass");
   reflect::add_name<UseWireframePass>("Wireframe Color pass");
 
-  reflect::add_name<CollisionBody*>("Collision Body");
-  reflect::add_name<GhostBody*>("Ghost Body");
+  reflect::add_name<CollisionBody>("Collision Body");
+  reflect::add_name<GhostBody>("Ghost Body");
   reflect::add_name<RigidBody>("Rigid Body");
+
+  reflect::add_name<CollisionShape>("Collision Shape");
+  reflect::add_name<BoxShape>("Box Shape");
+  reflect::add_name<SphereShape>("Sphere Shape");
+  reflect::add_name<CapsuleShape>("Capsule Shape");
 
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
   reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
@@ -427,15 +432,23 @@ static void init() {
   reflect::add_inheritance<RelPosition, vec3>();
   reflect::add_inheritance<RelRotation, vec4>();
 
-  reflect::add_name<CollisionShape>("Collision Shape");
+  reflect::add_inheritance<BoxShape, CollisionShape>();
+  reflect::add_inheritance<SphereShape, CollisionShape>();
+  reflect::add_inheritance<CapsuleShape, CollisionShape>();
+
   reflect::add_function<CollisionShape, i32, &CollisionShape::type, 0>("Shape Type", true);
 
-  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position", true);
-  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation", true);
-  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity", true);
-  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape", true);
-  reflect::add_function<CollisionBody, bool, &CollisionBody::active, &CollisionBody::active>("Active", true);
-  reflect::add_function<CollisionBody, i32, &CollisionBody::flags, &CollisionBody::flags>("Collision Flags", true);
+  reflect::add_function<BoxShape, vec3, &BoxShape::half_dim, 0>("Half Dimensions");
+  reflect::add_function<SphereShape, vec3, &SphereShape::radius, 0>("Radius");
+  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::half_height, 0>("Half Height");
+  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::radius, 0>("Radius");
+
+  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position");
+  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation");
+  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity");
+  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape");
+  reflect::add_function<CollisionBody, bool, &CollisionBody::active, &CollisionBody::active>("Active");
+  reflect::add_function<CollisionBody, i32, &CollisionBody::flags, &CollisionBody::flags>("Collision Flags");
 
   reflect::add_function<RigidBody, vec3, &RigidBody::pos, &RigidBody::pos>("Position");
   reflect::add_function<RigidBody, quat, &RigidBody::rot, &RigidBody::rot>("Rotation");
@@ -453,13 +466,13 @@ static void init() {
   reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force");
   reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque");
 
-  reflect::add_function<GhostBody, vec3, &GhostBody::pos, &GhostBody::pos>("Position", true);
-  reflect::add_function<GhostBody, quat, &GhostBody::rot, &GhostBody::rot>("Rotation", true);
-  reflect::add_function<GhostBody, Entity, &GhostBody::entity, &GhostBody::entity>("Entity", true);
-  reflect::add_function<GhostBody, CollisionShape*, &GhostBody::shape, &GhostBody::shape>("Collision Shape", true);
-  reflect::add_function<GhostBody, bool, &GhostBody::active, &GhostBody::active>("Active", true);
-  reflect::add_function<GhostBody, i32, &GhostBody::flags, &GhostBody::flags>("Collision Flags", true);
-  reflect::add_function<GhostBody, usize, &GhostBody::num_overlapping, 0>("Number of Overlapping Bodies", true);
+  reflect::add_function<GhostBody, vec3, &GhostBody::pos, &GhostBody::pos>("Position");
+  reflect::add_function<GhostBody, quat, &GhostBody::rot, &GhostBody::rot>("Rotation");
+  reflect::add_function<GhostBody, Entity, &GhostBody::entity, &GhostBody::entity>("Entity");
+  reflect::add_function<GhostBody, CollisionShape*, &GhostBody::shape, &GhostBody::shape>("Collision Shape");
+  reflect::add_function<GhostBody, bool, &GhostBody::active, &GhostBody::active>("Active");
+  reflect::add_function<GhostBody, i32, &GhostBody::flags, &GhostBody::flags>("Collision Flags");
+  reflect::add_function<GhostBody, usize, &GhostBody::num_overlapping, 0>("Number of Overlapping Bodies");
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");

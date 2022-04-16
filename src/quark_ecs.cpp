@@ -80,21 +80,23 @@ void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, con
 }
 
 void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
-  CollisionBody* coll = new CollisionBody();
+  CollisionBody coll = CollisionBody();
 
   btTransform transform;
 
   transform.setOrigin({pos.x, pos.y, pos.z});
   transform.setRotation({rot.x, rot.y, rot.z, rot.w});
 
-  auto shape = CollisionShape::box(scl);
+  auto box = BoxShape(scl);
+  ecs::add<BoxShape>(e, box);
+  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<BoxShape>(e);
 
-  coll->transform(transform);
-  coll->shape(shape);
-  coll->flags(0);
-  coll->entity(e);
+  coll.transform(transform);
+  coll.shape(shape_ptr);
+  coll.flags(0);
+  coll.entity(e);
 
-  ecs::add(e, coll);
+  ecs::add<CollisionBody>(e, coll);
 }
 
 void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass) {
@@ -105,6 +107,36 @@ void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* sha
   RigidBody& body2 = ecs::get<RigidBody>(e);
 
   //body.activate();
+}
+
+#define IMPL_ADD_RIGID_BODY(Shape) \
+  Position pos = ecs::get<Position>(e); \
+  Rotation rot = ecs::get<Rotation>(e); \
+ \
+  ecs::add<Shape>(e, info.shape); \
+  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<Shape>(e); \
+ \
+  vec3 local_inertia = info.mass == 0.0f ? vec3{0} : shape_ptr->calc_local_inertia(info.mass); \
+  btRigidBody::btRigidBodyConstructionInfo rb_info(info.mass, 0, (btCollisionShape*)shape_ptr, local_inertia); \
+  RigidBody body = RigidBody(rb_info); \
+ \
+  body.pos(pos); \
+  body.rot(rot); \
+  body.entity(e); \
+  body.thresholds(1e-7, 1e-7); \
+ \
+  ecs::add<RigidBody>(e, body); \
+
+void add_rigid_body2(Entity e, RigidBodyInfoBox info) {
+  IMPL_ADD_RIGID_BODY(BoxShape)
+}
+
+void add_rigid_body2(Entity e, RigidBodyInfoSphere info) {
+  IMPL_ADD_RIGID_BODY(SphereShape)
+}
+
+void add_rigid_body2(Entity e, RigidBodyInfoCapsule info) {
+  IMPL_ADD_RIGID_BODY(CapsuleShape)
 }
 
 void add_parent(entt::entity e, entt::entity parent) {

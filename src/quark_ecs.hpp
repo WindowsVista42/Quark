@@ -5,8 +5,12 @@ namespace quark {
 namespace ecs {
 namespace types {
 
-enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
+enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME, RENDER_SHADOW };
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
+
+namespace Effect {
+  enum e { Lit, Solid, Wireframe, Shadow };
+};
 
 }; // namespace types
 using namespace types;
@@ -31,6 +35,55 @@ void add_raycast(Entity e, Position pos, Rotation rot, Scale scl);
 void add_rigid_body(Entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass);
 void add_parent(Entity e, Entity parent);
 Transform add_relative_transform(Entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
+
+#define RBINFO \
+  f32 mass = 1.0f; \
+  f32 lindamp = 0.0f; \
+  f32 angdamp = 0.0f; \
+  f32 friction = 0.5f; \
+  f32 restitution = 0.0f; \
+  f32 linear_sleeping_threshold = 1e-7; \
+  f32 angular_sleeping_threshold = 1e-7; \
+
+struct RigidBodyInfoBox {
+  BoxShape shape = BoxShape({1.0f, 1.0f, 1.0f});
+  RBINFO
+};
+
+struct RigidBodyInfoSphere {
+  SphereShape shape = SphereShape(1.0f);
+  RBINFO
+};
+
+struct RigidBodyInfoCapsule {
+  CapsuleShape shape = CapsuleShape(1.5f, 1.0f);
+  RBINFO
+};
+
+#undef RBINFO
+
+void add_rigid_body2(Entity e, RigidBodyInfoBox info);
+void add_rigid_body2(Entity e, RigidBodyInfoSphere info);
+void add_rigid_body2(Entity e, RigidBodyInfoCapsule info);
+
+static void add_raycast2(Entity e, BoxShape shape) {
+  Position pos = ecs::get<Position>(e);
+  Rotation rot = ecs::get<Rotation>(e);
+
+  ecs::add<BoxShape>(e, shape);
+  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<BoxShape>(e);
+
+  CollisionBody coll = CollisionBody();
+  coll.pos(pos);
+  coll.rot(rot);
+  coll.shape(shape_ptr);
+  coll.flags(0);
+  coll.entity(e);
+}
+
+void add_transform2(Entity e, Position pos, Rotation rot);
+void add_mesh(Entity e, Scale scl, Mesh mesh);
+void add_effect(Entity e, Color col, u32 render_effect);
 
 // static Position mul_transform_position(RelPos rel_pos, Pos base_pos, Rotation base_rot);
 // static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Pos base_pos, Rotation base_rot);

@@ -180,7 +180,11 @@ struct Children {
 struct Transform {
   Position pos;
   Rotation rot;
+
+  static const Transform identity;
 };
+
+inline const Transform Transform::identity = Transform { VEC3_ZERO, quat::identity };
 
 struct RelTransform {
   Position pos;

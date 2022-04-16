@@ -19,7 +19,7 @@ public:
   using btBoxShape::btBoxShape;
 
   i32 type() { return this->m_shapeType; }
-  vec3 half_dim() { return this->getHalfExtentsWithoutMargin(); }
+  vec3 half_dim() { return this->getHalfExtentsWithMargin(); }
 
   vec3 calc_local_inertia(f32 mass) {
     btVector3 local_inertia = {};
@@ -299,33 +299,47 @@ static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 ma
   RigidBody body = RigidBody(rb_info);
 
   body.pos(origin);
-  body.rot({0,0,0,1});
+  body.rot(quat::identity);
   body.entity(e);
   body.thresholds(1e-7, 1e-7);
 
   return body;
 }
 
-static RigidBody create_rb3(Entity e, CollisionShape* shape, Transform transform, f32 mass) {
-  return RigidBody();
-}
+//template <typename T>
+//RigidBody create_rb3(Entity e, T shape, Transform transform, f32 mass) {
+//  static_assert(std::is_base_of_v<CollisionShape, T>, "function expects a CollisionBody type!");
+//
+//  ecs::add<T>(e, shape);
+//  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<T>(e);
+//
+//  vec3 local_inertia = mass == 0.0f ? vec3{0} : shape->calc_local_inertia(mass);
+//  btRigidBody::btRigidBodyConstructionInfo rb_info(mass, 0, (btCollisionShape*)shape, local_inertia);
+//  RigidBody body = RigidBody();
+//
+//  body.pos(transform.pos);
+//  body.rot(transform.rot);
+//  body.entity(e);
+//  body.thresholds(1e-7, 1e-7);
+//  return RigidBody();
+//}
 
 static void delete_rb(btRigidBody* body) {
-  delete body->getCollisionShape();
+  //delete body->getCollisionShape();
   physics_world->removeRigidBody(body);
   //delete body;
 }
 
 static void delete_co(btCollisionObject* obj) {
-  delete obj->getCollisionShape();
+  //delete obj->getCollisionShape();
   physics_world->removeCollisionObject(obj);
-  delete obj;
+  //delete obj;
 }
 
 static void delete_go(btGhostObject* ghost_obj) {
-  delete ghost_obj->getCollisionShape();
+  //delete ghost_obj->getCollisionShape();
   physics_world->removeCollisionObject(ghost_obj);
-  delete ghost_obj;
+  //delete ghost_obj;
 }
 
 void init();
@@ -340,13 +354,15 @@ static void add_rb_to_world(entt::registry& reg, entt::entity e) {
 }
 
 static void add_co_to_world(entt::registry& reg, entt::entity e) {
-  CollisionBody* coll = reg.get<CollisionBody*>(e);
-  physics_world->addCollisionObject((btCollisionObject*)coll);
+  CollisionBody& coll = reg.get<CollisionBody>(e);
+  physics_world->addCollisionObject((btCollisionObject*)&coll);
+  coll.active();
 }
 
 static void add_go_to_world(entt::registry& reg, entt::entity e) {
-  GhostBody* ghost = reg.get<GhostBody*>(e);
-  physics_world->addCollisionObject((btGhostObject*)ghost, btBroadphaseProxy::AllFilter, btBroadphaseProxy::AllFilter);
+  GhostBody& ghost = reg.get<GhostBody>(e);
+  physics_world->addCollisionObject((btGhostObject*)&ghost, btBroadphaseProxy::AllFilter, btBroadphaseProxy::AllFilter);
+  ghost.active();
 }
 
 static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
@@ -355,13 +371,13 @@ static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
 }
 
 static void remove_co_from_world(entt::registry& reg, entt::entity e) {
-  CollisionBody* obj = reg.get<CollisionBody*>(e);
-  delete_co((btCollisionObject*)obj);
+  CollisionBody& obj = reg.get<CollisionBody>(e);
+  delete_co((btCollisionObject*)&obj);
 }
 
 static void remove_go_from_world(entt::registry& reg, entt::entity e) {
-  GhostBody* ghost = reg.get<GhostBody*>(e);
-  delete_go((btGhostObject*)ghost);
+  GhostBody& ghost = reg.get<GhostBody>(e);
+  delete_go((btGhostObject*)&ghost);
 }
 
 }; // namespace internal

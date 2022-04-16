@@ -23,11 +23,11 @@ void quark::init() {
   ecs::registry.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
   ecs::registry.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
 
-  ecs::registry.on_construct<CollisionBody*>().connect<&physics::add_co_to_world>();
-  ecs::registry.on_destroy<CollisionBody*>().connect<&physics::remove_co_from_world>();
+  ecs::registry.on_construct<CollisionBody>().connect<&physics::add_co_to_world>();
+  ecs::registry.on_destroy<CollisionBody>().connect<&physics::remove_co_from_world>();
 
-  ecs::registry.on_construct<GhostBody*>().connect<&physics::add_go_to_world>();
-  ecs::registry.on_destroy<GhostBody*>().connect<&physics::remove_go_from_world>();
+  ecs::registry.on_construct<GhostBody>().connect<&physics::add_go_to_world>();
+  ecs::registry.on_destroy<GhostBody>().connect<&physics::remove_go_from_world>();
 
   renderer::init_window();
   renderer::init_vulkan();
@@ -45,8 +45,6 @@ void quark::init() {
   renderer::gpu_vertex_tracker.init(100 * MB);
 
   assets::load_directory("assets");
-
-  printf("render_alloc capacity: %llu\n", render_alloc.capacity());
 
   renderer::init_swapchain();
   renderer::init_command_pools_and_buffers();
