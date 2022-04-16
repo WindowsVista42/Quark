@@ -1649,9 +1649,9 @@ void quark::renderer::internal::print_performance_statistics() {
   }
 }
 
-static void quark::renderer::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) { framebuffer_resized = true; }
+void quark::renderer::internal::framebuffer_resize_callback(GLFWwindow* window, int width, int height) { framebuffer_resized = true; }
 
-static void quark::renderer::internal::update_cursor_position(GLFWwindow* window, double xpos, double ypos) {
+void quark::renderer::internal::update_cursor_position(GLFWwindow* window, double xpos, double ypos) {
   vec2 last_pos = mouse_pos;
 
   mouse_pos = {(f32)xpos, (f32)ypos};

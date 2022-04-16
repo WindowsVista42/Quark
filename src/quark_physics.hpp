@@ -189,7 +189,7 @@ public:
 
   void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
-  void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
+  void rot(quat rot) { this->getWorldTransform().setRotation(rot); }
   void linvel(vec3 linvel) { this->setLinearVelocity(btVector3(linvel.x, linvel.y, linvel.z)); }
   void angvel(vec3 angvel) { this->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
   void linfac(vec3 fac) { this->setLinearFactor(fac); }
@@ -295,17 +295,19 @@ static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 ma
     local_inertia = shape->calc_local_inertia(mass);
   }
 
-  //btTransform transform = btTransform::getIdentity();
-  //transform.setOrigin(origin);
   btRigidBody::btRigidBodyConstructionInfo rb_info(mass, 0, (btCollisionShape*)shape, local_inertia);
   RigidBody body = RigidBody(rb_info);
 
   body.pos(origin);
-  body.rot(quat::identity);
+  body.rot({0,0,0,1});
   body.entity(e);
   body.thresholds(1e-7, 1e-7);
 
   return body;
+}
+
+static RigidBody create_rb3(Entity e, CollisionShape* shape, Transform transform, f32 mass) {
+  return RigidBody();
 }
 
 static void delete_rb(btRigidBody* body) {

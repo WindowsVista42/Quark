@@ -162,14 +162,15 @@ struct quat : public vec4 {
   quat() {}
   quat(vec4 v) { *this = *(quat*)&v; }
   quat(f32 x, f32 y, f32 z, f32 w) {
-    x = x;
-    y = y;
-    z = z;
-    w = w;
+    this->x = x;
+    this->y = y;
+    this->z = z;
+    this->w = w;
   }
 
   quat(btQuaternion q) { x = q.x(); y = q.y(); z = q.z(); w = q.w(); }
-  operator btQuaternion() { return btQuaternion{x, y, z, w}; };
+  operator btQuaternion() { return {this->x, this->y, this->z, this->w}; }
+  operator const btQuaternion() const { return {this->x, this->y, this->z, this->w}; }
 
   static const quat identity;
 };
