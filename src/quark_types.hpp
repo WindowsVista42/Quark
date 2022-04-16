@@ -170,7 +170,11 @@ struct quat : public vec4 {
 
   quat(btQuaternion q) { x = q.x(); y = q.y(); z = q.z(); w = q.w(); }
   operator btQuaternion() { return btQuaternion{x, y, z, w}; };
+
+  static const quat identity;
 };
+
+inline const quat quat::identity = quat{0,0,0,1};
 
 // Two by two matrix
 struct mat2 {
@@ -243,6 +247,10 @@ struct mat4 {
 
   vec4& operator[](usize i);
 };
+
+static constexpr usize KB = 1024lu;
+static constexpr usize MB = 1024lu * 1024lu;
+static constexpr usize GB = 1024lu * 1024lu * 1024lu;
 
 }; // namespace quark
 

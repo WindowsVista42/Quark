@@ -3,6 +3,9 @@
 #include <iostream>
 #include <vector>
 
+#include <filesystem>
+#include <typeindex>
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 

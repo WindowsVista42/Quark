@@ -65,9 +65,9 @@ class CollisionShape : btCollisionShape {
 public:
   static constexpr auto in_place_delete = true;
 
-  static CollisionShape* box(vec3 halfdim) { return new BoxShape({halfdim.x, halfdim.y, halfdim.z}); }
-  static CollisionShape* sphere(f32 radius) { return new SphereShape(radius); }
-  static CollisionShape* capsule(f32 height, f32 radius) { return new CapsuleShape(height, radius); }
+  static CollisionShape* box(vec3 halfdim) { return (CollisionShape*)(BoxShape*)(new btBoxShape({halfdim.x, halfdim.y, halfdim.z})); }
+  static CollisionShape* sphere(f32 radius) { return (CollisionShape*)(SphereShape*)(new btSphereShape(radius)); }
+  static CollisionShape* capsule(f32 height, f32 radius) { return (CollisionShape*)(CapsuleShape*)(new btCapsuleShape(height, radius)); }
 
   i32 type() { return this->m_shapeType; }
 
@@ -160,8 +160,10 @@ public:
   static RigidBody create(CreateInfo create_info) {
     btRigidBody::btRigidBodyConstructionInfo rb_info(0, 0, 0, {});
     auto self = RigidBody(rb_info);
-    self.
+    return self;
   }
+
+  RigidBody(): btRigidBody(0, 0, 0) {}
 
 // getters
 
@@ -293,11 +295,13 @@ static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 ma
     local_inertia = shape->calc_local_inertia(mass);
   }
 
-  btTransform transform = btTransform::getIdentity();
-  transform.setOrigin(origin);
+  //btTransform transform = btTransform::getIdentity();
+  //transform.setOrigin(origin);
   btRigidBody::btRigidBodyConstructionInfo rb_info(mass, 0, (btCollisionShape*)shape, local_inertia);
   RigidBody body = RigidBody(rb_info);
 
+  body.pos(origin);
+  body.rot(quat::identity);
   body.entity(e);
   body.thresholds(1e-7, 1e-7);
 
@@ -305,10 +309,9 @@ static RigidBody create_rb2(Entity e, CollisionShape* shape, vec3 origin, f32 ma
 }
 
 static void delete_rb(btRigidBody* body) {
-  delete body->getMotionState();
   delete body->getCollisionShape();
   physics_world->removeRigidBody(body);
-  delete body;
+  //delete body;
 }
 
 static void delete_co(btCollisionObject* obj) {
@@ -329,8 +332,9 @@ void deinit();
 namespace internal {
 
 static void add_rb_to_world(entt::registry& reg, entt::entity e) {
-  RigidBody* body = reg.get<RigidBody*>(e);
-  physics_world->addRigidBody((btRigidBody*)body, 1, 1);
+  RigidBody& body = reg.get<RigidBody>(e);
+  physics_world->addRigidBody((btRigidBody*)&body, 1, 1);
+  body.activate();
 }
 
 static void add_co_to_world(entt::registry& reg, entt::entity e) {
@@ -344,8 +348,8 @@ static void add_go_to_world(entt::registry& reg, entt::entity e) {
 }
 
 static void remove_rb_from_world(entt::registry& reg, entt::entity e) {
-  RigidBody* body = reg.get<RigidBody*>(e);
-  delete_rb((btRigidBody*)body);
+  RigidBody& body = reg.get<RigidBody>(e);
+  delete_rb((btRigidBody*)&body);
 }
 
 static void remove_co_from_world(entt::registry& reg, entt::entity e) {

@@ -1,29 +1,19 @@
-#pragma once
-#ifndef QUARK_ECS_IMPL_HPP
-#define QUARK_ECS_IMPL_HPP
-
-#include "quark_ecs.hpp"
+#include "quark.hpp"
 
 namespace quark {
 namespace ecs {
 using namespace quark;
 using namespace ecs;
 
-static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
-  rel_pos = rotate(rel_pos, base_rot);
-  rel_pos += base_pos;
-  return rel_pos;
-};
-
-static entt::entity create() { return registry.create(); };
-static void destroy(entt::entity e) { registry.destroy(e); }
-static void recursively_destroy(entt::entity e, bool destroy_root) {
+entt::entity create() { return registry.create(); };
+void destroy(entt::entity e) { registry.destroy(e); }
+void recursively_destroy(entt::entity e, bool destroy_root) {
   // TLDR sean: recursively deletes children two layers deep
   Children* children0 = ecs::try_get<Children>(e);
   if (children0) { // layer0 has children
     // iterate through layer0 children
     for (usize i0 = 0; i0 < children0->count; i0 += 1) {
-      entt::entity child_e0 = children0->children[i0];
+      Entity child_e0 = children0->children[i0];
       Children* children1 = ecs::try_get<Children>(child_e0);
 
       if (children1) { // layer1 has children
@@ -61,19 +51,13 @@ static void recursively_destroy(entt::entity e, bool destroy_root) {
   }
 }
 
-template <typename T> static void add(entt::entity e, T t) { registry.emplace<T>(e, t); }
-template <typename T> static T& get(entt::entity e) { return registry.get<T>(e); }
-template <typename T> T& get_first() { return registry.get<T>(registry.view<T>().front()); }
-template <typename T> static T* try_get(entt::entity e) { return registry.try_get<T>(e); }
-template <typename... T> static bool has(entt::entity e) { return registry.all_of<T...>(e); }
-
-static void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
+void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
   ecs::add(e, Position{pos});
   ecs::add(e, Rotation{rot});
   ecs::add(e, Scale{scl});
 }
 
-static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
+void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
   ecs::add(e, Color{col});
   ecs::add(e, mesh);
 
@@ -95,7 +79,7 @@ static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_fla
   }
 }
 
-static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
+void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
   CollisionBody* coll = new CollisionBody();
 
   btTransform transform;
@@ -113,16 +97,17 @@ static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
   ecs::add(e, coll);
 }
 
-static void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass) {
-  RigidBody* body = (RigidBody*)physics::create_rb(e, shape, pos, mass);
+void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass) {
+  RigidBody body = physics::create_rb2(e, shape, pos, mass);
 
   // physics_world->addRigidBody(body, 1, 1);
-  ecs::add<RigidBody*>(e, body);
+  ecs::add<RigidBody>(e, body);
+  RigidBody& body2 = ecs::get<RigidBody>(e);
 
-  body->activate();
+  //body.activate();
 }
 
-static void add_parent(entt::entity e, entt::entity parent) {
+void add_parent(entt::entity e, entt::entity parent) {
   // add parent
   ecs::add<Parent>(e, Parent{parent});
 
@@ -143,7 +128,7 @@ static void add_parent(entt::entity e, entt::entity parent) {
   children->count += 1;
 }
 
-static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
+Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
   Parent* p = ecs::try_get<Parent>(e);
   if (p == 0) {
     panic("Please add parent to child before calling add_relative_transform!\n");
@@ -169,16 +154,22 @@ static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, Rel
   return t;
 }
 
-// static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
-static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot) {
+Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
+  rel_pos = rotate(rel_pos, base_rot);
+  rel_pos += base_pos;
+  return rel_pos;
+};
+
+// Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
+Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot) {
   return Transform{
       mul_transform_position(rel_pos, base_pos, base_rot),
       Rotation{mul_quat(rel_rot, base_rot)},
   };
 }
 
-// static void update_children(); //
-static void update_entity_hierarchies() {
+// void update_children(); //
+void update_entity_hierarchies() {
   // pros:
   // simpler
   // maybe easier to do heirarchy?
@@ -221,7 +212,7 @@ static void update_entity_hierarchies() {
   //}
 }
 
-static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
+void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
   Position p_pos = ecs::get<Position>(parent.parent);
   Rotation p_rot = ecs::get<Rotation>(parent.parent);
 
@@ -233,5 +224,3 @@ static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot
 
 }; // namespace ecs
 }; // namespace quark
-
-#endif

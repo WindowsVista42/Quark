@@ -260,7 +260,7 @@ static void* reflz(V (*F)(T*), void* t) {
 }
 
 template <typename T, typename V, V (T::*GET)(), void (T::*SET)(V)>
-static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
+static constexpr void add_function(const char* name, const bool reads_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
   entt::type_info type = entt::type_id<T>();
@@ -286,7 +286,7 @@ static constexpr void add_function(const char* name, const bool reads_ptr) {//V 
 }
 
 template <typename T, typename V, V (T::*GET)(), int b>
-static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
+static constexpr void add_function(const char* name, const bool reads_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
   entt::type_info type = entt::type_id<T>();
@@ -312,7 +312,7 @@ static constexpr void add_function(const char* name, const bool reads_ptr) {//V 
 }
 
 template <typename T, typename V, int a, void (T::*SET)(V)>
-static constexpr void add_function(const char* name, const bool reads_ptr) {//V (T::*get)(), void (T::*set)(V)) {
+static constexpr void add_function(const char* name, const bool reads_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
   using namespace internal;
 
   entt::type_info type = entt::type_id<T>();
@@ -409,7 +409,7 @@ static void init() {
 
   reflect::add_name<CollisionBody*>("Collision Body");
   reflect::add_name<GhostBody*>("Ghost Body");
-  reflect::add_name<RigidBody*>("Rigid Body");
+  reflect::add_name<RigidBody>("Rigid Body");
 
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
   reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
@@ -437,21 +437,21 @@ static void init() {
   reflect::add_function<CollisionBody, bool, &CollisionBody::active, &CollisionBody::active>("Active", true);
   reflect::add_function<CollisionBody, i32, &CollisionBody::flags, &CollisionBody::flags>("Collision Flags", true);
 
-  reflect::add_function<RigidBody, vec3, &RigidBody::pos, &RigidBody::pos>("Position", true);
-  reflect::add_function<RigidBody, quat, &RigidBody::rot, &RigidBody::rot>("Rotation", true);
-  reflect::add_function<RigidBody, Entity, &RigidBody::entity, &RigidBody::entity>("Entity", true);
-  reflect::add_function<RigidBody, CollisionShape*, &RigidBody::shape, &RigidBody::shape>("Collision Shape", true);
-  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active", true);
-  reflect::add_function<RigidBody, i32, &RigidBody::flags, &RigidBody::flags>("Collision Flags", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity", true);
-  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening", true);
-  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse", true);
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force", true);
-  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque", true);
+  reflect::add_function<RigidBody, vec3, &RigidBody::pos, &RigidBody::pos>("Position");
+  reflect::add_function<RigidBody, quat, &RigidBody::rot, &RigidBody::rot>("Rotation");
+  reflect::add_function<RigidBody, Entity, &RigidBody::entity, &RigidBody::entity>("Entity");
+  reflect::add_function<RigidBody, CollisionShape*, &RigidBody::shape, &RigidBody::shape>("Collision Shape");
+  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active");
+  reflect::add_function<RigidBody, i32, &RigidBody::flags, &RigidBody::flags>("Collision Flags");
+  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity");
+  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity");
+  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening");
+  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque");
+  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force");
+  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque");
 
   reflect::add_function<GhostBody, vec3, &GhostBody::pos, &GhostBody::pos>("Position", true);
   reflect::add_function<GhostBody, quat, &GhostBody::rot, &GhostBody::rot>("Rotation", true);

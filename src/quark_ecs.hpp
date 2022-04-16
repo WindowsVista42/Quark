@@ -1,57 +1,48 @@
 #pragma once
-#ifndef QUARK_ECS_HPP
-#define QUARK_ECS_HPP
-
 #include "quark.hpp"
 
 namespace quark {
 namespace ecs {
 namespace types {
-struct Transform {
-  Position pos;
-  Rotation rot;
-};
 
 enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME };
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
-
-typedef entt::entity Entity;
 
 }; // namespace types
 using namespace types;
 
 constexpr Entity null = entt::null;
 
-inline entt::basic_registry<entt::entity> registry;
+inline entt::basic_registry<Entity> registry;
 
-static entt::entity create();
-static void destroy(entt::entity e);
-static void recursively_destroy(entt::entity e, bool destroy_root = true);
+Entity create();
+void destroy(Entity e);
+void recursively_destroy(Entity e, bool destroy_root = true);
 
-template <typename T> void add(entt::entity e, T t);
-template <typename T> T& get(entt::entity e);
-template <typename T> T& get_first();
-template <typename T> T* try_get(entt::entity e);
-template <typename... T> bool has(entt::entity e);
+template <typename T> static void add(Entity e, T t) { registry.emplace<T>(e, t); }
+template <typename T> static T& get(Entity e) { return registry.get<T>(e); }
+template <typename T> T& get_first() { return registry.get<T>(registry.view<T>().front()); }
+template <typename T> static T* try_get(Entity e) { return registry.try_get<T>(e); }
+template <typename... T> static bool has(Entity e) { return registry.all_of<T...>(e); }
 
-static void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl);
-static void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
-static void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl);
-static void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass);
-static void add_parent(entt::entity e, entt::entity parent);
-static Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
+void add_transform(Entity e, vec3 pos, vec4 rot, vec3 scl);
+void add_render(Entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
+void add_raycast(Entity e, Position pos, Rotation rot, Scale scl);
+void add_rigid_body(Entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass);
+void add_parent(Entity e, Entity parent);
+Transform add_relative_transform(Entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
 
 // static Position mul_transform_position(RelPos rel_pos, Pos base_pos, Rotation base_rot);
 // static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Pos base_pos, Rotation base_rot);
-static Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot);
-static Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
+Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot);
+Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
 
 // static void update_children(); // update_entity_hierarchies();
-static void update_entity_hierarchies();
+void update_entity_hierarchies();
 // static void sync_child_transform(Position& child_pos, Rotation& child_rot, RelPos rel_pos, RelRotation rel_rot,
 // Parent parent); // void synchronize_child_transform_with_parent(Pos& pos, Rotation& rot, RelPos rel_pos, RelRotation
 // rel_rot, Parent parent);
-static void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
+void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
 
 namespace internal {};
 #ifdef EXPOSE_QUARK_INTERNALS
@@ -61,8 +52,4 @@ using namespace internal;
 
 }; // namespace quark
 
-#include "quark_ecs_impl.hpp"
-
 using namespace quark::ecs::types;
-
-#endif

@@ -3,12 +3,6 @@
 #define QUARK_GAME_HPP
 
 #include "quark.hpp"
-#include <array>
-//#include <vulkan/vulkan.h>
-//
-//#include <entt/entity/entity.hpp>
-//
-//#include <vk_mem_alloc.h>
 
 namespace quark {
 using namespace quark;
@@ -182,6 +176,18 @@ struct Children {
   i32 count;
   entt::entity children[15]; // TODO sean: move this to some kind of allocator?
 };
+
+struct Transform {
+  Position pos;
+  Rotation rot;
+};
+
+struct RelTransform {
+  Position pos;
+  Rotation rot;
+};
+
+typedef entt::entity Entity;
 
 }; // namespace quark
 

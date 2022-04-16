@@ -20,8 +20,8 @@ void quark::init() {
   assets::add_type(renderer::load_frag_shader, renderer::unload_shader, ".frag.spv");
   assets::add_type(renderer::load_obj_mesh, renderer::unload_mesh, ".obj");
 
-  ecs::registry.on_construct<RigidBody*>().connect<&physics::add_rb_to_world>();
-  ecs::registry.on_destroy<RigidBody*>().connect<&physics::remove_rb_from_world>();
+  ecs::registry.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
+  ecs::registry.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
 
   ecs::registry.on_construct<CollisionBody*>().connect<&physics::add_co_to_world>();
   ecs::registry.on_destroy<CollisionBody*>().connect<&physics::remove_co_from_world>();
@@ -86,6 +86,7 @@ void quark::run() {
       renderer::print_performance_statistics();
     }
     glfwPollEvents();
+    scratch_alloc.reset();
 
     auto frame_end_time = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
