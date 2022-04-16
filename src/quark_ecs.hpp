@@ -79,6 +79,8 @@ static void add_raycast2(Entity e, BoxShape shape) {
   coll.shape(shape_ptr);
   coll.flags(0);
   coll.entity(e);
+
+  ecs::add(e, coll);
 }
 
 void add_transform2(Entity e, Position pos, Rotation rot);
