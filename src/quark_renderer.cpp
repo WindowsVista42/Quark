@@ -1283,10 +1283,10 @@ void quark::renderer::internal::begin_forward_rendering() {
     RenderConstants* rc_data = (RenderConstants*)rc_ptr;
 
     u32 counter = 0;
-    auto lights = ecs::registry.view<Position, Color, IsLight>();
-    for (auto [e, pos, col] : lights.each()) {
+    auto lights = ecs::registry.view<Transform, Color, IsLight>();
+    for (auto [e, transform, col] : lights.each()) {
       vec4 p;
-      p.xyz = pos;
+      p.xyz = transform.pos;
       p.w = 50.0f;
       rc_data->lights[counter].position = p;
       rc_data->lights[counter].color = col;
@@ -1535,10 +1535,10 @@ void quark::renderer::render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    const auto shadow_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, UseShadowPass>();
-    for (auto [e, pos, rot, scl, mesh] : shadow_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        draw_shadow(pos, rot, scl, mesh);
+    const auto shadow_pass = ecs::registry.view<Transform, Extents, Mesh, UseShadowPass>();
+    for (auto [e, transform, scl, mesh] : shadow_pass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        draw_shadow(transform.pos, transform.rot, scl, mesh);
       }
     }
   }
@@ -1549,10 +1549,10 @@ void quark::renderer::render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass = ecs::registry.view<Position, Rotation, Scale, Mesh>(entt::exclude<IsTransparent>);
-    for (auto [e, pos, rot, scl, mesh] : depth_prepass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        draw_depth(pos, rot, scl, mesh);
+    const auto depth_prepass = ecs::registry.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
+    for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        draw_depth(transform.pos, transform.rot, scl, mesh);
       }
     }
   }
@@ -1561,28 +1561,28 @@ void quark::renderer::render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    const auto lit_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, UseLitPass>();
-    for (auto [e, pos, rot, scl, mesh] : lit_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        add_to_render_batch(pos, rot, scl, mesh);
+    const auto lit_pass = ecs::registry.view<Transform, Extents, Mesh, UseLitPass>();
+    for (auto [e, transform, scl, mesh] : lit_pass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        add_to_render_batch(transform.pos, transform.rot, scl, mesh);
       }
     }
     end_lit_pass();
 
     begin_solid_pass();
-    const auto solid_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, Color, UseSolidPass>();
-    for (auto [e, pos, rot, scl, mesh, col] : solid_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        draw_color(pos, rot, scl, col, mesh);
+    const auto solid_pass = ecs::registry.view<Transform, Extents, Mesh, Color, UseSolidPass>();
+    for (auto [e, transform, scl, mesh, col] : solid_pass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        draw_color(transform.pos, transform.rot, scl, col, mesh);
       }
     }
     end_solid_pass();
 
     begin_wireframe_pass();
-    const auto wireframe_pass = ecs::registry.view<Position, Rotation, Scale, Mesh, Color, UseWireframePass>();
-    for (auto [e, pos, rot, scl, mesh, col] : wireframe_pass.each()) {
-      if (box_in_frustum(pos, scl)) {
-        draw_color(pos, rot, scl, col, mesh);
+    const auto wireframe_pass = ecs::registry.view<Transform, Extents, Mesh, Color, UseWireframePass>();
+    for (auto [e, transform, scl, mesh, col] : wireframe_pass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        draw_color(transform.pos, transform.rot, scl, col, mesh);
       }
     }
 

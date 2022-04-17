@@ -149,13 +149,13 @@ void main() {
   //lighting_color *= fac;
 
   // Metalic
-  vec3 sun_pos = in_sun_position.xyz / in_sun_position.w;
-  vec3 ad = vec3(0.0f, 0.0f, 0.0f);
-  if(sun_pos.x > 0.0f) {
-    ad = vec3(1.0f, 1.0f, 1.0f);
-  }
+  //vec3 sun_pos = in_sun_position.xyz / in_sun_position.w;
+  //vec3 ad = vec3(0.0f, 0.0f, 0.0f);
+  //if(sun_pos.x > 0.0f) {
+  //  ad = vec3(1.0f, 1.0f, 1.0f);
+  //}
 
-  vec3 tonemapped = aces(lighting_color + ad);
+  vec3 tonemapped = aces(lighting_color);
 
   // Toon?
   //const float factor = 64.0f;

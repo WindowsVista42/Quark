@@ -13,6 +13,10 @@
 #include "quark_allocators.hpp"
 #include "quark_assets.hpp"
 #include "quark_physics.hpp"
+
+namespace quark {
+inline std::unordered_map<std::string, Scale> mesh_scales;
+};
 #include "quark_ecs.hpp"
 #include "quark_platform.hpp"
 #include "quark_reflect.hpp"
@@ -31,7 +35,6 @@ inline void (*update_func)();
 inline void (*deinit_func)();
 
 // Map of meshes offsets to mesh dimensions
-inline std::unordered_map<std::string, Scale> mesh_scales;
 inline bool enable_physics_bounding_box_visor = false;
 
 // Functions

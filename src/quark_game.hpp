@@ -39,6 +39,9 @@ TRANSPARENT_TYPE(Rotation, quat);
 // Global world scale
 TRANSPARENT_TYPE(Scale, vec3);
 
+// Extents of the entity
+TRANSPARENT_TYPE(Extents, vec3);
+
 // Color
 TRANSPARENT_TYPE(Color, vec4);
 
@@ -186,10 +189,14 @@ struct Transform {
 
 inline const Transform Transform::identity = Transform { VEC3_ZERO, quat::identity };
 
-struct RelTransform {
+struct ChildTransform {
   Position pos;
   Rotation rot;
+
+  static const ChildTransform identity;
 };
+
+inline const ChildTransform ChildTransform::identity = ChildTransform { VEC3_ZERO, quat::identity };
 
 typedef entt::entity Entity;
 
