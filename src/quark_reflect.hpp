@@ -402,6 +402,7 @@ static void init() {
   reflect::add_name<RelRotation>("Relative Rotation");
 
   reflect::add_name<Mesh>("Mesh");
+  reflect::add_name<IsLight>("Is Light");
   reflect::add_name<UseLitPass>("Lighting Pass");
   reflect::add_name<UseShadowPass>("Shadow Pass");
   reflect::add_name<UseSolidPass>("Solid Color Pass");
@@ -560,10 +561,6 @@ static void print_components(Entity e) {
       void* data = storage.get(e);
       entt::type_info info = storage.type();
       entt::id_type type = info.hash();
-
-      if(storage.policy() == entt::deletion_policy::in_place) {
-        std::cout << info.name() << std::endl;
-      };
 
       print_reflection(data, "", info, true, false, "  ");
     }

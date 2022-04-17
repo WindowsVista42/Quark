@@ -9,9 +9,6 @@ using namespace renderer;
 void quark::init() {
   using namespace quark;
 
-  entt::storage_traits<Entity, RigidBody>::storage_type& storage = ecs::registry.storage<RigidBody>();
-    entt::storage_traits<Entity, RigidBody>::storage_type::basic_storage();
-
   scratch_alloc.init(100 * MB);
   render_alloc.init(100 * MB);
 
