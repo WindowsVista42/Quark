@@ -218,7 +218,7 @@ void update_entity_hierarchies() {
   // Read these first because they are guaranteed layer 1
   f32 a = 0.0;
   // auto view_layer1 = registry.view<RelPosition, RelRotation, Position, Rotation, Parent, Children>();
-  auto view_layer1 = registry.view<Transform, ChildTransform, Parent, Children>();
+  auto view_layer1 = registry.view<Transform, TransformOffset, Parent, Children>();
   for (auto [e, transform, child_transform, parent, children] : view_layer1.each()) {
     transform = calc_transform_from_parent(parent, child_transform);
   }
@@ -226,7 +226,7 @@ void update_entity_hierarchies() {
   // Read these second because they are either layer 1 or or layer 2
   // auto view_layer2 = registry.view<RelPosition, RelRotation, Position, Rotation,
   // Parent>(entt::exclude_t<Children>());
-  auto view_layer2 = registry.view<Transform, ChildTransform, Parent>(entt::exclude<Children>);
+  auto view_layer2 = registry.view<Transform, TransformOffset, Parent>(entt::exclude<Children>);
   for (auto [e, transform, child_transform, parent] : view_layer2.each()) {
     transform = calc_transform_from_parent(parent, child_transform);
   }

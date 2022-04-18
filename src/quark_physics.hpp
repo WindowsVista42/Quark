@@ -110,9 +110,9 @@ public:
 
 // getters
 
-  btTransform transform() { return this->getWorldTransform(); };
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
   quat rot() { return this->getWorldTransform().getRotation(); }
+  Transform transform() { return Transform { .pos = pos(), .rot = rot() }; }
 
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
   CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
@@ -121,9 +121,9 @@ public:
 
 // setters
 
-  void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
+  void transform(Transform transform) { pos(transform.pos); rot(transform.rot); }
 
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
   void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }
@@ -176,9 +176,9 @@ public:
 
 // getters
 
-  btTransform transform() { return this->getWorldTransform(); };
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
   quat rot() { return this->getWorldTransform().getRotation(); }
+  Transform transform() { return Transform { .pos = pos(), .rot = rot() }; }
   vec3 linvel() { return this->getLinearVelocity(); }
   vec3 angvel() { return this->getAngularVelocity(); }
   vec3 linfac() { return this->getLinearFactor(); }
@@ -196,9 +196,9 @@ public:
 
 // setters
 
-  void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(rot); }
+  void transform(Transform transform) { pos(transform.pos); rot(transform.rot); }
   void linvel(vec3 linvel) { this->setLinearVelocity(btVector3(linvel.x, linvel.y, linvel.z)); }
   void angvel(vec3 angvel) { this->setAngularVelocity(btVector3(angvel.x, angvel.y, angvel.z)); }
   void linfac(vec3 fac) { this->setLinearFactor(fac); }
@@ -230,9 +230,9 @@ public:
 
 // getters
 
-  btTransform transform() { return this->getWorldTransform(); };
   vec3 pos() { return this->getWorldTransform().getOrigin(); }
   quat rot() { return this->getWorldTransform().getRotation(); }
+  Transform transform() { return Transform { .pos = pos(), .rot = rot() }; }
 
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
   CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
@@ -243,9 +243,9 @@ public:
 
 // setters
 
-  void transform(btTransform transform) { this->setWorldTransform(transform); }
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
+  void transform(Transform transform) { pos(transform.pos); rot(transform.rot); }
 
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
   void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }

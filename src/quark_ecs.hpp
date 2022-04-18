@@ -9,7 +9,12 @@ enum RenderFlags { RENDER_LIT, RENDER_SOLID, RENDER_WIREFRAME, RENDER_SHADOW };
 enum CollisionShapeFlags { COLLISION_SHAPE_BOX, COLLISION_SHAPE_SPHERE, COLLISION_SHAPE_CAPSULE };
 
 namespace Effect {
-  enum e { Lit, Solid, Wireframe, Shadow };
+  enum e {
+    Lit = 0x1,
+    Solid = 0x2,
+    Wireframe = 0x4,
+    Shadow = 0x8,
+  };
 };
 
 }; // namespace types
@@ -108,7 +113,7 @@ static void add_selection_box(Entity e, BoxShape shape) {
 
 static void add_mesh(Entity e, const char* mesh_name, const vec3 scale = {1.0f, 1.0f, 1.0f}) {
   Mesh mesh = assets::get<Mesh>(mesh_name);
-  Extents extents = mesh_scales.at(std::string(mesh_name) + ".obj") * scale;
+  Extents extents = mesh_scales.at(std::string(mesh_name) + ".obj") * (scale / 2.0f);
   ecs::add(e, mesh, extents);
 }
 
@@ -136,10 +141,10 @@ static void add_effect(Entity e, u32 render_effect = Effect::Lit | Effect::Shado
 // rel_rot, Parent parent);
 //void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent);
 
-static Transform mul_transform(Transform parent, ChildTransform child) {
+static Transform mul_transform(Transform parent, TransformOffset offset) {
   return Transform {
-    .pos = rotate(child.pos, parent.rot) + parent.pos,
-    .rot = mul_quat(child.rot, parent.rot),
+    .pos = rotate(offset.pos, parent.rot) + parent.pos,
+    .rot = mul_quat(offset.rot, parent.rot),
   };
 }
 
@@ -163,20 +168,20 @@ static void add_parent(Entity child, Entity parent) {
   children->count += 1;
 
   // sync childs transform if it has the right components
-  if(!ecs::has<ChildTransform>(child)) { return; }
+  if(!ecs::has<TransformOffset>(child)) { return; }
 
-  ChildTransform& child_child_transform = ecs::get<ChildTransform>(child);
+  TransformOffset& child_transform_offset = ecs::get<TransformOffset>(child);
   Transform& child_transform = ecs::get<Transform>(child);
   Transform& parent_transform = ecs::get<Transform>(parent);
 
-  child_transform = mul_transform(parent_transform, child_child_transform);
+  child_transform = mul_transform(parent_transform, child_transform_offset);
 }
 
 void update_entity_hierarchies();
 
-static Transform calc_transform_from_parent(Parent parent, ChildTransform child_transform) {
+static Transform calc_transform_from_parent(Parent parent, TransformOffset transform_offset) {
   Transform parent_transform = ecs::get<Transform>(parent.parent);
-  return mul_transform(parent_transform, child_transform);
+  return mul_transform(parent_transform, transform_offset);
 }
 
 namespace internal {};

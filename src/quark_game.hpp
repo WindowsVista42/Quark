@@ -189,14 +189,14 @@ struct Transform {
 
 inline const Transform Transform::identity = Transform { VEC3_ZERO, quat::identity };
 
-struct ChildTransform {
+struct TransformOffset {
   Position pos;
   Rotation rot;
 
-  static const ChildTransform identity;
+  static const TransformOffset identity;
 };
 
-inline const ChildTransform ChildTransform::identity = ChildTransform { VEC3_ZERO, quat::identity };
+inline const TransformOffset TransformOffset::identity = TransformOffset { VEC3_ZERO, quat::identity };
 
 typedef entt::entity Entity;
 
