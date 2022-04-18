@@ -51,63 +51,39 @@ void recursively_destroy(entt::entity e, bool destroy_root) {
   }
 }
 
-//void add_transform(entt::entity e, vec3 pos, vec4 rot, vec3 scl) {
-//  ecs::add(e, Position{pos});
-//  ecs::add(e, Rotation{rot});
-//  ecs::add(e, Scale{scl});
-//}
-//
-//void add_render(entt::entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows) {
-//  ecs::add(e, Color{col});
-//  ecs::add(e, mesh);
-//
-//  switch (render_flags) {
-//  case (RENDER_LIT): {
-//    ecs::add(e, UseLitPass{});
-//  } break;
-//  case (RENDER_SOLID): {
-//    ecs::add(e, UseSolidPass{});
-//  } break;
-//  case (RENDER_WIREFRAME): {
-//    ecs::add(e, UseWireframePass{});
-//    ecs::add(e, IsTransparent{});
-//  } break;
-//  }
-//
-//  if (render_shadows) {
-//    ecs::add(e, UseShadowPass{});
-//  }
-//}
+#define IMPL_ADD_COLLISION_BODY(Shape) \
+  Transform transform = ecs::get<Transform>(e); \
+ \
+  ecs::add<Shape>(e, info.shape); \
+  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<Shape>(e); \
+ \
+  CollisionBody coll = CollisionBody(); \
+  coll.pos(transform.pos); \
+  coll.rot(transform.rot); \
+  coll.shape(shape_ptr); \
+  coll.entity(e); \
+ \
+  coll.flags(info.flags); \
+ \
+  ecs::add(e, coll); \
 
-//void add_raycast(entt::entity e, Position pos, Rotation rot, Scale scl) {
-//  CollisionBody coll = CollisionBody();
-//
-//  btTransform transform;
-//
-//  transform.setOrigin({pos.x, pos.y, pos.z});
-//  transform.setRotation({rot.x, rot.y, rot.z, rot.w});
-//
-//  auto box = BoxShape(scl);
-//  ecs::add<BoxShape>(e, box);
-//  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<BoxShape>(e);
-//
-//  coll.transform(transform);
-//  coll.shape(shape_ptr);
-//  coll.flags(0);
-//  coll.entity(e);
-//
-//  ecs::add<CollisionBody>(e, coll);
-//}
-//
-//void add_rigid_body(entt::entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass) {
-//  RigidBody body = physics::create_rb2(e, shape, pos, mass);
-//
-//  // physics_world->addRigidBody(body, 1, 1);
-//  ecs::add<RigidBody>(e, body);
-//  RigidBody& body2 = ecs::get<RigidBody>(e);
-//
-//  //body.activate();
-//}
+void add_collision_body(Entity e, CollisionBodyInfoBox info) {
+  IMPL_ADD_COLLISION_BODY(BoxShape)
+}
+
+void add_collision_body(Entity e, CollisionBodyInfoSphere info) {
+  IMPL_ADD_COLLISION_BODY(SphereShape)
+}
+
+void add_collision_body(Entity e, CollisionBodyInfoCapsule info) {
+  IMPL_ADD_COLLISION_BODY(CapsuleShape)
+}
+
+void add_selection_box(Entity e, BoxShape shape) {
+  add_collision_body(e, {.shape = shape, .flags = 0});
+}
+
+#undef IMPL_ADD_COLLISION_BODY
 
 #define IMPL_ADD_RIGID_BODY(Shape) \
   Transform transform = ecs::get<Transform>(e); \
@@ -122,7 +98,12 @@ void recursively_destroy(entt::entity e, bool destroy_root) {
   body.pos(transform.pos); \
   body.rot(transform.rot); \
   body.entity(e); \
-  body.thresholds(1e-7, 1e-7); \
+ \
+  body.lindamp(info.lindamp); \
+  body.angdamp(info.angdamp); \
+  body.friction(info.friction); \
+  body.restitution(info.restitution); \
+  body.thresholds(info.linear_sleeping_threshold, info.angular_sleeping_threshold); \
  \
   ecs::add<RigidBody>(e, body); \
 
@@ -138,66 +119,37 @@ void add_rigid_body(Entity e, RigidBodyInfoCapsule info) {
   IMPL_ADD_RIGID_BODY(CapsuleShape)
 }
 
-//void add_parent(entt::entity e, entt::entity parent) {
-//  // add parent
-//  ecs::add<Parent>(e, Parent{parent});
-//
-//  Children* children = ecs::try_get<Children>(parent);
-//
-//  // add children component to parent if they dont exist
-//  if (children == 0) {
-//    ecs::add(parent, Children{0, {}});
-//    children = ecs::try_get<Children>(parent);
-//  }
-//
-//  if (children->count >= 15) {
-//    panic("Tried to add more than 15 children to entity!");
-//  }
-//
-//  // add child
-//  children->children[children->count] = e;
-//  children->count += 1;
-//}
+#undef IMPL_ADD_RIGID_BODY
 
-//Transform add_relative_transform(entt::entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl) {
-//  Parent* p = ecs::try_get<Parent>(e);
-//  if (p == 0) {
-//    panic("Please add parent to child before calling add_relative_transform!\n");
-//  }
-//
-//  ecs::add(e, RelPosition{rel_pos});
-//  ecs::add(e, RelRotation{rel_rot});
-//
-//  // TODO(sean): use syncronize_child_transform_with_parent
-//
-//  Position pos = Position{rel_pos};
-//  Rotation rot = Rotation{rel_rot};
-//
-//  Position p_pos = ecs::get<Position>(p->parent);
-//  Rotation p_rot = ecs::get<Rotation>(p->parent);
-//
-//  auto t = mul_transform(Position{rel_pos}, Rotation{rel_rot}, p_pos, p_rot);
-//
-//  ecs::add(e, Position{t.pos});
-//  ecs::add(e, Rotation{t.rot});
-//  ecs::add(e, Scale{scl});
-//
-//  return t;
-//}
+#define IMPL_ADD_GHOST_BODY(Shape) \
+  auto transform = ecs::get<Transform>(e); \
+ \
+  ecs::add<Shape>(e, info.shape); \
+  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<Shape>(e); \
+ \
+  GhostBody ghost = GhostBody(); \
+  ghost.shape(shape_ptr); \
+  ghost.pos(transform.pos); \
+  ghost.rot(transform.rot); \
+  ghost.entity(e); \
+ \
+  ghost.flags(info.flags); \
+ \
+  ecs::add(e, ghost); \
 
-//Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot) {
-//  rel_pos = rotate(rel_pos, base_rot);
-//  rel_pos += base_pos;
-//  return rel_pos;
-//};
-//
-//// Position mul_transform_position(RelPosition rel_pos, Position base_pos, Rotation base_rot);
-//Transform mul_transform(RelPosition rel_pos, RelRotation rel_rot, Position base_pos, Rotation base_rot) {
-//  return Transform{
-//      mul_transform_position(rel_pos, base_pos, base_rot),
-//      Rotation{mul_quat(rel_rot, base_rot)},
-//  };
-//}
+void add_ghost_body(Entity e, GhostBodyInfoBox info) {
+  IMPL_ADD_GHOST_BODY(BoxShape)
+}
+
+void add_ghost_body(Entity e, GhostBodyInfoSphere info) {
+  IMPL_ADD_GHOST_BODY(SphereShape)
+}
+
+void add_ghost_body(Entity e, GhostBodyInfoCapsule info) {
+  IMPL_ADD_GHOST_BODY(CapsuleShape)
+}
+
+#undef IMPL_ADD_GHOST_BODY
 
 // void update_children(); //
 void update_entity_hierarchies() {
@@ -208,12 +160,8 @@ void update_entity_hierarchies() {
   // loads parents multiple times
 
   // Parents of children
-  // auto view_layer0 = registry.view<Rotation, Children>(entt::exclude_t<Parent>());
   auto view_layer0 = registry.view<Children>(entt::exclude<Parent>);
-  for (auto [e, children] : view_layer0.each()) {
-    // rot = axis_angle(normalize(vec3{2.0, 1.0, 0.0}), tt);
-    // rot = Rotation{q};
-  }
+  for (auto [e, children] : view_layer0.each()) {}
 
   // Read these first because they are guaranteed layer 1
   f32 a = 0.0;
@@ -224,8 +172,6 @@ void update_entity_hierarchies() {
   }
 
   // Read these second because they are either layer 1 or or layer 2
-  // auto view_layer2 = registry.view<RelPosition, RelRotation, Position, Rotation,
-  // Parent>(entt::exclude_t<Children>());
   auto view_layer2 = registry.view<Transform, TransformOffset, Parent>(entt::exclude<Children>);
   for (auto [e, transform, child_transform, parent] : view_layer2.each()) {
     transform = calc_transform_from_parent(parent, child_transform);
@@ -235,23 +181,10 @@ void update_entity_hierarchies() {
   // auto view2 = registry.view<Position, Children>();
   // for(auto [e, pos, children]: view2.each()) {
   //  for(i32 i = 0; i < children.count; i += 1) {
-  //    Position& c_pos = ecs::get<Position>(children.children[i]);
-  //    RelPosition c_rel_pos = ecs::get<RelPosition>(children.children[i]);
-
-  //    c_pos.x = pos + c_rel_pos;
+  //    // update transforms
   //  }
   //}
 }
-
-//void synchronize_child_transform_with_parent(Position& pos, Rotation& rot, RelPosition rel_pos, RelRotation rel_rot, Parent parent) {
-//  Position p_pos = ecs::get<Position>(parent.parent);
-//  Rotation p_rot = ecs::get<Rotation>(parent.parent);
-//
-//  auto [out_pos, out_rot] = mul_transform(rel_pos, rel_rot, p_pos, p_rot);
-//
-//  pos = out_pos;
-//  rot = out_rot;
-//}
 
 }; // namespace ecs
 }; // namespace quark

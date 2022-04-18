@@ -133,6 +133,13 @@ public:
   void activate(bool force_activation = false) { ((btCollisionObject*)this)->activate(force_activation); }
 };
 
+namespace CollisionFlags {
+  enum e {
+    NoContact = CollisionBody::CF_NO_CONTACT_RESPONSE,
+    Character = CollisionBody::CF_CHARACTER_OBJECT,
+  };
+};
+
 class RigidBody : btRigidBody {
 public:
   using btRigidBody::operator new;
@@ -185,6 +192,8 @@ public:
   vec3 angfac() { return this->getAngularFactor(); }
   f32 lindamp() { return this->getLinearDamping(); }
   f32 angdamp() { return this->getAngularDamping(); }
+  f32 friction() { return this->getFriction(); }
+  f32 restitution() { return this->getRestitution(); }
 
   entt::entity entity() { return RbUserData {.ptr = this->getUserPointer()}.e; }
   CollisionShape* shape() { return (CollisionShape*)this->getCollisionShape(); }
@@ -205,6 +214,8 @@ public:
   void angfac(vec3 fac) { this->setAngularFactor(fac); }
   void lindamp(f32 damp) { this->setDamping(damp, this->angdamp()); }
   void angdamp(f32 damp) { this->setDamping(this->lindamp(), damp); }
+  void friction(f32 friction) { this->setFriction(friction); }
+  void restitution(f32 restitution) { this->setRestitution(restitution); }
   void thresholds(f32 lin, f32 ang) { this->setSleepingThresholds(lin,ang); }
 
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }

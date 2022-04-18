@@ -39,17 +39,11 @@ TRANSPARENT_TYPE(Rotation, quat);
 // Global world scale
 TRANSPARENT_TYPE(Scale, vec3);
 
-// Extents of the entity
+// Extents
 TRANSPARENT_TYPE(Extents, vec3);
 
 // Color
 TRANSPARENT_TYPE(Color, vec4);
-
-// World position relative to parent
-TRANSPARENT_TYPE(RelPosition, vec3);
-
-// World rotation (quaternion) relative to parent
-TRANSPARENT_TYPE(RelRotation, quat);
 
 #undef OLD_TRANSPARENT_TYPE
 #undef TRANSPARENT_TYPE

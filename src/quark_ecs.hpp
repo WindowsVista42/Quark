@@ -36,13 +36,6 @@ template <typename T> T& get_first() { return registry.get<T>(registry.view<T>()
 template <typename T> static T* try_get(Entity e) { return registry.try_get<T>(e); }
 template <typename... T> static bool has(Entity e) { return registry.all_of<T...>(e); }
 
-//void add_transform(Entity e, vec3 pos, vec4 rot, vec3 scl);
-//void add_render(Entity e, vec4 col, Mesh mesh, const u32 render_flags, const bool render_shadows = true);
-//void add_raycast(Entity e, Position pos, Rotation rot, Scale scl);
-//void add_rigid_body(Entity e, Position pos, Scale scl, CollisionShape* shape, f32 mass);
-//void add_parent(Entity e, Entity parent);
-//Transform add_relative_transform(Entity e, RelPosition rel_pos, RelRotation rel_rot, Scale scl);
-
 #define RBINFO \
   f32 mass = 1.0f; \
   f32 lindamp = 0.0f; \
@@ -73,21 +66,56 @@ void add_rigid_body(Entity e, RigidBodyInfoBox info);
 void add_rigid_body(Entity e, RigidBodyInfoSphere info);
 void add_rigid_body(Entity e, RigidBodyInfoCapsule info);
 
-static void add_selection_box(Entity e, BoxShape shape) {
-  Transform transform = ecs::get<Transform>(e);
+#define CBINFO \
+  i32 flags = 0; \
 
-  ecs::add<BoxShape>(e, shape);
-  CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<BoxShape>(e);
+struct CollisionBodyInfoBox {
+  BoxShape shape = BoxShape({1.0f, 1.0f, 1.0f});
+  CBINFO
+};
 
-  CollisionBody coll = CollisionBody();
-  coll.pos(transform.pos);
-  coll.rot(transform.rot);
-  coll.shape(shape_ptr);
-  coll.flags(0);
-  coll.entity(e);
+struct CollisionBodyInfoSphere {
+  SphereShape shape = SphereShape(1.0f);
+  CBINFO
+};
 
-  ecs::add(e, coll);
-}
+struct CollisionBodyInfoCapsule {
+  CapsuleShape shape = CapsuleShape(1.5f, 1.0f);
+  CBINFO
+};
+
+#undef CBINFO
+
+void add_collision_body(Entity e, CollisionBodyInfoBox info);
+void add_collision_body(Entity e, CollisionBodyInfoSphere info);
+void add_collision_body(Entity e, CollisionBodyInfoCapsule info);
+
+void add_selection_box(Entity e, BoxShape shape);
+
+#define GBINFO \
+  i32 flags = CollisionFlags::NoContact; \
+
+struct GhostBodyInfoBox {
+  BoxShape shape = BoxShape({1.0f, 1.0f, 1.0f});
+  GBINFO
+};
+
+struct GhostBodyInfoSphere {
+  SphereShape shape = SphereShape(1.0f);
+  GBINFO
+};
+
+struct GhostBodyInfoCapsule {
+  CapsuleShape shape = CapsuleShape(1.5f, 1.0f);
+  GBINFO
+};
+
+#undef GBINFO
+
+void add_ghost_body(Entity e, GhostBodyInfoBox info);
+void add_ghost_body(Entity e, GhostBodyInfoSphere info);
+void add_ghost_body(Entity e, GhostBodyInfoCapsule info);
+
 
 //template <typename T>
 //static void assert_components(Entity e, T t) {

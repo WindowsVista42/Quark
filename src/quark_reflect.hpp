@@ -395,11 +395,12 @@ static void init() {
   reflect::add_name<Rotation>("Rotation");
   reflect::add_name<Scale>("Scale");
   reflect::add_name<Color>("Color");
+  reflect::add_name<Transform>("Transform");
+  reflect::add_name<TransformOffset>("Transform Offset");
+  reflect::add_name<Extents>("Transform Offset");
 
   reflect::add_name<Parent>("Parent");
   reflect::add_name<Children>("Children");
-  reflect::add_name<RelPosition>("Relative Position");
-  reflect::add_name<RelRotation>("Relative Rotation");
 
   reflect::add_name<Mesh>("Mesh");
   reflect::add_name<IsLight>("Is Light");
@@ -425,13 +426,15 @@ static void init() {
   reflect::add_fields("parent", &Parent::parent);
   reflect::add_fields("count", &Children::count, "children", &Children::children);
 
+  reflect::add_fields("position", &Transform::pos, "rotation", &Transform::rot);
+  reflect::add_fields("position", &TransformOffset::pos, "rotation", &TransformOffset::rot);
+
   reflect::add_inheritance<quat, vec4>();
   reflect::add_inheritance<Position, vec3>();
   reflect::add_inheritance<Rotation, vec4>();
   reflect::add_inheritance<Scale, vec3>();
+  reflect::add_inheritance<Extents, vec3>();
   reflect::add_inheritance<Color, vec4>();
-  reflect::add_inheritance<RelPosition, vec3>();
-  reflect::add_inheritance<RelRotation, vec4>();
 
   reflect::add_inheritance<BoxShape, CollisionShape>();
   reflect::add_inheritance<SphereShape, CollisionShape>();
