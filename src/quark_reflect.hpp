@@ -1,5 +1,6 @@
 #pragma once
 #include "quark.hpp"
+#include <cstdarg>
 
 //TODO(sean): fewer std::string's flying around please
 
@@ -268,9 +269,8 @@ static constexpr void add_function(const char* name, const bool reads_ptr = fals
   if(reads_ptr) { type = entt::type_id<T*>(); } 
   add_if_new(type.hash());
 
-  void* (*get)(void*) = 0;
+  void* (*get)(void*) = refl2<T, V, GET>;
   if (reads_ptr) { get = refl5<T, V, GET>; }
-  else { get = refl2<T, V, GET>; }
 
   void (*set)(void*) = 0;
   //if (reads_ptr) { set = refl5<T, V, SET>; }
@@ -397,7 +397,7 @@ static void init() {
   reflect::add_name<Color>("Color");
   reflect::add_name<Transform>("Transform");
   reflect::add_name<TransformOffset>("Transform Offset");
-  reflect::add_name<Extents>("Transform Offset");
+  reflect::add_name<Extents>("Extents");
 
   reflect::add_name<Parent>("Parent");
   reflect::add_name<Children>("Children");
@@ -431,8 +431,8 @@ static void init() {
   reflect::add_fields("parent", &Parent::parent);
   reflect::add_fields("count", &Children::count, "children", &Children::children);
 
-  reflect::add_fields("position", &Transform::pos, "rotation", &Transform::rot);
-  reflect::add_fields("position", &TransformOffset::pos, "rotation", &TransformOffset::rot);
+  reflect::add_fields("pos", &Transform::pos, "rot", &Transform::rot);
+  reflect::add_fields("pos", &TransformOffset::pos, "rot", &TransformOffset::rot);
 
   reflect::add_inheritance<quat, vec4>();
   reflect::add_inheritance<Position, vec3>();
@@ -445,43 +445,43 @@ static void init() {
   reflect::add_inheritance<SphereShape, CollisionShape>();
   reflect::add_inheritance<CapsuleShape, CollisionShape>();
 
-  reflect::add_function<CollisionShape, i32, &CollisionShape::type, 0>("Shape Type", true);
+  reflect::add_function<CollisionShape, i32, &CollisionShape::type, 0>("type", true);
 
-  reflect::add_function<BoxShape, vec3, &BoxShape::half_dim, 0>("Half Dimensions");
-  reflect::add_function<SphereShape, vec3, &SphereShape::radius, 0>("Radius");
-  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::half_height, 0>("Half Height");
-  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::radius, 0>("Radius");
+  reflect::add_function<BoxShape, vec3, &BoxShape::half_dim, 0>("half_dim");
+  reflect::add_function<SphereShape, vec3, &SphereShape::radius, 0>("radius");
+  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::half_height, 0>("half_height");
+  reflect::add_function<CapsuleShape, vec3, &CapsuleShape::radius, 0>("radius");
 
-  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("Position");
-  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("Rotation");
-  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("Entity");
-  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("Collision Shape");
-  reflect::add_function<CollisionBody, bool, &CollisionBody::active, &CollisionBody::active>("Active");
-  reflect::add_function<CollisionBody, i32, &CollisionBody::flags, &CollisionBody::flags>("Collision Flags");
+  reflect::add_function<CollisionBody, vec3, &CollisionBody::pos, &CollisionBody::pos>("pos");
+  reflect::add_function<CollisionBody, quat, &CollisionBody::rot, &CollisionBody::rot>("rot");
+  reflect::add_function<CollisionBody, Entity, &CollisionBody::entity, &CollisionBody::entity>("entity");
+  reflect::add_function<CollisionBody, CollisionShape*, &CollisionBody::shape, &CollisionBody::shape>("shape");
+  reflect::add_function<CollisionBody, bool, &CollisionBody::active, &CollisionBody::active>("active");
+  reflect::add_function<CollisionBody, i32, &CollisionBody::flags, &CollisionBody::flags>("flags");
 
-  reflect::add_function<RigidBody, vec3, &RigidBody::pos, &RigidBody::pos>("Position");
-  reflect::add_function<RigidBody, quat, &RigidBody::rot, &RigidBody::rot>("Rotation");
-  reflect::add_function<RigidBody, Entity, &RigidBody::entity, &RigidBody::entity>("Entity");
-  reflect::add_function<RigidBody, CollisionShape*, &RigidBody::shape, &RigidBody::shape>("Collision Shape");
-  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("Active");
-  reflect::add_function<RigidBody, i32, &RigidBody::flags, &RigidBody::flags>("Collision Flags");
-  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("Linear Velocity");
-  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("Angular Velocity");
-  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("Linear Dampening");
-  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("Angular Dampening");
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("Add Force");
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("Add Impulse");
-  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("Add Torque");
-  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("Total Force");
-  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("Total Torque");
+  reflect::add_function<RigidBody, vec3, &RigidBody::pos, &RigidBody::pos>("pos");
+  reflect::add_function<RigidBody, quat, &RigidBody::rot, &RigidBody::rot>("rot");
+  reflect::add_function<RigidBody, Entity, &RigidBody::entity, &RigidBody::entity>("entity");
+  reflect::add_function<RigidBody, CollisionShape*, &RigidBody::shape, &RigidBody::shape>("shape");
+  reflect::add_function<RigidBody, bool, &RigidBody::active, &RigidBody::active>("active");
+  reflect::add_function<RigidBody, i32, &RigidBody::flags, &RigidBody::flags>("flags");
+  reflect::add_function<RigidBody, vec3, &RigidBody::linvel, &RigidBody::linvel>("linvel");
+  reflect::add_function<RigidBody, vec3, &RigidBody::angvel, &RigidBody::angvel>("angvel");
+  reflect::add_function<RigidBody, f32, &RigidBody::lindamp, &RigidBody::lindamp>("lindamp");
+  reflect::add_function<RigidBody, f32, &RigidBody::angdamp, &RigidBody::angdamp>("angdamp");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_force_central>("add_force_central");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_impulse_central>("add_impulse_central");
+  reflect::add_function<RigidBody, vec3, 0, &RigidBody::add_torque>("add_torque");
+  reflect::add_function<RigidBody, vec3, &RigidBody::force, 0>("force");
+  reflect::add_function<RigidBody, vec3, &RigidBody::torque, 0>("torque");
 
-  reflect::add_function<GhostBody, vec3, &GhostBody::pos, &GhostBody::pos>("Position");
-  reflect::add_function<GhostBody, quat, &GhostBody::rot, &GhostBody::rot>("Rotation");
-  reflect::add_function<GhostBody, Entity, &GhostBody::entity, &GhostBody::entity>("Entity");
-  reflect::add_function<GhostBody, CollisionShape*, &GhostBody::shape, &GhostBody::shape>("Collision Shape");
-  reflect::add_function<GhostBody, bool, &GhostBody::active, &GhostBody::active>("Active");
-  reflect::add_function<GhostBody, i32, &GhostBody::flags, &GhostBody::flags>("Collision Flags");
-  reflect::add_function<GhostBody, usize, &GhostBody::num_overlapping, 0>("Number of Overlapping Bodies");
+  reflect::add_function<GhostBody, vec3, &GhostBody::pos, &GhostBody::pos>("pos");
+  reflect::add_function<GhostBody, quat, &GhostBody::rot, &GhostBody::rot>("rot");
+  reflect::add_function<GhostBody, Entity, &GhostBody::entity, &GhostBody::entity>("entity");
+  reflect::add_function<GhostBody, CollisionShape*, &GhostBody::shape, &GhostBody::shape>("shape");
+  reflect::add_function<GhostBody, bool, &GhostBody::active, &GhostBody::active>("active");
+  reflect::add_function<GhostBody, i32, &GhostBody::flags, &GhostBody::flags>("flags");
+  reflect::add_function<GhostBody, usize, &GhostBody::num_overlapping, 0>("num_overlapping");
 }
 
 static void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");
@@ -500,13 +500,6 @@ static void print_ptr(void* data, std::string& name, entt::type_info type, std::
   } else {
     std::cout << tab << name << ": " << type.name() << std::endl;
   }
-}
-
-static void* get_pos(void* rbv) {
-  RigidBody* rb = (RigidBody*)rbv;
-  vec3* d = (vec3*)scratch_alloc.alloc(sizeof(vec3));
-  *d = rb->pos();
-  return (void*)d;
 }
 
 static void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
@@ -578,70 +571,70 @@ static void print_components(Entity e) {
   scratch_alloc.reset();
 }
 
-//static void* get(const char* name, Entity e) {
-//  using namespace internal;
-//
-//  for (auto&& curr : ecs::registry.storage()) {
-//    if (auto& storage = curr.second; storage.contains(e)) {
-//      // we have a component
-//      void* data = storage.get(e);
-//      entt::type_info info = storage.type();
-//      entt::id_type type = info.hash();
-//
-//      if(type == name_to_type.at(name)) {
-//        return data;
-//      }
-//    }
-//  }
-//
-//  return 0;
-//}
-
-//static void* get(const char* names[2], Entity e) {
-//  using namespace internal;
-//
-//  for (auto&& curr : ecs::registry.storage()) {
-//    if (auto& storage = curr.second; storage.contains(e)) {
-//      // we have a component
-//      void* data = storage.get(e);
-//      entt::type_info info = storage.type();
-//      entt::id_type type = info.hash();
-//
-//      if(type == name_to_type.at(names[0])) {
-//        ReflectionInfo& refl_info = reflected_types.at(type);
-//
-//        // check if we found the field
-//
-//        if(refl_info.inheritance.hash() != NULL_HASH) {
-//          // recursively inspect inheritance
-//          refl_info = reflected_types.at(refl_info.inheritance.hash());
-//        }
-//
-//        std::vector<ReflectionField>& fields = refl_info.fields;
-//        for(int i = 0; i < fields.size(); i += 1) {
-//          if(fields[i].name == names[1]) {
-//            // recursively inspect fields
-//            return calc_offset(data, fields[i].offset);
-//          }
-//        }
-//
-//        std::vector<ReflectionFunction>& functions = refl_info.functions;
-//        for(int i = 0; i < functions.size(); i += 1) {
-//          if(functions[i].name == names[1]) {
-//            // recursively inspect functions
-//            return (*functions[i].get)(data);
-//          }
-//        }
-//      }
-//    }
-//  }
-//
-//  return 0;
-//}
-
-template <usize N>
-static void* get(std::array<const char*, N> names, Entity e) {
+static void* recurse_internal(void* data, entt::id_type type, const char* arg) {
   using namespace internal;
+
+  ReflectionInfo& info = reflected_types.at(type);
+
+  // check fields for arg
+  for(ReflectionField& field : info.fields) {
+    if (field.name == arg) {
+      return calc_offset(data, field.offset);
+    }
+  }
+
+  // check functions for arg
+  for(ReflectionFunction& function : info.functions) {
+    if (function.name == arg) {
+      return (*function.get)(data);
+    }
+  }
+
+  // we check inheritance last because we want to get member variables/functions first
+  // recurse into inheritance tree
+  if(info.inheritance.hash() != NULL_HASH) {
+    // we pass arg because we do not want to pop an off of args
+    return recurse_internal(data, info.inheritance.hash(), arg);
+  }
+
+  return 0;
+}
+
+template <typename... T>
+static void* recurse_internal(void* data, entt::id_type type, const char* arg, T... args) {
+  using namespace internal;
+
+  ReflectionInfo& info = reflected_types.at(type);
+
+  // check fields for arg
+  for(ReflectionField& field : info.fields) {
+    if (field.name == arg) {
+      return recurse_internal(calc_offset(data, field.offset), field.type.hash(), args...);
+    }
+  }
+
+  // check functions for arg
+  for(ReflectionFunction& function : info.functions) {
+    if (function.name == arg) {
+      return recurse_internal((*function.get)(data), function.value.hash(), args...);
+    }
+  }
+
+  // we check inheritance last because we want to get member variables/functions first
+  // recurse into inheritance tree
+  if(info.inheritance.hash() != NULL_HASH) {
+    // we pass arg because we do not want to pop an off of args
+    return recurse_internal(data, info.inheritance.hash(), arg, args...);
+  }
+
+  return 0;
+}
+
+template <typename... T>
+static void* get(Entity e, std::string component_name, T... args) {
+  using namespace internal;
+
+  auto name_type = name_to_type.at(component_name);
 
   for (auto&& curr : ecs::registry.storage()) {
     if (auto& storage = curr.second; storage.contains(e)) {
@@ -650,46 +643,14 @@ static void* get(std::array<const char*, N> names, Entity e) {
       entt::type_info info = storage.type();
       entt::id_type type = info.hash();
 
-      if(type == name_to_type.at(names[0])) {
-        ReflectionInfo& refl_info = reflected_types.at(type);
-
-        // check if we found the field
-
-        if(refl_info.inheritance.hash() != NULL_HASH) {
-          // recursively inspect inheritance
-          refl_info = reflected_types.at(refl_info.inheritance.hash());
-        }
-
-        std::vector<ReflectionField>& fields = refl_info.fields;
-        for(int i = 0; i < fields.size(); i += 1) {
-          if(fields[i].name == names[1]) {
-            // recursively inspect fields
-            return calc_offset(data, fields[i].offset);
-          }
-        }
-
-        std::vector<ReflectionFunction>& functions = refl_info.functions;
-        for(int i = 0; i < functions.size(); i += 1) {
-          if(functions[i].name == names[1]) {
-            // recursively inspect functions
-            return (*functions[i].get)(data);
-          }
-        }
+      if(type == name_type) {
+        return recurse_internal(data, type, args...);
       }
     }
   }
 
   return 0;
 }
-
-static void* get(std::array<const char*, 1> names, Entity e) { return get<1>(names, e); }
-static void* get(std::array<const char*, 2> names, Entity e) { return get<2>(names, e); }
-static void* get(std::array<const char*, 3> names, Entity e) { return get<3>(names, e); }
-static void* get(std::array<const char*, 4> names, Entity e) { return get<4>(names, e); }
-static void* get(std::array<const char*, 5> names, Entity e) { return get<5>(names, e); }
-static void* get(std::array<const char*, 6> names, Entity e) { return get<6>(names, e); }
-static void* get(std::array<const char*, 7> names, Entity e) { return get<7>(names, e); }
-static void* get(std::array<const char*, 8> names, Entity e) { return get<8>(names, e); }
 
 }; // namespace reflect
 }; // namespace quark
