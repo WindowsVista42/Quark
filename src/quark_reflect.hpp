@@ -396,7 +396,7 @@ static void init() {
   reflect::add_name<Scale>("Scale");
   reflect::add_name<Color>("Color");
   reflect::add_name<Transform>("Transform");
-  reflect::add_name<TransformOffset>("Transform Offset");
+  reflect::add_name<TransformOffset>("TransformOffset");
   reflect::add_name<Extents>("Extents");
 
   reflect::add_name<Parent>("Parent");
@@ -409,14 +409,14 @@ static void init() {
   reflect::add_name<UseSolidPass>("Solid Color Pass");
   reflect::add_name<UseWireframePass>("Wireframe Color pass");
 
-  reflect::add_name<CollisionBody>("Collision Body");
-  reflect::add_name<GhostBody>("Ghost Body");
-  reflect::add_name<RigidBody>("Rigid Body");
+  reflect::add_name<CollisionBody>("CollisionBody");
+  reflect::add_name<GhostBody>("GhostBody");
+  reflect::add_name<RigidBody>("RigidBody");
 
-  reflect::add_name<CollisionShape>("Collision Shape");
-  reflect::add_name<BoxShape>("Box Shape");
-  reflect::add_name<SphereShape>("Sphere Shape");
-  reflect::add_name<CapsuleShape>("Capsule Shape");
+  reflect::add_name<CollisionShape>("CollisionShape");
+  reflect::add_name<BoxShape>("BoxShape");
+  reflect::add_name<SphereShape>("SphereShape");
+  reflect::add_name<CapsuleShape>("CapsuleShape");
 
 
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
@@ -571,7 +571,7 @@ static void print_components(Entity e) {
   scratch_alloc.reset();
 }
 
-static void* recurse_internal(void* data, entt::id_type type, const char* arg) {
+static void* get_internal(void* data, entt::id_type type, const char* arg) {
   using namespace internal;
 
   ReflectionInfo& info = reflected_types.at(type);
@@ -594,14 +594,14 @@ static void* recurse_internal(void* data, entt::id_type type, const char* arg) {
   // recurse into inheritance tree
   if(info.inheritance.hash() != NULL_HASH) {
     // we pass arg because we do not want to pop an off of args
-    return recurse_internal(data, info.inheritance.hash(), arg);
+    return get_internal(data, info.inheritance.hash(), arg);
   }
 
   return 0;
 }
 
 template <typename... T>
-static void* recurse_internal(void* data, entt::id_type type, const char* arg, T... args) {
+static void* get_internal(void* data, entt::id_type type, const char* arg, T... args) {
   using namespace internal;
 
   ReflectionInfo& info = reflected_types.at(type);
@@ -609,14 +609,14 @@ static void* recurse_internal(void* data, entt::id_type type, const char* arg, T
   // check fields for arg
   for(ReflectionField& field : info.fields) {
     if (field.name == arg) {
-      return recurse_internal(calc_offset(data, field.offset), field.type.hash(), args...);
+      return get_internal(calc_offset(data, field.offset), field.type.hash(), args...);
     }
   }
 
   // check functions for arg
   for(ReflectionFunction& function : info.functions) {
     if (function.name == arg) {
-      return recurse_internal((*function.get)(data), function.value.hash(), args...);
+      return get_internal((*function.get)(data), function.value.hash(), args...);
     }
   }
 
@@ -624,7 +624,7 @@ static void* recurse_internal(void* data, entt::id_type type, const char* arg, T
   // recurse into inheritance tree
   if(info.inheritance.hash() != NULL_HASH) {
     // we pass arg because we do not want to pop an off of args
-    return recurse_internal(data, info.inheritance.hash(), arg, args...);
+    return get_internal(data, info.inheritance.hash(), arg, args...);
   }
 
   return 0;
@@ -644,7 +644,7 @@ static void* get(Entity e, std::string component_name, T... args) {
       entt::id_type type = info.hash();
 
       if(type == name_type) {
-        return recurse_internal(data, type, args...);
+        return get_internal(data, type, args...);
       }
     }
   }
