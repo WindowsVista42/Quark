@@ -18,12 +18,20 @@ struct AllocatedBuffer {
   VmaAllocation alloc;
   VkBuffer buffer;
 };
+
 struct AllocatedImage {
   VmaAllocation alloc;
   VkImage image;
   VkImageView view;
   VkFormat format;
 };
+
+//struct AllocatedImageArray {
+//  std::vector<VmaAllocation> allocs;
+//  std::vector<VkImage> images;
+//  std::vector<VkImageView> image_views;
+//  VkFormat format;
+//};
 
 struct Camera {
   vec2 spherical_dir;
@@ -36,7 +44,23 @@ struct Camera {
 }; // namespace types
 using namespace types;
 
-inline Camera global_camera{.spherical_dir = {0.0f, M_PI_2}, .pos = VEC3_ZERO, .dir = VEC3_UNIT_Y, .znear = 0.01f, .zfar = 10000.0f, .fov = 90.0f};
+inline Camera global_camera = Camera {
+  .spherical_dir = {0.0f, M_PI_2}, 
+  .pos = VEC3_ZERO,
+  .dir = VEC3_UNIT_Y,
+  .znear = 0.01f,
+  .zfar = 10000.0f,
+  .fov = 90.0f
+};
+
+inline Camera sun_camera = Camera {
+  .spherical_dir = {0.0f, M_PI_2}, 
+  .pos = VEC3_ZERO,
+  .dir = VEC3_UNIT_Z * -1.0f,
+  .znear = 0.01f,
+  .zfar = 10000.0f,
+  .fov = 90.0f
+};
 
 void begin_frame();
 void render_frame(bool end_forward = true);
@@ -94,6 +118,7 @@ struct RenderConstants {
   u32 _pad4;
   u32 _pad5;
   mat4 sun_view_projection;
+  vec4 sun_dir;
 };
 
 // struct CullData {
@@ -225,12 +250,16 @@ inline VkSemaphore present_semaphore[FRAME_OVERLAP];
 inline VkSemaphore render_semaphore[FRAME_OVERLAP];
 inline VkFence render_fence[FRAME_OVERLAP];
 
+inline VkSampler default_sampler;
+
 inline RenderConstants render_constants; // We dont want this to have multiple copies because we want the most curernt version
 inline AllocatedBuffer render_constants_gpu[FRAME_OVERLAP];
-inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
+//inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 
-inline VkDescriptorSetLayout render_constants_layout;
 inline VkDescriptorPool global_descriptor_pool;
+inline VkDescriptorSetLayout global_constants_layout;
+
+inline VkDescriptorSet global_constants_sets[FRAME_OVERLAP];
 
 inline RenderEffect lit_shadow_effect;
 inline RenderEffect solid_effect;
@@ -255,7 +284,7 @@ inline VkRenderPass depth_prepass_render_pass;         // Sunlight render pass
 
 inline VkFramebuffer* framebuffers;               // Common framebuffers
 inline VkFramebuffer* depth_prepass_framebuffers; // Common framebuffers
-inline VkFramebuffer* depth_only_framebuffers;    // Depth framebuffers
+inline VkFramebuffer* sun_shadow_framebuffers;    // Depth framebuffers
 
 inline usize frame_count = 0;     // Current frame number
 inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
@@ -303,10 +332,9 @@ void init_render_passes();
 void init_framebuffers();
 void init_sync_objects();
 void init_pipelines();
-void init_buffers();
+void init_sampler();
 void init_descriptors();
-
-void init_physics();
+void init_buffers();
 
 bool sphere_in_frustum(Position pos, Rotation rot, Scale scl);
 bool box_in_frustum(Position pos, Scale Scl);

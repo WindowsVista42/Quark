@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
 
@@ -291,7 +292,7 @@ void quark::renderer::internal::init_swapchain() {
   global_depth_image =
       create_allocated_image(window_w, window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-  sun_depth_image = create_allocated_image(1024, 1024, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+  sun_depth_image = create_allocated_image(4096, 4096, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void quark::renderer::internal::init_command_pools_and_buffers() {
@@ -423,11 +424,11 @@ void quark::renderer::internal::init_framebuffers() {
     vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_prepass_framebuffers[index]));
   }
 
-  framebuffer_info.width = 1024;
-  framebuffer_info.height = 1024;
+  framebuffer_info.width = 4096;
+  framebuffer_info.height = 4096;
   framebuffer_info.renderPass = depth_only_render_pass;
 
-  depth_only_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
+  sun_shadow_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
 
   for_every(index, swapchain_image_count) {
     VkImageView attachments[1];
@@ -436,7 +437,7 @@ void quark::renderer::internal::init_framebuffers() {
 
     framebuffer_info.attachmentCount = 1;
     framebuffer_info.pAttachments = attachments;
-    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_only_framebuffers[index]));
+    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &sun_shadow_framebuffers[index]));
   }
 }
 
@@ -494,7 +495,7 @@ void quark::renderer::internal::init_pipelines() {
   pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipeline_layout_info.flags = 0;
   pipeline_layout_info.setLayoutCount = 1;
-  pipeline_layout_info.pSetLayouts = &render_constants_layout;
+  pipeline_layout_info.pSetLayouts = &global_constants_layout;
   pipeline_layout_info.pushConstantRangeCount = 1;
   pipeline_layout_info.pPushConstantRanges = &push_constant;
   pipeline_layout_info.pNext = 0;
@@ -680,9 +681,11 @@ void quark::renderer::internal::init_pipelines() {
 
   vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_prepass_pipeline));
 
-  viewport.width = 1024.0f;
-  viewport.height = 1024.0f;
-  scissor.extent = {1024, 1024};
+  rasterization_info.cullMode = VK_CULL_MODE_FRONT_BIT;
+
+  viewport.width = 4096.0f;
+  viewport.height = 4096.0f;
+  scissor.extent = {4096, 4096};
 
   pipeline_info.layout = depth_only_pipeline_layout;
   pipeline_info.renderPass = depth_only_render_pass;
@@ -690,71 +693,126 @@ void quark::renderer::internal::init_pipelines() {
   vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_only_pipeline));
 }
 
-void quark::renderer::internal::init_buffers() {
-  for_every(i, FRAME_OVERLAP) {
-    auto buffer_size = sizeof(RenderConstants);
+void quark::renderer::internal::init_sampler() {
+  VkSamplerCreateInfo sampler_info = {};
+  sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  sampler_info.magFilter = VK_FILTER_NEAREST;
+  sampler_info.minFilter = VK_FILTER_NEAREST;
+  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-    render_constants_gpu[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  VkPhysicalDeviceProperties properties = {};
+  vkGetPhysicalDeviceProperties(physical_device, &properties);
+  sampler_info.anisotropyEnable = VK_TRUE; //TODO(sean): make this an config value
+  sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //TODO(sean): make this an config value
+  // disabled anisotropic filtering looks like
+  //sampler_info.anisotropyEnable = VK_FALSE;
+  //sampler_info.maxAnisotropy = 1.0f;
 
-    VkDescriptorSetAllocateInfo alloc_info = {};
-    alloc_info.pNext = 0;
-    alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    alloc_info.descriptorPool = global_descriptor_pool;
-    alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &render_constants_layout;
+  sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+  sampler_info.unnormalizedCoordinates = VK_FALSE;
+  sampler_info.compareEnable = VK_FALSE;
+  sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
 
-    vkAllocateDescriptorSets(device, &alloc_info, &render_constants_sets[i]);
+  sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler_info.mipLodBias = 0.0f;
+  sampler_info.minLod = 0.0f;
+  sampler_info.maxLod = 0.0f;
 
-    VkDescriptorBufferInfo buffer_info = {};
-    buffer_info.buffer = render_constants_gpu[i].buffer;
-    buffer_info.offset = 0;
-    buffer_info.range = buffer_size;
-
-    VkWriteDescriptorSet set_write = {};
-    set_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set_write.pNext = 0;
-    set_write.dstBinding = 0;
-    set_write.dstSet = render_constants_sets[i];
-    set_write.descriptorCount = 1;
-    set_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    set_write.pBufferInfo = &buffer_info;
-
-    vkUpdateDescriptorSets(device, 1, &set_write, 0, 0);
-  }
+  vk_check(vkCreateSampler(device, &sampler_info, 0, &default_sampler));
 }
 
 void quark::renderer::internal::init_descriptors() {
   // Create descriptor layouts
-  VkDescriptorSetLayoutBinding rc_buffer_binding = {};
-  rc_buffer_binding.binding = 0;
-  rc_buffer_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  rc_buffer_binding.descriptorCount = 1;
-  rc_buffer_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding set_layout_binding[2] = {};
+  set_layout_binding[0].binding = 0;
+  set_layout_binding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  set_layout_binding[0].descriptorCount = 1;
+  set_layout_binding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  VkDescriptorSetLayoutCreateInfo set_info = {};
-  set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  set_info.pNext = 0;
-  set_info.bindingCount = 1;
-  set_info.flags = 0;
-  set_info.pBindings = &rc_buffer_binding;
+  set_layout_binding[1].binding = 1;
+  set_layout_binding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  set_layout_binding[1].descriptorCount = 1;
+  set_layout_binding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  vkCreateDescriptorSetLayout(device, &set_info, 0, &render_constants_layout);
+  VkDescriptorSetLayoutCreateInfo set_layout_info = {};
+  set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  set_layout_info.pNext = 0;
+  set_layout_info.bindingCount = count_of(set_layout_binding);
+  set_layout_info.flags = 0;
+  set_layout_info.pBindings = set_layout_binding;
+
+  vk_check(vkCreateDescriptorSetLayout(device, &set_layout_info, 0, &global_constants_layout));
 
   // Create descirptor pool(s)
 
   // Will be made BIG in the future :)
-  VkDescriptorPoolSize sizes[1] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
+  VkDescriptorPoolSize sizes[2] = {
+      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
+      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
   };
 
   VkDescriptorPoolCreateInfo pool_info = {};
   pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   pool_info.flags = 0;
   pool_info.maxSets = 10;
-  pool_info.poolSizeCount = pool_info.poolSizeCount = 1;
+  pool_info.poolSizeCount = count_of(sizes);
   pool_info.pPoolSizes = sizes;
 
   vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
+}
+
+void quark::renderer::internal::init_buffers() {
+  for_every(i, FRAME_OVERLAP) {
+    auto buffer_size = sizeof(RenderConstants);
+
+    // allocate render constants buffer
+    render_constants_gpu[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    // create descriptor set
+    VkDescriptorSetAllocateInfo alloc_info = {};
+    alloc_info.pNext = 0;
+    alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    alloc_info.descriptorPool = global_descriptor_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &global_constants_layout;
+
+    vk_check(vkAllocateDescriptorSets(device, &alloc_info, &global_constants_sets[i]));
+
+    // global uniform buffer
+    VkDescriptorBufferInfo buffer_info = {};
+    buffer_info.buffer = render_constants_gpu[i].buffer;
+    buffer_info.offset = 0;
+    buffer_info.range = buffer_size;
+
+    VkDescriptorImageInfo image_info = {};
+    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    image_info.imageView = sun_depth_image.view;
+    image_info.sampler = default_sampler;
+
+    // write to descriptor set
+    VkWriteDescriptorSet set_write[2] = {};
+    set_write[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set_write[0].pNext = 0;
+    set_write[0].dstBinding = 0;
+    set_write[0].dstArrayElement = 0;
+    set_write[0].dstSet = global_constants_sets[i];
+    set_write[0].descriptorCount = 1;
+    set_write[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    set_write[0].pBufferInfo = &buffer_info;
+
+    set_write[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set_write[1].pNext = 0;
+    set_write[1].dstBinding = 1;
+    set_write[1].dstArrayElement = 0;
+    set_write[1].dstSet = global_constants_sets[i];
+    set_write[1].descriptorCount = 1;
+    set_write[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    set_write[1].pImageInfo = &image_info;
+
+    vkUpdateDescriptorSets(device, count_of(set_write), set_write, 0, 0);
+  }
 }
 
 VkVertexShader* quark::renderer::internal::load_vert_shader(std::string* path) {
@@ -1021,7 +1079,7 @@ void quark::renderer::internal::deinit_sync_objects() {
 }
 
 void quark::renderer::internal::deinit_descriptors() {
-  vkDestroyDescriptorSetLayout(device, render_constants_layout, 0);
+  vkDestroyDescriptorSetLayout(device, global_constants_layout, 0);
   vkDestroyDescriptorPool(device, global_descriptor_pool, 0);
 }
 
@@ -1139,20 +1197,22 @@ enum PROJECTION_TYPE {
   ORTHOGRAPHIC_PROJECTION,
 };
 
-void update_matrices(mat4* view_projection, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION) {
+mat4 update_matrices(Camera camera, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION) {
+  mat4 view_projection = MAT4_IDENTITY;
+
   f32 aspect = (f32)width / (f32)height;
   mat4 projection, view;
 
   if (projection_type == PERSPECTIVE_PROJECTION) {
-    projection = perspective(radians(global_camera.fov), aspect, global_camera.znear, global_camera.zfar);
+    projection = perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
   } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
-    projection = orthographic(5.0f, 5.0f, 5.0f, 5.0f, global_camera.znear, global_camera.zfar);
+    projection = orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
   } else {
-    projection = perspective(radians(global_camera.fov), aspect, global_camera.znear, global_camera.zfar);
+    projection = perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
   }
 
-  view = look_dir(global_camera.pos, global_camera.dir, VEC3_UNIT_Z);
-  *view_projection = projection * view;
+  view = look_dir(camera.pos, camera.dir, VEC3_UNIT_Z);
+  view_projection = projection * view;
 
   // Calculate updated frustum
   if (!quark::renderer::internal::pause_frustum_culling) {
@@ -1174,7 +1234,7 @@ void update_matrices(mat4* view_projection, int width, int height, i32 projectio
     global_cull_data.lod_step = 1.5f;
 
     {
-      mat4 m = transpose(*view_projection);
+      mat4 m = transpose(view_projection);
       global_planes[0] = m[3] + m[0];
       global_planes[1] = m[3] - m[0];
       global_planes[2] = m[3] + m[1];
@@ -1183,6 +1243,8 @@ void update_matrices(mat4* view_projection, int width, int height, i32 projectio
       global_planes[5] = m[3] - m[2];
     }
   }
+
+  return view_projection;
 }
 
 void quark::renderer::internal::begin_shadow_rendering() {
@@ -1196,9 +1258,9 @@ void quark::renderer::internal::begin_shadow_rendering() {
   render_pass_begin_info.renderPass = depth_only_render_pass;
   render_pass_begin_info.renderArea.offset.x = 0;
   render_pass_begin_info.renderArea.offset.y = 0;
-  render_pass_begin_info.renderArea.extent.width = 1024;
-  render_pass_begin_info.renderArea.extent.height = 1024;
-  render_pass_begin_info.framebuffer = depth_only_framebuffers[swapchain_image_index];
+  render_pass_begin_info.renderArea.extent.width = 4096;
+  render_pass_begin_info.renderArea.extent.height = 4096;
+  render_pass_begin_info.framebuffer = sun_shadow_framebuffers[swapchain_image_index];
   render_pass_begin_info.clearValueCount = 1;
   render_pass_begin_info.pClearValues = clear_values;
   render_pass_begin_info.pNext = 0;
@@ -1300,6 +1362,7 @@ void quark::renderer::internal::begin_forward_rendering() {
     rc_data->time = tt;
 
     rc_data->sun_view_projection = sun_view_projection;
+    rc_data->sun_dir.xyz = sun_camera.dir;
 
     vmaUnmapMemory(gpu_alloc, render_constants_gpu[frame_index].alloc);
   }
@@ -1380,7 +1443,7 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
 void quark::renderer::internal::begin_lit_pass() {
   vkCmdBindPipeline(main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline);
   vkCmdBindDescriptorSets(
-      main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1, &render_constants_sets[frame_index], 0, 0);
+      main_cmd_buf[frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, lit_pipeline_layout, 0, 1, &global_constants_sets[frame_index], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &gpu_vertex_buffer.buffer, &offset);
@@ -1524,14 +1587,12 @@ void quark::renderer::render_frame(bool end_forward) {
   // Todo Sean: Look into not recalculating frustum stuff?
   // Selectively copy then re-use likely
 
-  Camera camera = global_camera;
-
-  global_camera.pos = global_camera.pos + vec3{0.0f, 0.0f, 200.0f};
-  global_camera.dir = normalize((camera.pos + camera.dir * 10.0f) - global_camera.pos);
-  global_camera.znear = 10.0f;
-  global_camera.zfar = 1000.0f;
-  global_camera.fov = 8.0f;
-  update_matrices(&sun_view_projection, 1024, 1024);
+  sun_camera.pos = global_camera.pos + vec3{20.0f, 20.0f, 300.0f};
+  sun_camera.dir = normalize(global_camera.pos - sun_camera.pos);
+  sun_camera.znear = 10.0f;
+  sun_camera.zfar = 500.0f;
+  sun_camera.fov = 8.0f;
+  sun_view_projection = update_matrices(sun_camera, 4096, 4096);
 
   begin_shadow_rendering();
   {
@@ -1544,8 +1605,7 @@ void quark::renderer::render_frame(bool end_forward) {
   }
   end_shadow_rendering();
 
-  global_camera = camera;
-  update_matrices(&camera_view_projection, window_w, window_h);
+  camera_view_projection = update_matrices(global_camera, window_w, window_h);
 
   begin_depth_prepass_rendering();
   {

@@ -23,4 +23,7 @@ template <typename F> __Defer<F> defer_func(F f) { return __Defer<F>(f); }
 
 #define defer(code) defer_func([&]() { code; });
 
+template<typename T, std::size_t size>
+constexpr std::size_t count_of(T(&)[size]) { return size; };
+
 #endif

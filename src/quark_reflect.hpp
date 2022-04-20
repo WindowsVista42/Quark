@@ -1,6 +1,5 @@
 #pragma once
 #include "quark.hpp"
-#include <cstdarg>
 
 //TODO(sean): fewer std::string's flying around please
 

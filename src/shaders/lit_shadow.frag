@@ -26,7 +26,10 @@ layout (set = 0, binding = 0) uniform RenderConstants {
   uint _pad4;
   uint _pad5;
   mat4 sun_view_projection;
+  vec4 sun_dir;
 };
+
+layout (set = 0, binding = 1) uniform sampler2D sun_shadow_sampler;
 
 layout (location = 0) out vec4 out_color;
 
@@ -147,15 +150,32 @@ void main() {
   //lighting_color += lighting_color * (dot(pixel_dir, in_normal));
 
   //lighting_color *= fac;
+  //vec3 sun_dir = normalize(in_sun_position.xyz - in_position);
 
-  // Metalic
-  //vec3 sun_pos = in_sun_position.xyz / in_sun_position.w;
-  //vec3 ad = vec3(0.0f, 0.0f, 0.0f);
-  //if(sun_pos.x > 0.0f) {
-  //  ad = vec3(1.0f, 1.0f, 1.0f);
-  //}
+  //float bias = max((1.0f / (4096.0f * 64.0f)) * (1.0f - dot(in_normal, sun_dir.xyz)), (1.0f / (4096.0f * 256.0f)));
+  //float bias = 0.0001f;//max(0.00001f * (1.0f - dot(in_normal, normalize(in_position - in_sun_position.xyz))), 0.001f);
+  float bias = -0.000001f;
 
-  vec3 tonemapped = aces(lighting_color);
+  vec3 proj_coords = in_sun_position.xyz / in_sun_position.w; // do this interpolated in the vertex shader?
+  proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
+
+  float closest_depth = texture(sun_shadow_sampler, proj_coords.xy).r;
+  float current_depth = proj_coords.z;
+  float shadow = current_depth - bias > closest_depth ? 1.0f : 0.0f;
+
+  if(proj_coords.x >= 0.995f || proj_coords.x <= 0.005f) { shadow = 0.0f; }
+  if(proj_coords.y >= 0.995f || proj_coords.y <= 0.005f) { shadow = 0.0f; }
+
+  if(dot(in_normal, sun_dir.xyz) > 0.0f) { shadow = 1.0f; }
+
+  // LOOKS COOL WITHOUT BIAS
+  //vec3 proj_coords = in_sun_position.xyz / in_sun_position.w; // do this interpolated in the vertex shader?
+  //proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
+  //float closest_depth = texture(sun_shadow_sampler, proj_coords.xy).r;
+  //float current_depth = proj_coords.z;
+  //float shadow = current_depth < closest_depth ? 1.0f : 0.0f;
+
+  vec3 tonemapped = aces(lighting_color + (vec3(0.3f) * (1.0f - shadow)));
 
   // Toon?
   //const float factor = 64.0f;

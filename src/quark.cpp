@@ -57,6 +57,7 @@ void quark::init() {
 
   // make sure shaders are loaded before we use them in the pipeline init
   // loader_thread.join();
+  renderer::init_sampler();
   renderer::init_descriptors();
   renderer::init_buffers();
 
