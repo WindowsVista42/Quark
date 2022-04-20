@@ -695,11 +695,11 @@ void quark::renderer::internal::init_sampler() {
 
   VkPhysicalDeviceProperties properties = {};
   vkGetPhysicalDeviceProperties(physical_device, &properties);
-  sampler_info.anisotropyEnable = VK_TRUE; //TODO(sean): make this an config value
-  sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //TODO(sean): make this an config value
+  //sampler_info.anisotropyEnable = VK_TRUE; //TODO(sean): make this an config value
+  //sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //TODO(sean): make this an config value
   // disabled anisotropic filtering looks like
-  //sampler_info.anisotropyEnable = VK_FALSE;
-  //sampler_info.maxAnisotropy = 1.0f;
+  sampler_info.anisotropyEnable = VK_FALSE;
+  sampler_info.maxAnisotropy = 1.0f;
 
   sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
   sampler_info.unnormalizedCoordinates = VK_FALSE;
@@ -712,6 +712,63 @@ void quark::renderer::internal::init_sampler() {
   sampler_info.maxLod = 0.0f;
 
   vk_check(vkCreateSampler(device, &sampler_info, 0, &default_sampler));
+}
+
+void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
+  constexpr auto layout_type = [](u32 old_layout, u32 new_layout) {
+    return (u64)old_layout | (u64)new_layout << 32;
+  };
+
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = old_layout;
+  barrier.newLayout = new_layout;
+
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+  barrier.image = image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = 0;
+
+  VkPipelineStageFlags src_stage;
+  VkPipelineStageFlags dst_stage;
+
+  switch(layout_type(old_layout, new_layout)) {
+  case(layout_type(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)): {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  } break;
+  case(layout_type(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  } break;
+  case(layout_type(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
+    barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  } break;
+  }
+
+  vkCmdPipelineBarrier(
+    commands,
+    src_stage, dst_stage, // src and dst stage masks
+    0,                    // dep flags
+    0, 0,                 // memory barrier
+    0, 0,                 // memory barrier
+    1, &barrier           // image barrier
+  );
 }
 
 void quark::renderer::internal::init_descriptors() {
@@ -754,6 +811,40 @@ void quark::renderer::internal::init_descriptors() {
   vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
 }
 
+VkWriteDescriptorSet get_buffer_desc_write(
+  u32 binding, VkDescriptorSet desc_set, VkDescriptorType desc_type, VkDescriptorBufferInfo* buffer_info
+) {
+  // write to image descriptor
+  VkWriteDescriptorSet desc_write = {};
+  desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  desc_write.pNext = 0;
+  desc_write.dstBinding = binding;
+  desc_write.dstArrayElement = 0;
+  desc_write.dstSet = desc_set;
+  desc_write.descriptorCount = 1;
+  desc_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  desc_write.pBufferInfo = buffer_info;
+
+  return desc_write;
+};
+
+VkWriteDescriptorSet get_image_desc_write(
+  u32 binding, VkDescriptorSet desc_set, VkDescriptorType desc_type, VkDescriptorImageInfo* image_info
+) {
+  // write to image descriptor
+  VkWriteDescriptorSet desc_write = {};
+  desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  desc_write.pNext = 0;
+  desc_write.dstBinding = binding;
+  desc_write.dstArrayElement = 0;
+  desc_write.dstSet = desc_set;
+  desc_write.descriptorCount = 1;
+  desc_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  desc_write.pImageInfo = image_info;
+
+  return desc_write;
+};
+
 void quark::renderer::internal::init_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
     auto buffer_size = sizeof(RenderConstants);
@@ -771,61 +862,32 @@ void quark::renderer::internal::init_descriptor_sets() {
 
     vk_check(vkAllocateDescriptorSets(device, &alloc_info, &global_constants_sets[i]));
 
-    // global uniform buffer
+    VkWriteDescriptorSet desc_write[2] = {};
+
     VkDescriptorBufferInfo buffer_info = {};
     buffer_info.buffer = render_constants_gpu[i].buffer;
     buffer_info.offset = 0;
-    buffer_info.range = buffer_size;
+    buffer_info.range = sizeof(RenderConstants);
+    desc_write[0] = get_buffer_desc_write(0, global_constants_sets[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &buffer_info);
 
     VkDescriptorImageInfo image_info = {};
-    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    image_info.imageView = sun_depth_image.view;
     image_info.sampler = default_sampler;
+    image_info.imageView = sun_depth_image.view;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    desc_write[1] = get_image_desc_write(1, global_constants_sets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
 
-    // write to descriptor set
-    VkWriteDescriptorSet set_write[2] = {};
-    set_write[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set_write[0].pNext = 0;
-    set_write[0].dstBinding = 0;
-    set_write[0].dstArrayElement = 0;
-    set_write[0].dstSet = global_constants_sets[i];
-    set_write[0].descriptorCount = 1;
-    set_write[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    set_write[0].pBufferInfo = &buffer_info;
-
-    set_write[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set_write[1].pNext = 0;
-    set_write[1].dstBinding = 1;
-    set_write[1].dstArrayElement = 0;
-    set_write[1].dstSet = global_constants_sets[i];
-    set_write[1].descriptorCount = 1;
-    set_write[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set_write[1].pImageInfo = &image_info;
-
-    vkUpdateDescriptorSets(device, count_of(set_write), set_write, 0, 0);
+    vkUpdateDescriptorSets(device, count_of(desc_write), desc_write, 0, 0);
   }
 }
 
 void quark::renderer::internal::update_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
-    // sampler image wombo-combo
-    VkDescriptorImageInfo image_info = {};
-    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    image_info.imageView = sun_depth_image.view;
-    image_info.sampler = default_sampler;
+    VkWriteDescriptorSet desc_write[1] = {};
 
-    // write to image descriptor
-    VkWriteDescriptorSet set_write[1] = {};
-    set_write[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set_write[0].pNext = 0;
-    set_write[0].dstBinding = 1;
-    set_write[0].dstArrayElement = 0;
-    set_write[0].dstSet = global_constants_sets[i];
-    set_write[0].descriptorCount = 1;
-    set_write[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set_write[0].pImageInfo = &image_info;
+    VkDescriptorImageInfo image_info = {default_sampler, sun_depth_image.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL};
+    desc_write[0] = get_image_desc_write(1, global_constants_sets[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
 
-    vkUpdateDescriptorSets(device, count_of(set_write), set_write, 0, 0);
+    vkUpdateDescriptorSets(device, count_of(desc_write), desc_write, 0, 0);
   }
 }
 
@@ -1175,7 +1237,6 @@ void quark::renderer::internal::resize_swapchain() {
   vkDeviceWaitIdle(device);
 
   deinit_pipelines();
-  deinit_sampler();
   deinit_framebuffers();
   deinit_render_passes();
   deinit_command_pools_and_buffers();
@@ -1185,7 +1246,6 @@ void quark::renderer::internal::resize_swapchain() {
   init_command_pools_and_buffers();
   init_render_passes();
   init_framebuffers();
-  init_sampler();
   init_pipelines();
 
   update_descriptor_sets();
@@ -1630,6 +1690,11 @@ void quark::renderer::render_frame(bool end_forward) {
     }
   }
   end_shadow_rendering();
+
+  //transition_image_layout(
+  //  main_cmd_buf[frame_index], sun_depth_image.image, sun_depth_image.format,
+  //  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  //);
 
   camera_view_projection = update_matrices(global_camera, window_w, window_h);
 
