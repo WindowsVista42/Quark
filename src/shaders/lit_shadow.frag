@@ -154,7 +154,7 @@ void main() {
 
   //float bias = max((1.0f / (4096.0f * 64.0f)) * (1.0f - dot(in_normal, sun_dir.xyz)), (1.0f / (4096.0f * 256.0f)));
   //float bias = 0.0001f;//max(0.00001f * (1.0f - dot(in_normal, normalize(in_position - in_sun_position.xyz))), 0.001f);
-  float bias = -0.000001f;
+  float bias = 0.0f;//-0.00001f;
 
   vec3 proj_coords = in_sun_position.xyz / in_sun_position.w; // do this interpolated in the vertex shader?
   proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;

@@ -59,7 +59,7 @@ void quark::init() {
   // loader_thread.join();
   renderer::init_sampler();
   renderer::init_descriptors();
-  renderer::init_buffers();
+  renderer::init_descriptor_sets();
 
   renderer::copy_staging_buffers_to_gpu();
   renderer::init_pipelines();

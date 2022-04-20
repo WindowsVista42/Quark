@@ -363,7 +363,7 @@ void quark::renderer::internal::init_render_passes() {
   render_pass_info.subpassCount = 1;
   render_pass_info.pSubpasses = &subpass_desc;
 
-  vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &render_pass));
+  vk_check(vkCreateRenderPass(device, &render_pass_info, 0, &default_render_pass));
 
   depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -389,55 +389,46 @@ void quark::renderer::internal::init_render_passes() {
 }
 
 void quark::renderer::internal::init_framebuffers() {
-  VkFramebufferCreateInfo framebuffer_info = {};
-  framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-  framebuffer_info.renderPass = render_pass;
-  framebuffer_info.width = window_w;
-  framebuffer_info.height = window_h;
-  framebuffer_info.layers = 1;
-  framebuffer_info.pNext = 0;
+  auto create_framebuffer = [&](VkRenderPass render_pass, u32 width, u32 height, VkImageView* attachments, u32 attachment_count) {
+    VkFramebuffer framebuffer = {};
 
-  const u32 swapchain_image_count = swapchain_images.size();
+    VkFramebufferCreateInfo framebuffer_info = {};
+    framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebuffer_info.renderPass = render_pass;
+    framebuffer_info.width = width;
+    framebuffer_info.height = height;
+    framebuffer_info.layers = 1;
+    framebuffer_info.pNext = 0;
+    framebuffer_info.attachmentCount = attachment_count;
+    framebuffer_info.pAttachments = attachments;
 
-  framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
+    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &framebuffer));
 
-  for_every(index, swapchain_image_count) {
+    return framebuffer;
+  };
+
+  const u32 img_count = swapchain_images.size();
+
+  global_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+  for_every(index, img_count) {
     VkImageView attachments[2];
     attachments[0] = swapchain_image_views[index];
     attachments[1] = global_depth_image.view;
-
-    framebuffer_info.attachmentCount = 2;
-    framebuffer_info.pAttachments = attachments;
-    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &framebuffers[index]));
+    global_framebuffers[index] = create_framebuffer(default_render_pass, window_w, window_h, attachments, count_of(attachments));
   }
 
-  framebuffer_info.renderPass = depth_prepass_render_pass;
-
-  depth_prepass_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
-
-  for_every(index, swapchain_image_count) {
+  depth_prepass_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+  for_every(index, img_count) {
     VkImageView attachments[1];
     attachments[0] = global_depth_image.view;
-
-    framebuffer_info.attachmentCount = 1;
-    framebuffer_info.pAttachments = attachments;
-    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &depth_prepass_framebuffers[index]));
+    depth_prepass_framebuffers[index] = create_framebuffer(depth_prepass_render_pass, window_w, window_h, attachments, count_of(attachments));
   }
 
-  framebuffer_info.width = 4096;
-  framebuffer_info.height = 4096;
-  framebuffer_info.renderPass = depth_only_render_pass;
-
-  sun_shadow_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * swapchain_image_count);
-
-  for_every(index, swapchain_image_count) {
+  sun_shadow_framebuffers = (VkFramebuffer*)render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+  for_every(index, img_count) {
     VkImageView attachments[1];
-    // attachments[0] = swapchain_image_views[index];
     attachments[0] = sun_depth_image.view;
-
-    framebuffer_info.attachmentCount = 1;
-    framebuffer_info.pAttachments = attachments;
-    vk_check(vkCreateFramebuffer(device, &framebuffer_info, 0, &sun_shadow_framebuffers[index]));
+    sun_shadow_framebuffers[index] = create_framebuffer(depth_only_render_pass, 4096, 4096, attachments, count_of(attachments));
   }
 }
 
@@ -616,7 +607,7 @@ void quark::renderer::internal::init_pipelines() {
   pipeline_info.pColorBlendState = &color_blend_info;
   pipeline_info.pDepthStencilState = &depth_stencil_info;
   pipeline_info.layout = lit_pipeline_layout;
-  pipeline_info.renderPass = render_pass;
+  pipeline_info.renderPass = default_render_pass;
   pipeline_info.subpass = 0;
   pipeline_info.basePipelineIndex = 0;
   pipeline_info.pNext = 0;
@@ -763,7 +754,7 @@ void quark::renderer::internal::init_descriptors() {
   vkCreateDescriptorPool(device, &pool_info, 0, &global_descriptor_pool);
 }
 
-void quark::renderer::internal::init_buffers() {
+void quark::renderer::internal::init_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
     auto buffer_size = sizeof(RenderConstants);
 
@@ -810,6 +801,29 @@ void quark::renderer::internal::init_buffers() {
     set_write[1].descriptorCount = 1;
     set_write[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set_write[1].pImageInfo = &image_info;
+
+    vkUpdateDescriptorSets(device, count_of(set_write), set_write, 0, 0);
+  }
+}
+
+void quark::renderer::internal::update_descriptor_sets() {
+  for_every(i, FRAME_OVERLAP) {
+    // sampler image wombo-combo
+    VkDescriptorImageInfo image_info = {};
+    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    image_info.imageView = sun_depth_image.view;
+    image_info.sampler = default_sampler;
+
+    // write to image descriptor
+    VkWriteDescriptorSet set_write[1] = {};
+    set_write[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set_write[0].pNext = 0;
+    set_write[0].dstBinding = 1;
+    set_write[0].dstArrayElement = 0;
+    set_write[0].dstSet = global_constants_sets[i];
+    set_write[0].descriptorCount = 1;
+    set_write[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    set_write[0].pImageInfo = &image_info;
 
     vkUpdateDescriptorSets(device, count_of(set_write), set_write, 0, 0);
   }
@@ -1078,6 +1092,10 @@ void quark::renderer::internal::deinit_sync_objects() {
   }
 }
 
+void quark::renderer::internal::deinit_sampler() {
+  vkDestroySampler(device, default_sampler, 0);
+}
+
 void quark::renderer::internal::deinit_descriptors() {
   vkDestroyDescriptorSetLayout(device, global_constants_layout, 0);
   vkDestroyDescriptorPool(device, global_descriptor_pool, 0);
@@ -1111,10 +1129,14 @@ void quark::renderer::internal::deinit_pipelines() {
 }
 
 void quark::renderer::internal::deinit_framebuffers() {
-  for_every(index, swapchain_image_views.size()) { vkDestroyFramebuffer(device, framebuffers[index], 0); }
+  for_every(index, swapchain_image_views.size()) {
+    vkDestroyFramebuffer(device, global_framebuffers[index], 0);
+    vkDestroyFramebuffer(device, depth_prepass_framebuffers[index], 0);
+    vkDestroyFramebuffer(device, sun_shadow_framebuffers[index], 0);
+  }
 }
 
-void quark::renderer::internal::deinit_render_passes() { vkDestroyRenderPass(device, render_pass, 0); }
+void quark::renderer::internal::deinit_render_passes() { vkDestroyRenderPass(device, default_render_pass, 0); }
 
 void quark::renderer::internal::deinit_command_pools_and_buffers() {
   for_every(i, FRAME_OVERLAP) { vkDestroyCommandPool(device, graphics_cmd_pool[i], 0); }
@@ -1153,6 +1175,7 @@ void quark::renderer::internal::resize_swapchain() {
   vkDeviceWaitIdle(device);
 
   deinit_pipelines();
+  deinit_sampler();
   deinit_framebuffers();
   deinit_render_passes();
   deinit_command_pools_and_buffers();
@@ -1162,7 +1185,10 @@ void quark::renderer::internal::resize_swapchain() {
   init_command_pools_and_buffers();
   init_render_passes();
   init_framebuffers();
+  init_sampler();
   init_pipelines();
+
+  update_descriptor_sets();
 }
 
 void quark::renderer::begin_frame() {
@@ -1321,12 +1347,12 @@ void quark::renderer::internal::begin_forward_rendering() {
 
   VkRenderPassBeginInfo render_pass_begin_info = {};
   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  render_pass_begin_info.renderPass = render_pass;
+  render_pass_begin_info.renderPass = default_render_pass;
   render_pass_begin_info.renderArea.offset.x = 0;
   render_pass_begin_info.renderArea.offset.y = 0;
   render_pass_begin_info.renderArea.extent.width = window_w;
   render_pass_begin_info.renderArea.extent.height = window_h;
-  render_pass_begin_info.framebuffer = framebuffers[swapchain_image_index];
+  render_pass_begin_info.framebuffer = global_framebuffers[swapchain_image_index];
   render_pass_begin_info.clearValueCount = 2;
   render_pass_begin_info.pClearValues = clear_values;
   render_pass_begin_info.pNext = 0;

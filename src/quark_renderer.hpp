@@ -272,7 +272,7 @@ inline VkPipelineLayout color_pipeline_layout; // Debug pipeline layout
 inline VkPipeline lit_pipeline;                // Deferred shading pipeline
 inline VkPipeline solid_pipeline;              // Debug Solid fill solid color pipeline
 inline VkPipeline wireframe_pipeline;          // Debug Line fill solid color pipeline
-inline VkRenderPass render_pass;               // Default render pass
+inline VkRenderPass default_render_pass;               // Default render pass
 
 inline VkPipelineLayout depth_only_pipeline_layout; // Debug pipeline layout
 inline VkPipeline depth_only_pipeline;              // Depth only sun pipeline thing
@@ -282,7 +282,7 @@ inline VkPipelineLayout depth_prepass_pipeline_layout; // Debug pipeline layout
 inline VkPipeline depth_prepass_pipeline;              // Depth only sun pipeline thing
 inline VkRenderPass depth_prepass_render_pass;         // Sunlight render pass
 
-inline VkFramebuffer* framebuffers;               // Common framebuffers
+inline VkFramebuffer* global_framebuffers;               // Common framebuffers
 inline VkFramebuffer* depth_prepass_framebuffers; // Common framebuffers
 inline VkFramebuffer* sun_shadow_framebuffers;    // Depth framebuffers
 
@@ -334,7 +334,7 @@ void init_sync_objects();
 void init_pipelines();
 void init_sampler();
 void init_descriptors();
-void init_buffers();
+void init_descriptor_sets();
 
 bool sphere_in_frustum(Position pos, Rotation rot, Scale scl);
 bool box_in_frustum(Position pos, Scale Scl);
@@ -351,6 +351,7 @@ void unload_mesh(Mesh* mesh);
 
 void deinit_sync_objects();
 void deinit_descriptors();
+void deinit_sampler();
 void deinit_buffers_and_images();
 void deinit_shaders();
 void deinit_allocators();
@@ -362,6 +363,7 @@ void deinit_swapchain();
 void deinit_vulkan();
 void deinit_window();
 
+void update_descriptor_sets();
 void resize_swapchain();
 
 void print_performance_statistics();
