@@ -86,14 +86,25 @@ vec3 shadow_directional(in sampler2D shadow_sampler, DirectionalLight light, vec
   vec3 proj_coords = projected_pos.xyz / projected_pos.w; // do this interpolated in the vertex shader?
   proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
 
+  float bias = max(0.0001f * (1.0f - dot(pixel_normal, light.direction)), 0.000025f);
   float closest_depth = texture(shadow_sampler, proj_coords.xy).r;
   float current_depth = proj_coords.z;
-  float shadow = current_depth > closest_depth ? 1.0f : 0.0f;
+  float shadow = 0.0;
+  vec2 texel_size = 1.0 / vec2(4096);
+  for(int x = -1; x <= 1; ++x)
+  {
+      for(int y = -1; y <= 1; ++y)
+      {
+          float pcf_depth = texture(sun_shadow_sampler, proj_coords.xy + vec2(x, y) * texel_size).r; 
+          shadow += current_depth - bias > pcf_depth ? 1.0 : 0.0;        
+      }    
+  }
+  shadow /= 9.0;
 
   if(proj_coords.x >= 0.995f || proj_coords.x <= 0.005f) { shadow = 0.0f; }
   if(proj_coords.y >= 0.995f || proj_coords.y <= 0.005f) { shadow = 0.0f; }
 
-  if(dot(pixel_normal, light.direction) > 0.0f) { shadow = 1.0f; }
+  if(dot(pixel_normal, light.direction) > -0.05f) { shadow = 1.0f; }
 
   return light.color * (1.0f - shadow);
 }

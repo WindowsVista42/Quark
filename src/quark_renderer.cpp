@@ -672,7 +672,7 @@ void quark::renderer::internal::init_pipelines() {
 
   vk_check(vkCreateGraphicsPipelines(device, 0, 1, &pipeline_info, 0, &depth_prepass_pipeline));
 
-  rasterization_info.cullMode = VK_CULL_MODE_FRONT_BIT;
+  rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
   viewport.width = 4096.0f;
   viewport.height = 4096.0f;
