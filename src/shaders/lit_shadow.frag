@@ -8,13 +8,22 @@ layout (location = 3) flat in uint in_texture_index;
 //layout (location = 4) flat in uint in_base_instance;
 layout (location = 4) in vec4 in_sun_position;
 
-struct RawLight {
-  vec4 position; // w is falloff distance
-  vec4 color;
+struct PointLight {
+  vec3 position;
+  float falloff;
+  vec3 color;
+  float directionality;
+};
+
+struct DirectionalLight {
+  vec3 direction;
+  float _pad0;
+  vec3 color;
+  float directionality;
 };
 
 layout (set = 0, binding = 0) uniform RenderConstants {
-  RawLight lights[1024];
+  PointLight lights[1024];
   uint light_count;
   uint _pad0;
   uint _pad1;
@@ -42,149 +51,79 @@ vec3 aces(vec3 x) {
   return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
-void main() {
-  const vec3 normal_color = (in_normal + 1.0f) / 2.0f;
-  //const vec3 normal_color = vec3(in_texture, 1.0f);
-  //vec4 color;
+vec3 toonify(vec3 color, const float layers) {
+  vec3 large = pow(color, vec3(1.0 / 2.2)) * layers;
+  large = vec3(ivec3(large));
+  large /= layers;
+  return pow(large, vec3(2.2));
+}
 
-  //out_color = vec4(normal_color, 1.0f);;
+vec3 diffuse_point(PointLight light, vec3 pixel_pos, vec3 pixel_normal) {
+  vec3 pos_diff = light.position - pixel_pos;
+  vec3 light_dir = normalize(pos_diff);
+  float distance = length(pos_diff);
 
-  //const Light light[3] = {
-  //  {vec3(0.0f, 0.0f, 10.0f), vec3(1.0f, 1.0f, 0.0f)},
-  //  {vec3(16.0f, 0.0f, 0.0f), vec3(1.0f, 0.0f, 1.0f)},
-  //  {vec3(0.0f, 16.0f, 8.0f), vec3(0.0f, 1.0f, 1.0f)},
-  //};
+  float x = clamp((light.falloff - distance) / light.falloff, 0.0f, 1.0f);
+  float attenuation = pow(abs(x), 4.0f);
+  float factor = dot(pixel_normal, light_dir);
+  float shape_half = max(factor, 0.0f);
+  float shape = mix(1.0f, shape_half, light.directionality);
+  float brightness = attenuation * shape;
 
-  // TODO(sean): froxel acceleration
-  vec3 lighting_color = vec3(0.0f, 0.0f, 0.0f);
+  return light.color * brightness;
+}
 
-  vec3 view_dir = normalize(camera_position.xyz - in_position);
+vec3 diffuse_directional(DirectionalLight light, vec3 pixel_normal) {
+  float factor = -dot(pixel_normal, light.direction);
+  float shape_half = max(factor, 0.0f);
+  float shape = mix(1.0f, shape_half, light.directionality);
+  float brightness = shape;
 
-  for(int i = 0; i < light_count; i += 1) {
-    vec3 position_difference = lights[i].position.xyz - in_position;
-    float dist = length(position_difference);
-    float d = lights[i].position.w;
-    float x = clamp((d - dist) / d, 0.0f, 1.0f);
-    //float attenuation = smoothstep(0.0f, 1.0f, x);
+  return light.color * brightness;
+}
 
-    const float PI = 3.14159286;
-
-    float attenuation = pow(abs(x), 4.0f);
-
-    //dist = clamp((d - dist) / d, 0.0f, 1.0f);
-    //float attenuation = pow(min(cos(PI * dist / 2.0), 1.0 - abs(dist)), 2.0);
-
-    vec3 light_direction = normalize(position_difference);
-
-    float dotprod = dot(in_normal, light_direction);
-    float shape = (dotprod + 2.0f) / 2.0f;
-
-    vec3 color = vec3(attenuation) * shape;
-
-    lighting_color += color * lights[i].color.xyz;
-  }
-
-  //lighting_color.b *= 2.0f;
-
-  //lighting_color *= 2.0f;
-
-  //vec3 pos = in_position;
-  //pos.z += time * 0.1f;
-
-  //pos *= 0.5f;
-
-  //pos = snoise(pos) * pos;
-
-  //float fac = snoise(pos * 2.0f);
-  //fac += snoise(pos * 4.0f);
-  //fac += snoise(pos * 16.0f);
-  //if (fac > 0.7f) {
-  //  lighting_color *= 2.0f;
-  //}
-
-  ////vec3 pos = in_position * 0.125;
-  ////pos.z -= time * 0.1f;
-  ////pos.x -= time * 0.5f;
-  ////pos.y -= time * 0.2f;
-
-  ////const float off = 1.0f;
-  ////float fac = snoise(vec3(snoise(pos)));
-  ////fac += snoise(vec3(snoise(pos - (off * in_tangent))));
-  ////fac += snoise(vec3(snoise(pos + (off * in_tangent))));
-  ////fac += snoise(vec3(snoise(pos - (off * in_bitangent))));
-  ////fac += snoise(vec3(snoise(pos + (off * in_bitangent))));
-
-  ////pos *= 4.0f;
-
-  ////fac += snoise(vec3(snoise(pos)));
-  ////fac += snoise(vec3(snoise(pos - (off * in_tangent))));
-  ////fac += snoise(vec3(snoise(pos + (off * in_tangent))));
-  ////fac += snoise(vec3(snoise(pos - (off * in_bitangent))));
-  ////fac += snoise(vec3(snoise(pos + (off * in_bitangent))));
-
-  ////pos *= 4.0f;
-
-  //fac += snoise(vec3(snoise(pos)));
-  //fac += snoise(vec3(snoise(pos - (0.01f * in_tangent))));
-  //fac += snoise(vec3(snoise(pos + (0.01f * in_tangent))));
-  //fac += snoise(vec3(snoise(pos - (0.01f * in_bitangent))));
-  //fac += snoise(vec3(snoise(pos + (0.01f * in_bitangent))));
-
-  //fac /= 10.0f;
-
-  ////fac /= 10.0f;
-
-  ////fac += 1.0f;
-  ////fac /= 2.0f;
-
-  ////lighting_color *= fac;//lighting_color * fac;
-
-  //if(fac > 0.4f) {
-  //  fac *= 4.0f;
-  //} else {
-  //  fac = 1.0f;
-  //}
-
-  // Another Metalic?
-  //vec3 pixel_dir = normalize(camera_position.xyz - in_position);
-  //lighting_color += lighting_color * (dot(pixel_dir, in_normal));
-
-  //lighting_color *= fac;
-  //vec3 sun_dir = normalize(in_sun_position.xyz - in_position);
-
-  //float bias = max((1.0f / (4096.0f * 64.0f)) * (1.0f - dot(in_normal, sun_dir.xyz)), (1.0f / (4096.0f * 256.0f)));
-  //float bias = 0.0001f;//max(0.00001f * (1.0f - dot(in_normal, normalize(in_position - in_sun_position.xyz))), 0.001f);
-  float bias = 0.0f;//-0.00001f;
-
-  vec3 proj_coords = in_sun_position.xyz / in_sun_position.w; // do this interpolated in the vertex shader?
+vec3 shadow_directional(in sampler2D shadow_sampler, DirectionalLight light, vec4 projected_pos, vec3 pixel_normal) {
+  vec3 proj_coords = projected_pos.xyz / projected_pos.w; // do this interpolated in the vertex shader?
   proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
 
-  float closest_depth = texture(sun_shadow_sampler, proj_coords.xy).r;
+  float closest_depth = texture(shadow_sampler, proj_coords.xy).r;
   float current_depth = proj_coords.z;
-  float shadow = current_depth - bias > closest_depth ? 1.0f : 0.0f;
+  float shadow = current_depth > closest_depth ? 1.0f : 0.0f;
 
   if(proj_coords.x >= 0.995f || proj_coords.x <= 0.005f) { shadow = 0.0f; }
   if(proj_coords.y >= 0.995f || proj_coords.y <= 0.005f) { shadow = 0.0f; }
 
-  if(dot(in_normal, sun_dir.xyz) > 0.0f) { shadow = 1.0f; }
+  if(dot(pixel_normal, light.direction) > 0.0f) { shadow = 1.0f; }
 
-  // LOOKS COOL WITHOUT BIAS
-  //vec3 proj_coords = in_sun_position.xyz / in_sun_position.w; // do this interpolated in the vertex shader?
-  //proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
-  //float closest_depth = texture(sun_shadow_sampler, proj_coords.xy).r;
-  //float current_depth = proj_coords.z;
-  //float shadow = current_depth < closest_depth ? 1.0f : 0.0f;
+  return light.color * (1.0f - shadow);
+}
 
-  vec3 tonemapped = aces(lighting_color + (vec3(0.3f) * (1.0f - shadow)));
+void main() {
+  const vec3 view_dir = normalize(camera_position.xyz - in_position);
+  const vec3 color = vec3(1.0f, 1.0f, 1.0f); // sample texture map
+  const vec3 ambient = vec3(0.0f);
 
-  // Toon?
-  //const float factor = 64.0f;
-  //vec3 large = tonemapped;
-  //large.x = float(int(large.x));
-  //large.y = float(int(large.y));
-  //large.z = float(int(large.z));
-  //large /= factor;
-  //tonemapped = large;
+  vec3 diffuse = vec3(0.0f);
+  vec3 specular = vec3(0.0f);
+
+  for(int i = 0; i < light_count; i += 1) {
+    PointLight point_light = lights[i];
+    point_light.directionality = 0.5f;
+    diffuse += diffuse_point(point_light, in_position, in_normal);
+  }
+
+  DirectionalLight sun_light;
+  sun_light.direction = sun_dir.xyz;
+  sun_light.color = vec3(0.8f);
+  sun_light.directionality = 0.8f;
+  vec3 sun = diffuse_directional(sun_light, in_normal);
+  vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, in_sun_position, in_normal);
+
+  vec3 lighting = (sun * shadow) + diffuse + specular;
+  vec3 result = lighting * color;
+  result = pow(result, vec3(2.2));
+  vec3 tonemapped = aces(result);
+  tonemapped = toonify(tonemapped, 20.0f);
 
   out_color = vec4(tonemapped, 1.0f);
 }

@@ -80,9 +80,11 @@ struct CullData {
   // f32 pyramid_width, pyramid_height;
 };
 
-struct RawLight {
-  vec4 position;
-  vec4 color;
+struct PointLight {
+  vec3 position;
+  float falloff;
+  vec3 color;
+  float directionality;
 };
 
 // Internal Types
@@ -106,7 +108,7 @@ struct RenderData {
 };
 
 struct RenderConstants {
-  RawLight lights[1024];
+  PointLight lights[1024];
   u32 light_count;
   u32 _pad0;
   u32 _pad1;

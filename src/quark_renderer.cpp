@@ -1433,11 +1433,10 @@ void quark::renderer::internal::begin_forward_rendering() {
     u32 counter = 0;
     auto lights = ecs::registry.view<Transform, Color, IsLight>();
     for (auto [e, transform, col] : lights.each()) {
-      vec4 p;
-      p.xyz = transform.pos;
-      p.w = 50.0f;
-      rc_data->lights[counter].position = p;
-      rc_data->lights[counter].color = col;
+      rc_data->lights[counter].position = transform.pos;
+      rc_data->lights[counter].falloff = 50.0f;
+      rc_data->lights[counter].color = col.xyz;
+      rc_data->lights[counter].directionality = 0.5f;
       counter += 1;
     }
 

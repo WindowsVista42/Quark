@@ -16,16 +16,26 @@ layout (push_constant) uniform constants {
   mat4 world_view_projection; // 64 bytes
   vec4 world_rotation;
   vec4 world_position; // w is texture index
+  // vec3 world_position; float texture_index;
   vec4 world_scale;
 };
 
-struct RawLight {
-  vec4 position; // w is falloff distance
-  vec4 color;
+struct PointLight {
+  vec3 position;
+  float falloff;
+  vec3 color;
+  float directionality;
+};
+
+struct DirectionalLight {
+  vec3 direction;
+  float _pad0;
+  vec3 color;
+  float directionality;
 };
 
 layout (set = 0, binding = 0) uniform RenderConstants {
-  RawLight lights[1024];
+  PointLight lights[1024];
   uint light_count;
   uint _pad0;
   uint _pad1;
@@ -37,6 +47,7 @@ layout (set = 0, binding = 0) uniform RenderConstants {
   uint _pad4;
   uint _pad5;
   mat4 sun_view_projection;
+  vec4 sun_dir;
 };
 
 vec3 rotate(vec3 v, vec4 q) {
