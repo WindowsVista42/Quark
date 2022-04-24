@@ -1,4 +1,4 @@
-#include <thread>
+//#include <thread>
 
 #define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
@@ -10,24 +10,24 @@ void quark::init() {
   using namespace quark;
 
   scratch_alloc.init(100 * MB);
-  render_alloc.init(100 * MB);
+  RENDER_ALLOC.init(100 * MB);
 
   // Sean: render data buffer for distance sorted rendering to reduce overdraw
-  render_data_count = 0;
-  render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
+  //render_data_count = 0;
+  //render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
 
   assets::add_type(renderer::load_vert_shader, renderer::unload_shader, ".vert.spv");
   assets::add_type(renderer::load_frag_shader, renderer::unload_shader, ".frag.spv");
   assets::add_type(renderer::load_obj_mesh, renderer::unload_mesh, ".obj");
 
-  ecs::registry.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
-  ecs::registry.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
+  ecs::REGISTRY.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
+  ecs::REGISTRY.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
 
-  ecs::registry.on_construct<CollisionBody>().connect<&physics::add_co_to_world>();
-  ecs::registry.on_destroy<CollisionBody>().connect<&physics::remove_co_from_world>();
+  ecs::REGISTRY.on_construct<CollisionBody>().connect<&physics::add_co_to_world>();
+  ecs::REGISTRY.on_destroy<CollisionBody>().connect<&physics::remove_co_from_world>();
 
-  ecs::registry.on_construct<GhostBody>().connect<&physics::add_go_to_world>();
-  ecs::registry.on_destroy<GhostBody>().connect<&physics::remove_go_from_world>();
+  ecs::REGISTRY.on_construct<GhostBody>().connect<&physics::add_go_to_world>();
+  ecs::REGISTRY.on_destroy<GhostBody>().connect<&physics::remove_go_from_world>();
 
   //printf("RigidBody in place delete: %d\n", entt::component_traits<RigidBody>::in_place_delete ? 1 : 0);
   //printf("RigidBody in place delete: %d\n", RigidBody::in_place_delete ? 1 : 0);
@@ -44,8 +44,8 @@ void quark::init() {
   // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
 
   // Init staging buffer and allocation tracker
-  renderer::gpu_vertex_buffer = renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  renderer::gpu_vertex_tracker.init(100 * MB);
+  renderer::GPU_VERTEX_BUFFER = renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  renderer::GPU_VERTEX_TRACKER.init(100 * MB);
 
   assets::load_directory("assets");
 
@@ -70,8 +70,8 @@ void quark::init() {
 
   printf("Quark initialized!\n");
 
-  if (init_func != 0) {
-    (*init_func)();
+  if (INIT_FUNC != 0) {
+    (*INIT_FUNC)();
   }
 }
 
@@ -81,27 +81,27 @@ void quark::run() {
 
     // window_should_close = platform:::close_window();
 
-    if (update_func != 0) {
-      (*quark::update_func)();
+    if (UPDATE_FUNC != 0) {
+      (*quark::UPDATE_FUNC)();
     }
-    if (quark::enable_performance_statistics) {
+    if (quark::ENABLE_PERFORMANCE_STATISTICS) {
       renderer::print_performance_statistics();
     }
     glfwPollEvents();
     scratch_alloc.reset();
 
     auto frame_end_time = std::chrono::high_resolution_clock::now();
-    dt = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
-    tt += dt;
+    DT = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
+    TT += DT;
   } while (!platform::window_should_close);
 }
 
 void quark::deinit() {
-  if (deinit_func != 0) {
-    (*deinit_func)();
+  if (DEINIT_FUNC!= 0) {
+    (*DEINIT_FUNC)();
   }
 
-  vkDeviceWaitIdle(device);
+  vkDeviceWaitIdle(DEVICE);
 
 // Sean: Don't run cleanup if release build
 #ifdef DEBUG

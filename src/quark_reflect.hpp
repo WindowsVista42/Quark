@@ -38,9 +38,9 @@ using writer_func = void (*)(void* dst, void* src);
 };
 
 namespace internal {
-inline std::unordered_map<entt::id_type, ReflectionInfo> reflected_types;
-inline std::unordered_map<std::string, entt::id_type> name_to_type;
-inline std::unordered_map<entt::id_type, BaseType> base_types;
+inline std::unordered_map<entt::id_type, ReflectionInfo> REFLECTED_TYPES;
+inline std::unordered_map<std::string, entt::id_type> NAME_TO_TYPE;
+inline std::unordered_map<entt::id_type, BaseType> BASE_TYPES;
 
 constexpr entt::id_type I32_HASH = entt::type_hash<i32>();
 constexpr entt::id_type U32_HASH = entt::type_hash<u32>();
@@ -53,8 +53,8 @@ constexpr entt::id_type ENTITY_HASH = entt::type_hash<Entity>();
 constexpr entt::id_type NULL_HASH = entt::type_hash<NullReflection>();
 
 static void add_if_new(entt::id_type ty_hash) {
-  if (reflected_types.find(ty_hash) == reflected_types.end()) {
-    reflected_types.insert(std::make_pair(ty_hash,
+  if (REFLECTED_TYPES.find(ty_hash) == REFLECTED_TYPES.end()) {
+    REFLECTED_TYPES.insert(std::make_pair(ty_hash,
         ReflectionInfo{std::string(""), entt::type_id<NullReflection>(), std::vector<ReflectionField>(), std::vector<ReflectionFunction>()}));
     std::cout << "added: " << ty_hash << std::endl;
   }
@@ -114,18 +114,18 @@ void write_generic(void* dst, void* src) {
 template <typename T>
 static void add_base_type(BaseType::printer_func printer, BaseType::writer_func writer) {
   using namespace internal;
-  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{printer, writer, sizeof(T)}));
+  BASE_TYPES.insert(std::make_pair(entt::type_hash<T>(), BaseType{printer, writer, sizeof(T)}));
 }
 
 template <typename T>
 static void add_base_type_automatic() {
   using namespace internal;
-  base_types.insert(std::make_pair(entt::type_hash<T>(), BaseType{print_generic<T>, write_generic<T>, sizeof(T)}));
+  BASE_TYPES.insert(std::make_pair(entt::type_hash<T>(), BaseType{print_generic<T>, write_generic<T>, sizeof(T)}));
 }
 
 static bool is_base_type(entt::id_type id) {
   using namespace internal;
-  return base_types.find(id) != base_types.end();
+  return BASE_TYPES.find(id) != BASE_TYPES.end();
 }
 
 template <typename T, typename U> constexpr size_t offsetOf(U T::*member) { return (char*)&((T*)0->*member) - (char*)0; }
@@ -137,7 +137,7 @@ template <typename T0, typename U0> static constexpr void add_fields(const char*
   add_if_new(ty.hash());
 
   // add the fields
-  ReflectionInfo& refl_info = reflected_types.at(ty.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(ty.hash());
   refl_info.fields.push_back(ReflectionField{entt::type_id<U0>(), std::string(name0), offsetOf(member0)});
 }
 
@@ -149,7 +149,7 @@ static constexpr void add_fields(const char* name0, U0 T0::*member0, const char*
   add_if_new(ty.hash());
 
   // add the fields
-  ReflectionInfo& refl_info = reflected_types.at(ty.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(ty.hash());
   refl_info.fields.push_back(ReflectionField{entt::type_id<U0>(), std::string(name0), offsetOf(member0)});
   refl_info.fields.push_back(ReflectionField{entt::type_id<U1>(), std::string(name1), offsetOf(member1)});
 }
@@ -162,7 +162,7 @@ static constexpr void add_fields(const char* name0, U0 T0::*member0, const char*
   add_if_new(ty.hash());
 
   // add the fields
-  ReflectionInfo& refl_info = reflected_types.at(ty.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(ty.hash());
   refl_info.fields.push_back(ReflectionField{entt::type_id<U0>(), std::string(name0), offsetOf(member0)});
   refl_info.fields.push_back(ReflectionField{entt::type_id<U1>(), std::string(name1), offsetOf(member1)});
   refl_info.fields.push_back(ReflectionField{entt::type_id<U2>(), std::string(name2), offsetOf(member2)});
@@ -177,7 +177,7 @@ static constexpr void add_fields(
   add_if_new(ty.hash());
 
   // add the fields
-  ReflectionInfo& refl_info = reflected_types.at(ty.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(ty.hash());
   refl_info.fields.push_back(ReflectionField{entt::type_id<U0>(), std::string(name0), offsetOf(member0)});
   refl_info.fields.push_back(ReflectionField{entt::type_id<U1>(), std::string(name1), offsetOf(member1)});
   refl_info.fields.push_back(ReflectionField{entt::type_id<U2>(), std::string(name2), offsetOf(member2)});
@@ -191,7 +191,7 @@ template <typename Ty, typename Base> static constexpr void add_inheritance() {
   entt::type_info base = entt::type_id<Base>();
   add_if_new(ty.hash());
 
-  ReflectionInfo& refl_info = reflected_types.at(ty.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(ty.hash());
   if (refl_info.inheritance.hash() == NULL_HASH) {
     refl_info.inheritance = base;
   } else {
@@ -201,27 +201,27 @@ template <typename Ty, typename Base> static constexpr void add_inheritance() {
 
 static entt::type_info get_inheritance(entt::id_type type_hash) {
   using namespace internal;
-  return reflected_types.at(type_hash).inheritance;
+  return REFLECTED_TYPES.at(type_hash).inheritance;
 }
 
 static std::vector<ReflectionField>& get_fields(entt::id_type type_hash) {
   using namespace internal;
-  return reflected_types.at(type_hash).fields;
+  return REFLECTED_TYPES.at(type_hash).fields;
 }
 
 static std::vector<ReflectionFunction>& get_functions(entt::id_type type_hash) {
   using namespace internal;
-  return reflected_types.at(type_hash).functions;
+  return REFLECTED_TYPES.at(type_hash).functions;
 }
 
 static ReflectionInfo& get_info(entt::id_type type_hash) {
   using namespace internal;
-  return reflected_types.at(type_hash);
+  return REFLECTED_TYPES.at(type_hash);
 }
 
 static bool has(int type_hash) {
   using namespace internal;
-  return reflected_types.find(type_hash) != reflected_types.end();
+  return REFLECTED_TYPES.find(type_hash) != REFLECTED_TYPES.end();
 }
 
 template <typename T, typename V, V (T::*F)()>
@@ -275,7 +275,7 @@ static constexpr void add_function(const char* name, const bool reads_ptr = fals
   //if (reads_ptr) { set = refl5<T, V, SET>; }
   //else { set = refl2<T, V, SET>; }
 
-  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(type.hash());
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
@@ -301,7 +301,7 @@ static constexpr void add_function(const char* name, const bool reads_ptr = fals
   //if (reads_ptr) { set = refl5<T, V, SET>; }
   //else { set = refl2<T, V, SET>; }
 
-  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(type.hash());
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
@@ -327,7 +327,7 @@ static constexpr void add_function(const char* name, const bool reads_ptr = fals
   //if (reads_ptr) { set = refl5<T, V, SET>; }
   //else { set = refl2<T, V, SET>; }
 
-  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(type.hash());
   refl_info.functions.push_back(ReflectionFunction{
       .name = std::string(name),
       .value = value,
@@ -342,11 +342,11 @@ template <typename T> static constexpr void add_name(const char* name) {
   entt::type_info type = entt::type_id<T>();
   add_if_new(type.hash());
 
-  ReflectionInfo& refl_info = reflected_types.at(type.hash());
+  ReflectionInfo& refl_info = REFLECTED_TYPES.at(type.hash());
   if (refl_info.name == "") {
 
-    name_to_type.erase(std::string(type.name()));
-    name_to_type.insert(std::make_pair(std::string(name), type.hash()));
+    NAME_TO_TYPE.erase(std::string(type.name()));
+    NAME_TO_TYPE.insert(std::make_pair(std::string(name), type.hash()));
 
     refl_info.name = std::string(name);
   } else {
@@ -357,7 +357,7 @@ template <typename T> static constexpr void add_name(const char* name) {
 static std::string get_name(entt::id_type type) {
   using namespace internal;
   if (reflect::has(type)) {
-    return reflected_types.at(type).name;
+    return REFLECTED_TYPES.at(type).name;
   } else {
     return "";
   }
@@ -494,7 +494,7 @@ static void print_ptr(void* data, std::string& name, entt::type_info type, std::
   auto hash = type.hash();
   if(is_base_type(hash)) {
     printf("%s%s: ", tab.c_str(), name.c_str());
-    (*base_types.at(hash).printer)(data);
+    (*BASE_TYPES.at(hash).printer)(data);
     printf("\n");
   } else {
     std::cout << tab << name << ": " << type.name() << std::endl;
@@ -555,7 +555,7 @@ static void print_reflection(void* data, std::string name, entt::type_info info,
 static void print_components(Entity e) {
   using namespace internal;
 
-  for (auto&& curr : ecs::registry.storage()) {
+  for (auto&& curr : ecs::REGISTRY.storage()) {
     if (auto& storage = curr.second; storage.contains(e)) {
       // we have a component
       void* data = storage.get(e);
@@ -573,7 +573,7 @@ static void print_components(Entity e) {
 static void* get_internal(void* data, entt::id_type type, const char* arg) {
   using namespace internal;
 
-  ReflectionInfo& info = reflected_types.at(type);
+  ReflectionInfo& info = REFLECTED_TYPES.at(type);
 
   // check fields for arg
   for(ReflectionField& field : info.fields) {
@@ -603,7 +603,7 @@ template <typename... T>
 static void* get_internal(void* data, entt::id_type type, const char* arg, T... args) {
   using namespace internal;
 
-  ReflectionInfo& info = reflected_types.at(type);
+  ReflectionInfo& info = REFLECTED_TYPES.at(type);
 
   // check fields for arg
   for(ReflectionField& field : info.fields) {
@@ -633,9 +633,9 @@ template <typename... T>
 static void* get(Entity e, std::string component_name, T... args) {
   using namespace internal;
 
-  auto name_type = name_to_type.at(component_name);
+  auto name_type = NAME_TO_TYPE.at(component_name);
 
-  for (auto&& curr : ecs::registry.storage()) {
+  for (auto&& curr : ecs::REGISTRY.storage()) {
     if (auto& storage = curr.second; storage.contains(e)) {
       // we have a component
       void* data = storage.get(e);

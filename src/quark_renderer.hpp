@@ -44,7 +44,7 @@ struct Camera {
 }; // namespace types
 using namespace types;
 
-inline Camera global_camera = Camera {
+inline Camera MAIN_CAMERA = Camera {
   .spherical_dir = {0.0f, M_PI_2}, 
   .pos = VEC3_ZERO,
   .dir = VEC3_UNIT_Y,
@@ -53,7 +53,7 @@ inline Camera global_camera = Camera {
   .fov = 90.0f
 };
 
-inline Camera sun_camera = Camera {
+inline Camera SUN_CAMERA = Camera {
   .spherical_dir = {0.0f, M_PI_2}, 
   .pos = VEC3_ZERO,
   .dir = VEC3_UNIT_Z * -1.0f,
@@ -131,18 +131,17 @@ struct RenderConstants {
 // };
 
 struct RenderEffect {
-  // Same thing with this, without some kind of reference counting this becomes quite annoying to keep track of
-  VkPipelineLayout layout;
+  // this does not need reference counting because i can just store the individual fields outside of this object
+  // these fields are merely a convenience for bundling rendering state together
+  VkPipelineLayout pipeline_layout;
   VkPipeline pipeline;
   VkRenderPass render_pass;
 
-  // Not sure about this
-  // If these are all just pointers anyways im not sure it makes no difference to copy them around and shit
-  // The only thing that i dont really like about this is that it becomes a pain to keep track of when these
-  // get destroyed without some kind of reference counting
   VkFramebuffer* framebuffers;
-  VkDescriptorSetLayout descriptor_layout;
+
   VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout descriptor_set_layout;
+  VkDescriptorSet descriptor_set;
 };
 
 // Define a transparent struct with the inner value being referenced as _
@@ -217,105 +216,133 @@ using namespace types;
 #define OP_TIMEOUT 1000000000
 #define FRAME_OVERLAP 2
 
-inline i32 window_w = 1920; // Current window width
-inline i32 window_h = 1080; // Current window height
-inline bool framebuffer_resized = false;
+inline i32 WINDOW_W = 1920; // Current window width
+inline i32 WINDOW_H = 1080; // Current window height
+inline bool FRAMEBUFFER_RESIZED = false;
 
-inline VkInstance instance;                      // Vulkan instance
-inline VkDebugUtilsMessengerEXT debug_messenger; // Vulkan debug messenger
-inline VkPhysicalDevice physical_device;         // Selected graphics card
-inline VkDevice device;                          // Logical handle to selected graphics card
-inline VkSurfaceKHR surface;                     // Window surface that is rendered to
+inline VkInstance INSTANCE;                      // Vulkan instance
+inline VkDebugUtilsMessengerEXT DEBUG_MESSENGER; // Vulkan debug messenger
+inline VkPhysicalDevice PHYSICAL_DEVICE;         // Selected graphics card
+inline VkDevice DEVICE;                          // Logical handle to selected graphics card
+inline VkSurfaceKHR SURFACE;                     // Window surface that is rendered to
 
-inline VkSwapchainKHR swapchain;                       // Vulkan swapchain
-inline std::vector<VkImage> swapchain_images;          // Swapchain images
-inline std::vector<VkImageView> swapchain_image_views; // Swapchain image views
-inline VkFormat swapchain_format;                      // Swapchain image format
+inline VkSwapchainKHR SWAPCHAIN;                       // Vulkan swapchain
+inline std::vector<VkImage> SWAPCHAIN_IMAGES;          // Swapchain images
+inline std::vector<VkImageView> SWAPCHAIN_IMAGE_VIEWS; // Swapchain image views
+inline VkFormat SWAPCHAIN_FORMAT;                      // Swapchain image format
 
-inline AllocatedImage global_depth_image; // Global depth buffer
-inline AllocatedImage sun_depth_image;    // Sunlight depth buffer
+inline AllocatedImage GLOBAL_DEPTH_IMAGE; // Global depth buffer
+inline AllocatedImage SUN_DEPTH_IMAGE;    // Sunlight depth buffer
 
-inline VkQueue graphics_queue; // Graphics queue
-inline VkQueue transfer_queue; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
-inline VkQueue present_queue;  // Present queue
+inline VkQueue GRAPHICS_QUEUE; // Graphics queue
+inline VkQueue TRANSFER_QUEUE; // Transfer queue, gets set as the graphics queue if we dont have a transfer queue
+inline VkQueue PRESENT_QUEUE;  // Present queue
 
-inline u32 graphics_queue_family; // Graphics queue family index
-inline u32 transfer_queue_family; // Transfer queue family index, gets set as the graphics queue family if we dont have
+inline u32 GRAPHICS_QUEUE_FAMILY; // Graphics queue family index
+inline u32 TRANSFER_QUEUE_FAMILY; // Transfer queue family index, gets set as the graphics queue family if we dont have
                                   // a transfer queue
-inline u32 present_queue_family;  // Present queue family index
+inline u32 PRESENT_QUEUE_FAMILY;  // Present queue family index
 
-inline VkCommandPool transfer_cmd_pool; // Transfer command pool
+inline VkCommandPool TRANSFER_CMD_POOL; // Transfer command pool
 
-inline VkCommandPool graphics_cmd_pool[FRAME_OVERLAP]; // Graphics command pool
-inline VkCommandBuffer main_cmd_buf[FRAME_OVERLAP];    // Main graphics command buffer
-inline VkSemaphore present_semaphore[FRAME_OVERLAP];
-inline VkSemaphore render_semaphore[FRAME_OVERLAP];
-inline VkFence render_fence[FRAME_OVERLAP];
+inline VkCommandPool GRAPHICS_CMD_POOL[FRAME_OVERLAP]; // Graphics command pool
+inline VkCommandBuffer MAIN_CMD_BUF[FRAME_OVERLAP];    // Main graphics command buffer
+inline VkSemaphore PRESENT_SEMAPHORE[FRAME_OVERLAP];
+inline VkSemaphore RENDER_SEMAPHORE[FRAME_OVERLAP];
+inline VkFence RENDER_FENCE[FRAME_OVERLAP];
 
-inline VkSampler default_sampler;
+inline VkSampler DEFAULT_SAMPLER;
 
-inline RenderConstants render_constants; // We dont want this to have multiple copies because we want the most curernt version
-inline AllocatedBuffer render_constants_gpu[FRAME_OVERLAP];
+inline RenderConstants RENDER_CONSTANTS; // We dont want this to have multiple copies because we want the most curernt version
+inline AllocatedBuffer RENDER_CONSTANTS_GPU[FRAME_OVERLAP];
 //inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 
-inline VkDescriptorPool global_descriptor_pool;
-inline VkDescriptorSetLayout global_constants_layout;
+inline VkDescriptorPool GLOBAL_DESCRIPTOR_POOL;
+inline VkDescriptorSetLayout GLOBAL_CONSTANTS_LAYOUT;
 
-inline VkDescriptorSet global_constants_sets[FRAME_OVERLAP];
+inline VkDescriptorSet GLOBAL_CONSTANTS_SETS[FRAME_OVERLAP];
 
-inline RenderEffect lit_shadow_effect;
-inline RenderEffect solid_effect;
-inline RenderEffect wireframe_effect;
-inline RenderEffect depth_only_effect;
-inline RenderEffect depth_prepass_effect;
+inline RenderEffect LIT_SHADOW_EFFECT;
+inline RenderEffect SOLID_EFFECT;
+inline RenderEffect WIREFRAME_EFFECT;
+inline RenderEffect SHADOWMAP_EFFECT;
+inline RenderEffect DEPTH_PREPASS_EFFECT;
 
-inline VkPipelineLayout lit_pipeline_layout;   // Deferred shading pipeline layout
-inline VkPipelineLayout color_pipeline_layout; // Debug pipeline layout
-inline VkPipeline lit_pipeline;                // Deferred shading pipeline
-inline VkPipeline solid_pipeline;              // Debug Solid fill solid color pipeline
-inline VkPipeline wireframe_pipeline;          // Debug Line fill solid color pipeline
-inline VkRenderPass default_render_pass;               // Default render pass
+inline VkPipelineLayout LIT_PIPELINE_LAYOUT;   // Deferred shading pipeline layout
+inline VkPipelineLayout COLOR_PIPELINE_LAYOUT; // Debug pipeline layout
+inline VkPipeline LIT_PIPELINE;                // Deferred shading pipeline
+inline VkPipeline SOLID_PIPELINE;              // Debug Solid fill solid color pipeline
+inline VkPipeline WIREFRAME_PIPELINE;          // Debug Line fill solid color pipeline
+inline VkRenderPass DEFAULT_RENDER_PASS;               // Default render pass
 
-inline VkPipelineLayout depth_only_pipeline_layout; // Debug pipeline layout
-inline VkPipeline depth_only_pipeline;              // Depth only sun pipeline thing
-inline VkRenderPass depth_only_render_pass;         // Sunlight render pass
+inline std::unordered_map<std::string, VkPipelineLayout> PIPELINE_LAYOUTS;
+inline std::unordered_map<std::string, VkPipeline> PIPELINES;
+inline std::unordered_map<std::string, VkRenderPass> RENDER_PASSES;
+inline std::unordered_map<std::string, VkFramebuffer*> FRAMEBUFFERS;
+inline std::unordered_map<std::string, VkDescriptorPool> DESCRIPTOR_POOLS;
+inline std::unordered_map<std::string, VkDescriptorSetLayout> DESCRIPTOR_SET_LAYOUTS;
+inline std::unordered_map<std::string, VkDescriptorSet> DESCRIPTOR_SETS;
 
-inline VkPipelineLayout depth_prepass_pipeline_layout; // Debug pipeline layout
-inline VkPipeline depth_prepass_pipeline;              // Depth only sun pipeline thing
-inline VkRenderPass depth_prepass_render_pass;         // Sunlight render pass
+static RenderEffect create_render_effect(
+  const char* pipeline_layout = "lit_shadow",
+  const char* pipeline = "lit_shadow",
+  const char* render_pass = "default",
+  const char* framebuffer = "default",
+  const char* descriptor_pool = "lit_shadow",
+  const char* descriptor_set_layout = "lit_shadow",
+  const char* desctiptor_set = "lit_shadow"
+) {
+  return RenderEffect {
+    .pipeline_layout = PIPELINE_LAYOUTS.at(pipeline_layout),
+    .pipeline = PIPELINES.at(pipeline),
+    .render_pass = RENDER_PASSES.at(render_pass),
+    .framebuffers = FRAMEBUFFERS.at(framebuffer),
+    .descriptor_pool = DESCRIPTOR_POOLS.at(descriptor_pool),
+    .descriptor_set_layout = DESCRIPTOR_SET_LAYOUTS.at(descriptor_set_layout),
+    .descriptor_set = DESCRIPTOR_SETS.at(desctiptor_set),
+  };
+};
 
-inline VkFramebuffer* global_framebuffers;               // Common framebuffers
-inline VkFramebuffer* depth_prepass_framebuffers; // Common framebuffers
-inline VkFramebuffer* sun_shadow_framebuffers;    // Depth framebuffers
+inline VkPipelineLayout DEPTH_ONLY_PIPELINE_LAYOUT; // Debug pipeline layout
+inline VkPipeline DEPTH_ONLY_PIPELINE;              // Depth only sun pipeline thing
+inline VkRenderPass DEPTH_ONLY_RENDER_PASS;         // Sunlight render pass
 
-inline usize frame_count = 0;     // Current frame number
-inline u32 frame_index = 0;       // Current synchronization object index for multiple frames in flight
-inline u32 swapchain_image_index; // Current swapchain image index, this number is only valid
+inline VkPipelineLayout DEPTH_PREPASS_PIPELINE_LAYOUT; // Debug pipeline layout
+inline VkPipeline DEPTH_PREPASS_PIPELINE;              // Depth only sun pipeline thing
+inline VkRenderPass DEPTH_PREPASS_RENDER_PASS;         // Sunlight render pass
+
+inline VkFramebuffer* GLOBAL_FRAMEBUFFERS;               // Common framebuffers
+inline VkFramebuffer* DEPTH_PREPASS_FRAMEBUFFERS; // Common framebuffers
+inline VkFramebuffer* SUN_SHADOW_FRAMEBUFFERS;    // Depth framebuffers
+
+inline usize FRAME_COUNT = 0;     // Current frame number
+inline u32 FRAME_INDEX = 0;       // Current synchronization object index for multiple frames in flight
+inline u32 SWAPCHAIN_IMAGE_INDEX; // Current swapchain image index, this number is only valid
                                   // in-between begin_frame() and end_frame() calls
 
 inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 512; // Maximum number of items that can be stored in render data
-inline usize render_data_count;                            // Current render data size;
-inline RenderData* render_data;                            // Buffer for storing things that need to be rendered.
+//inline usize render_data_count;                            // Current render data size;
+//inline RenderData* render_data;                            // Buffer for storing things that need to be rendered.
 
-inline LinearAllocationTracker gpu_vertex_tracker;
-inline AllocatedBuffer gpu_vertex_buffer;
+inline LinearAllocationTracker GPU_VERTEX_TRACKER;
+inline AllocatedBuffer GPU_VERTEX_BUFFER;
 // inline AllocatedBuffer gpu_index_buffer;
 
-inline bool pause_frustum_culling = false;
+inline bool PAUSE_FRUSTUM_CULLING = false;
 
 // inline mat4 camera_projection;
 // inline mat4 camera_view;
-inline mat4 camera_view_projection;
+inline mat4 MAIN_VIEW_PROJECTION;
 
 // inline mat4 sun_projection;
 // inline mat4 sun_view;
-inline mat4 sun_view_projection;
+inline mat4 SUN_VIEW_PROJECTION;
 
-inline CullData global_cull_data;
-inline vec4 global_planes[6];
+inline CullData CULL_DATA;
+inline vec4 CULL_PLANES[6];
 
-inline LinearAllocator render_alloc;
-inline VmaAllocator gpu_alloc;
+inline LinearAllocator RENDER_ALLOC;
+inline VmaAllocator GPU_ALLOC;
 
 void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
@@ -385,7 +412,7 @@ void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh);
 void end_shadow_rendering();
 
 void begin_lit_pass();
-void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, usize index);
+void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh);
 void end_lit_pass();
 
 void begin_solid_pass();

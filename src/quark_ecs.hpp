@@ -22,19 +22,21 @@ using namespace types;
 
 constexpr Entity null = entt::null;
 
-inline entt::basic_registry<Entity> registry;
+inline entt::basic_registry<Entity> REGISTRY;
 
 Entity create();
 void destroy(Entity e);
 void recursively_destroy(Entity e, bool destroy_root = true);
 
-template <typename T> static void add(Entity e, T t) { registry.emplace<T>(e, t); }
-template <typename A, typename... T> static void add(Entity e, A a, T... t) { registry.emplace<A>(e, a); add<T...>(e, t...); }
-template <typename T> static T& get(Entity e) { return registry.get<T>(e); }
-//template <typename... T> static decltype(auto) get(Entity e) { return registry.get<T...>(e); }
-template <typename T> T& get_first() { return registry.get<T>(registry.view<T>().front()); }
-template <typename T> static T* try_get(Entity e) { return registry.try_get<T>(e); }
-template <typename... T> static bool has(Entity e) { return registry.all_of<T...>(e); }
+template <typename T> static void add(Entity e, T t) { REGISTRY.emplace<T>(e, t); }
+template <typename A, typename... T> static void add(Entity e, A a, T... t) { REGISTRY.emplace<A>(e, a); add<T...>(e, t...); }
+template <typename T> static T& get(Entity e) { return REGISTRY.get<T>(e); }
+//template <typename... T> static decltype(auto) get(Entity e) { return REGISTRY.get<T...>(e); }
+template <typename T> T& get_first() { return REGISTRY.get<T>(REGISTRY.view<T>().front()); }
+template <typename T> static T* try_get(Entity e) { return REGISTRY.try_get<T>(e); }
+template <typename... T> static bool has(Entity e) { return REGISTRY.all_of<T...>(e); }
+
+static bool valid(Entity e) { return REGISTRY.valid(e); }
 
 #define RBINFO \
   f32 mass = 1.0f; \
@@ -141,7 +143,7 @@ void add_ghost_body(Entity e, GhostBodyInfoCapsule info);
 
 static void add_mesh(Entity e, const char* mesh_name, const vec3 scale = {1.0f, 1.0f, 1.0f}) {
   Mesh mesh = assets::get<Mesh>(mesh_name);
-  Extents extents = mesh_scales.at(std::string(mesh_name) + ".obj") * (scale / 2.0f);
+  Extents extents = MESH_SCALES.at(std::string(mesh_name) + ".obj") * (scale / 2.0f);
   ecs::add(e, mesh, extents);
 }
 

@@ -5,8 +5,8 @@ namespace ecs {
 using namespace quark;
 using namespace ecs;
 
-entt::entity create() { return registry.create(); };
-void destroy(entt::entity e) { registry.destroy(e); }
+entt::entity create() { return REGISTRY.create(); };
+void destroy(entt::entity e) { REGISTRY.destroy(e); }
 void recursively_destroy(entt::entity e, bool destroy_root) {
   // TLDR sean: recursively deletes children two layers deep
   Children* children0 = ecs::try_get<Children>(e);
@@ -160,25 +160,25 @@ void update_entity_hierarchies() {
   // loads parents multiple times
 
   // Parents of children
-  auto view_layer0 = registry.view<Children>(entt::exclude<Parent>);
+  auto view_layer0 = REGISTRY.view<Children>(entt::exclude<Parent>);
   for (auto [e, children] : view_layer0.each()) {}
 
   // Read these first because they are guaranteed layer 1
   f32 a = 0.0;
-  // auto view_layer1 = registry.view<RelPosition, RelRotation, Position, Rotation, Parent, Children>();
-  auto view_layer1 = registry.view<Transform, TransformOffset, Parent, Children>();
+  // auto view_layer1 = REGISTRY.view<RelPosition, RelRotation, Position, Rotation, Parent, Children>();
+  auto view_layer1 = REGISTRY.view<Transform, TransformOffset, Parent, Children>();
   for (auto [e, transform, child_transform, parent, children] : view_layer1.each()) {
     transform = calc_transform_from_parent(parent, child_transform);
   }
 
   // Read these second because they are either layer 1 or or layer 2
-  auto view_layer2 = registry.view<Transform, TransformOffset, Parent>(entt::exclude<Children>);
+  auto view_layer2 = REGISTRY.view<Transform, TransformOffset, Parent>(entt::exclude<Children>);
   for (auto [e, transform, child_transform, parent] : view_layer2.each()) {
     transform = calc_transform_from_parent(parent, child_transform);
   }
 
   // this way is probably better
-  // auto view2 = registry.view<Position, Children>();
+  // auto view2 = REGISTRY.view<Position, Children>();
   // for(auto [e, pos, children]: view2.each()) {
   //  for(i32 i = 0; i < children.count; i += 1) {
   //    // update transforms
