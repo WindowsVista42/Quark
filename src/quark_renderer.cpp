@@ -847,10 +847,10 @@ VkWriteDescriptorSet get_image_desc_write(
 
 void quark::renderer::internal::init_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
-    auto buffer_size = sizeof(RenderConstants);
+    auto buffer_size = sizeof(WorldData);
 
     // allocate render constants buffer
-    RENDER_CONSTANTS_GPU[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    WORLD_DATA_BUF[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // create descriptor set
     VkDescriptorSetAllocateInfo alloc_info = {};
@@ -865,9 +865,9 @@ void quark::renderer::internal::init_descriptor_sets() {
     VkWriteDescriptorSet desc_write[2] = {};
 
     VkDescriptorBufferInfo buffer_info = {};
-    buffer_info.buffer = RENDER_CONSTANTS_GPU[i].buffer;
+    buffer_info.buffer = WORLD_DATA_BUF[i].buffer;
     buffer_info.offset = 0;
-    buffer_info.range = sizeof(RenderConstants);
+    buffer_info.range = sizeof(WorldData);
     desc_write[0] = get_buffer_desc_write(0, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &buffer_info);
 
     VkDescriptorImageInfo image_info = {};
@@ -1167,7 +1167,7 @@ void quark::renderer::internal::deinit_buffers_and_images() {
   // Destroy vma buffers
   assets::unload_all(".obj");
 
-  for_every(i, FRAME_OVERLAP) { vmaDestroyBuffer(GPU_ALLOC, RENDER_CONSTANTS_GPU[i].buffer, RENDER_CONSTANTS_GPU[i].alloc); }
+  for_every(i, FRAME_OVERLAP) { vmaDestroyBuffer(GPU_ALLOC, WORLD_DATA_BUF[i].buffer, WORLD_DATA_BUF[i].alloc); }
 }
 
 void quark::renderer::internal::deinit_shaders() {
@@ -1423,33 +1423,63 @@ void quark::renderer::internal::begin_forward_rendering() {
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
 
-  // Update lights
+  // Update world data
   {
-    void* rc_ptr;
-    vmaMapMemory(GPU_ALLOC, RENDER_CONSTANTS_GPU[FRAME_INDEX].alloc, &rc_ptr);
+    void* ptr;
+    vmaMapMemory(GPU_ALLOC, WORLD_DATA_BUF[FRAME_INDEX].alloc, &ptr);
+    WorldData* world_data = (WorldData*)ptr;
 
-    RenderConstants* rc_data = (RenderConstants*)rc_ptr;
+    u32 count = 0;
+    for (auto [e, transform, color, light] : ecs::REGISTRY.view<Transform, Color, PointLight>().each()) {
+      world_data->point_lights[count].position = transform.pos;
+      world_data->point_lights[count].falloff = light.falloff;
+      world_data->point_lights[count].color = color.xyz;
+      world_data->point_lights[count].directionality = light.directionality;
+      count += 1;
+    }
+    world_data->point_light_count = count;
 
-    u32 counter = 0;
-    auto lights = ecs::REGISTRY.view<Transform, Color, IsLight>();
-    for (auto [e, transform, col] : lights.each()) {
-      rc_data->lights[counter].position = transform.pos;
-      rc_data->lights[counter].falloff = 50.0f;
-      rc_data->lights[counter].color = col.xyz;
-      rc_data->lights[counter].directionality = 0.5f;
-      counter += 1;
+    count = 0;
+    for (auto [e, transform, color, light] : ecs::REGISTRY.view<Transform, Color, DirectionalLight>().each()) {
+      world_data->directional_lights[count].position = transform.pos;
+      world_data->directional_lights[count].falloff = light.falloff;
+      world_data->directional_lights[count].direction = transform.rot.dir();
+      world_data->directional_lights[count].color = color.xyz;
+      world_data->directional_lights[count].directionality = light.directionality;
+      count += 1;
+    }
+    world_data->directional_light_count = count;
+
+    world_data->main_camera.spherical_dir = MAIN_CAMERA.spherical_dir;
+    world_data->main_camera.pos = MAIN_CAMERA.pos;
+    world_data->main_camera.znear = MAIN_CAMERA.znear;
+    world_data->main_camera.dir = MAIN_CAMERA.dir;
+    world_data->main_camera.zfar = MAIN_CAMERA.zfar;
+    world_data->main_camera.fov = MAIN_CAMERA.fov;
+
+    world_data->sun_camera.spherical_dir = SUN_CAMERA.spherical_dir;
+    world_data->sun_camera.pos = SUN_CAMERA.pos;
+    world_data->sun_camera.znear = SUN_CAMERA.znear;
+    world_data->sun_camera.dir = SUN_CAMERA.dir;
+    world_data->sun_camera.zfar = SUN_CAMERA.zfar;
+    world_data->sun_camera.fov = SUN_CAMERA.fov;
+
+    {
+      //auto [transform, color, light] = ecs::get_first<Transform, Color, SunLight>();
+      //world_data->sun_light.direction = transform.rot.dir();
+      //world_data->sun_light.color = color.xyz;
+      //world_data->sun_light.directionality = light.directionality;
+      world_data->sun_light.direction = SUN_CAMERA.dir;
+      world_data->sun_light.directionality = 1.0f;
+      world_data->sun_light.color = vec3(0.8f);
     }
 
-    rc_data->light_count = counter;
+    world_data->TT = TT;
+    world_data->DT = DT;
 
-    rc_data->camera_direction.xyz = MAIN_CAMERA.dir;
-    rc_data->camera_position.xyz = MAIN_CAMERA.pos;
-    rc_data->time = TT;
+    world_data->sun_view_projection = SUN_VIEW_PROJECTION;
 
-    rc_data->sun_view_projection = SUN_VIEW_PROJECTION;
-    rc_data->sun_dir.xyz = SUN_CAMERA.dir;
-
-    vmaUnmapMemory(GPU_ALLOC, RENDER_CONSTANTS_GPU[FRAME_INDEX].alloc);
+    vmaUnmapMemory(GPU_ALLOC, WORLD_DATA_BUF[FRAME_INDEX].alloc);
   }
 }
 

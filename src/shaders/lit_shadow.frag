@@ -1,5 +1,8 @@
 #version 460
 
+#define u32 uint
+#define f32 float
+
 layout (location = 0) in vec3 in_position;
 
 layout (location = 1) in vec3 in_normal;
@@ -8,34 +11,55 @@ layout (location = 3) flat in uint in_texture_index;
 //layout (location = 4) flat in uint in_base_instance;
 layout (location = 4) in vec4 in_sun_position;
 
-struct PointLight {
+struct PointLightData {
   vec3 position;
-  float falloff;
+  f32 falloff;
   vec3 color;
-  float directionality;
+  f32 directionality;
 };
 
-struct DirectionalLight {
+struct DirectionalLightData {
+  vec3 position;
+  f32 falloff;
   vec3 direction;
-  float _pad0;
+  f32 directionality;
   vec3 color;
-  float directionality;
+  u32 _pad0;
 };
 
-layout (set = 0, binding = 0) uniform RenderConstants {
-  PointLight lights[1024];
-  uint light_count;
-  uint _pad0;
-  uint _pad1;
-  uint _pad2;
-  vec4 camera_direction;
-  vec4 camera_position;
-  float time;
-  uint _pad3;
-  uint _pad4;
-  uint _pad5;
+struct SunLightData {
+  vec3 direction;
+  f32 directionality;
+  vec3 color;
+  u32 _pad0;
+};
+
+struct TimeData {
+  f32 tt;
+  f32 dt;
+};
+
+struct CameraData {
+  vec3 pos;
+  u32 _pad0;
+  vec3 dir;
+  f32 fov;
+  vec2 spherical_dir;
+  f32 znear;
+  f32 zfar;
+};
+
+layout (set = 0, binding = 0) uniform WorldData {
+  PointLightData point_lights[512];
+  DirectionalLightData directional_lights[512];
+  u32 point_light_count;
+  u32 directional_light_count;
+  f32 TT;
+  f32 DT;
+  CameraData main_camera;
+  CameraData sun_camera;
+  SunLightData sun_light;
   mat4 sun_view_projection;
-  vec4 sun_dir;
 };
 
 layout (set = 0, binding = 1) uniform sampler2D sun_shadow_sampler;
@@ -58,7 +82,7 @@ vec3 toonify(vec3 color, const float layers) {
   return pow(large, vec3(2.2));
 }
 
-vec3 diffuse_point(PointLight light, vec3 pixel_pos, vec3 pixel_normal) {
+vec3 diffuse_point(PointLightData light, vec3 pixel_pos, vec3 pixel_normal) {
   vec3 pos_diff = light.position - pixel_pos;
   vec3 light_dir = normalize(pos_diff);
   float distance = length(pos_diff);
@@ -73,7 +97,18 @@ vec3 diffuse_point(PointLight light, vec3 pixel_pos, vec3 pixel_normal) {
   return light.color * brightness;
 }
 
-vec3 diffuse_directional(DirectionalLight light, vec3 pixel_normal) {
+// TODO(Sean): add position falloff to this
+vec3 diffuse_directional(DirectionalLightData light, vec3 pixel_normal) {
+  //float factor = -dot(pixel_normal, light.direction);
+  //float shape_half = max(factor, 0.0f);
+  //float shape = mix(1.0f, shape_half, light.directionality);
+  //float brightness = shape;
+
+  //return light.color * brightness;
+  return vec3(0.0f);
+}
+
+vec3 diffuse_sun(SunLightData light, vec3 pixel_normal) {
   float factor = -dot(pixel_normal, light.direction);
   float shape_half = max(factor, 0.0f);
   float shape = mix(1.0f, shape_half, light.directionality);
@@ -82,7 +117,7 @@ vec3 diffuse_directional(DirectionalLight light, vec3 pixel_normal) {
   return light.color * brightness;
 }
 
-vec3 shadow_directional(in sampler2D shadow_sampler, DirectionalLight light, vec4 projected_pos, vec3 pixel_normal) {
+vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 projected_pos, vec3 pixel_normal) {
   vec3 proj_coords = projected_pos.xyz / projected_pos.w; // do this interpolated in the vertex shader?
   proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
 
@@ -110,24 +145,20 @@ vec3 shadow_directional(in sampler2D shadow_sampler, DirectionalLight light, vec
 }
 
 void main() {
-  const vec3 view_dir = normalize(camera_position.xyz - in_position);
+  const vec3 view_dir = normalize(main_camera.pos - in_position);
   const vec3 color = vec3(1.0f, 1.0f, 1.0f); // sample texture map
   const vec3 ambient = vec3(0.0f);
 
   vec3 diffuse = vec3(0.0f);
   vec3 specular = vec3(0.0f);
 
-  for(int i = 0; i < light_count; i += 1) {
-    PointLight point_light = lights[i];
-    point_light.directionality = 0.5f;
-    diffuse += diffuse_point(point_light, in_position, in_normal);
+  for(int i = 0; i < point_light_count; i += 1) {
+    PointLightData light = point_lights[i];
+    light.directionality = 0.5f;
+    diffuse += diffuse_point(light, in_position, in_normal);
   }
 
-  DirectionalLight sun_light;
-  sun_light.direction = sun_dir.xyz;
-  sun_light.color = vec3(0.8f);
-  sun_light.directionality = 0.8f;
-  vec3 sun = diffuse_directional(sun_light, in_normal);
+  vec3 sun = diffuse_sun(sun_light, in_normal);
   vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, in_sun_position, in_normal);
 
   vec3 lighting = (sun * shadow) + diffuse + specular;

@@ -132,12 +132,18 @@ struct Mesh {
 //  // f32 pyramid_width, pyramid_height;
 //};
 
-// Internal light structure.
-// Adding this component directly wont do anything.
-// Instead add Position, Color, IsLight components for a light.
-struct InternalLight {
-  vec4 position;
-  vec4 color;
+struct PointLight {
+  float falloff;
+  float directionality;
+};
+
+struct DirectionalLight {
+  float falloff;
+  float directionality;
+};
+
+struct SunLight {
+  float directionality;
 };
 
 // TAGS
@@ -153,9 +159,6 @@ struct UseLitPass {};
 
 // Render this entity with a shadow render pass
 struct UseShadowPass {};
-
-// Treat this entity as a light
-struct IsLight {};
 
 struct IsTransparent {};
 

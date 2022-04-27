@@ -32,7 +32,8 @@ template <typename T> static void add(Entity e, T t) { REGISTRY.emplace<T>(e, t)
 template <typename A, typename... T> static void add(Entity e, A a, T... t) { REGISTRY.emplace<A>(e, a); add<T...>(e, t...); }
 template <typename T> static T& get(Entity e) { return REGISTRY.get<T>(e); }
 //template <typename... T> static decltype(auto) get(Entity e) { return REGISTRY.get<T...>(e); }
-template <typename T> T& get_first() { return REGISTRY.get<T>(REGISTRY.view<T>().front()); }
+//template <typename T> T& get_first() { return REGISTRY.get<T>(REGISTRY.view<T>().front()); }
+template <typename... T> decltype(auto) get_first() { return REGISTRY.get<T...>(REGISTRY.view<T...>().front()); }
 template <typename T> static T* try_get(Entity e) { return REGISTRY.try_get<T>(e); }
 template <typename... T> static bool has(Entity e) { return REGISTRY.all_of<T...>(e); }
 

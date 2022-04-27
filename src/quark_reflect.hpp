@@ -402,7 +402,9 @@ static void init() {
   reflect::add_name<Children>("Children");
 
   reflect::add_name<Mesh>("Mesh");
-  reflect::add_name<IsLight>("Is Light");
+  reflect::add_name<PointLight>("PointLight");
+  reflect::add_name<DirectionalLight>("DirectionalLight");
+  reflect::add_name<SunLight>("SunLight");
   reflect::add_name<UseLitPass>("Lighting Pass");
   reflect::add_name<UseShadowPass>("Shadow Pass");
   reflect::add_name<UseSolidPass>("Solid Color Pass");
@@ -427,6 +429,9 @@ static void init() {
   //reflect::add_fields<&Parent::parent>("parent");
   
   reflect::add_fields("offset", &Mesh::offset, "size", &Mesh::size);
+  reflect::add_fields("falloff", &PointLight::falloff, "directionality", &PointLight::directionality);
+  reflect::add_fields("falloff", &DirectionalLight::falloff, "directionality", &DirectionalLight::directionality);
+  reflect::add_fields("directionality", &SunLight::directionality);
   reflect::add_fields("parent", &Parent::parent);
   reflect::add_fields("count", &Children::count, "children", &Children::children);
 

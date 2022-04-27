@@ -185,6 +185,14 @@ vec4 vec4::operator-() { return {-x, -y, -z, -w}; }
 f32& vec4::operator[](int i) { return ((f32*)this)[i]; }
 const f32& vec4::operator[](int i) const { return ((f32*)this)[i]; };
 
+vec3 quat::dir() {
+  f32 dir_x = 2.0f * (x * z - w * y);
+  f32 dir_y = 2.0f * (y * z + w * x);
+  f32 dir_z = 1.0f - 2.0f * (x * x + y * y);
+
+  return {dir_x, dir_y, dir_z};
+}
+
 mat2 mat2::operator+(mat2 v) { return {xs + v.xs, ys + v.ys}; }
 mat2 mat2::operator-(mat2 v) { return {xs - v.xs, ys - v.ys}; }
 

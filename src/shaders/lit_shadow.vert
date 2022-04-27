@@ -1,5 +1,8 @@
 #version 460
 
+#define u32 uint
+#define f32 float
+
 layout (location = 0) in vec3 in_position;
 layout (location = 1) in vec3 in_normal;
 layout (location = 2) in vec2 in_texture;
@@ -20,34 +23,55 @@ layout (push_constant) uniform constants {
   vec4 world_scale;
 };
 
-struct PointLight {
+struct PointLightData {
   vec3 position;
-  float falloff;
+  f32 falloff;
   vec3 color;
-  float directionality;
+  f32 directionality;
 };
 
-struct DirectionalLight {
+struct DirectionalLightData {
+  vec3 position;
+  f32 falloff;
   vec3 direction;
-  float _pad0;
+  f32 directionality;
   vec3 color;
-  float directionality;
+  u32 _pad0;
 };
 
-layout (set = 0, binding = 0) uniform RenderConstants {
-  PointLight lights[1024];
-  uint light_count;
-  uint _pad0;
-  uint _pad1;
-  uint _pad2;
-  vec4 camera_direction;
-  vec4 camera_position;
-  float time;
-  uint _pad3;
-  uint _pad4;
-  uint _pad5;
+struct SunLightData {
+  vec3 direction;
+  f32 directionality;
+  vec3 color;
+  u32 _pad0;
+};
+
+struct TimeData {
+  f32 tt;
+  f32 dt;
+};
+
+struct CameraData {
+  vec3 pos;
+  u32 _pad0;
+  vec3 dir;
+  f32 fov;
+  vec2 spherical_dir;
+  f32 znear;
+  f32 zfar;
+};
+
+layout (set = 0, binding = 0) uniform WorldData {
+  PointLightData point_lights[512];
+  DirectionalLightData directional_lights[512];
+  u32 point_light_count;
+  u32 directional_light_count;
+  f32 TT;
+  f32 DT;
+  CameraData main_camera;
+  CameraData sun_camera;
+  SunLightData sun_light;
   mat4 sun_view_projection;
-  vec4 sun_dir;
 };
 
 vec3 rotate(vec3 v, vec4 q) {

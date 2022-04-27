@@ -26,13 +26,6 @@ struct AllocatedImage {
   VkFormat format;
 };
 
-//struct AllocatedImageArray {
-//  std::vector<VmaAllocation> allocs;
-//  std::vector<VkImage> images;
-//  std::vector<VkImageView> image_views;
-//  VkFormat format;
-//};
-
 struct Camera {
   vec2 spherical_dir;
   vec3 pos;
@@ -41,6 +34,13 @@ struct Camera {
   f32 zfar;
   f32 fov;
 };
+
+//struct AllocatedImageArray {
+//  std::vector<VmaAllocation> allocs;
+//  std::vector<VkImage> images;
+//  std::vector<VkImageView> image_views;
+//  VkFormat format;
+//};
 }; // namespace types
 using namespace types;
 
@@ -68,6 +68,45 @@ void end_frame();
 
 namespace internal {
 namespace types {
+
+struct PointLightData {
+  vec3 position;
+  f32 falloff;
+  vec3 color;
+  f32 directionality;
+};
+
+struct DirectionalLightData {
+  vec3 position;
+  f32 falloff;
+  vec3 direction;
+  f32 directionality;
+  vec3 color;
+  u32 _pad0;
+};
+
+struct SunLightData {
+  vec3 direction;
+  f32 directionality;
+  vec3 color;
+  u32 _pad0;
+};
+
+struct CameraData {
+  vec3 pos;
+  u32 _pad0;
+  vec3 dir;
+  f32 fov;
+  vec2 spherical_dir;
+  f32 znear;
+  f32 zfar;
+};
+
+struct TimeData {
+  f32 tt;
+  f32 dt;
+};
+
 // Frustum culling data
 struct CullData {
   mat4 view;
@@ -78,13 +117,6 @@ struct CullData {
 
   int dist_cull;
   // f32 pyramid_width, pyramid_height;
-};
-
-struct PointLight {
-  vec3 position;
-  float falloff;
-  vec3 color;
-  float directionality;
 };
 
 // Internal Types
@@ -107,20 +139,17 @@ struct RenderData {
   Mesh mesh;
 };
 
-struct RenderConstants {
-  PointLight lights[1024];
-  u32 light_count;
-  u32 _pad0;
-  u32 _pad1;
-  u32 _pad2;
-  vec4 camera_direction;
-  vec4 camera_position;
-  float time;
-  u32 _pad3;
-  u32 _pad4;
-  u32 _pad5;
+struct WorldData {
+  PointLightData point_lights[512];
+  DirectionalLightData directional_lights[512];
+  u32 point_light_count;
+  u32 directional_light_count;
+  f32 TT;
+  f32 DT;
+  CameraData main_camera;
+  CameraData sun_camera;
+  SunLightData sun_light;
   mat4 sun_view_projection;
-  vec4 sun_dir;
 };
 
 // struct CullData {
@@ -253,8 +282,8 @@ inline VkFence RENDER_FENCE[FRAME_OVERLAP];
 
 inline VkSampler DEFAULT_SAMPLER;
 
-inline RenderConstants RENDER_CONSTANTS; // We dont want this to have multiple copies because we want the most curernt version
-inline AllocatedBuffer RENDER_CONSTANTS_GPU[FRAME_OVERLAP];
+//inline WorldData WORLD_DATA; // We dont want this to have multiple copies because we want the most curernt version
+inline AllocatedBuffer WORLD_DATA_BUF[FRAME_OVERLAP];
 //inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
 
 inline VkDescriptorPool GLOBAL_DESCRIPTOR_POOL;

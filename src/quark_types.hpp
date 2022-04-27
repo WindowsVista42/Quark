@@ -172,6 +172,9 @@ struct quat : public vec4 {
   operator btQuaternion() { return {this->x, this->y, this->z, this->w}; }
   operator const btQuaternion() const { return {this->x, this->y, this->z, this->w}; }
 
+  // convert a quaternion to euler angles
+  vec3 dir();
+
   static const quat identity;
 };
 
