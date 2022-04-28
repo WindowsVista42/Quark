@@ -185,12 +185,40 @@ vec4 vec4::operator-() { return {-x, -y, -z, -w}; }
 f32& vec4::operator[](int i) { return ((f32*)this)[i]; }
 const f32& vec4::operator[](int i) const { return ((f32*)this)[i]; };
 
-vec3 quat::dir() {
-  f32 dir_x = 2.0f * (x * z - w * y);
-  f32 dir_y = 2.0f * (y * z + w * x);
-  f32 dir_z = 1.0f - 2.0f * (x * x + y * y);
+quat quat::axis_angle(vec3 axis, f32 angle) {
+  f32 half_angle = angle / 2.0f;
+  quat quat;
+  quat.x = axis.x * sin(half_angle);
+  quat.y = axis.y * sin(half_angle);
+  quat.z = axis.z * sin(half_angle);
+  quat.w = cos(half_angle);
+  return quat;
+}
 
-  return {dir_x, dir_y, dir_z};
+auto quat::axis_angle() {
+  struct Ret { vec3 axis; f32 angle; };
+  Ret ret;
+  ret.axis = xyz / sqrtf(1.0f - (w * w));
+  ret.angle = 2.0f * acos(w);
+  return ret;
+}
+
+vec3 quat::forward() {
+  return this->rotate(vec3::unit_y);
+}
+
+vec3 quat::right() {
+  return this->rotate(vec3::unit_x);
+}
+
+vec3 quat::up() {
+  return this->rotate(vec3::unit_z);
+}
+
+vec3 quat::rotate(vec3 point) {
+  vec3 u = xyz;
+  f32 s = w;
+  return point + ((cross(u, point) * s) + cross(u, cross(u, point))) * 2.0f;
 }
 
 mat2 mat2::operator+(mat2 v) { return {xs + v.xs, ys + v.ys}; }

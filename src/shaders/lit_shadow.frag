@@ -82,7 +82,7 @@ vec3 toonify(vec3 color, const float layers) {
   return pow(large, vec3(2.2));
 }
 
-vec3 diffuse_point(PointLightData light, vec3 pixel_pos, vec3 pixel_normal) {
+vec3 diffuse_point_light(PointLightData light, vec3 pixel_pos, vec3 pixel_normal) {
   vec3 pos_diff = light.position - pixel_pos;
   vec3 light_dir = normalize(pos_diff);
   float distance = length(pos_diff);
@@ -98,17 +98,22 @@ vec3 diffuse_point(PointLightData light, vec3 pixel_pos, vec3 pixel_normal) {
 }
 
 // TODO(Sean): add position falloff to this
-vec3 diffuse_directional(DirectionalLightData light, vec3 pixel_normal) {
-  //float factor = -dot(pixel_normal, light.direction);
-  //float shape_half = max(factor, 0.0f);
-  //float shape = mix(1.0f, shape_half, light.directionality);
-  //float brightness = shape;
+vec3 diffuse_directional_light(DirectionalLightData light, vec3 pixel_pos, vec3 pixel_normal) {
+  vec3 pos_diff = light.position - pixel_pos;
+  vec3 light_dir = light.direction;
+  float distance = length(pos_diff);
 
-  //return light.color * brightness;
-  return vec3(0.0f);
+  float x = clamp((light.falloff - distance) / light.falloff, 0.0f, 1.0f);
+  float attenuation = pow(abs(x), 4.0f);
+  float factor = -dot(pixel_normal, light_dir);
+  float shape_half = max(factor, 0.0f);
+  float shape = mix(1.0f, shape_half, light.directionality);
+  float brightness = attenuation * shape;
+
+  return light.color * brightness;
 }
 
-vec3 diffuse_sun(SunLightData light, vec3 pixel_normal) {
+vec3 diffuse_sun_light(SunLightData light, vec3 pixel_normal) {
   float factor = -dot(pixel_normal, light.direction);
   float shape_half = max(factor, 0.0f);
   float shape = mix(1.0f, shape_half, light.directionality);
@@ -153,19 +158,21 @@ void main() {
   vec3 specular = vec3(0.0f);
 
   for(int i = 0; i < point_light_count; i += 1) {
-    PointLightData light = point_lights[i];
-    light.directionality = 0.5f;
-    diffuse += diffuse_point(light, in_position, in_normal);
+    diffuse += diffuse_point_light(point_lights[i], in_position, in_normal);
   }
 
-  vec3 sun = diffuse_sun(sun_light, in_normal);
+  for(int i = 0; i < directional_light_count; i += 1) {
+    diffuse += diffuse_directional_light(directional_lights[i], in_position, in_normal);
+  }
+
+  vec3 sun = diffuse_sun_light(sun_light, in_normal);
   vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, in_sun_position, in_normal);
 
   vec3 lighting = (sun * shadow) + diffuse + specular;
   vec3 result = lighting * color;
   result = pow(result, vec3(2.2));
   vec3 tonemapped = aces(result);
-  tonemapped = toonify(tonemapped, 20.0f);
+  //tonemapped = toonify(tonemapped, 20.0f);
 
   out_color = vec4(tonemapped, 1.0f);
 }

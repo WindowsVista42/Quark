@@ -1443,7 +1443,7 @@ void quark::renderer::internal::begin_forward_rendering() {
     for (auto [e, transform, color, light] : ecs::REGISTRY.view<Transform, Color, DirectionalLight>().each()) {
       world_data->directional_lights[count].position = transform.pos;
       world_data->directional_lights[count].falloff = light.falloff;
-      world_data->directional_lights[count].direction = transform.rot.dir();
+      world_data->directional_lights[count].direction = transform.rot.forward();
       world_data->directional_lights[count].color = color.xyz;
       world_data->directional_lights[count].directionality = light.directionality;
       count += 1;

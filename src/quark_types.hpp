@@ -109,7 +109,15 @@ struct vec3 {
   f32& operator[](usize i);
 
   operator btVector3();
+
+  static const vec3 unit_x;
+  static const vec3 unit_y;
+  static const vec3 unit_z;
 };
+
+inline const vec3 vec3::unit_x = vec3{1,0,0};
+inline const vec3 vec3::unit_y = vec3{0,1,0};
+inline const vec3 vec3::unit_z = vec3{0,0,1};
 
 // Four component vector
 struct vec4 {
@@ -173,8 +181,15 @@ struct quat : public vec4 {
   operator const btQuaternion() const { return {this->x, this->y, this->z, this->w}; }
 
   // convert a quaternion to euler angles
-  vec3 dir();
+  auto axis_angle();
 
+  vec3 forward();
+  vec3 right();
+  vec3 up();
+
+  vec3 rotate(vec3 point);
+
+  static quat axis_angle(vec3 axis, f32 angle);
   static const quat identity;
 };
 
