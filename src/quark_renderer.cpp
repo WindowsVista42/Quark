@@ -320,6 +320,7 @@ void quark::renderer::internal::init_command_pools_and_buffers() {
 }
 
 void quark::renderer::internal::init_render_passes() {
+  // main render pass
   VkAttachmentDescription color_attachment = {};
   color_attachment.format = SWAPCHAIN_FORMAT;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -337,8 +338,8 @@ void quark::renderer::internal::init_render_passes() {
   depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
   depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
+  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
 
   VkAttachmentReference color_attachment_ref = {};
   color_attachment_ref.attachment = 0;
@@ -365,9 +366,11 @@ void quark::renderer::internal::init_render_passes() {
 
   vk_check(vkCreateRenderPass(DEVICE, &render_pass_info, 0, &DEFAULT_RENDER_PASS));
 
+  // depth prepass render pass
   depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // start as dont-care
+  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // transition to depth attachment (depth-prepass)
 
   VkAttachmentDescription depth_only_attachments[1] = {depth_attachment};
 
@@ -385,6 +388,11 @@ void quark::renderer::internal::init_render_passes() {
   render_pass_info.pSubpasses = &subpass_desc;
 
   vk_check(vkCreateRenderPass(DEVICE, &render_pass_info, 0, &DEPTH_PREPASS_RENDER_PASS));
+
+  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // start as dont-care
+  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; // transition to shader read
+                                                                                  //
+  depth_only_attachments[0] = depth_attachment;
   vk_check(vkCreateRenderPass(DEVICE, &render_pass_info, 0, &DEPTH_ONLY_RENDER_PASS));
 }
 
@@ -873,7 +881,7 @@ void quark::renderer::internal::init_descriptor_sets() {
     VkDescriptorImageInfo image_info = {};
     image_info.sampler = DEFAULT_SAMPLER;
     image_info.imageView = SUN_DEPTH_IMAGE.view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     desc_write[1] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
 
     vkUpdateDescriptorSets(DEVICE, count_of(desc_write), desc_write, 0, 0);
@@ -884,7 +892,7 @@ void quark::renderer::internal::update_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
     VkWriteDescriptorSet desc_write[1] = {};
 
-    VkDescriptorImageInfo image_info = {DEFAULT_SAMPLER, SUN_DEPTH_IMAGE.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL};
+    VkDescriptorImageInfo image_info = {DEFAULT_SAMPLER, SUN_DEPTH_IMAGE.view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
     desc_write[0] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
 
     vkUpdateDescriptorSets(DEVICE, count_of(desc_write), desc_write, 0, 0);
@@ -1719,11 +1727,6 @@ void quark::renderer::render_frame(bool end_forward) {
     }
   }
   end_shadow_rendering();
-
-  //transition_image_layout(
-  //  MAIN_CMD_BUF[frame_index], sun_depth_image.image, sun_depth_image.format,
-  //  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-  //);
 
   MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
 
