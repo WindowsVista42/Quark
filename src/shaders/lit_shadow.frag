@@ -133,13 +133,15 @@ vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 pr
   float current_depth = proj_coords.z;
   float shadow = 0.0;
   vec2 texel_size = 1.0 / vec2(128);
-  for(int x = -1; x <= 1; ++x) {
-    for(int y = -1; y <= 1; ++y) {
-      float pcf_depth = texture(sun_shadow_sampler, proj_coords.xy + vec2(x, y) * texel_size).r; 
-      shadow += current_depth - bias > pcf_depth ? 1.0 : 0.0;        
-    }
-  }
-  shadow /= 9.0;
+  float pcf_depth = texture(sun_shadow_sampler, proj_coords.xy + vec2(0, 0) * texel_size).r; 
+  shadow += current_depth - bias > pcf_depth ? 1.0 : 0.0;
+  //for(int x = -1; x <= 1; ++x) {
+  //  for(int y = -1; y <= 1; ++y) {
+  //    float pcf_depth = texture(sun_shadow_sampler, proj_coords.xy + vec2(x, y) * texel_size).r; 
+  //    shadow += current_depth - bias > pcf_depth ? 1.0 : 0.0;
+  //  }
+  //}
+  shadow /= 2.0;
 
   if(proj_coords.x >= 0.95f || proj_coords.x <= 0.05f) { shadow = 0.0f; }
   if(proj_coords.y >= 0.95f || proj_coords.y <= 0.05f) { shadow = 0.0f; }

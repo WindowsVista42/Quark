@@ -159,7 +159,15 @@ struct WorldData {
 //   f32 zfar;
 // };
 
+struct RenderEffectMeta {
+  u32 width;
+  u32 height;
+  u32 clear_value_count;
+  VkClearValue* clear_values;
+};
+
 struct RenderEffect {
+  RenderEffectMeta meta;
   // this does not need reference counting because i can just store the individual fields outside of this object
   // these fields are merely a convenience for bundling rendering state together
   VkPipelineLayout pipeline_layout;
@@ -168,9 +176,8 @@ struct RenderEffect {
 
   VkFramebuffer* framebuffers;
 
-  VkDescriptorPool descriptor_pool;
   VkDescriptorSetLayout descriptor_set_layout;
-  VkDescriptorSet descriptor_set;
+  VkDescriptorSet* descriptor_sets;
 };
 
 // Define a transparent struct with the inner value being referenced as _
@@ -291,46 +298,55 @@ inline VkDescriptorSetLayout GLOBAL_CONSTANTS_LAYOUT;
 
 inline VkDescriptorSet GLOBAL_CONSTANTS_SETS[FRAME_OVERLAP];
 
-inline RenderEffect LIT_SHADOW_EFFECT;
-inline RenderEffect SOLID_EFFECT;
-inline RenderEffect WIREFRAME_EFFECT;
-inline RenderEffect SHADOWMAP_EFFECT;
-inline RenderEffect DEPTH_PREPASS_EFFECT;
-
 inline VkPipelineLayout LIT_PIPELINE_LAYOUT;   // Deferred shading pipeline layout
 inline VkPipelineLayout COLOR_PIPELINE_LAYOUT; // Debug pipeline layout
 inline VkPipeline LIT_PIPELINE;                // Deferred shading pipeline
 inline VkPipeline SOLID_PIPELINE;              // Debug Solid fill solid color pipeline
 inline VkPipeline WIREFRAME_PIPELINE;          // Debug Line fill solid color pipeline
-inline VkRenderPass DEFAULT_RENDER_PASS;               // Default render pass
+inline VkRenderPass DEFAULT_RENDER_PASS;       // Default render pass
 
+inline std::unordered_map<std::string, RenderEffectMeta> EFFECT_METADATA;
 inline std::unordered_map<std::string, VkPipelineLayout> PIPELINE_LAYOUTS;
 inline std::unordered_map<std::string, VkPipeline> PIPELINES;
 inline std::unordered_map<std::string, VkRenderPass> RENDER_PASSES;
 inline std::unordered_map<std::string, VkFramebuffer*> FRAMEBUFFERS;
-inline std::unordered_map<std::string, VkDescriptorPool> DESCRIPTOR_POOLS;
 inline std::unordered_map<std::string, VkDescriptorSetLayout> DESCRIPTOR_SET_LAYOUTS;
-inline std::unordered_map<std::string, VkDescriptorSet> DESCRIPTOR_SETS;
+inline std::unordered_map<std::string, VkDescriptorSet*> DESCRIPTOR_SETS;
+
+inline RenderEffectMeta CURRENT_META;
+inline VkPipelineLayout CURRENT_PIPELINE_LAYOUT;
+inline VkPipeline CURRENT_PIPELINE;
+inline VkRenderPass CURRENT_RENDER_PASS;
+inline VkFramebuffer CURRENT_FRAMEBUFFER;
+inline VkDescriptorSetLayout CURRENT_DESCRIPTOR_SET_LAYOUT;
+inline VkDescriptorSet CURRENT_DESCRIPTOR_SET;
+inline VkCommandBuffer CURRENT_CMD_BUF;
 
 static RenderEffect create_render_effect(
+  const char* effect_metadata = "default",
   const char* pipeline_layout = "lit_shadow",
   const char* pipeline = "lit_shadow",
   const char* render_pass = "default",
   const char* framebuffer = "default",
-  const char* descriptor_pool = "lit_shadow",
   const char* descriptor_set_layout = "lit_shadow",
   const char* desctiptor_set = "lit_shadow"
 ) {
   return RenderEffect {
+    .meta = EFFECT_METADATA.at(effect_metadata),
     .pipeline_layout = PIPELINE_LAYOUTS.at(pipeline_layout),
     .pipeline = PIPELINES.at(pipeline),
     .render_pass = RENDER_PASSES.at(render_pass),
     .framebuffers = FRAMEBUFFERS.at(framebuffer),
-    .descriptor_pool = DESCRIPTOR_POOLS.at(descriptor_pool),
     .descriptor_set_layout = DESCRIPTOR_SET_LAYOUTS.at(descriptor_set_layout),
-    .descriptor_set = DESCRIPTOR_SETS.at(desctiptor_set),
+    .descriptor_sets = DESCRIPTOR_SETS.at(desctiptor_set),
   };
 };
+
+inline RenderEffect DEPTH_PREPASS_EFFECT;
+inline RenderEffect SHADOWMAP_EFFECT;
+inline RenderEffect LIT_SHADOW_EFFECT;
+inline RenderEffect SOLID_EFFECT;
+inline RenderEffect WIREFRAME_EFFECT;
 
 inline VkPipelineLayout DEPTH_ONLY_PIPELINE_LAYOUT; // Debug pipeline layout
 inline VkPipeline DEPTH_ONLY_PIPELINE;              // Depth only sun pipeline thing
@@ -372,6 +388,72 @@ inline vec4 CULL_PLANES[6];
 
 inline LinearAllocator RENDER_ALLOC;
 inline VmaAllocator GPU_ALLOC;
+
+void begin_effect(RenderEffect effect) {
+  // re-bind render pass if framebuffers or render pass changed, update current and update meta
+  if(CURRENT_RENDER_PASS != effect.render_pass || CURRENT_FRAMEBUFFER != effect.framebuffers[SWAPCHAIN_IMAGE_INDEX]) {
+    printf("Updated render pass!\n");
+
+    CURRENT_RENDER_PASS = effect.render_pass;
+    CURRENT_FRAMEBUFFER = effect.framebuffers[SWAPCHAIN_IMAGE_INDEX];
+    CURRENT_META = effect.meta;
+
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = CURRENT_RENDER_PASS;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = CURRENT_META.width; // changes when render pass changes
+    render_pass_begin_info.renderArea.extent.height = CURRENT_META.height; // changes when render pass changes
+    render_pass_begin_info.framebuffer = CURRENT_FRAMEBUFFER;
+    render_pass_begin_info.clearValueCount = CURRENT_META.clear_value_count; // changes when render pass changes
+    render_pass_begin_info.pClearValues = CURRENT_META.clear_values; // changes when render pass changes
+    render_pass_begin_info.pNext = 0;
+
+    vkCmdBeginRenderPass(CURRENT_CMD_BUF, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    printf("Updated render pass!\n");
+  }
+
+  // re-bind pipeline if changed, update current pipeline and pipeline layout
+  if(CURRENT_PIPELINE != effect.pipeline) {
+    printf("Updated pipeline!\n");
+
+    CURRENT_PIPELINE = effect.pipeline;
+    CURRENT_PIPELINE_LAYOUT = effect.pipeline_layout; // used for draw funcs
+
+    vkCmdBindPipeline(CURRENT_CMD_BUF, VK_PIPELINE_BIND_POINT_GRAPHICS, CURRENT_PIPELINE);
+
+    printf("Updated pipeline!\n");
+  }
+
+  // re-bind descriptor sets if changed, update current descriptor set and descriptor set layout
+  if(CURRENT_DESCRIPTOR_SET != effect.descriptor_set && effect.descriptor_set != 0) { // descriptor sets are technically 'optional'
+    printf("Updated descriptor set!\n");
+
+    CURRENT_DESCRIPTOR_SET = effect.descriptor_set;
+    CURRENT_DESCRIPTOR_SET_LAYOUT = effect.descriptor_set_layout;
+
+    vkCmdBindDescriptorSets(CURRENT_CMD_BUF, VK_PIPELINE_BIND_POINT_GRAPHICS, CURRENT_PIPELINE_LAYOUT, 0, 1, CURRENT_DESCRIPTOR_SET, 0, 0);
+
+    printf("Updated descriptor set!\n");
+  }
+}
+
+void end_effect() {
+  //vkCmdEndRenderPass(CURRENT_CMD_BUF)
+  // conditionally checks if we need to go to spin up a different render pass or not?
+}
+
+//template <void (*F)(Position, Rotation, Scale, Mesh), typename... T>
+//void draw_all() {
+//  const auto items = ecs::REGISTRY.view<Transform, Extents, Mesh, T...>();
+//  for (auto [e, transform, scl, mesh, col] : items.each()) {
+//    if (box_in_frustum(transform.pos, scl)) {
+//      draw_color(transform.pos, transform.rot, scl, col, mesh);
+//    }
+//  }
+//}
 
 void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
@@ -429,6 +511,7 @@ void print_performance_statistics();
 void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh);
 template <typename F> void flush_render_batch(F f);
 
+void update_world_data();
 void begin_forward_rendering();
 void end_forward_rendering();
 
