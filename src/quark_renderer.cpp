@@ -1285,16 +1285,16 @@ void quark::renderer::begin_frame() {
 
   vk_check(vkBeginCommandBuffer(MAIN_CMD_BUF[FRAME_INDEX], &command_begin_info));
 
-  CURRENT_CMD_BUF = MAIN_CMD_BUF[FRAME_INDEX];
+  //CURRENT_CMD_BUF = MAIN_CMD_BUF[FRAME_INDEX];
 
-  // reset current items so they initially get bound
-  CURRENT_META = {};
-  CURRENT_PIPELINE_LAYOUT = 0;
-  CURRENT_PIPELINE = 0;
-  CURRENT_RENDER_PASS = 0;
-  CURRENT_FRAMEBUFFER = 0;
-  CURRENT_DESCRIPTOR_SET_LAYOUT = 0;
-  CURRENT_DESCRIPTOR_SET = 0;
+  //// reset current items so they initially get bound
+  //CURRENT_META = {};
+  //CURRENT_PIPELINE_LAYOUT = 0;
+  //CURRENT_PIPELINE = 0;
+  //CURRENT_RENDER_PASS = 0;
+  //CURRENT_FRAMEBUFFER = 0;
+  //CURRENT_DESCRIPTOR_SET_LAYOUT = 0;
+  //CURRENT_DESCRIPTOR_SET = 0;
 }
 
 enum PROJECTION_TYPE {
@@ -1800,13 +1800,13 @@ void quark::renderer::render_frame(bool end_forward) {
     end_forward_rendering();
   }
 
-  begin_effect(SHADOWMAP_EFFECT);
-  //
-  end_effect();
+  //begin_effect(SHADOWMAP_EFFECT);
+  ////
+  //end_effect();
 
-  begin_effect(DEPTH_PREPASS_EFFECT);
-  //
-  end_effect();
+  //begin_effect(DEPTH_PREPASS_EFFECT);
+  ////
+  //end_effect();
 
   //begin_effect(LIT_SHADOW_EFFECT);
   ////
