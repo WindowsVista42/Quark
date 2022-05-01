@@ -90,3 +90,4 @@ void main() {
   out_sun_position = sun_view_projection * vec4(out_position, 1.0f);
   gl_Position = world_view_projection * vec4(in_position, 1.0f);
 }
+

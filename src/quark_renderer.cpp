@@ -488,7 +488,7 @@ void quark::renderer::internal::init_pipelines() {
   VkPushConstantRange push_constant = {};
   push_constant.offset = 0;
   push_constant.size = sizeof(DeferredPushConstant);
-  push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
   VkPipelineLayoutCreateInfo pipeline_layout_info = {};
   pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1564,7 +1564,7 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
 
   VkDeviceSize offset = 0;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DeferredPushConstant), &dpc);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DeferredPushConstant), &dpc);
   // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
   // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
@@ -1695,7 +1695,7 @@ void quark::renderer::internal::draw_color(Position pos, Rotation rot, Scale scl
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   pcd.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DebugPushConstant), &pcd);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DebugPushConstant), &pcd);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -1703,7 +1703,7 @@ void quark::renderer::internal::draw_shadow(Position pos, Rotation rot, Scale sc
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = SUN_VIEW_PROJECTION * world_m;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &world_view_projection);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -1711,7 +1711,7 @@ void quark::renderer::internal::draw_depth(Position pos, Rotation rot, Scale scl
   mat4 world_m = translate_rotate_scale(pos, rot, scl);
   mat4 world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &world_view_projection);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &world_view_projection);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 }
 

@@ -1,10 +1,10 @@
-#version 450
+#version 460
 
 layout (location = 0) in vec3 in_position;
 layout (location = 1) in vec3 in_normal;
 layout (location = 2) in vec2 in_texture;
 
-layout (push_constant) uniform constants {
+layout (push_constant) uniform push_constant {
     mat4 world_view_projection;
 };
 
