@@ -1,1 +1,1 @@
-layout (location = 0) out vec4 OUT_COLOR;
+layout (location = 0) out vec4 COLOR;

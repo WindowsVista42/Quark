@@ -17,5 +17,5 @@ void main() {
 // SECTION: FRAGMENT
 
 void main() {
-  OUT_COLOR = CUSTOM_PUSH.color;
+  COLOR = CUSTOM_PUSH.color;
 }

@@ -6,13 +6,13 @@
 // SECTION: VERTEX
 
 void main() {
-  out_position = (rotate(in_position, world_rotation) * world_scale.xyz) + world_position.xyz;
-  out_normal = rotate(in_normal, world_rotation);
-  out_texture = in_texture;
-  out_texture_index = floatBitsToUint(world_position.w);
+  WORLD_POSITION = (rotate(VERTEX_POSITION, MODEL_ROTATION) * MODEL_SCALE.xyz) + MODEL_POSITION.xyz;
+  WORLD_NORMAL = rotate(VERTEX_NORMAL, MODEL_ROTATION);
+  WORLD_UV = VERTEX_UV;
+  WORLD_TEX_ID = floatBitsToUint(MODEL_POSITION.w);
 
-  out_sun_position = sun_view_projection * vec4(out_position, 1.0f);
-  gl_Position = world_view_projection * vec4(in_position, 1.0f);
+  SUN_POSITION = sun_view_projection * vec4(WORLD_POSITION, 1.0f);
+  POSITION = world_view_projection * vec4(VERTEX_POSITION, 1.0f);
 }
 
 // SECTION: FRAGMENT
@@ -103,7 +103,7 @@ vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 pr
 }
 
 void main() {
-  const vec3 view_dir = normalize(main_camera.pos - in_position);
+  const vec3 view_dir = normalize(main_camera.pos - WORLD_POSITION);
   const vec3 color = vec3(1.0f, 1.0f, 1.0f); // sample texture map
   const vec3 ambient = vec3(0.0f);
 
@@ -111,15 +111,15 @@ void main() {
   vec3 specular = vec3(0.0f);
 
   for(int i = 0; i < point_light_count; i += 1) {
-    diffuse += diffuse_point_light(point_lights[i], in_position, in_normal);
+    diffuse += diffuse_point_light(point_lights[i], WORLD_POSITION, WORLD_NORMAL);
   }
 
   for(int i = 0; i < directional_light_count; i += 1) {
-    diffuse += diffuse_directional_light(directional_lights[i], in_position, in_normal);
+    diffuse += diffuse_directional_light(directional_lights[i], WORLD_POSITION, WORLD_NORMAL);
   }
 
-  vec3 sun = diffuse_sun_light(sun_light, in_normal);
-  vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, in_sun_position, in_normal);
+  vec3 sun = diffuse_sun_light(sun_light, WORLD_NORMAL);
+  vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, SUN_POSITION, WORLD_NORMAL);
 
   vec3 lighting = (sun * shadow) + diffuse + specular;
   vec3 result = lighting * color;
@@ -127,5 +127,5 @@ void main() {
   vec3 tonemapped = aces(result);
   //tonemapped = toonify(tonemapped, 20.0f);
 
-  out_color = vec4(tonemapped, 1.0f);
+  COLOR = vec4(tonemapped, 1.0f);
 }
