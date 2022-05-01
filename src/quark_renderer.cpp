@@ -292,7 +292,7 @@ void quark::renderer::internal::init_swapchain() {
   GLOBAL_DEPTH_IMAGE =
       create_allocated_image(WINDOW_W, WINDOW_H, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-  SUN_DEPTH_IMAGE = create_allocated_image(4096, 4096, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+  SUN_DEPTH_IMAGE = create_allocated_image(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void quark::renderer::internal::init_command_pools_and_buffers() {
@@ -436,7 +436,7 @@ void quark::renderer::internal::init_framebuffers() {
   for_every(index, img_count) {
     VkImageView attachments[1];
     attachments[0] = SUN_DEPTH_IMAGE.view;
-    SUN_SHADOW_FRAMEBUFFERS[index] = create_framebuffer(DEPTH_ONLY_RENDER_PASS, 4096, 4096, attachments, count_of(attachments));
+    SUN_SHADOW_FRAMEBUFFERS[index] = create_framebuffer(DEPTH_ONLY_RENDER_PASS, 2048, 2048, attachments, count_of(attachments));
   }
 }
 
@@ -683,9 +683,9 @@ void quark::renderer::internal::init_pipelines() {
 
   rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
-  viewport.width = 4096.0f;
-  viewport.height = 4096.0f;
-  scissor.extent = {4096, 4096};
+  viewport.width = 2048.0f;
+  viewport.height = 2048.0f;
+  scissor.extent = {2048, 2048};
 
   pipeline_info.layout = DEPTH_ONLY_PIPELINE_LAYOUT;
   pipeline_info.renderPass = DEPTH_ONLY_RENDER_PASS;
@@ -1363,8 +1363,8 @@ void quark::renderer::internal::begin_shadow_rendering() {
   render_pass_begin_info.renderPass = DEPTH_ONLY_RENDER_PASS;
   render_pass_begin_info.renderArea.offset.x = 0;
   render_pass_begin_info.renderArea.offset.y = 0;
-  render_pass_begin_info.renderArea.extent.width = 4096;
-  render_pass_begin_info.renderArea.extent.height = 4096;
+  render_pass_begin_info.renderArea.extent.width = 2048;
+  render_pass_begin_info.renderArea.extent.height = 2048;
   render_pass_begin_info.framebuffer = SUN_SHADOW_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
   render_pass_begin_info.clearValueCount = 1;
   render_pass_begin_info.pClearValues = clear_values;
@@ -1723,8 +1723,8 @@ void quark::renderer::render_frame(bool end_forward) {
   SUN_CAMERA.dir = normalize(MAIN_CAMERA.pos - SUN_CAMERA.pos);
   SUN_CAMERA.znear = 10.0f;
   SUN_CAMERA.zfar = 500.0f;
-  SUN_CAMERA.fov = 4.0f;
-  SUN_VIEW_PROJECTION = update_matrices(SUN_CAMERA, 4096, 4096);
+  SUN_CAMERA.fov = 16.0f;
+  SUN_VIEW_PROJECTION = update_matrices(SUN_CAMERA, 2048, 2048);
 
   begin_shadow_rendering();
   {
