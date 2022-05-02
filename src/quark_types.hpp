@@ -91,6 +91,11 @@ struct vec3 {
   vec3 operator*(vec3 v);
   vec3 operator/(vec3 v);
 
+  vec3 operator+(vec3 v) const;
+  vec3 operator-(vec3 v) const;
+  vec3 operator*(vec3 v) const;
+  vec3 operator/(vec3 v) const;
+
   void operator+=(f32 v);
   void operator-=(f32 v);
   void operator*=(f32 v);

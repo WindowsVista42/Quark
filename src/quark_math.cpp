@@ -215,10 +215,9 @@ quat quark::axis_angle(vec3 axis, f32 angle) {
   return quat;
 }
 vec3 quark::rotate(vec3 v, quat q) {
-  vec3 u = q.xyz;
-  f32 s = q.w;
-
-  return v + ((cross(u, v) * s) + cross(u, cross(u, v))) * 2.0f;
+  // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+  vec3 t = 2.0f * cross(q.xyz, v);
+  return v + vec3(q.w * t) + cross(q.xyz, t);
 }
 
 mat4 quark::rotate(quat q) {

@@ -19,6 +19,18 @@ layout (push_constant) uniform push_constant {
 };
 
 void main() {
-  //vec3 world_position = (rotate(VERTEX_POSITION, MODEL_ROTATION) * MODEL_SCALE.xyz) + MODEL_POSITION.xyz;
+  //WORLD_POSITION = (rotate(VERTEX_POSITION, MODEL_ROTATION) * MODEL_SCALE.xyz) + MODEL_POSITION.xyz;
+  //gl_Position = main_view_projection * vec4(world_position, 1.0f);
+  //
+  //mat3 model_world;
+  //mat4 sun_world_view_projection;
+  //mat4 main_world_view_projection;
+  //
+  //WORLD_POSITION = model_world * VERTEX_POSITION;
+  //WORLD_NORMAL = rotate(VERTEX_NORMAL, MODEL_ROTATION);
+  //WORLD_UV = VERTEX_UV;
+  //
+  //SUN_POSITION = sun_world_view_projection * vec4(VERTEX_POSITION, 1.0f);
+  //POSITION = main_world_view_projection * vec4(VERTEX_POSITION, 1.0f);
   gl_Position = world_view_projection * vec4(in_position, 1.0f);
 }

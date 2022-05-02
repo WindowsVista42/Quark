@@ -88,6 +88,11 @@ vec3 vec3::operator-(vec3 v) { return {x - v.x, y - v.y, z - v.z}; }
 vec3 vec3::operator*(vec3 v) { return {x * v.x, y * v.y, z * v.z}; }
 vec3 vec3::operator/(vec3 v) { return {x / v.x, y / v.y, z / v.z}; }
 
+vec3 vec3::operator+(vec3 v) const { return {x + v.x, y + v.y, z + v.z}; }
+vec3 vec3::operator-(vec3 v) const { return {x - v.x, y - v.y, z - v.z}; }
+vec3 vec3::operator*(vec3 v) const { return {x * v.x, y * v.y, z * v.z}; }
+vec3 vec3::operator/(vec3 v) const { return {x / v.x, y / v.y, z / v.z}; }
+
 void vec3::operator+=(f32 v) { *this = *this + v; };
 void vec3::operator-=(f32 v) { *this = *this - v; };
 void vec3::operator*=(f32 v) { *this = *this * v; };
