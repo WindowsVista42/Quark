@@ -121,10 +121,9 @@ struct CullData {
 
 // Internal Types
 struct DeferredPushConstant {
-  mat4 world_view_projection; // 64 bytes
-  vec4 world_rotation;
-  vec4 world_position; // w is texture index
-  vec4 world_scale;
+  vec4 MODEL_POSITION;
+  vec4 MODEL_ROTATION;
+  vec4 MODEL_SCALE;
 };
 
 struct DebugPushConstant {
@@ -149,6 +148,7 @@ struct WorldData {
   CameraData main_camera;
   CameraData sun_camera;
   SunLightData sun_light;
+  mat4 main_view_projection;
   mat4 sun_view_projection;
 };
 

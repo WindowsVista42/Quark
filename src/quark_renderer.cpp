@@ -334,8 +334,8 @@ void quark::renderer::internal::init_render_passes() {
   VkAttachmentDescription depth_attachment = {};
   depth_attachment.format = GLOBAL_DEPTH_IMAGE.format;
   depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-  depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
   depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
@@ -1497,6 +1497,7 @@ void quark::renderer::internal::update_world_data() {
   world_data->DT = DT;
 
   world_data->sun_view_projection = SUN_VIEW_PROJECTION;
+  world_data->main_view_projection = MAIN_VIEW_PROJECTION;
 
   vmaUnmapMemory(GPU_ALLOC, WORLD_DATA_BUF[FRAME_INDEX].alloc);
 }
@@ -1553,14 +1554,14 @@ void quark::renderer::internal::draw_lit(Position pos, Rotation rot, Scale scl, 
 
   // mesh_scls[]
 
-  mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  dpc.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
+  //mat4 world_m = translate_rotate_scale(pos, rot, scl);
+  //dpc.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  dpc.world_rotation = rot;
-  dpc.world_position.xyz = pos;
-  dpc.world_scale.xyz = scl;
-  u32 texture_index = 0;
-  dpc.world_position.w = *(f32*)&texture_index;
+  dpc.MODEL_POSITION.xyz = pos;
+  dpc.MODEL_ROTATION = rot;
+  dpc.MODEL_SCALE.xyz = scl;
+  //u32 texture_index = 0;
+  //dpc.world_position.w = *(f32*)&texture_index;
 
   VkDeviceSize offset = 0;
 
@@ -1739,16 +1740,16 @@ void quark::renderer::render_frame(bool end_forward) {
 
   MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
 
-  begin_depth_prepass_rendering();
-  {
-    const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
-    for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        draw_depth(transform.pos, transform.rot, scl, mesh);
-      }
-    }
-  }
-  end_depth_prepass_rendering();
+  //begin_depth_prepass_rendering();
+  //{
+  //  const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
+  //  for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
+  //    if (box_in_frustum(transform.pos, scl)) {
+  //      draw_depth(transform.pos, transform.rot, scl, mesh);
+  //    }
+  //  }
+  //}
+  //end_depth_prepass_rendering();
 
   update_world_data();
   begin_forward_rendering();

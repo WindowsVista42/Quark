@@ -125,7 +125,6 @@ float snoise(vec4 v){
   m1 = m1 * m1;
   return 49.0 * ( dot(m0*m0, vec3( dot( p0, x0 ), dot( p1, x1 ), dot( p2, x2 )))
                + dot(m1*m1, vec2( dot( p3, x3 ), dot( p4, x4 ) ) ) ) ;
-
 }
 
 // SECTION: VERTEX
@@ -134,10 +133,10 @@ void main() {
   WORLD_POSITION = (rotate(VERTEX_POSITION, MODEL_ROTATION) * MODEL_SCALE.xyz) + MODEL_POSITION.xyz;
   WORLD_NORMAL = rotate(VERTEX_NORMAL, MODEL_ROTATION);
   WORLD_UV = VERTEX_UV;
-  WORLD_TEX_ID = floatBitsToUint(MODEL_POSITION.w);
+  WORLD_TEX_ID = 0;
 
   SUN_POSITION = sun_view_projection * vec4(WORLD_POSITION, 1.0f);
-  POSITION = world_view_projection * vec4(VERTEX_POSITION, 1.0f);
+  POSITION = main_view_projection * vec4(WORLD_POSITION, 1.0f);
 }
 
 // SECTION: FRAGMENT
