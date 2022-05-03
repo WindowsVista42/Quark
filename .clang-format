@@ -4,6 +4,4 @@ UseTab: Never
 Language: Cpp
 DerivePointerAlignment: false
 PointerAlignment: Left
-ColumnLimit: 150
-AlignAfterOpenBracket: DontAlign
-SortIncludes: Never
+ColumnLimit: 120

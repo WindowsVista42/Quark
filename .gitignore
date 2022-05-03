@@ -1,5 +1,9 @@
+assets/
+build/
+.cache/
+compile_commands.json
+.idea/
 CMakeFiles/
 deps/
 .cache/
-compile_commands.json
 lib/

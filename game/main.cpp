@@ -1,0 +1,826 @@
+#include <../engine/quark.hpp>
+
+using namespace quark;
+using namespace quark::renderer;
+
+static Entity player_e;
+static Entity child_player_e;
+
+static Entity selected = entt::null;
+static Entity selection_box = entt::null;
+
+static Entity forward_bar;
+static Entity right_bar;
+static Entity up_bar;
+
+struct DontSyncTransformWithPhysics {};
+struct PlayerLegs {};
+
+static f32 scroll_height = 0.0f;
+
+static Entity last_box = entt::null;
+
+//
+
+struct Health {
+  f32 value;
+  f32 base;
+};
+
+struct Timer {
+  f32 value;
+  f32 base;
+
+  bool done() {
+    return value <= 0.0f;
+  };
+
+  void reset() {
+    value = base;
+  };
+};
+
+struct SaturatingTimer {
+  f32 value;
+  f32 base;
+  f32 max;
+
+  bool done() {
+    return (value + base) < max;
+  };
+
+  void tick() {
+    value -= DT;
+  }
+
+  void saturate() {
+    value += base;
+  }
+};
+
+struct Enemy {
+  Entity attack_timer;
+  Entity move_timer;
+};
+
+struct Speed {
+  float speed;
+};
+
+struct Player {
+  Entity dash_timer;
+  Entity sat_dash_timer;
+};
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) { scroll_height += (f32)yoffset; }
+
+void game_init() {
+  reflect::add_fields("value", &Health::value, "base", &Health::base);
+  reflect::add_fields("value", &Timer::value, "base", &Timer::base);
+  reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
+  reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
+  reflect::add_fields("dash_timer", &Player::dash_timer);
+
+  reflect::add_name<Health>("Health");
+  reflect::add_name<Timer>("Timer");
+  reflect::add_name<SaturatingTimer>("SaturatingTimer");
+  reflect::add_name<Enemy>("Enemy");
+  reflect::add_name<Player>("Player");
+
+  glfwSetScrollCallback(platform::window, scroll_callback);
+
+  {
+    auto& e = player_e;
+
+    Transform transform = { .pos = {0.0f, -10.0f, 0.0f}, .rot = quat::identity };
+    Color color = {1.0f, 1.0f, 1.0f, 1.0f};
+    Health health = {100.0f, 100.0f};
+
+    e = ecs::create();
+    ecs::add(e, transform, color, health, Player{});
+    ecs::add_mesh(e, "cube", {0.6f, 0.6f, 1.4f});
+    ecs::add_effect(e, Effect::Lit | Effect::Shadow);
+
+    Extents& extents = ecs::get<Extents>(e);
+    ecs::add_rigid_body(e, { .shape = CapsuleShape(extents.z, (extents.x + extents.y)), .mass = 1.0f});
+  }
+
+  RigidBody& player_body = ecs::get<RigidBody>(player_e);
+  player_body.angfac(VEC3_ZERO);
+
+  void* data = reflect::get(player_e, "RigidBody", "rot", "w");
+  printf("y: %f\n", *(f32*)data); // prints out -10.0
+
+  // Jump collision volume
+  {
+    TransformOffset transform_offset = TransformOffset { .pos = {0.0f, 0.0f, -1.0f}, .rot = quat::identity };
+
+    Entity legs_e = ecs::create();
+    ecs::add(legs_e, Transform::identity, transform_offset, PlayerLegs{});
+    ecs::add_parent(legs_e, player_e);
+    ecs::add_mesh(legs_e, "cube", {0.4f});
+    ecs::add_effect(legs_e, Effect::Lit | Effect::Shadow);
+
+    Extents extents = ecs::get<Extents>(legs_e);
+    ecs::add_ghost_body(legs_e, {
+      .shape = SphereShape((extents.x + extents.y + extents.z) / 3.0f),
+      .flags = CollisionFlags::NoContact | CollisionFlags::Character
+    });
+  }
+
+  // Timers and other stuff
+  {
+    auto dash_timer_e = ecs::create();
+    ecs::add(dash_timer_e, Timer{0.0f, 4.0f});
+    ecs::add_parent(dash_timer_e, player_e);
+
+    auto sat_dash_timer_e = ecs::create();
+    ecs::add(sat_dash_timer_e, SaturatingTimer{0.0f, 1.0f, 3.0f});
+    ecs::add_parent(sat_dash_timer_e, player_e);
+
+    Player& p = ecs::get<Player>(player_e);
+    p.dash_timer = dash_timer_e;
+    p.sat_dash_timer = sat_dash_timer_e;
+  }
+
+  /*
+  {
+    Position pos = Position{1.0f, -10.0f, 0.0f};
+    Rotation rot = Rotation{0, 0, 0, 1};
+    Color col = Color{1, 1, 1, 1};
+    Mesh mesh = assets::get<Mesh>("cup");
+    Scale scl = mesh_scales.at("cup.obj") * 0.13f;
+
+    Entity e = ecs::create();
+    ecs::add_transform(e, pos, rot, scl);
+    ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 0.2f);
+    ecs::add_render(e, col, mesh, RENDER_LIT);
+  }
+
+  {
+    Position pos = Position{5.0f, -10.0f, 0.0f};
+    Rotation rot = Rotation{0, 0, 0, 1};
+    // Scale scl = Scale{1.3f};
+    Color col = Color{1, 1, 1, 1};
+    Mesh mesh = assets::get<Mesh>("table");
+    Scale scl = mesh_scales.at("table.obj") * 1.1f;
+
+    Entity e = ecs::create();
+    ecs::add_transform(e, pos, rot, scl);
+    ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 8.0f);
+    ecs::add_render(e, col, mesh, RENDER_LIT);
+  }
+
+  {
+    Position pos = Position{2.0f, -10.0f, 0.0f};
+    Rotation rot = Rotation{0, 0, 0, 1};
+    // Scale scl = Scale{1.3f};
+    Color col = Color{1, 1, 1, 1};
+    Mesh mesh = assets::get<Mesh>("plate");
+    Scale scl = mesh_scales.at("plate.obj") * 0.4f;
+
+    Entity e = ecs::create();
+    ecs::add_transform(e, pos, rot, scl);
+    ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 8.0f);
+    ecs::add_render(e, col, mesh, RENDER_LIT);
+  }
+
+  {
+    Position pos = Position{2.0f, -10.0f, 0.0f};
+    Rotation rot = Rotation{0, 0, 0, 1};
+    // Scale scl = Scale{1.3f};
+    Color col = Color{1, 1, 1, 1};
+    Mesh mesh = assets::get<Mesh>("fork");
+    Scale scl = mesh_scales.at("fork.obj") * 0.25;
+
+    Entity e = ecs::create();
+    ecs::add_transform(e, pos, rot, scl);
+    ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 8.0f);
+    ecs::add_render(e, col, mesh, RENDER_LIT);
+  }
+
+  {
+    auto get_mesh_data = [&](const char* name) {
+      struct Ret {
+        Mesh mesh;
+        Scale scl;
+      };
+
+      return Ret{
+          assets::get<Mesh>(name),
+          mesh_scales.at(std::string(name) + ".obj"),
+      };
+    };
+
+    Position pos = Position{10.0f, -10.0f, 0.0f};
+    Rotation rot = Rotation{0, 0, 0, 1};
+    // Scale scl = Scale{1.3f};
+    Color col = Color{1, 1, 1, 1};
+    auto [mesh, scl] = get_mesh_data("lamp");
+    // Mesh mesh = assets::get<Mesh>("lamp");
+    // Scale scl = mesh_scales.at("lamp.obj") * 0.25;
+
+    Entity e = ecs::create();
+    ecs::add_transform(e, pos, rot, scl);
+    ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 8.0f);
+    ecs::add_render(e, col, mesh, RENDER_LIT);
+  }
+  */
+
+  {
+    selection_box = ecs::create();
+    ecs::add(selection_box, Transform::identity, TransformOffset::identity, Color{0,1,0,1});
+    ecs::add_parent(selection_box, player_e);
+    ecs::add_mesh(selection_box, "cube", {0.0f});
+    ecs::add_effect(selection_box, Effect::Wireframe);
+  }
+
+  {
+    auto create_bar = [&](vec3 rel_pos, vec4 color) {
+      Scale scl = rel_pos * 0.4f + 0.1f;
+
+      Entity bar = ecs::create();
+      ecs::add(bar, Transform::identity, TransformOffset{rel_pos, quat::identity}, Color{color});
+      ecs::add_parent(bar, player_e);
+      ecs::add_mesh(bar, "cube", scl);
+      ecs::add_effect(bar, Effect::Wireframe);
+      //ecs::add_relative_transform(bar, rel_pos, quat::identity, scl);
+      //ecs::add_render(bar, color, assets::get<Mesh>("cube"), RENDER_WIREFRAME);
+
+      //Position pos = ecs::get<Position>(bar);
+      //Rotation rot = ecs::get<Rotation>(bar);
+      //ecs::add_selection_box(bar, BoxShape(scl));
+
+      return bar;
+    };
+
+    forward_bar = create_bar(vec3{0, 1, 0}, vec4{0, 1, 0, 1});
+    right_bar = create_bar(vec3{1, 0, 0}, vec4{1, 0, 0, 1});
+    up_bar = create_bar(vec3{0, 0, 1}, vec4{0, 0, 1, 1});
+  }
+
+  // Randomly grab a mesh
+  // auto mesh_count = asset_count<Mesh>()
+  // auto mesh_list = get_all_assets<Mesh>();
+
+  auto mesh_count = assets::size<Mesh>();
+  auto mesh_list = assets::get_all<Mesh>();
+
+  // boxes
+  i32 dim = 6;
+  for (i32 x = -dim; x < dim; x += 1) {
+    for (i32 y = -dim; y < dim; y += 1) {
+      for (i32 z = -dim; z < dim; z += 1) {
+        Transform transform = {
+          .pos = {(f32)(x * 2), (f32)(y * 2), (f32)(z * 2)},
+          .rot = quat::identity,
+        };
+        Color col = {1.0f, 1.0f, 1.0f, 1.0f};
+        //Scale scl = {1.0f, 1.0f, 1.0f};
+        //Mesh mesh = assets::get<Mesh>("cube");
+
+        entt::entity e = ecs::REGISTRY.create();
+        ecs::add(e, transform, col);
+        ecs::add_mesh(e, "suzanne", {1.0f});
+        ecs::add_effect(e, Effect::Lit | Effect::Shadow);
+
+        Extents extents = ecs::get<Extents>(e);
+        ecs::add_selection_box(e, BoxShape(extents));
+        //ecs::add_rigid_body(e, {.shape = BoxShape(extents), .mass = 1.0f});
+
+        //ecs::add_transform(e, pos, rot, scl);
+        //ecs::add_render(e, col, mesh, RENDER_LIT);
+
+        //ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 1.0f);
+        //ecs::add_rigid_body2(e, {.shape = BoxShape(scl), .mass = 1.0f});
+
+        //ecs::add_transform2(e, pos, rot);
+        //ecs::add_mesh(e, scl, mesh);
+        //ecs::add_effect(e, col, Effect::Lit | Effect::Shadow);
+        //ecs::add_rigid_body2(e, { .shape = BoxShape(scl), .mass = 1.0f, });
+        last_box = e;
+      }
+    }
+  }
+
+  { // floor
+    Transform transform = { .pos = {0.0f, 0.0f, -30.0f}, .rot = quat::identity };
+    Color col = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    entt::entity e = ecs::REGISTRY.create();
+    ecs::add(e, transform, col);
+    ecs::add_mesh(e, "cube", {400.0f, 400.0f, 1.0f});
+    ecs::add_effect(e, Effect::Lit | Effect::Shadow);
+
+    Extents extents = ecs::get<Extents>(e);
+    ecs::add_rigid_body(e, {.shape = BoxShape{extents}, .mass = 0.0f});
+
+    //ecs::add_render(e, col, mesh, RENDER_LIT);
+    //ecs::add_rigid_body(e, pos, scl, CollisionShape::box(scl), 0.0f);
+    //ecs::add_rigid_body2(e, {.shape = BoxShape(scl), .mass = 0.0f});
+    //ecs::add(e, UseShadowPass{});
+  }
+
+  { // floating thing
+    Transform transform = { .pos = {0.0f, 0.0f, 10.0f}, .rot = quat::identity };
+    Color col = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    entt::entity e = ecs::REGISTRY.create();
+    ecs::add(e, transform, col);
+    ecs::add_mesh(e, "cube", {1.0f});
+    ecs::add_effect(e, Effect::Lit | Effect::Shadow);
+
+    Extents extents = ecs::get<Extents>(e);
+    ecs::add_rigid_body(e, {.shape = BoxShape{extents}, .mass = 0.0f});
+
+    //ecs::add_transform(e, pos, rot, scl);
+    //ecs::add_render(e, col, mesh, RENDER_LIT);
+    //ecs::add_selection_box(e, BoxShape(scl));
+
+    // child 1
+    {
+      TransformOffset transform_offset = {.pos = {2.0f, 2.0f, 0.0f}, .rot = quat::identity};
+
+      Color col = {{1.0, 1.0, 1.0, 1.0}};
+
+      child_player_e = ecs::create();
+      ecs::add(child_player_e, Transform::identity, transform_offset, col);
+      ecs::add_parent(child_player_e, e);
+      ecs::add_mesh(child_player_e, "cube", {0.5f});
+      ecs::add_effect(child_player_e, Effect::Lit | Effect::Shadow);
+
+      Extents extents = ecs::get<Extents>(child_player_e);
+      ecs::add_selection_box(child_player_e, BoxShape(extents));
+    }
+
+
+    f32 thing = 1.0;
+    auto add_child_to_base = [&](entt::entity parent, bool add_light, int render_type = RENDER_LIT) {
+      TransformOffset transform_offset = {.pos = {2.0f, 2.0f, 0.0f}, .rot = quat::identity};
+      //RelPosition rel_pos = {2.0f, 2.0f, 0.0f}; //{2.0f * sinf(thing), 2.0f * cosf(thing), 0.0};
+      thing += 1.0f;
+      //RelRotation rel_rot = quat::identity;
+
+      //Scale scl = {0.5, 0.5, 0.5};
+
+      Color col = {{0.6, 0.5, 0.2, 1.0}};
+      //Mesh mesh = assets::get<Mesh>("cube");
+
+      Entity e2 = ecs::create();
+      ecs::add(e2, Transform::identity, transform_offset, col);
+      ecs::add_parent(e2, parent);
+      ecs::add_mesh(e2, "cube", {0.5f});
+      if (add_light) { ecs::add_effect(e2, Effect::Solid); }
+      else { ecs::add_effect(e2, Effect::Lit | Effect::Shadow); }
+
+      Extents extents = ecs::get<Extents>(e2);
+      ecs::add_selection_box(e2, BoxShape(extents));
+      //Transform t =
+      //    ecs::add_relative_transform(e2, rel_pos, rel_rot, scl); // adds rel and normal transform components
+      //ecs::add_render(e2, col, mesh, render_type);
+
+      if (add_light) { ecs::add(e2, PointLight{.falloff = 50.0f, .directionality = 0.5f}); }
+
+      return e2;
+    };
+
+    add_child_to_base(e, false);
+    add_child_to_base(e, false);
+    add_child_to_base(e, false);
+    add_child_to_base(e, false);
+    Entity z = add_child_to_base(e, false);
+
+    add_child_to_base(z, true, RENDER_SOLID);
+
+    add_child_to_base(child_player_e, false);
+    add_child_to_base(child_player_e, false);
+  }
+}
+
+static Bind fire_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_LEFT, QUARK_UNBOUND};
+static Bind select_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_RIGHT, QUARK_UNBOUND};
+
+static Bind left_bind = Bind{GLFW_KEY_A, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind right_bind = Bind{GLFW_KEY_D, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind forward_bind = Bind{GLFW_KEY_W, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind backward_bind = Bind{GLFW_KEY_S, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind up_bind = Bind{GLFW_KEY_SPACE, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind down_bind = Bind{GLFW_KEY_LEFT_CONTROL, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind f_bind = Bind{GLFW_KEY_F, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind c_bind = Bind{GLFW_KEY_C, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind flycam_bind = Bind{GLFW_KEY_H, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind dash_bind = Bind{GLFW_KEY_LEFT_SHIFT, QUARK_UNBOUND, QUARK_UNBOUND};
+
+static Bind t_bind = Bind{GLFW_KEY_T, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind g_bind = Bind{GLFW_KEY_G, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind b_bind = Bind{GLFW_KEY_B, QUARK_UNBOUND, QUARK_UNBOUND};
+static Bind v_bind = Bind{GLFW_KEY_V, QUARK_UNBOUND, QUARK_UNBOUND};
+
+void game_update() {
+  //printf("%llu\n", (usize)&ecs::get<RigidBody>(last_box));
+
+  platform::update_mouse_bind(&fire_bind);
+  platform::update_mouse_bind(&select_bind);
+
+  platform::update_key_bind(&left_bind);
+  platform::update_key_bind(&right_bind);
+  platform::update_key_bind(&forward_bind);
+  platform::update_key_bind(&backward_bind);
+  platform::update_key_bind(&up_bind);
+  platform::update_key_bind(&down_bind);
+  platform::update_key_bind(&f_bind);
+  platform::update_key_bind(&c_bind);
+  platform::update_key_bind(&flycam_bind);
+  platform::update_key_bind(&dash_bind);
+
+  platform::update_key_bind(&t_bind);
+  platform::update_key_bind(&g_bind);
+  platform::update_key_bind(&b_bind);
+  platform::update_key_bind(&v_bind);
+
+  vec3 input_movement_dir = VEC3_ZERO;
+
+  bool joystick_connected = false;
+
+  // void update_inputs() {
+  {
+    // read keyb input and convert to rel dir
+    if (forward_bind.down) {
+      input_movement_dir.y += 1.0f;
+    }
+    if (backward_bind.down) {
+      input_movement_dir.y -= 1.0f;
+    }
+    if (right_bind.down) {
+      input_movement_dir.x += 1.0f;
+    }
+    if (left_bind.down) {
+      input_movement_dir.x -= 1.0f;
+    }
+    if (up_bind.down) {
+      input_movement_dir.z += 1.0f;
+    }
+    if (down_bind.down) {
+      input_movement_dir.z -= 1.0f;
+    }
+
+    // read controller input and convert to rel dir
+    joystick_connected = glfwJoystickPresent(GLFW_JOYSTICK_1) == true ? true : false;
+
+    if (joystick_connected) {
+      int count;
+      const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &count);
+
+      auto deadzone = [&](f32 value, f32 threshold) { return fabs(value) > threshold; };
+      const f32 deadzone_value = 0.2f;
+
+      if (deadzone(axes[1], deadzone_value)) {
+        input_movement_dir.y -= axes[1];
+      }
+      if (deadzone(axes[0], deadzone_value)) {
+        input_movement_dir.x += axes[0];
+      }
+      if (deadzone(axes[2], deadzone_value)) {
+        MAIN_CAMERA.spherical_dir.y -= axes[2] * DT;
+      }
+      if (deadzone(axes[3], deadzone_value)) {
+        MAIN_CAMERA.spherical_dir.x -= axes[3] * DT;
+      }
+    }
+
+    // Sean: normalzie inputs ofc
+    if (magnitude(input_movement_dir) > 1.0f) {
+      input_movement_dir.xy = normalize(input_movement_dir.xy);
+    }
+
+    // Sean: Translate relative dir to global dir
+    {
+      auto vec2_rotate = [](vec2 v, f32 angle) {
+        vec2 ans = vec2{
+            v.x * cosf(MAIN_CAMERA.spherical_dir.x) - v.y * sinf(MAIN_CAMERA.spherical_dir.x),
+            v.x * sinf(MAIN_CAMERA.spherical_dir.x) + v.y * cosf(MAIN_CAMERA.spherical_dir.x),
+        };
+
+        return ans;
+      };
+
+      input_movement_dir.xy = vec2_rotate(input_movement_dir.xy, MAIN_CAMERA.spherical_dir.x);
+    }
+  }
+
+  // update timers
+  for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {
+    timer.value -= DT;
+  }
+
+  for(auto [e, timer] : ecs::REGISTRY.view<SaturatingTimer>().each()) {
+    timer.value -= DT;
+  }
+
+  {
+    // step_physics_simulation(dt, 4); // do this?
+    physics_world->stepSimulation(DT, 1);
+
+    auto sync_transforms_with_rb = [&]() {
+      // sync physics position and rotations with entities
+      auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
+      for (auto [e, transform, body] : rigid_bodies.each()) {
+        transform = Transform { .pos = body.pos(), .rot = body.rot() };
+      }
+
+      // sync collision objects with entitites
+      auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
+      for (auto [e, transform, obj] : collision_objects.each()) {
+        obj.transform(transform);
+      }
+
+      // sync ghost objects
+      auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
+      for (auto [e, transform, ghost] : ghost_objects.each()) {
+        ghost.transform(transform);
+      }
+    };
+
+    sync_transforms_with_rb();
+  }
+
+  static bool flycam_enabled = false;
+  if (flycam_bind.just_pressed) {
+    flycam_enabled = !flycam_enabled;
+  }
+
+  static vec3 flycam_pos = VEC3_ZERO;
+  Transform& player_transform = ecs::get<Transform>(player_e);
+  RigidBody& player_body = ecs::get<RigidBody>(player_e);
+
+  player_body.activate();
+  if (flycam_enabled) {
+    flycam_pos += input_movement_dir * DT * 10.0f;
+
+    player_body.rot(axis_angle(VEC3_UNIT_Z, TT));
+  } else {
+    // move
+    vec3 linvel = player_body.linvel();
+    vec3 local_input_dir = input_movement_dir;
+    const f32 max_velocity = 20.0f;
+    const f32 acceleration = 10.0f;
+    const f32 dash_speed = 80.0f;
+    const f32 jump_vel = 10.0f;
+
+    vec3 movement_dir = vec3{(local_input_dir.xy * max_velocity) - linvel.xy, 0.0f};
+    player_body.add_force(movement_dir * acceleration);
+
+    // dash
+    Player p = ecs::get_first<Player>();
+    Timer& dash_timer = ecs::get<Timer>(p.dash_timer);
+    if (dash_bind.just_pressed && dash_timer.done()) {
+      vec3 dash_dir = {local_input_dir.xy, 0.0f};
+      player_body.linvel(dash_dir * dash_speed);
+      dash_timer.reset();
+    }
+
+    // check for player on ground
+    static bool on_ground = false;
+    auto legs_view = ecs::REGISTRY.view<PlayerLegs, GhostBody>();
+    for (auto [e, ghost] : legs_view.each()) {
+      if (ghost.num_overlapping() > 1) {
+        on_ground = true;
+        break;
+      } else {
+        on_ground = false;
+      }
+    }
+
+    // jump
+    if (up_bind.down && on_ground) {
+      player_body.linvel({linvel.xy, jump_vel});
+    }
+
+    // sink
+    if (down_bind.just_pressed) {
+      f32 down_vel = min(-jump_vel, linvel.z - jump_vel);
+      player_body.linvel({linvel.xy, down_vel});
+    }
+
+    player_transform.pos = player_body.pos();
+    player_transform.rot = axis_angle(VEC3_UNIT_Z, MAIN_CAMERA.spherical_dir.x);
+  }
+
+  MAIN_CAMERA.pos = flycam_enabled ? flycam_pos : player_transform.pos + vec3{0.0, 0.0, 0.8};
+  MAIN_CAMERA.dir = spherical_to_cartesian(MAIN_CAMERA.spherical_dir);
+
+  if (fire_bind.down && selected != ecs::null) {
+    Transform& transform = ecs::get<Transform>(selected);
+    vec3 pos2 = transform.pos;
+
+    if (t_bind.down) {
+      f32 diff = transform.pos.z - MAIN_CAMERA.pos.z;
+      f32 t;
+
+      if (abs(transform.pos.x - MAIN_CAMERA.pos.x) > abs(diff)) {
+        diff = transform.pos.x - MAIN_CAMERA.pos.x;
+        t = diff / MAIN_CAMERA.dir.x;
+      } else {
+        t = diff / MAIN_CAMERA.dir.z;
+      }
+
+      pos2.y = MAIN_CAMERA.pos.y + MAIN_CAMERA.dir.y * t;
+    }
+
+    if (g_bind.down) {
+      f32 diff = transform.pos.y - MAIN_CAMERA.pos.y;
+      f32 t;
+
+      if (abs(transform.pos.z - MAIN_CAMERA.pos.z) > abs(diff)) {
+        diff = transform.pos.z - MAIN_CAMERA.pos.z;
+        t = diff / MAIN_CAMERA.dir.z;
+      } else {
+        t = diff / MAIN_CAMERA.dir.y;
+      }
+
+      pos2.x = MAIN_CAMERA.pos.x + MAIN_CAMERA.dir.x * t;
+    }
+
+    if (b_bind.down) {
+      f32 diff = transform.pos.x - MAIN_CAMERA.pos.x;
+      f32 t;
+
+      if (abs(transform.pos.y - MAIN_CAMERA.pos.y) > abs(diff)) {
+        diff = transform.pos.y - MAIN_CAMERA.pos.y;
+        t = diff / MAIN_CAMERA.dir.y;
+      } else {
+        t = diff / MAIN_CAMERA.dir.x;
+      }
+
+      pos2.z = MAIN_CAMERA.pos.z + MAIN_CAMERA.dir.z * t;
+    }
+
+    if (v_bind.down) {
+      pos2 = MAIN_CAMERA.pos + MAIN_CAMERA.dir * abs(scroll_height);
+    }
+
+    Parent* parent = ecs::try_get<Parent>(selected);
+    if (parent != 0) {
+      TransformOffset& rel_trans = ecs::get<TransformOffset>(selected);
+      //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
+      Transform ptrans = ecs::get<Transform>(parent->parent);
+
+      rel_trans.pos = pos2 - ptrans.pos;
+    } else {
+      transform.pos = pos2;
+    }
+
+    RigidBody* r = ecs::try_get<RigidBody>(selected);
+    if (r != 0) {
+      //RigidBody rb = r;
+      r->pos(pos2);
+      r->rot(r->rot());
+      r->linvel({0});
+      r->angvel({0});
+    }
+  }
+
+  if (select_bind.just_pressed) {
+    vec3 from = MAIN_CAMERA.pos;
+    vec3 to = MAIN_CAMERA.pos + (MAIN_CAMERA.dir * 100.0f);
+
+    selected = NearestRay::test(from, to).entity();
+
+    if (selected != entt::null) {
+      reflect::print_components(selected);
+    }
+  }
+
+  if (f_bind.just_pressed) {
+    Color rand_col = {((f32)rand() / (f32)RAND_MAX), ((f32)rand() / (f32)RAND_MAX), ((f32)rand() / (f32)RAND_MAX), 1.0f};
+
+    entt::entity e = ecs::REGISTRY.create();
+
+    Transform transform = { .pos = MAIN_CAMERA.pos, .rot = quat::axis_angle(MAIN_CAMERA.dir, 1.0f) };
+
+    ecs::add(e, transform, rand_col, DirectionalLight{.falloff = 50.0f, .directionality = 0.5f});
+    ecs::add_mesh(e, "cube", {0.25f});
+    ecs::add_effect(e, Effect::Solid);
+
+    Extents extents = ecs::get<Extents>(e);
+    ecs::add_selection_box(e, BoxShape(extents));
+    //ecs::add_transform(e, pos, rot, scl);
+    //ecs::add_render(e, col, assets::get<Mesh>("cube"), RENDER_SOLID);
+    //ecs::add_selection_box(e, BoxShape(scl));
+  }
+
+  if (c_bind.just_pressed && selected != entt::null && selected != player_e) {
+    entt::entity base_selected = selected;
+
+    Parent* parent = ecs::try_get<Parent>(selected);
+    if (parent) {
+      selected = parent->parent;
+    } else {
+      selected = entt::null;
+    }
+
+    ecs::recursively_destroy(base_selected);
+  }
+
+  if(!ecs::valid(selected)) {
+    selected = entt::null;
+  }
+
+  if (selected != ecs::null) {
+    ecs::get<Parent>(selection_box).parent = selected;
+    ecs::get<Extents>(selection_box) = ecs::get<Extents>(selected);
+    ecs::get<Mesh>(selection_box) = ecs::get<Mesh>(selected);
+
+    ecs::get<Parent>(forward_bar).parent = selected;
+    ecs::get<Parent>(right_bar).parent = selected;
+    ecs::get<Parent>(up_bar).parent = selected;
+
+    ecs::get<Extents>(forward_bar) = {0.1f, 0.4f, 0.1f};
+    ecs::get<Extents>(right_bar) = {0.4f, 0.1f, 0.1f};
+    ecs::get<Extents>(up_bar) = {0.1f, 0.1f, 0.4f};
+  } else {
+    ecs::get<Parent>(selection_box).parent = player_e;
+    ecs::get<Extents>(selection_box) = 0.0f;
+
+    ecs::get<Parent>(forward_bar).parent = player_e;
+    ecs::get<Parent>(right_bar).parent = player_e;
+    ecs::get<Parent>(up_bar).parent = player_e;
+
+    ecs::get<Extents>(forward_bar) = 0.0f;
+    ecs::get<Extents>(right_bar) = 0.0f;
+    ecs::get<Extents>(up_bar) = 0.0f;
+  }
+
+  // move entity that is selected and input is pressed
+  if (selected != ecs::null) {
+    Transform& transform = ecs::get<Transform>(selected);
+    CollisionBody* obj_ptr = ecs::try_get<CollisionBody>(selected);
+    if (obj_ptr != 0) {
+      vec3 move_dir = VEC3_ZERO;
+
+      auto move_it = [&](int key, vec3 delta) {
+        if (platform::get_key(key)) {
+          move_dir += delta;
+        }
+      };
+
+      move_it(GLFW_KEY_I, vec3{1.0f, 0.0f, 0.0f});
+      move_it(GLFW_KEY_K, vec3{-1.0f, 0.0f, 0.0f});
+      move_it(GLFW_KEY_J, vec3{0.0f, 1.0f, 0.0f});
+      move_it(GLFW_KEY_L, vec3{0.0f, -1.0f, 0.0f});
+      move_it(GLFW_KEY_U, vec3{0.0f, 0.0f, -1.0f});
+      move_it(GLFW_KEY_O, vec3{0.0f, 0.0f, 1.0f});
+
+      // update pos
+      Parent* parent = ecs::try_get<Parent>(selected);
+      if (parent) {
+        TransformOffset& rel_tr = ecs::get<TransformOffset>(selected);
+        //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
+        rel_tr.pos += move_dir * DT;
+
+        //RelRotation& rel_rot = ecs::get<RelRotation>(selected);
+      } else {
+        transform.pos += move_dir * DT;
+      }
+
+      obj_ptr->pos(transform.pos);
+    }
+  }
+
+  // update children positions
+  ecs::update_entity_hierarchies();
+
+  renderer::begin_frame();
+  renderer::render_frame();
+  renderer::end_frame();
+
+  if (platform::get_key(GLFW_KEY_ESCAPE)) {
+    platform::close_window();
+  }
+}
+
+void game_deinit() {}
+
+char* allocate_str(const char* str) {
+  char* allocated_str = (char*)malloc(strlen(str));
+  strcpy(allocated_str, str);
+  return allocated_str;
+};
+
+int main() {
+  quark::ENABLE_PERFORMANCE_STATISTICS = true;
+
+  platform::window_name = "";//allocate_str("Three Hits Game");
+  platform::window_w = -1;
+  platform::window_h = 1080;
+
+  quark::INIT_FUNC = game_init;
+  quark::UPDATE_FUNC = game_update;
+  quark::DEINIT_FUNC = game_deinit;
+
+  quark::init();
+  quark::run();
+  quark::deinit();
+
+  return 0;
+}

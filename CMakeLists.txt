@@ -1,48 +1,46 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(VCPKG_FEATURE_FLAGS versions)
-project(Quark)
+project(Game)
 
-set(CMAKE_CXX_VERSION 17)
-set(CMAKE_C_VERSION 11)
+set(C_STANDARD 11)
+set(CXX_STANDARD 17)
 
-add_library(Quark STATIC
-    src/quark_renderer.cpp
-    src/quark_types.cpp
-    src/quark_math.cpp
-    src/quark_physics.cpp
-    src/quark_platform.cpp
-    src/quark_ecs.cpp
-    src/quark_assets.cpp
-    src/quark.cpp
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-    #src/quark2headers/quark2.cpp
-    #src/quark2headers/quark2_math.cpp
-    #src/quark2headers/quark2_physics.cpp
-    #src/quark2headers/quark2_renderer.cpp
-    #src/quark2headers/quark2.cpp
+if(WIN32)
+    set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+    
+    set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+endif(WIN32)
+
+if(UNIX)
+    set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -fsanitize=address -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -fsanitize=address -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+    
+    set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG -fsanitize=address -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -fsanitize=address -Wno-unused -Wno-nullability-completeness")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+endif(UNIX)
+
+add_executable(run 
+    engine/quark_renderer.cpp
+    engine/quark_types.cpp
+    engine/quark_math.cpp
+    engine/quark_physics.cpp
+    engine/quark_platform.cpp
+    engine/quark_ecs.cpp
+    engine/quark_assets.cpp
+    engine/quark.cpp
+	
+	game/main.cpp
 )
 
-add_subdirectory(lib/glfw)
-add_subdirectory(lib/entt)
-add_subdirectory(lib/tinyobjloader)
-add_subdirectory(lib/vk-bootstrap)
-add_subdirectory(lib/VulkanMemoryAllocator)
-add_subdirectory(lib/meshoptimizer)
-
-find_package(Vulkan REQUIRED)
-
-include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
-
-find_package(Bullet CONFIG REQUIRED)
-include_directories(${BULLET_INCLUDE_DIRS})
-
-target_include_directories(Quark PUBLIC src)
-set_target_properties(Quark PROPERTIES PUBLIC_HEADER quark.hpp)
-
-include_directories(lib/vk-bootstrap/src)
-
-target_precompile_headers(Quark #PUBLIC
+target_precompile_headers(run #PUBLIC
   #src/quark.hpp
   PUBLIC
   #lib/entt/src/entt/entt.hpp
@@ -86,7 +84,30 @@ target_precompile_headers(Quark #PUBLIC
   #src/quark_types.hpp
 )
 
-target_link_libraries(Quark
+add_subdirectory(lib/glfw)
+add_subdirectory(lib/entt)
+add_subdirectory(lib/tinyobjloader)
+add_subdirectory(lib/vk-bootstrap)
+add_subdirectory(lib/VulkanMemoryAllocator)
+add_subdirectory(lib/meshoptimizer)
+
+find_package(Vulkan REQUIRED)
+
+include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
+
+find_package(Bullet CONFIG REQUIRED)
+include_directories(${BULLET_INCLUDE_DIRS})
+
+include_directories(lib/vk-bootstrap/src)
+include_directories(engine/)
+
+set(GLFW_BUILD_DOCS FALSE)
+set(GLFW_BUILD_EXAMPLES FALSE)
+set(GLFW_BUILD_TESTS FALSE)
+
+#set_property(GLOBAL PROPERTY CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+target_link_libraries(run
     Vulkan::Vulkan
     glfw
     EnTT::EnTT

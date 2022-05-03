@@ -3,7 +3,6 @@
 #include "quark.hpp"
 
 //#include "quark_internal.hpp"
-#define VMA_IMPLEMENTATION
 
 // using namespace quark;
 using namespace quark::platform;
