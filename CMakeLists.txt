@@ -7,6 +7,10 @@ set(CXX_STANDARD 17)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(GLFW_BUILD_DOCS OFF)
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_TESTS OFF)
+
 if(WIN32)
     set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -Wno-unused -Wno-nullability-completeness")
@@ -26,6 +30,23 @@ if(UNIX)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -fsanitize=address -Wno-unused -Wno-nullability-completeness")
     set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
 endif(UNIX)
+
+add_subdirectory(lib/glfw)
+add_subdirectory(lib/entt)
+add_subdirectory(lib/tinyobjloader)
+add_subdirectory(lib/vk-bootstrap)
+add_subdirectory(lib/VulkanMemoryAllocator)
+add_subdirectory(lib/meshoptimizer)
+
+find_package(Vulkan REQUIRED)
+
+include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
+
+find_package(Bullet CONFIG REQUIRED)
+include_directories(${BULLET_INCLUDE_DIRS})
+
+include_directories(lib/vk-bootstrap/src)
+include_directories(engine/)
 
 add_executable(run 
     engine/quark_renderer.cpp
@@ -83,28 +104,6 @@ target_precompile_headers(run #PUBLIC
   #src/quark_helpers.hpp
   #src/quark_types.hpp
 )
-
-add_subdirectory(lib/glfw)
-add_subdirectory(lib/entt)
-add_subdirectory(lib/tinyobjloader)
-add_subdirectory(lib/vk-bootstrap)
-add_subdirectory(lib/VulkanMemoryAllocator)
-add_subdirectory(lib/meshoptimizer)
-
-find_package(Vulkan REQUIRED)
-
-include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
-
-find_package(Bullet CONFIG REQUIRED)
-include_directories(${BULLET_INCLUDE_DIRS})
-
-include_directories(lib/vk-bootstrap/src)
-include_directories(engine/)
-
-set(GLFW_BUILD_DOCS FALSE)
-set(GLFW_BUILD_EXAMPLES FALSE)
-set(GLFW_BUILD_TESTS FALSE)
-
 #set_property(GLOBAL PROPERTY CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 target_link_libraries(run

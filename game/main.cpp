@@ -1,4 +1,4 @@
-#include <../engine/quark.hpp>
+#include <quark.hpp>
 
 using namespace quark;
 using namespace quark::renderer;
