@@ -779,34 +779,36 @@ void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat f
   );
 }
 
-void quark::renderer::internal::init_descriptors() {
-  // Create descriptor layouts
-  VkDescriptorSetLayoutBinding set_layout_binding[2] = {};
-  set_layout_binding[0].binding = 0;
-  set_layout_binding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  set_layout_binding[0].descriptorCount = 1;
-  set_layout_binding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-  set_layout_binding[1].binding = 1;
-  set_layout_binding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  set_layout_binding[1].descriptorCount = 1;
-  set_layout_binding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+template <auto C>
+VkDescriptorSetLayout create_desc_layout(DescriptorLayoutInfo layout_info[C]) {
+  VkDescriptorSetLayoutBinding set_layout_binding[C] = {};
+  for_every(i, C) {
+    set_layout_binding[i].binding = i;
+    set_layout_binding[i].descriptorType = layout_info[i].descriptor_type;
+    set_layout_binding[i].descriptorCount = layout_info[i].count;
+    set_layout_binding[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  }
 
   VkDescriptorSetLayoutCreateInfo set_layout_info = {};
   set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   set_layout_info.pNext = 0;
-  set_layout_info.bindingCount = count_of(set_layout_binding);
+  set_layout_info.bindingCount = C;
   set_layout_info.flags = 0;
   set_layout_info.pBindings = set_layout_binding;
 
-  vk_check(vkCreateDescriptorSetLayout(DEVICE, &set_layout_info, 0, &GLOBAL_CONSTANTS_LAYOUT));
+  VkDescriptorSetLayout layout;
+  vk_check(vkCreateDescriptorSetLayout(DEVICE, &set_layout_info, 0, &layout));
+  return layout;
+}
 
-  // Create descirptor pool(s)
+void quark::renderer::internal::init_descriptors() {
+  GLOBAL_CONSTANTS_LAYOUT = create_desc_layout<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_LAYOUT_INFO);
 
+  // Create descriptor pool(s)
   // Will be made BIG in the future :)
   VkDescriptorPoolSize sizes[2] = {
       { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
-      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
+      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 },
   };
 
   VkDescriptorPoolCreateInfo pool_info = {};
@@ -820,7 +822,7 @@ void quark::renderer::internal::init_descriptors() {
 }
 
 VkWriteDescriptorSet get_buffer_desc_write(
-  u32 binding, VkDescriptorSet desc_set, VkDescriptorType desc_type, VkDescriptorBufferInfo* buffer_info
+  u32 binding, VkDescriptorSet desc_set, VkDescriptorBufferInfo* buffer_info, u32 count = 1
 ) {
   // write to image descriptor
   VkWriteDescriptorSet desc_write = {};
@@ -837,7 +839,7 @@ VkWriteDescriptorSet get_buffer_desc_write(
 };
 
 VkWriteDescriptorSet get_image_desc_write(
-  u32 binding, VkDescriptorSet desc_set, VkDescriptorType desc_type, VkDescriptorImageInfo* image_info
+  u32 binding, VkDescriptorSet desc_set, VkDescriptorImageInfo* image_info, u32 count = 1
 ) {
   // write to image descriptor
   VkWriteDescriptorSet desc_write = {};
@@ -846,11 +848,15 @@ VkWriteDescriptorSet get_image_desc_write(
   desc_write.dstBinding = binding;
   desc_write.dstArrayElement = 0;
   desc_write.dstSet = desc_set;
-  desc_write.descriptorCount = 1;
+  desc_write.descriptorCount = count;
   desc_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   desc_write.pImageInfo = image_info;
 
   return desc_write;
+};
+
+// index in array is binding index
+struct DescriptorWriteInfo {
 };
 
 void quark::renderer::internal::init_descriptor_sets() {
@@ -871,18 +877,64 @@ void quark::renderer::internal::init_descriptor_sets() {
     vk_check(vkAllocateDescriptorSets(DEVICE, &alloc_info, &GLOBAL_CONSTANTS_SETS[i]));
 
     VkWriteDescriptorSet desc_write[2] = {};
+    VkDescriptorBufferInfo buffer_info[1];
+    VkDescriptorImageInfo image_info[1];
 
-    VkDescriptorBufferInfo buffer_info = {};
-    buffer_info.buffer = WORLD_DATA_BUF[i].buffer;
-    buffer_info.offset = 0;
-    buffer_info.range = sizeof(WorldData);
-    desc_write[0] = get_buffer_desc_write(0, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &buffer_info);
+    for_every(j, 2) {
+      switch(GLOBAL_CONSTANTS_LAYOUT_INFO[j].descriptor_type) {
+        case(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): {
+          // use scratch alloc if no compile
 
-    VkDescriptorImageInfo image_info = {};
-    image_info.sampler = DEFAULT_SAMPLER;
-    image_info.imageView = SUN_DEPTH_IMAGE.view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    desc_write[1] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
+          for_every(k, 1) {
+            buffer_info[k].buffer = WORLD_DATA_BUF[i].buffer;
+            buffer_info[k].offset = 0;
+            buffer_info[k].range = sizeof(WorldData);
+          }
+
+          desc_write[j] = get_buffer_desc_write(0, GLOBAL_CONSTANTS_SETS[i], buffer_info, 1);
+        }; break;
+        case(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER): {
+          // use scratch alloc if no compile
+
+          //TODO(sean): get this to not use sizeof(WorldData);
+          for_every(k, 1) {
+            image_info[k].sampler = DEFAULT_SAMPLER;
+            image_info[k].imageView = SUN_DEPTH_IMAGE.view;
+            image_info[k].imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+          }
+
+          desc_write[j] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], image_info, 1);
+        }; break;
+        default: {
+          panic("Current descriptor type not supported!");
+        } break;
+      }
+    }
+
+    //VkWriteDescriptorSet desc_write2[2] = {};
+
+    //VkDescriptorBufferInfo buffer_info[] = {{
+    //  WORLD_DATA_BUF[i].buffer,
+    //  0,
+    //  sizeof(WorldData)
+    //}};
+    //desc_write[0] = get_buffer_desc_write(0, GLOBAL_CONSTANTS_SETS[i], buffer_info, count_of(buffer_info));
+
+    //VkDescriptorImageInfo image_info[] = {{
+    //  DEFAULT_SAMPLER,
+    //  SUN_DEPTH_IMAGE.view,
+    //  VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+    //}};
+    //desc_write[1] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], image_info, count_of(image_info));
+
+    //desc_write2[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //desc_write2[2].pNext = 0;
+    //desc_write2[2].dstBinding = 2;
+    //desc_write2[2].dstArrayElement = 0;
+    //desc_write2[2].dstSet = GLOBAL_CONSTANTS_SETS[i];
+    //desc_write2[2].descriptorCount = 64;
+    //desc_write2[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //desc_write2[2].pImageInfo = image_info;
 
     vkUpdateDescriptorSets(DEVICE, count_of(desc_write), desc_write, 0, 0);
   }
@@ -892,8 +944,8 @@ void quark::renderer::internal::update_descriptor_sets() {
   for_every(i, FRAME_OVERLAP) {
     VkWriteDescriptorSet desc_write[1] = {};
 
-    VkDescriptorImageInfo image_info = {DEFAULT_SAMPLER, SUN_DEPTH_IMAGE.view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
-    desc_write[0] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image_info);
+    VkDescriptorImageInfo image_info[1] = {{DEFAULT_SAMPLER, SUN_DEPTH_IMAGE.view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL}};
+    desc_write[0] = get_image_desc_write(1, GLOBAL_CONSTANTS_SETS[i], image_info, count_of(image_info));
 
     vkUpdateDescriptorSets(DEVICE, count_of(desc_write), desc_write, 0, 0);
   }

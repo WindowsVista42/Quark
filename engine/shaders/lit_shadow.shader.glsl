@@ -255,6 +255,7 @@ void main() {
   result = pow(result, vec3(2.2));
   vec3 ran = vec3(snoise(vec4(a, TT * 0.125)) * 0.01) + vec3(snoise(vec4(a, TT * 0.125) * 4.0f) * 0.01);
   vec3 tonemapped = aces(result + ran);
+  //tonemapped += texture(TEXTURES[0], vec2(0.0, 0.0)).xyz;
   tonemapped = toonify(tonemapped, 20.0f);
 
   COLOR = vec4(tonemapped, 1.0f);

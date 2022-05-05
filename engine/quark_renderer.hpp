@@ -180,6 +180,23 @@ struct RenderEffect {
   VkDescriptorSet* descriptor_sets;
 };
 
+// index in array is binding index
+struct DescriptorLayoutInfo {
+  enum e: usize {
+    ONE,
+    ONE_PER_FRAME,
+    ARRAY,
+    ARRAY_PER_FRAME,
+  };
+
+  usize count;
+  VkDescriptorType descriptor_type;
+  AllocatedBuffer* buffers;
+  AllocatedImage* images;
+  usize array_type;
+  u64 size;
+};
+
 // Define a transparent struct with the inner value being referenced as _
 #define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
   struct name {                                                                                                                                      \
@@ -292,8 +309,22 @@ inline VkSampler DEFAULT_SAMPLER;
 //inline WorldData WORLD_DATA; // We dont want this to have multiple copies because we want the most curernt version
 inline AllocatedBuffer WORLD_DATA_BUF[FRAME_OVERLAP];
 //inline VkDescriptorSet render_constants_sets[FRAME_OVERLAP];
+//
+
+// gpu vertex data stuff
+inline LinearAllocationTracker GPU_VERTEX_TRACKER;
+inline AllocatedBuffer GPU_VERTEX_BUFFER;
+
+// global bindless texture array data stuff thing
+inline usize GPU_IMAGE_BUFFER_ARRAY_COUNT = 0;
+inline AllocatedImage GPU_IMAGE_BUFFER_ARRAY[1024];
 
 inline VkDescriptorPool GLOBAL_DESCRIPTOR_POOL;
+inline DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[] =  {
+  { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, WORLD_DATA_BUF,                     0, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
+  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
+  {64, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,GPU_IMAGE_BUFFER_ARRAY,         DescriptorLayoutInfo::ARRAY, 0},
+};
 inline VkDescriptorSetLayout GLOBAL_CONSTANTS_LAYOUT;
 
 inline VkDescriptorSet GLOBAL_CONSTANTS_SETS[FRAME_OVERLAP];
@@ -368,9 +399,6 @@ inline u32 SWAPCHAIN_IMAGE_INDEX; // Current swapchain image index, this number 
 inline constexpr usize RENDER_DATA_MAX_COUNT = 1024 * 512; // Maximum number of items that can be stored in render data
 //inline usize render_data_count;                            // Current render data size;
 //inline RenderData* render_data;                            // Buffer for storing things that need to be rendered.
-
-inline LinearAllocationTracker GPU_VERTEX_TRACKER;
-inline AllocatedBuffer GPU_VERTEX_BUFFER;
 // inline AllocatedBuffer gpu_index_buffer;
 
 inline bool PAUSE_FRUSTUM_CULLING = false;
