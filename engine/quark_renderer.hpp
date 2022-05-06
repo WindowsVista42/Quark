@@ -191,8 +191,9 @@ struct DescriptorLayoutInfo {
 
   usize count;
   VkDescriptorType descriptor_type;
-  AllocatedBuffer* buffers;
-  AllocatedImage* images;
+  void* buffers_and_images;
+  //AllocatedBuffer* buffers;
+  //AllocatedImage* images;
   usize array_type;
   u64 size;
 };
@@ -320,11 +321,6 @@ inline usize GPU_IMAGE_BUFFER_ARRAY_COUNT = 0;
 inline AllocatedImage GPU_IMAGE_BUFFER_ARRAY[1024];
 
 inline VkDescriptorPool GLOBAL_DESCRIPTOR_POOL;
-inline DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[] =  {
-  { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, WORLD_DATA_BUF,                     0, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
-  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
-  {64, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,GPU_IMAGE_BUFFER_ARRAY,         DescriptorLayoutInfo::ARRAY, 0},
-};
 inline VkDescriptorSetLayout GLOBAL_CONSTANTS_LAYOUT;
 
 inline VkDescriptorSet GLOBAL_CONSTANTS_SETS[FRAME_OVERLAP];
