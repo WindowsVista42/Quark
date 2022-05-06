@@ -47,30 +47,24 @@ include_directories(${BULLET_INCLUDE_DIRS})
 
 include_directories(lib/vk-bootstrap/src)
 include_directories(engine/)
+include_directories(lib/stb)
+include_directories(lib/qoi)
 
 add_executable(run 
-    engine/quark_renderer.cpp
-    engine/quark_types.cpp
-    engine/quark_math.cpp
-    engine/quark_physics.cpp
-    engine/quark_platform.cpp
-    engine/quark_ecs.cpp
-    engine/quark_assets.cpp
-    engine/quark.cpp
+  engine/quark_renderer.cpp
+  engine/quark_types.cpp
+  engine/quark_math.cpp
+  engine/quark_physics.cpp
+  engine/quark_platform.cpp
+  engine/quark_ecs.cpp
+  engine/quark_assets.cpp
+  engine/quark.cpp
 	
 	game/main.cpp
 )
 
 target_precompile_headers(run #PUBLIC
-  #src/quark.hpp
   PUBLIC
-  #lib/entt/src/entt/entt.hpp
-  #lib/entt/src/entt/entity/entity.hpp
-  #lib/glfw/include/GLFW/glfw3.h
-  #lib/glfw/include/GLFW/glfw3native.h
-  #lib/tinyobjloader/tiny_obj_loader.h
-  #lib/vk-bootstrap/src/VkBootstrap.h
-  #lib/VulkanMemoryAllocator/include/vk_mem_alloc.h
   <cstdint>
   <cstdio>
   <iostream>
@@ -80,7 +74,6 @@ target_precompile_headers(run #PUBLIC
   <typeindex>
   <unordered_map>
   <math.h>
-  #<GLFW/glfw3.h>
   <VkBootstrap.h>
   <tiny_obj_loader.h>
   <vk_mem_alloc.h>
@@ -88,6 +81,8 @@ target_precompile_headers(run #PUBLIC
   <entt/entity/registry.hpp>
   <BulletCollision/CollisionDispatch/btGhostObject.h>
   <btBulletDynamicsCommon.h>
+  <stb_image.h>
+  <qoi.h>
 
   #PRIVATE
   #src/quark_math.hpp

@@ -1,4 +1,5 @@
 #include <quark.hpp>
+#include <qoi.h>
 
 using namespace quark;
 using namespace quark::renderer;

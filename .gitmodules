@@ -16,3 +16,9 @@
 [submodule "lib/meshoptimizer"]
 	path = lib/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
+[submodule "lib/qoi"]
+	path = lib/qoi
+	url = https://github.com/phoboslab/qoi
+[submodule "lib/stb"]
+	path = lib/stb
+	url = https://github.com/nothings/stb

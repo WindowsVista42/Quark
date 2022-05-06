@@ -182,11 +182,16 @@ struct RenderEffect {
 
 // index in array is binding index
 struct DescriptorLayoutInfo {
-  enum e: usize {
+  enum a: usize {
     ONE,
     ONE_PER_FRAME,
     ARRAY,
     ARRAY_PER_FRAME,
+  };
+
+  enum w: usize {
+    WRITE_ON_RESIZE,
+    WRITE_ONCE,
   };
 
   usize count;
@@ -195,7 +200,7 @@ struct DescriptorLayoutInfo {
   //AllocatedBuffer* buffers;
   //AllocatedImage* images;
   usize array_type;
-  u64 size;
+  usize write_type;
 };
 
 // Define a transparent struct with the inner value being referenced as _

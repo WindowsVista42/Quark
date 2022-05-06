@@ -819,9 +819,9 @@ VkDescriptorPool create_desc_pool(VkDescriptorPoolSize sizes[C]) {
 DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[] =  {
   //{ 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, WORLD_DATA_BUF,                     0, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
   //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
-  { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,   WORLD_DATA_BUF, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
-  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
-  // {64, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,GPU_IMAGE_BUFFER_ARRAY,         DescriptorLayoutInfo::ARRAY, 0},
+  { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         WORLD_DATA_BUF, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
+  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
+  //{64, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GPU_IMAGE_BUFFER_ARRAY,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
 };
 
 // TODO(sean): maybe load these in some kind of way from a file?
@@ -867,11 +867,7 @@ VkWriteDescriptorSet get_image_desc_write(
   desc_write.pImageInfo = image_info;
 
   return desc_write;
-};
-
-// index in array is binding index
-struct DescriptorWriteInfo {
-};
+}
 
 VkImageLayout format_to_read_layout(VkFormat format) {
   switch(format) {
@@ -906,7 +902,7 @@ T get_buffer_image(DescriptorLayoutInfo info, usize frame_index, usize desc_arr_
 
 // This function is that it takes a DescriptorLayoutInfo and writes to a descriptor set from it
 template <auto C>
-void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayoutInfo layout_info[C]) {
+void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayoutInfo layout_info[C], bool is_initialize) {
   VkWriteDescriptorSet desc_write[C] = {};
 
   // some temporary vector of vectors because im not sure how to do the super nice compile-time solution without flipping
@@ -915,6 +911,8 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
 
   //TODO(sean): dont hardcode 2 when we need to update our global textures array
   for_every(desc_info_index, C) {
+    if(!is_initialize && layout_info[desc_info_index].write_type == DescriptorLayoutInfo::WRITE_ONCE) { continue; }
+
     auto count = layout_info[desc_info_index].count;
     switch(layout_info[desc_info_index].descriptor_type) {
     case(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): {
@@ -924,8 +922,8 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
         auto b = get_buffer_image<AllocatedBuffer>(layout_info[desc_info_index], frame_index, desc_arr_index);
         buffer_infos.back()[desc_arr_index].buffer = b.buffer;
         buffer_infos.back()[desc_arr_index].offset = 0;
-        //TODO(sean): get the size from the buffer
-        buffer_infos.back()[desc_arr_index].range = layout_info[desc_info_index].size;
+        //TODO(sean): get the size from the buffer, and store the size in the buffer
+        buffer_infos.back()[desc_arr_index].range = sizeof(WorldData);
       }
 
       desc_write[desc_info_index] = get_buffer_desc_write(0, desc_set, buffer_infos.back().data(), buffer_infos.back().size());
@@ -973,13 +971,13 @@ void quark::renderer::internal::init_descriptor_sets() {
     WORLD_DATA_BUF[frame_index] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     GLOBAL_CONSTANTS_SETS[frame_index] = create_allocated_desc_set(GLOBAL_DESCRIPTOR_POOL, GLOBAL_CONSTANTS_LAYOUT);
 
-    update_desc_set<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_SETS[frame_index], frame_index, GLOBAL_CONSTANTS_LAYOUT_INFO);
+    update_desc_set<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_SETS[frame_index], frame_index, GLOBAL_CONSTANTS_LAYOUT_INFO, true);
   }
 }
 
 void quark::renderer::internal::update_descriptor_sets() {
   for_every(frame_index, FRAME_OVERLAP) {
-    update_desc_set<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_SETS[frame_index], frame_index, GLOBAL_CONSTANTS_LAYOUT_INFO);
+    update_desc_set<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_SETS[frame_index], frame_index, GLOBAL_CONSTANTS_LAYOUT_INFO, false);
   }
 }
 
