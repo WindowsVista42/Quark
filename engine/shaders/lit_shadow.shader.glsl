@@ -231,7 +231,7 @@ vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 pr
 
 void main() {
   const vec3 view_dir = normalize(main_camera.pos - WORLD_POSITION);
-  const vec3 color = vec3(1.0f, 1.0f, 1.0f); // sample texture map
+  const vec3 color = texture(TEXTURES[0], WORLD_UV).xyz;
   const vec3 ambient = vec3(0.0f);
 
   vec3 diffuse = vec3(0.0f);
@@ -251,11 +251,10 @@ void main() {
   vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, SUN_POSITION, WORLD_NORMAL);
 
   vec3 lighting = (sun * shadow) + diffuse + specular;
-  vec3 result = lighting * color;
+  vec3 result = 3.0f * lighting * (color + vec3(0.1));
   result = pow(result, vec3(2.2));
   vec3 ran = vec3(snoise(vec4(a, TT * 0.125)) * 0.01) + vec3(snoise(vec4(a, TT * 0.125) * 4.0f) * 0.01);
   vec3 tonemapped = aces(result + ran);
-  tonemapped += texture(TEXTURES[0], WORLD_UV).xyz;
   tonemapped = toonify(tonemapped, 20.0f);
 
   COLOR = vec4(tonemapped, 1.0f);
