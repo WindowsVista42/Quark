@@ -195,7 +195,13 @@ vec3 diffuse_sun_light(SunLightData light, vec3 pixel_normal) {
   float shape = mix(1.0f, shape_half, light.directionality);
   float brightness = shape;
 
-  return light.color * brightness;
+  vec3 r = 2.0f * pixel_normal * dot(pixel_normal, -light.direction) - light.direction;
+  vec3 d = normalize(WORLD_POSITION - main_camera.pos);
+  float z = pow(dot(d, r), 9.0f);
+  float fr = pow(1.0f - pow((1.0f + dot(d, light.direction)) / 2.0f, 0.5f), 5.0f);
+  float h = z * (0.05 + 0.95 * fr);
+
+  return light.color * brightness + clamp(h, 0.0f, 1.0f);
 }
 
 vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 projected_pos, vec3 pixel_normal) {
