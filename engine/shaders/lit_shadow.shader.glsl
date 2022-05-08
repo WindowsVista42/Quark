@@ -257,8 +257,8 @@ void main() {
   vec3 shadow = shadow_directional(sun_shadow_sampler, sun_light, SUN_POSITION, WORLD_NORMAL);
 
   vec3 lighting = (sun * shadow) + diffuse + specular;
-  vec3 result = 3.0f * lighting * (color + vec3(0.1));
-  result = pow(result, vec3(2.2));
+  vec3 result = 2.0f * lighting * color;
+  //result = pow(result, vec3(2.2));
   vec3 ran = vec3(snoise(vec4(a, TT * 0.125)) * 0.01) + vec3(snoise(vec4(a, TT * 0.125) * 4.0f) * 0.01);
   vec3 tonemapped = aces(result + ran);
   tonemapped = toonify(tonemapped, 20.0f);
