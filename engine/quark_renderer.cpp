@@ -1,6 +1,8 @@
-#include <vulkan/vulkan_core.h>
 #define EXPOSE_QUARK_INTERNALS
 #include "quark.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "qoi.h"
 
 //#include "quark_internal.hpp"
 
@@ -134,6 +136,7 @@ AllocatedBuffer quark::renderer::internal::create_allocated_buffer(usize size, V
   alloc_info.usage = vma_usage;
 
   vk_check(vmaCreateBuffer(GPU_ALLOC, &buffer_info, &alloc_info, &alloc_buffer.buffer, &alloc_buffer.alloc, 0));
+  alloc_buffer.size = size;
 
   return alloc_buffer;
 }
@@ -142,6 +145,7 @@ AllocatedImage quark::renderer::internal::create_allocated_image(
     u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
   AllocatedImage image = {};
   image.format = format;
+  image.dimensions = {width, height};
 
   // Depth image creation
   VkExtent3D img_ext = {
@@ -821,7 +825,7 @@ DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[] =  {
   //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
   { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         WORLD_DATA_BUF, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
   { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-  //{64, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GPU_IMAGE_BUFFER_ARRAY,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
+  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GPU_IMAGE_BUFFER_ARRAY,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
 };
 
 // TODO(sean): maybe load these in some kind of way from a file?
@@ -872,6 +876,7 @@ VkWriteDescriptorSet get_image_desc_write(
 VkImageLayout format_to_read_layout(VkFormat format) {
   switch(format) {
   case(VK_FORMAT_D32_SFLOAT): { return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; };
+  case(VK_FORMAT_R8G8B8A8_SRGB): { return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; };
   default: { panic("The conversion between format to read layout is unknown for this format!"); };
   };
   return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -923,10 +928,10 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
         buffer_infos.back()[desc_arr_index].buffer = b.buffer;
         buffer_infos.back()[desc_arr_index].offset = 0;
         //TODO(sean): get the size from the buffer, and store the size in the buffer
-        buffer_infos.back()[desc_arr_index].range = sizeof(WorldData);
+        buffer_infos.back()[desc_arr_index].range = b.size;
       }
 
-      desc_write[desc_info_index] = get_buffer_desc_write(0, desc_set, buffer_infos.back().data(), buffer_infos.back().size());
+      desc_write[desc_info_index] = get_buffer_desc_write(desc_info_index, desc_set, buffer_infos.back().data(), buffer_infos.back().size());
     }; break;
     case(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER): {
       image_infos.push_back(std::vector<VkDescriptorImageInfo>(layout_info[desc_info_index].count, VkDescriptorImageInfo{}));
@@ -938,7 +943,7 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
         image_infos.back()[desc_arr_index].imageLayout = format_to_read_layout(i.format);
       }
 
-      desc_write[desc_info_index] = get_image_desc_write(1, desc_set, image_infos.back().data(), image_infos.back().size());
+      desc_write[desc_info_index] = get_image_desc_write(desc_info_index, desc_set, image_infos.back().data(), image_infos.back().size());
     }; break;
     default: {
       panic("Current descriptor type not supported!");
@@ -1235,6 +1240,123 @@ Mesh* quark::renderer::internal::load_vbo_mesh(std::string* path) {
 }
 
 void quark::renderer::internal::unload_mesh(Mesh* mesh) {} // vmaDestroyBuffer(gpu_alloc, mesh->alloc_buffer.buffer, mesh->alloc_buffer.alloc); }
+                                                           //
+void quark::renderer::internal::create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {
+}
+
+Texture* quark::renderer::internal::load_png_texture(std::string* path) {
+  int width, height, channels;
+  stbi_uc* pixels = stbi_load(path->c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+  if(!pixels) {
+    printf("Failed to load texture file \"%s\"\n", path->c_str());
+    panic("");
+  }
+
+  // copy texture to cpu only memory
+  u64 image_size = width * height * 4;
+
+  AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+  void* data;
+  vmaMapMemory(GPU_ALLOC, staging_buffer.alloc, &data);
+  memcpy(data, pixels, (isize)image_size);
+  vmaUnmapMemory(GPU_ALLOC, staging_buffer.alloc);
+
+  stbi_image_free(pixels);
+
+  //TODO(sean): transfer to gpu only memory
+  VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+  AllocatedImage alloc_image = create_allocated_image(
+      width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, aspect);
+
+  //TODO(sean): move this to the 
+  auto cmd = begin_quick_commands();
+  {
+    VkImageSubresourceRange range;
+		range.aspectMask = aspect;
+		range.baseMipLevel = 0;
+		range.levelCount = 1;
+		range.baseArrayLayer = 0;
+		range.layerCount = 1;
+
+		VkImageMemoryBarrier barrier_to_writable = {};
+		barrier_to_writable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+
+		barrier_to_writable.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier_to_writable.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier_to_writable.image = alloc_image.image;
+		barrier_to_writable.subresourceRange = range;
+
+		barrier_to_writable.srcAccessMask = 0;
+		barrier_to_writable.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+		vkCmdPipelineBarrier(cmd,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
+      0, 0, 
+      0, 0, 
+      1, &barrier_to_writable
+    );
+
+    VkBufferImageCopy copy_region = {};
+    copy_region.bufferOffset = 0;
+    copy_region.bufferRowLength = 0;
+    copy_region.bufferImageHeight = 0;
+
+    copy_region.imageSubresource.aspectMask = aspect;
+    copy_region.imageSubresource.mipLevel = 0;
+    copy_region.imageSubresource.baseArrayLayer = 0;
+    copy_region.imageSubresource.layerCount = 1;
+    copy_region.imageExtent = VkExtent3D{(u32)width, (u32)height, 1};
+
+    vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, alloc_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+
+		VkImageMemoryBarrier barrier_to_readable = {};
+		barrier_to_readable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+
+		barrier_to_readable.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier_to_readable.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier_to_readable.image = alloc_image.image;
+		barrier_to_readable.subresourceRange = range;
+
+		barrier_to_readable.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier_to_readable.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		vkCmdPipelineBarrier(cmd,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
+      0, 0, 
+      0, 0, 
+      1, &barrier_to_readable
+    );
+  }
+  end_quick_commands(cmd);
+
+  vmaDestroyBuffer(GPU_ALLOC, staging_buffer.buffer, staging_buffer.alloc);
+
+  //TODO(sean): store our AllocatedImage in the global textures array and 
+  Texture* texture = (Texture*)RENDER_ALLOC.alloc(sizeof(Texture));
+  texture->index = GPU_IMAGE_BUFFER_ARRAY_COUNT;
+
+  GPU_IMAGE_BUFFER_ARRAY[GPU_IMAGE_BUFFER_ARRAY_COUNT] = alloc_image;
+  GPU_IMAGE_BUFFER_ARRAY_COUNT += 1;
+
+  return texture;
+}
+
+Texture* quark::renderer::internal::load_qoi_texture(std::string* path) {
+  return 0;
+}
+
+void quark::renderer::internal::unload_texture(Texture* texture) {
+  AllocatedImage* alloc_image = &GPU_IMAGE_BUFFER_ARRAY[texture->index];
+  vkDestroyImageView(DEVICE, alloc_image->view, 0);
+  vmaDestroyImage(GPU_ALLOC, alloc_image->image, alloc_image->alloc);
+
+#ifdef DEBUG
+  alloc_image->format = (VkFormat)0;
+  alloc_image->dimensions = {0,0};
+#endif
+}
 
 void quark::renderer::internal::deinit_sync_objects() {
   for_every(i, FRAME_OVERLAP) {

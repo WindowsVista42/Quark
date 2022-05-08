@@ -116,8 +116,10 @@ struct TestReflect {
 struct Mesh {
   u32 offset;
   u32 size;
-  // u32 size;
-  // u32 offset;
+};
+
+struct Texture {
+  u32 index;
 };
 
 // Frustum culling data

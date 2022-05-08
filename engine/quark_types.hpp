@@ -58,6 +58,10 @@ struct vec2 {
   f32& operator[](usize i);
 };
 
+struct uvec2 {
+  u32 x, y;
+};
+
 // Three component vector
 struct vec3 {
   union {

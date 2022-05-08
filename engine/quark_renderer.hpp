@@ -17,6 +17,7 @@ namespace types {
 struct AllocatedBuffer {
   VmaAllocation alloc;
   VkBuffer buffer;
+  usize size;
 };
 
 struct AllocatedImage {
@@ -24,6 +25,7 @@ struct AllocatedImage {
   VkImage image;
   VkImageView view;
   VkFormat format;
+  uvec2 dimensions;
 };
 
 struct Camera {
@@ -508,15 +510,23 @@ void init_descriptor_sets();
 bool sphere_in_frustum(Position pos, Rotation rot, Scale scl);
 bool box_in_frustum(Position pos, Scale Scl);
 
+// Shader loading
 VkVertexShader* load_vert_shader(std::string* path);
 VkFragmentShader* load_frag_shader(std::string* path);
 void unload_shader(VkShaderModule* shader);
 
+// Mesh loading
 void create_mesh(void* data, usize size, usize memsize, Mesh* mesh);
 Mesh* load_obj_mesh(std::string* path);
 // TODO(sean): do some kind of better file checking
 Mesh* load_vbo_mesh(std::string* path);
 void unload_mesh(Mesh* mesh);
+
+// Texture loading
+void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
+Texture* load_png_texture(std::string* path);
+Texture* load_qoi_texture(std::string* path);
+void unload_texture(Texture* texture);
 
 void deinit_sync_objects();
 void deinit_descriptors();

@@ -20,6 +20,8 @@ void quark::init() {
   assets::add_type(renderer::load_frag_shader, renderer::unload_shader, ".frag.spv");
   assets::add_type(renderer::load_obj_mesh, renderer::unload_mesh, ".obj");
 
+  assets::add_type(renderer::load_png_texture, renderer::unload_texture, ".png");
+
   ecs::REGISTRY.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
   ecs::REGISTRY.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
 
@@ -47,13 +49,16 @@ void quark::init() {
   renderer::GPU_VERTEX_BUFFER = renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
   renderer::GPU_VERTEX_TRACKER.init(100 * MB);
 
-  assets::load_directory("assets");
+  assets::load_directory("assets/models");
+  assets::load_directory("assets/shaders");
 
   renderer::init_swapchain();
   renderer::init_command_pools_and_buffers();
   renderer::init_render_passes();
   renderer::init_framebuffers();
   renderer::init_sync_objects();
+
+  assets::load_directory("assets/textures");
 
   // make sure shaders are loaded before we use them in the pipeline init
   // loader_thread.join();

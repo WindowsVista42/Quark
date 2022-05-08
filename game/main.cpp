@@ -1,5 +1,4 @@
 #include <quark.hpp>
-#include <qoi.h>
 
 using namespace quark;
 using namespace quark::renderer;
@@ -802,16 +801,10 @@ void game_update() {
 
 void game_deinit() {}
 
-char* allocate_str(const char* str) {
-  char* allocated_str = (char*)malloc(strlen(str));
-  strcpy(allocated_str, str);
-  return allocated_str;
-};
-
 int main() {
   quark::ENABLE_PERFORMANCE_STATISTICS = true;
 
-  platform::window_name = "";//allocate_str("Three Hits Game");
+  platform::window_name = "Quark";
   platform::window_w = -1;
   platform::window_h = 1080;
 
