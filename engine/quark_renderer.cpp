@@ -4,6 +4,153 @@
 #include "stb_image.h"
 #include "qoi.h"
 
+#include "quark_renderer.hpp"
+
+namespace quark::render {
+  Camera Camera::from_spherical(vec2 dir) {
+    return {};
+  };
+
+  Camera Camera::from_transform(Transform transform) {
+    return {};
+  }
+};
+
+// RENDER DETAIL
+// DO NOT GO BEYOND THIS POINT IF YOU DO NOT NEED TO KNOW
+// ENGINE DETAILS
+
+namespace quark::render::internal {
+
+  // VARIABLES
+
+  const VertexInputDescription<1, 3> VertexPNT::input_description = {
+    .bindings = {
+      // binding, stride
+      { 0, sizeof(VertexPNT) },
+    },
+    .attributes = {
+      // location, binding, format, offset
+      { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT, position) },
+      { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT,   normal) },
+      { 2, 0,    VK_FORMAT_R32G32_SFLOAT, offsetof(VertexPNT,  texture) },
+    }
+  };
+
+  const VertexInputDescription<1, 3> VertexPNC::input_description = {
+    .bindings = {
+      // binding, stride
+      { 0, sizeof(VertexPNC) },
+    },
+    .attributes = {
+      // binding, location, format, offset
+      { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC, position) },
+      { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC,   normal) },
+      { 2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNC,    color) },
+    }
+  };
+
+  i32 WINDOW_W = 1920;
+  i32 WINDOW_H = 1080;
+  bool FRAMEBUFFER_RESIZED = false;
+
+  usize GPU_IMAGE_BUFFER_ARRAY_COUNT = 0;
+  usize FRAME_COUNT = 0;
+  u32 FRAME_INDEX = 0;
+
+  bool PAUSE_FRUSTUM_CULLING = false;
+
+  // FUNCTIONS
+
+  void update_cursor_position(GLFWwindow* window, double xpos, double ypos) {}
+  void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {}
+  
+  VkCommandBuffer begin_quick_commands() {}
+  void end_quick_commands(VkCommandBuffer command_buffer) {}
+  AllocatedBuffer create_allocated_buffer(usize capacity, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {}
+  AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {}
+  
+  void init_window() {}
+  void init_vulkan() {}
+  void copy_staging_buffers_to_gpu() {}
+  void init_swapchain() {}
+  void init_command_pools_and_buffers() {}
+  void init_render_passes() {}
+  void init_framebuffers() {}
+  void init_sync_objects() {}
+  void init_pipelines() {}
+  void init_sampler() {}
+  void init_descriptors() {}
+  void init_descriptor_sets() {}
+  
+  bool sphere_in_frustum(Position pos, Rotation rot, Scale scl) {}
+  bool box_in_frustum(Position pos, Scale Scl) {}
+  
+  // Shader loading
+  VkVertexShader* load_vert_shader(std::string* path) {}
+  VkFragmentShader* load_frag_shader(std::string* path) {}
+  void unload_shader(VkShaderModule* shader) {}
+  
+  // Mesh loading
+  void create_mesh(void* data, usize size, usize memsize, Mesh* mesh) {}
+  Mesh* load_obj_mesh(std::string* path) {}
+  // TODO(sean): do some kind of better file checking
+  Mesh* load_vbo_mesh(std::string* path) {}
+  void unload_mesh(Mesh* mesh) {}
+  
+  // Texture loading
+  void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
+  Texture* load_png_texture(std::string* path) {}
+  Texture* load_qoi_texture(std::string* path) {}
+  void unload_texture(Texture* texture) {}
+  
+  void deinit_sync_objects() {}
+  void deinit_descriptors() {}
+  void deinit_sampler() {}
+  void deinit_buffers_and_images() {}
+  void deinit_shaders() {}
+  void deinit_allocators() {}
+  void deinit_pipelines() {}
+  void deinit_framebuffers() {}
+  void deinit_render_passes() {}
+  void deinit_command_pools_and_buffers() {}
+  void deinit_swapchain() {}
+  void deinit_vulkan() {}
+  void deinit_window() {}
+  
+  void update_descriptor_sets() {}
+  void resize_swapchain() {}
+  
+  void print_performance_statistics() {}
+  
+  void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
+  template <typename F> void flush_render_batch(F f) {}
+  
+  void update_world_data() {}
+  void begin_forward_rendering() {}
+  void end_forward_rendering() {}
+  
+  void begin_depth_prepass_rendering() {}
+  void draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
+  void end_depth_prepass_rendering() {}
+  
+  void begin_shadow_rendering() {}
+  void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
+  void end_shadow_rendering() {}
+  
+  void begin_lit_pass() {}
+  void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
+  void end_lit_pass() {}
+  
+  void begin_solid_pass() {}
+  void end_solid_pass() {}
+  
+  void begin_wireframe_pass() {}
+  void end_wireframe_pass() {}
+  
+  void draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {}
+};
+
 //#include "quark_internal.hpp"
 
 // using namespace quark;
