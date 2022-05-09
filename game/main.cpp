@@ -1,7 +1,7 @@
 #include <quark.hpp>
 
 using namespace quark;
-using namespace quark::renderer;
+using namespace quark::render;
 
 static Entity player_e;
 static Entity child_player_e;
@@ -790,9 +790,9 @@ void game_update() {
   // update children positions
   ecs::update_entity_hierarchies();
 
-  renderer::begin_frame();
-  renderer::render_frame();
-  renderer::end_frame();
+  render::begin_frame();
+  render::render_frame();
+  render::end_frame();
 
   if (platform::get_key(GLFW_KEY_ESCAPE)) {
     platform::close_window();

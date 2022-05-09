@@ -4,7 +4,7 @@
 #include "quark.hpp"
 
 using namespace quark;
-using namespace renderer;
+using namespace render;
 
 void quark::init() {
   using namespace quark;
@@ -16,11 +16,11 @@ void quark::init() {
   //render_data_count = 0;
   //render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
 
-  assets::add_type(renderer::load_vert_shader, renderer::unload_shader, ".vert.spv");
-  assets::add_type(renderer::load_frag_shader, renderer::unload_shader, ".frag.spv");
-  assets::add_type(renderer::load_obj_mesh, renderer::unload_mesh, ".obj");
+  assets::add_type(render::load_vert_shader, render::unload_shader, ".vert.spv");
+  assets::add_type(render::load_frag_shader, render::unload_shader, ".frag.spv");
+  assets::add_type(render::load_obj_mesh, render::unload_mesh, ".obj");
 
-  assets::add_type(renderer::load_png_texture, renderer::unload_texture, ".png");
+  assets::add_type(render::load_png_texture, render::unload_texture, ".png");
 
   ecs::REGISTRY.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
   ecs::REGISTRY.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
@@ -34,8 +34,8 @@ void quark::init() {
   //printf("RigidBody in place delete: %d\n", entt::component_traits<RigidBody>::in_place_delete ? 1 : 0);
   //printf("RigidBody in place delete: %d\n", RigidBody::in_place_delete ? 1 : 0);
 
-  renderer::init_window();
-  renderer::init_vulkan();
+  render::init_window();
+  render::init_vulkan();
 
   // vertex_alloc.init(gpu_alloc, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 20 * MB);
   // index_alloc.init(gpu_alloc, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 20 * MB);
@@ -46,28 +46,28 @@ void quark::init() {
   // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
 
   // Init staging buffer and allocation tracker
-  renderer::GPU_VERTEX_BUFFER = renderer::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  renderer::GPU_VERTEX_TRACKER.init(100 * MB);
+  render::GPU_VERTEX_BUFFER = render::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  render::GPU_VERTEX_TRACKER.init(100 * MB);
 
   assets::load_directory("assets/models");
   assets::load_directory("assets/shaders");
 
-  renderer::init_swapchain();
-  renderer::init_command_pools_and_buffers();
-  renderer::init_render_passes();
-  renderer::init_framebuffers();
-  renderer::init_sync_objects();
+  render::init_swapchain();
+  render::init_command_pools_and_buffers();
+  render::init_render_passes();
+  render::init_framebuffers();
+  render::init_sync_objects();
 
   assets::load_directory("assets/textures");
 
   // make sure shaders are loaded before we use them in the pipeline init
   // loader_thread.join();
-  renderer::init_sampler();
-  renderer::init_descriptors();
-  renderer::init_descriptor_sets();
+  render::init_sampler();
+  render::init_descriptors();
+  render::init_descriptor_sets();
 
-  renderer::copy_staging_buffers_to_gpu();
-  renderer::init_pipelines();
+  render::copy_staging_buffers_to_gpu();
+  render::init_pipelines();
 
   physics::init();
 
@@ -90,7 +90,7 @@ void quark::run() {
       (*quark::UPDATE_FUNC)();
     }
     if (quark::ENABLE_PERFORMANCE_STATISTICS) {
-      renderer::print_performance_statistics();
+      render::print_performance_statistics();
     }
     glfwPollEvents();
     scratch_alloc.reset();
@@ -110,21 +110,21 @@ void quark::deinit() {
 
 // Sean: Don't run cleanup if release build
 #ifdef DEBUG
-  renderer::deinit_sync_objects();
+  render::deinit_sync_objects();
 
-  renderer::deinit_buffers_and_images();
-  renderer::deinit_descriptors();
+  render::deinit_buffers_and_images();
+  render::deinit_descriptors();
 
-  renderer::deinit_shaders();
+  render::deinit_shaders();
 
-  renderer::deinit_pipelines();
-  renderer::deinit_framebuffers();
-  renderer::deinit_render_passes();
-  renderer::deinit_command_pools_and_buffers();
-  renderer::deinit_swapchain();
-  renderer::deinit_allocators();
-  renderer::deinit_vulkan();
-  renderer::deinit_window();
+  render::deinit_pipelines();
+  render::deinit_framebuffers();
+  render::deinit_render_passes();
+  render::deinit_command_pools_and_buffers();
+  render::deinit_swapchain();
+  render::deinit_allocators();
+  render::deinit_vulkan();
+  render::deinit_window();
 #endif
 
   //#endif
