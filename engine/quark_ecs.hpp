@@ -148,6 +148,12 @@ static void add_mesh(Entity e, const char* mesh_name, const vec3 scale = {1.0f, 
   ecs::add(e, mesh, extents);
 }
 
+static void add_texture(Entity e, const char* texture_name) {
+  Texture tex = assets::get<Texture>(texture_name);
+  printf("%d\n", tex.index);
+  ecs::add(e, tex);
+}
+
 static void add_effect(Entity e, u32 render_effect = Effect::Lit | Effect::Shadow) {
   const auto lit = render_effect & Effect::Lit;
   const auto solid = render_effect & Effect::Solid;

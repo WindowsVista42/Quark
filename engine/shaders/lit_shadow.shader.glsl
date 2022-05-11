@@ -237,7 +237,7 @@ vec3 shadow_directional(in sampler2D shadow_sampler, SunLightData light, vec4 pr
 
 void main() {
   const vec3 view_dir = normalize(main_camera.pos - WORLD_POSITION);
-  const vec3 color = texture(TEXTURES[0], WORLD_UV).xyz;
+  const vec3 color = texture(TEXTURES[TEXTURE_INDEX], WORLD_UV).xyz;
   const vec3 ambient = vec3(0.0f);
 
   vec3 diffuse = vec3(0.0f);

@@ -99,6 +99,7 @@ void game_init() {
     e = ecs::create();
     ecs::add(e, transform, color, health, Player{});
     ecs::add_mesh(e, "cube", {0.6f, 0.6f, 1.4f});
+    ecs::add_texture(e, "bigtest");
     ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
     Extents& extents = ecs::get<Extents>(e);
@@ -119,6 +120,7 @@ void game_init() {
     ecs::add(legs_e, Transform::identity, transform_offset, PlayerLegs{});
     ecs::add_parent(legs_e, player_e);
     ecs::add_mesh(legs_e, "cube", {0.4f});
+    ecs::add_texture(legs_e, "bigtest");
     ecs::add_effect(legs_e, Effect::Lit | Effect::Shadow);
 
     Extents extents = ecs::get<Extents>(legs_e);
@@ -282,6 +284,8 @@ void game_init() {
         entt::entity e = ecs::REGISTRY.create();
         ecs::add(e, transform, col);
         ecs::add_mesh(e, "suzanne", {1.0f});
+        ecs::add_texture(e, "test");
+        //ecs::add(e, assets::get<Texture>("test"));
         ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
         Extents extents = ecs::get<Extents>(e);
@@ -310,6 +314,7 @@ void game_init() {
     entt::entity e = ecs::REGISTRY.create();
     ecs::add(e, transform, col);
     ecs::add_mesh(e, "cube", {400.0f, 400.0f, 1.0f});
+    ecs::add_texture(e, "missing");
     ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
     Extents extents = ecs::get<Extents>(e);
@@ -328,6 +333,7 @@ void game_init() {
     entt::entity e = ecs::REGISTRY.create();
     ecs::add(e, transform, col);
     ecs::add_mesh(e, "cube", {1.0f});
+    ecs::add_texture(e, "test");
     ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
     Extents extents = ecs::get<Extents>(e);
@@ -347,6 +353,7 @@ void game_init() {
       ecs::add(child_player_e, Transform::identity, transform_offset, col);
       ecs::add_parent(child_player_e, e);
       ecs::add_mesh(child_player_e, "cube", {0.5f});
+      ecs::add_texture(child_player_e, "test");
       ecs::add_effect(child_player_e, Effect::Lit | Effect::Shadow);
 
       Extents extents = ecs::get<Extents>(child_player_e);
@@ -370,8 +377,13 @@ void game_init() {
       ecs::add(e2, Transform::identity, transform_offset, col);
       ecs::add_parent(e2, parent);
       ecs::add_mesh(e2, "cube", {0.5f});
-      if (add_light) { ecs::add_effect(e2, Effect::Solid); }
-      else { ecs::add_effect(e2, Effect::Lit | Effect::Shadow); }
+      if (add_light) { 
+        ecs::add_effect(e2, Effect::Solid);
+      }
+      else { 
+        ecs::add_texture(e2, "test");
+        ecs::add_effect(e2, Effect::Lit | Effect::Shadow);
+      }
 
       Extents extents = ecs::get<Extents>(e2);
       ecs::add_selection_box(e2, BoxShape(extents));

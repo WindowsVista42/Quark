@@ -70,8 +70,8 @@ void render_frame(bool end_forward) {
 
   begin_shadow_rendering();
   {
-    const auto shadow_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, UseShadowPass>();
-    for (auto [e, transform, scl, mesh] : shadow_pass.each()) {
+    const auto shadow_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseShadowPass>();
+    for (auto [e, transform, scl, mesh, tex] : shadow_pass.each()) {
       if (box_in_frustum(transform.pos, scl)) {
         draw_shadow(transform.pos, transform.rot, scl, mesh);
       }
@@ -81,8 +81,8 @@ void render_frame(bool end_forward) {
 
   begin_depth_prepass_rendering();
   {
-    const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
-    for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
+    const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture>(entt::exclude<IsTransparent>);
+    for (auto [e, transform, scl, mesh, tex] : depth_prepass.each()) {
       if (box_in_frustum(transform.pos, scl)) {
         draw_depth(transform.pos, transform.rot, scl, mesh);
       }
@@ -93,11 +93,11 @@ void render_frame(bool end_forward) {
   begin_forward_rendering();
   {
     begin_lit_pass();
-    const auto lit_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, UseLitPass>();
-    for (auto [e, transform, scl, mesh] : lit_pass.each()) {
+    const auto lit_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseLitPass>();
+    for (auto [e, transform, scl, mesh, tex] : lit_pass.each()) {
       if (box_in_frustum(transform.pos, scl)) {
         //add_to_render_batch(transform.pos, transform.rot, scl, mesh);
-        draw_lit(transform.pos, transform.rot, scl, mesh);
+        draw_lit(transform.pos, transform.rot, scl, mesh, tex);
       }
     }
     end_lit_pass();
@@ -244,7 +244,6 @@ i32 WINDOW_W = 1920;
 i32 WINDOW_H = 1080;
 bool FRAMEBUFFER_RESIZED = false;
 
-usize GPU_IMAGE_BUFFER_ARRAY_COUNT = 0;
 usize FRAME_COUNT = 0;
 u32 FRAME_INDEX = 0;
 
@@ -256,7 +255,7 @@ DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[] =  {
   //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
   { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         WORLD_DATA_BUF, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
   { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-  { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GPU_IMAGE_BUFFER_ARRAY,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
+  { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GPU_IMAGE_BUFFER_ARRAY,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
 };
 
 // TODO(sean): maybe load these in some kind of way from a file?
@@ -1098,7 +1097,7 @@ VkWriteDescriptorSet get_buffer_desc_write2(
   desc_write.dstBinding = binding;
   desc_write.dstArrayElement = 0;
   desc_write.dstSet = desc_set;
-  desc_write.descriptorCount = 1;
+  desc_write.descriptorCount = count;
   desc_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   desc_write.pBufferInfo = buffer_info;
 
@@ -1185,12 +1184,14 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
     case(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER): {
       image_infos.push_back(std::vector<VkDescriptorImageInfo>(layout_info[desc_info_index].count, VkDescriptorImageInfo{}));
 
-      for_every(desc_arr_index, count) {
+      for_every(desc_arr_index, image_infos.back().size()) {
         auto i = get_buffer_image<AllocatedImage>(layout_info[desc_info_index], frame_index, desc_arr_index);
+        printf("%llu\n", (usize)i.view);
         image_infos.back()[desc_arr_index].sampler = DEFAULT_SAMPLER;
         image_infos.back()[desc_arr_index].imageView = i.view;
         image_infos.back()[desc_arr_index].imageLayout = format_to_read_layout2(i.format);
       }
+      printf("\n");
 
       desc_write[desc_info_index] = get_image_desc_write2(desc_info_index, desc_set, image_infos.back().data(), image_infos.back().size());
     }; break;
@@ -1635,10 +1636,11 @@ Texture* load_png_texture(std::string* path) {
 
   //TODO(sean): store our AllocatedImage in the global textures array and 
   Texture* texture = (Texture*)RENDER_ALLOC.alloc(sizeof(Texture));
-  texture->index = GPU_IMAGE_BUFFER_ARRAY_COUNT;
+  texture->index = GLOBAL_CONSTANTS_LAYOUT_INFO[2].count;
 
-  GPU_IMAGE_BUFFER_ARRAY[GPU_IMAGE_BUFFER_ARRAY_COUNT] = alloc_image;
-  GPU_IMAGE_BUFFER_ARRAY_COUNT += 1;
+  GPU_IMAGE_BUFFER_ARRAY[GLOBAL_CONSTANTS_LAYOUT_INFO[2].count] = alloc_image;
+  GLOBAL_CONSTANTS_LAYOUT_INFO[2].count += 1;
+  printf("%llu\n", GLOBAL_CONSTANTS_LAYOUT_INFO[2].count);
 
   return texture;
 }
@@ -1991,7 +1993,8 @@ void begin_depth_prepass_rendering() {
 
 void draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   DefaultPushConstant dpc;
-  dpc.MODEL_POSITION = vec4(pos, 1.0f);
+  dpc.MODEL_POSITION = pos;
+  dpc.TEXTURE_INDEX = 2;
   dpc.MODEL_ROTATION = rot;
   dpc.MODEL_SCALE = vec4(scl, 1.0f);
 
@@ -2029,7 +2032,8 @@ void begin_shadow_rendering() {
 
 void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   DefaultPushConstant dpc;
-  dpc.MODEL_POSITION = vec4(pos, 1.0f);
+  dpc.MODEL_POSITION = pos;
+  dpc.TEXTURE_INDEX = 2;
   dpc.MODEL_ROTATION = rot;
   dpc.MODEL_SCALE = vec4(scl, 1.0f);
   //mat4 world_m = translate_rotate_scale(pos, rot, scl);
@@ -2049,24 +2053,24 @@ void begin_lit_pass() {
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
 }
 
-void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, Texture tex) {
   // if(counter > 10) { return; }
   // counter += 1;
 
   DefaultPushConstant dpc;
+  printf("%d\n", tex.index);
 
   // mesh_scls[]
 
   //mat4 world_m = translate_rotate_scale(pos, rot, scl);
   //dpc.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  dpc.MODEL_POSITION = vec4(pos, 1.0f);
+  dpc.MODEL_POSITION = pos;
+  dpc.TEXTURE_INDEX = tex.index;
   dpc.MODEL_ROTATION = rot;
   dpc.MODEL_SCALE = vec4(scl, 1.0f);
   //u32 texture_index = 0;
   //dpc.world_position.w = *(f32*)&texture_index;
-
-  VkDeviceSize offset = 0;
 
   vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
   // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);

@@ -80,15 +80,13 @@ template <typename T> T* try_get(const char* name) {
   using namespace internal;
   const auto i = idx_of<T>();
 
-#ifdef DEBUG
   if (assets_data.find(i) == assets_data.end()) {
     printf("Could not find any possible assets for the type of '%s'!\n", name);
-    exit(1);
+    return 0;
   } else if (assets_data.at(i).find(std::string(name)) == assets_data.at(i).end()) {
     printf("Could not find any assets named '%s'!\n", name);
-    exit(1);
+    return 0;
   }
-#endif
 
   return (T*)assets_data.at(i).at(std::string(name));
 }

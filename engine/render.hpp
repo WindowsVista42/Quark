@@ -110,7 +110,8 @@ namespace quark::render::internal {
   
   // Internal Types
   struct DefaultPushConstant {
-    vec4 MODEL_POSITION;
+    vec3 MODEL_POSITION;
+    u32 TEXTURE_INDEX;
     vec4 MODEL_ROTATION;
     vec4 MODEL_SCALE;
   };
@@ -269,7 +270,7 @@ namespace quark::render::internal {
   inline AllocatedBuffer GPU_VERTEX_BUFFER;
   
   // global bindless texture array data stuff thing
-  extern usize GPU_IMAGE_BUFFER_ARRAY_COUNT;
+  //extern usize GPU_IMAGE_BUFFER_ARRAY_COUNT;
   inline AllocatedImage GPU_IMAGE_BUFFER_ARRAY[1024];
   
   extern DescriptorLayoutInfo GLOBAL_CONSTANTS_LAYOUT_INFO[];
@@ -410,7 +411,7 @@ namespace quark::render::internal {
   void end_shadow_rendering();
   
   void begin_lit_pass();
-  void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh);
+  void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, Texture tex);
   void end_lit_pass();
   
   void begin_solid_pass();
