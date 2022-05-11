@@ -62,6 +62,7 @@ def try_read(path, ext, flag):
             print("For flag: '" + flag[0].upper() + "' could not find option '" + flag[1].upper() + "'")
 
 def compile_ext_shader(path):
+    PA = path
     text = open(path, "r").read()
 
     vert_top_text = ""
@@ -78,6 +79,10 @@ def compile_ext_shader(path):
 
     vertex_shader_text = HEADER + "\n" + VERT_HEADER + "\n" + text[:text.find("// SECTION: VERTEX")] + vert_top_text + text[text.find("// SECTION: VERTEX"):text.find("// SECTION: FRAGMENT")]
     fragment_shader_text = HEADER + "\n" + VERT_HEADER + "\n" + text[:text.find("// SECTION: VERTEX")]  + frag_top_text + text[text.find("// SECTION: FRAGMENT"):]
+
+    #print(PA)
+    #print(vertex_shader_text)
+    #print(fragment_shader_text)
 
     real_path = path.split(".")[0] + ".vert"
     f = open(real_path, "w")
@@ -115,13 +120,14 @@ if __name__ == "__main__":
     threads = []
     for path in shader_paths:
         if path.find(".ext") != -1: continue
-        threads.append(threading.Thread(target=compile_spv_shader, args=(path,)))
+        #threads.append(threading.Thread(target=compile_spv_shader, args=(path,)))
+        compile_spv_shader(path)
 
-    for thread in threads:
-        thread.start()
+    #for thread in threads:
+    #    thread.start()
 
-    for thread in threads:
-        thread.join()
+    #for thread in threads:
+    #    thread.join()
 
     spv_paths = []
     for path in shader_paths:

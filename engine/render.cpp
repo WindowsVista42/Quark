@@ -4,7 +4,7 @@
 #include "stb_image.h"
 #include "qoi.h"
 
-#include "quark_renderer.hpp"
+#include "render.hpp"
 
 namespace quark::render {
 using namespace quark::render::internal;
@@ -64,6 +64,9 @@ void render_frame(bool end_forward) {
   SUN_CAMERA.zfar = 500.0f;
   SUN_CAMERA.fov = 16.0f;
   SUN_VIEW_PROJECTION = update_matrices(SUN_CAMERA, 2048, 2048);
+  MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
+
+  update_world_data();
 
   begin_shadow_rendering();
   {
@@ -76,20 +79,17 @@ void render_frame(bool end_forward) {
   }
   end_shadow_rendering();
 
-  MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
+  begin_depth_prepass_rendering();
+  {
+    const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
+    for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
+      if (box_in_frustum(transform.pos, scl)) {
+        draw_depth(transform.pos, transform.rot, scl, mesh);
+      }
+    }
+  }
+  end_depth_prepass_rendering();
 
-  //begin_depth_prepass_rendering();
-  //{
-  //  const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh>(entt::exclude<IsTransparent>);
-  //  for (auto [e, transform, scl, mesh] : depth_prepass.each()) {
-  //    if (box_in_frustum(transform.pos, scl)) {
-  //      draw_depth(transform.pos, transform.rot, scl, mesh);
-  //    }
-  //  }
-  //}
-  //end_depth_prepass_rendering();
-
-  update_world_data();
   begin_forward_rendering();
   {
     begin_lit_pass();
@@ -626,7 +626,7 @@ void init_render_passes() {
   VkAttachmentDescription depth_attachment = {};
   depth_attachment.format = GLOBAL_DEPTH_IMAGE.format;
   depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
   depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
   depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -753,7 +753,7 @@ void init_sync_objects() {
 void init_pipelines() {
   VkPushConstantRange push_constant = {};
   push_constant.offset = 0;
-  push_constant.size = sizeof(DeferredPushConstant);
+  push_constant.size = sizeof(DefaultPushConstant);
   push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
   VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -899,7 +899,7 @@ void init_pipelines() {
   // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
   // Debug pipeline layout
-  push_constant.size = sizeof(DebugPushConstant);
+  push_constant.size = sizeof(ColorPushConstant);
   vk_check(vkCreatePipelineLayout(DEVICE, &pipeline_layout_info, 0, &COLOR_PIPELINE_LAYOUT));
 
   // Color pipeline
@@ -918,13 +918,17 @@ void init_pipelines() {
 
   vk_check(vkCreateGraphicsPipelines(DEVICE, 0, 1, &pipeline_info, 0, &WIREFRAME_PIPELINE));
 
+  push_constant.size = sizeof(DefaultPushConstant);
+  pipeline_info.layout = LIT_PIPELINE_LAYOUT;
+
   depth_stencil_info.depthTestEnable = VK_TRUE;
 
   // Sun pipeline layout
-  pipeline_layout_info.setLayoutCount = 0;
-  pipeline_layout_info.pSetLayouts = 0;
+  //pipeline_layout_info.setLayoutCount = 0;
+  //pipeline_layout_info.pSetLayouts = 0;
 
-  push_constant.size = sizeof(mat4);
+  //push_constant.size = sizeof(DefaultPushConstant);
+  //push_constant.size = sizeof(mat4);
 
   vk_check(vkCreatePipelineLayout(DEVICE, &pipeline_layout_info, 0, &DEPTH_ONLY_PIPELINE_LAYOUT));
   vk_check(vkCreatePipelineLayout(DEVICE, &pipeline_layout_info, 0, &DEPTH_PREPASS_PIPELINE_LAYOUT));
@@ -932,7 +936,7 @@ void init_pipelines() {
   rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
   pipeline_info.stageCount = 1;
-  shader_stages[0].module = assets::get<VkVertexShader>("depth_only");
+  shader_stages[0].module = assets::get<VkVertexShader>("depth_view");
   shader_stages[1].module = 0;
 
   // viewport.minDepth = 0.0f;
@@ -946,6 +950,8 @@ void init_pipelines() {
   pipeline_info.renderPass = DEPTH_PREPASS_RENDER_PASS;
 
   vk_check(vkCreateGraphicsPipelines(DEVICE, 0, 1, &pipeline_info, 0, &DEPTH_PREPASS_PIPELINE));
+
+  shader_stages[0].module = assets::get<VkVertexShader>("depth_only");
 
   rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
 
@@ -1977,16 +1983,19 @@ void begin_depth_prepass_rendering() {
 
   vkCmdBeginRenderPass(MAIN_CMD_BUF[FRAME_INDEX], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_PREPASS_PIPELINE);
+  vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_PREPASS_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
 }
 
 void draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
-  mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  mat4 world_view_projection = MAIN_VIEW_PROJECTION * world_m;
+  DefaultPushConstant dpc;
+  dpc.MODEL_POSITION = vec4(pos, 1.0f);
+  dpc.MODEL_ROTATION = rot;
+  dpc.MODEL_SCALE = vec4(scl, 1.0f);
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &world_view_projection);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -2012,16 +2021,21 @@ void begin_shadow_rendering() {
 
   vkCmdBeginRenderPass(MAIN_CMD_BUF[FRAME_INDEX], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_ONLY_PIPELINE);
+  vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_ONLY_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
 }
 
 void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
-  mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  mat4 world_view_projection = SUN_VIEW_PROJECTION * world_m;
+  DefaultPushConstant dpc;
+  dpc.MODEL_POSITION = vec4(pos, 1.0f);
+  dpc.MODEL_ROTATION = rot;
+  dpc.MODEL_SCALE = vec4(scl, 1.0f);
+  //mat4 world_m = translate_rotate_scale(pos, rot, scl);
+  //mat4 world_view_projection = SUN_VIEW_PROJECTION * world_m;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &world_view_projection);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 }
 
@@ -2039,22 +2053,22 @@ void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh) {
   // if(counter > 10) { return; }
   // counter += 1;
 
-  DeferredPushConstant dpc;
+  DefaultPushConstant dpc;
 
   // mesh_scls[]
 
   //mat4 world_m = translate_rotate_scale(pos, rot, scl);
   //dpc.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  dpc.MODEL_POSITION.xyz = pos;
+  dpc.MODEL_POSITION = vec4(pos, 1.0f);
   dpc.MODEL_ROTATION = rot;
-  dpc.MODEL_SCALE.xyz = scl;
+  dpc.MODEL_SCALE = vec4(scl, 1.0f);
   //u32 texture_index = 0;
   //dpc.world_position.w = *(f32*)&texture_index;
 
   VkDeviceSize offset = 0;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DeferredPushConstant), &dpc);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
   // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
   // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
   // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
@@ -2080,6 +2094,7 @@ void end_lit_pass() {
 
 void begin_solid_pass() {
   vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, SOLID_PIPELINE);
+  vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, COLOR_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
@@ -2089,6 +2104,7 @@ void end_solid_pass() {}
 
 void begin_wireframe_pass() {
   vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, WIREFRAME_PIPELINE);
+  vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, COLOR_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
@@ -2097,13 +2113,16 @@ void begin_wireframe_pass() {
 void end_wireframe_pass() {}
 
 void draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {
-  DebugPushConstant pcd;
+  ColorPushConstant pcd;
+  pcd.MODEL_POSITION = vec4(pos, 1.0f);
+  pcd.MODEL_ROTATION = rot;
+  pcd.MODEL_SCALE = vec4(scl, 1.0f);
   pcd.color = col;
 
-  mat4 world_m = translate_rotate_scale(pos, rot, scl);
-  pcd.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
+  //mat4 world_m = translate_rotate_scale(pos, rot, scl);
+  //pcd.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
 
-  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DebugPushConstant), &pcd);
+  vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ColorPushConstant), &pcd);
   vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
 };
 

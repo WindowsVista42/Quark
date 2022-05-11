@@ -50,7 +50,7 @@ vec3 rotate(vec3 v, vec4 q) {
   // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
   //vec3 t = 2.0f * cross(q.xyz, v);
   //return v + q.w * t + cross(q.xyz, t);
-  
+
   vec3 u = q.xyz;
   float s = q.w;
   return v + ((cross(u, v) * s) + cross(u, cross(u,v))) * 2.0f;
@@ -96,6 +96,6 @@ void main() {
   //SUN_POSITION = sun_world_view_projection * vec4(VERTEX_POSITION, 1.0f);
   //POSITION = main_world_view_projection * vec4(VERTEX_POSITION, 1.0f);
   vec3 world_position = rotate(VERTEX_POSITION * MODEL_SCALE.xyz, MODEL_ROTATION) + MODEL_POSITION.xyz;
-  gl_Position = sun_view_projection * vec4(world_position, 1.0f);
+  gl_Position = main_view_projection * vec4(world_position, 1.0f);
   //gl_Position = world_view_projection * vec4(in_position, 1.0f);
 }

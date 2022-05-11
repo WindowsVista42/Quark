@@ -109,15 +109,17 @@ namespace quark::render::internal {
   };
   
   // Internal Types
-  struct DeferredPushConstant {
+  struct DefaultPushConstant {
     vec4 MODEL_POSITION;
     vec4 MODEL_ROTATION;
     vec4 MODEL_SCALE;
   };
   
-  struct DebugPushConstant {
+  struct ColorPushConstant {
+    vec4 MODEL_POSITION;
+    vec4 MODEL_ROTATION;
+    vec4 MODEL_SCALE;
     vec4 color;
-    mat4 world_view_projection;
   };
   
   struct RenderData {

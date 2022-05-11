@@ -1,17 +1,17 @@
-// INCLUDE: IGNORE
-// SHADER_TYPE: SIMPLE
-// PUSH_CONSTANT: CUSTOM
-// WORLD_DATA: IGNORE
+// INCLUDE: DEFAULT
+// SHADER_TYPE: DEFAULT
+// PUSH_CONSTANT: EXTEND
+// WORLD_DATA: DEFAULT
 
 struct CustomPushConstant {
   vec4 color;
-  mat4 world_view_projection;
 };
 
 // SECTION: VERTEX
 
 void main() {
-  POSITION = CUSTOM_PUSH.world_view_projection * vec4(VERTEX_POSITION, 1.0f);
+  vec3 world_position = rotate(VERTEX_POSITION * MODEL_SCALE.xyz, MODEL_ROTATION) + MODEL_POSITION.xyz;
+  POSITION = main_view_projection * vec4(world_position, 1.0f);
 }
 
 // SECTION: FRAGMENT

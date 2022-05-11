@@ -267,7 +267,7 @@ void game_init() {
   auto mesh_list = assets::get_all<Mesh>();
 
   // boxes
-  i32 dim = 6;
+  i32 dim = 2;
   for (i32 x = -dim; x < dim; x += 1) {
     for (i32 y = -dim; y < dim; y += 1) {
       for (i32 z = -dim; z < dim; z += 1) {
@@ -285,8 +285,8 @@ void game_init() {
         ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
         Extents extents = ecs::get<Extents>(e);
-        ecs::add_selection_box(e, BoxShape(extents));
-        //ecs::add_rigid_body(e, {.shape = BoxShape(extents), .mass = 1.0f});
+        //ecs::add_selection_box(e, BoxShape(extents));
+        ecs::add_rigid_body(e, {.shape = BoxShape(extents), .mass = 1.0f});
 
         //ecs::add_transform(e, pos, rot, scl);
         //ecs::add_render(e, col, mesh, RENDER_LIT);
@@ -557,7 +557,7 @@ void game_update() {
   if (flycam_enabled) {
     flycam_pos += input_movement_dir * DT * 10.0f;
 
-    player_body.rot(axis_angle(VEC3_UNIT_Z, TT));
+    player_body.rot(axis_angle(VEC3_UNIT_X, TT));
   } else {
     // move
     vec3 linvel = player_body.linvel();

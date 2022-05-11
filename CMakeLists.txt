@@ -51,7 +51,7 @@ include_directories(lib/stb)
 include_directories(lib/qoi)
 
 add_executable(run 
-  engine/quark_renderer.cpp
+  engine/render.cpp
   engine/quark_types.cpp
   engine/quark_math.cpp
   engine/quark_physics.cpp
