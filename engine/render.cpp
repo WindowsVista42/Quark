@@ -1186,12 +1186,10 @@ void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayo
 
       for_every(desc_arr_index, image_infos.back().size()) {
         auto i = get_buffer_image<AllocatedImage>(layout_info[desc_info_index], frame_index, desc_arr_index);
-        printf("%llu\n", (usize)i.view);
         image_infos.back()[desc_arr_index].sampler = DEFAULT_SAMPLER;
         image_infos.back()[desc_arr_index].imageView = i.view;
         image_infos.back()[desc_arr_index].imageLayout = format_to_read_layout2(i.format);
       }
-      printf("\n");
 
       desc_write[desc_info_index] = get_image_desc_write2(desc_info_index, desc_set, image_infos.back().data(), image_infos.back().size());
     }; break;
@@ -2058,7 +2056,6 @@ void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, Texture tex) {
   // counter += 1;
 
   DefaultPushConstant dpc;
-  printf("%d\n", tex.index);
 
   // mesh_scls[]
 
