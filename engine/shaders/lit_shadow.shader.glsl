@@ -259,8 +259,9 @@ void main() {
   vec3 lighting = (sun * shadow) + diffuse + specular;
   vec3 result = 2.0f * lighting * color;
   //result = pow(result, vec3(2.2));
-  vec3 ran = vec3(snoise(vec4(a, TT * 0.125)) * 0.01) + vec3(snoise(vec4(a, TT * 0.125) * 4.0f) * 0.01);
-  vec3 tonemapped = aces(result + ran);
+  //vec3 ran = vec3(snoise(vec4(a, TT * 0.125)) * 0.01) + vec3(snoise(vec4(a, TT * 0.125) * 4.0f) * 0.01);
+  //vec3 tonemapped = aces(result + ran);
+  vec3 tonemapped = aces(result);
   tonemapped = toonify(tonemapped, 20.0f);
 
   COLOR = vec4(tonemapped, 1.0f);

@@ -120,14 +120,14 @@ if __name__ == "__main__":
     threads = []
     for path in shader_paths:
         if path.find(".ext") != -1: continue
-        #threads.append(threading.Thread(target=compile_spv_shader, args=(path,)))
-        compile_spv_shader(path)
+        threads.append(threading.Thread(target=compile_spv_shader, args=(path,)))
+        #compile_spv_shader(path)
 
-    #for thread in threads:
-    #    thread.start()
+    for thread in threads:
+        thread.start()
 
-    #for thread in threads:
-    #    thread.join()
+    for thread in threads:
+        thread.join()
 
     spv_paths = []
     for path in shader_paths:

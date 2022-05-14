@@ -529,9 +529,13 @@ void game_update() {
     timer.value -= DT;
   }
 
-  {
+  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
+  static f32 accumulator = 0.0f;
+  accumulator += DT;
+  while(accumulator >= PHYS_DT) {
+    accumulator -= PHYS_DT;
     // step_physics_simulation(dt, 4); // do this?
-    physics_world->stepSimulation(DT, 1);
+    physics_world->stepSimulation(PHYS_DT, 1);
 
     auto sync_transforms_with_rb = [&]() {
       // sync physics position and rotations with entities
