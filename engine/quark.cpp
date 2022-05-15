@@ -129,3 +129,58 @@ void quark::deinit() {
 
   //#endif
 }
+
+void quark::pre_update() {
+  input::update_all();
+
+  // update timers
+  for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {
+    timer.value -= DT;
+  }
+
+  for(auto [e, timer] : ecs::REGISTRY.view<SaturatingTimer>().each()) {
+    timer.value -= DT;
+  }
+}
+
+void quark::main_update() {
+  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
+  static f32 accumulator = 0.0f;
+  accumulator += DT;
+  while(accumulator >= PHYS_DT) {
+    accumulator -= PHYS_DT;
+    // step_physics_simulation(dt, 4); // do this?
+    physics_world->stepSimulation(PHYS_DT, 1);
+
+    // sync physics position and rotations with entities
+    auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
+    for (auto [e, transform, body] : rigid_bodies.each()) {
+      transform = Transform { .pos = body.pos(), .rot = body.rot() };
+    }
+
+    // sync collision objects with entitites
+    auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
+    for (auto [e, transform, obj] : collision_objects.each()) {
+      obj.transform(transform);
+    }
+
+    // sync ghost objects
+    auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
+    for (auto [e, transform, ghost] : ghost_objects.each()) {
+      ghost.transform(transform);
+    }
+  }
+}
+
+void quark::post_update() {
+  ecs::update_child_transforms(); // needs to happen here otherwise children lag behind by 1 frame
+
+  render::begin_frame();
+  render::render_frame();
+  render::end_frame();
+
+  if (platform::get_key(GLFW_KEY_ESCAPE)) {
+    platform::close_window();
+  }
+}
+

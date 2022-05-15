@@ -152,7 +152,7 @@ void add_ghost_body(Entity e, GhostBodyInfoCapsule info) {
 #undef IMPL_ADD_GHOST_BODY
 
 // void update_children(); //
-void update_entity_hierarchies() {
+void update_child_transforms() {
   // pros:
   // simpler
   // maybe easier to do heirarchy?

@@ -39,10 +39,46 @@ inline void (*DEINIT_FUNC)();
 // Map of meshes offsets to mesh dimensions
 inline bool ENABLE_PHYSICS_BOUNDING_BOX_VISOR = false;
 
+struct Timer {
+  f32 value;
+  f32 base;
+
+  bool done() {
+    return value <= 0.0f;
+  };
+
+  void reset() {
+    value = base;
+  };
+};
+
+struct SaturatingTimer {
+  f32 value;
+  f32 base;
+  f32 max;
+
+  bool done() {
+    return (value + base) < max;
+  };
+
+  void tick() {
+    value -= DT;
+  }
+
+  void saturate() {
+    value += base;
+  }
+};
+
 // Functions
 void init();
 void run();
 void deinit();
+
+// Update stages
+void pre_update();
+void main_update();
+void post_update();
 
 }; // namespace quark
 

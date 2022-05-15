@@ -213,7 +213,7 @@ static void add_parent(Entity child, Entity parent) {
   child_transform = mul_transform(parent_transform, child_transform_offset);
 }
 
-void update_entity_hierarchies();
+void update_child_transforms();
 
 static Transform calc_transform_from_parent(Parent parent, TransformOffset transform_offset) {
   Transform parent_transform = ecs::get<Transform>(parent.parent);

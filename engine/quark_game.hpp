@@ -199,6 +199,8 @@ inline const TransformOffset TransformOffset::identity = TransformOffset { VEC3_
 
 typedef entt::entity Entity;
 
+struct DontSyncTransformWithPhysics {};
+
 }; // namespace quark
 
 #endif

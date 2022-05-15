@@ -1,11 +1,24 @@
 #define USING_QUARK_INTERNALS
 #include "quark.hpp"
-#include <cstdarg>
 
 namespace quark::input {
 
-std::unordered_map<std::string, std::vector<InputEnum>> name_to_inputs;
-std::unordered_map<std::string, ActionState> name_to_action;
+static std::unordered_map<std::string, std::vector<InputEnum>> name_to_inputs;
+static std::unordered_map<std::string, ActionState> name_to_action;
+
+// scroll_accumulator gets reset on input::update_all()
+static vec2 scroll_accumulator = {};
+void scroll_callback(GLFWwindow* window, double x, double y) {
+  scroll_accumulator.x += (f32)x;
+  scroll_accumulator.y += (f32)y;
+}
+
+// mouse_accumulator gets reset on input::update_all()
+static vec2 mouse_accumulator = {};
+void mouse_callback(GLFWwindow* window, double x, double y) {
+  mouse_accumulator.x += (f32)x;
+  mouse_accumulator.y += (f32)y;
+}
 
 void bind(const char* name, InputEnum input) {
   //TODO(sean): check for invalid input binds?
@@ -61,6 +74,15 @@ void update_mouse(ActionState* state, InputEnum input) {
 
   // mouse scroll input
   if(input >= Mouse::ScrollUp && input <= Mouse::ScrollRight) {
+    // get the input from the callback correctly???
+    // OR mark the input as using the callback or something??
+    // OR get the current accumulated input from the scroll and do the thing
+    switch(input) {
+    case(Mouse::ScrollUp):    { state->current = clamp( scroll_accumulator.y, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollDown):  { state->current = clamp(-scroll_accumulator.y, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollLeft):  { state->current = clamp(-scroll_accumulator.x, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollRight): { state->current = clamp( scroll_accumulator.x, 0.0f, 128.0f); } break;
+    }
     return;
   }
 
@@ -96,7 +118,12 @@ void update_all() {
         panic("Received input is not valid!");
       }
     }
+
+    state.current = clamp(state.current, 0.0f, 1.0f);
   }
+
+  scroll_accumulator = {};
+  mouse_accumulator = {};
 }
 
 bool ActionState::down() {

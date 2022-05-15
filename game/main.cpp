@@ -13,7 +13,6 @@ static Entity forward_bar;
 static Entity right_bar;
 static Entity up_bar;
 
-struct DontSyncTransformWithPhysics {};
 struct PlayerLegs {};
 
 static f32 scroll_height = 0.0f;
@@ -25,37 +24,6 @@ static Entity last_box = entt::null;
 struct Health {
   f32 value;
   f32 base;
-};
-
-struct Timer {
-  f32 value;
-  f32 base;
-
-  bool done() {
-    return value <= 0.0f;
-  };
-
-  void reset() {
-    value = base;
-  };
-};
-
-struct SaturatingTimer {
-  f32 value;
-  f32 base;
-  f32 max;
-
-  bool done() {
-    return (value + base) < max;
-  };
-
-  void tick() {
-    value -= DT;
-  }
-
-  void saturate() {
-    value += base;
-  }
 };
 
 struct Enemy {
@@ -424,57 +392,20 @@ void game_init() {
   input::bind("g", Key::G);
   input::bind("b", Key::B);
   input::bind("v", Key::V);
+
+  input::bind("fire", Mouse::LeftButton);
+  input::bind("select", Mouse::RightButton);
+
+  input::bind("pan_up", Mouse::MoveUp);
+  input::bind("pan_down", Mouse::MoveDown);
+  input::bind("pan_left", Mouse::MoveLeft);
+  input::bind("pan_right", Mouse::MoveRight);
 }
 
-static Bind fire_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_LEFT, QUARK_UNBOUND};
-static Bind select_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_RIGHT, QUARK_UNBOUND};
-
-//static Bind left_bind = Bind{GLFW_KEY_A, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind right_bind = Bind{GLFW_KEY_D, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind forward_bind = Bind{GLFW_KEY_W, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind backward_bind = Bind{GLFW_KEY_S, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind up_bind = Bind{GLFW_KEY_SPACE, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind down_bind = Bind{GLFW_KEY_LEFT_CONTROL, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind f_bind = Bind{GLFW_KEY_F, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind c_bind = Bind{GLFW_KEY_C, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind flycam_bind = Bind{GLFW_KEY_H, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind dash_bind = Bind{GLFW_KEY_LEFT_SHIFT, QUARK_UNBOUND, QUARK_UNBOUND};
-//
-//static Bind t_bind = Bind{GLFW_KEY_T, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind g_bind = Bind{GLFW_KEY_G, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind b_bind = Bind{GLFW_KEY_B, QUARK_UNBOUND, QUARK_UNBOUND};
-//static Bind v_bind = Bind{GLFW_KEY_V, QUARK_UNBOUND, QUARK_UNBOUND};
-
 void game_update() {
-  //printf("%llu\n", (usize)&ecs::get<RigidBody>(last_box));
+  quark::pre_update();
 
-  input::update_all();
-
-  platform::update_mouse_bind(&fire_bind);
-  platform::update_mouse_bind(&select_bind);
-
-  //platform::update_key_bind(&left_bind);
-  //platform::update_key_bind(&right_bind);
-  //platform::update_key_bind(&forward_bind);
-  //platform::update_key_bind(&backward_bind);
-  //platform::update_key_bind(&up_bind);
-  //platform::update_key_bind(&down_bind);
-  //platform::update_key_bind(&f_bind);
-  //platform::update_key_bind(&c_bind);
-  //platform::update_key_bind(&flycam_bind);
-  //platform::update_key_bind(&dash_bind);
-
-  //platform::update_key_bind(&t_bind);
-  //platform::update_key_bind(&g_bind);
-  //platform::update_key_bind(&b_bind);
-  //platform::update_key_bind(&v_bind);
-
-  vec3 input_dir = VEC3_ZERO;
-
-  bool joystick_connected = false;
-
-  // void update_inputs() {
-  {
+  vec3 input_dir = VEC3_ZERO; {
     input_dir.y += input::get("forward").value();
     input_dir.y -= input::get("backward").value();
 
@@ -489,45 +420,7 @@ void game_update() {
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
   }
 
-  // update timers
-  for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {
-    timer.value -= DT;
-  }
-
-  for(auto [e, timer] : ecs::REGISTRY.view<SaturatingTimer>().each()) {
-    timer.value -= DT;
-  }
-
-  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
-  static f32 accumulator = 0.0f;
-  accumulator += DT;
-  while(accumulator >= PHYS_DT) {
-    accumulator -= PHYS_DT;
-    // step_physics_simulation(dt, 4); // do this?
-    physics_world->stepSimulation(PHYS_DT, 1);
-  }
-
-  auto sync_transforms_with_rb = [&]() {
-    // sync physics position and rotations with entities
-    auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
-    for (auto [e, transform, body] : rigid_bodies.each()) {
-      transform = Transform { .pos = body.pos(), .rot = body.rot() };
-    }
-
-    // sync collision objects with entitites
-    auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
-    for (auto [e, transform, obj] : collision_objects.each()) {
-      obj.transform(transform);
-    }
-
-    // sync ghost objects
-    auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
-    for (auto [e, transform, ghost] : ghost_objects.each()) {
-      ghost.transform(transform);
-    }
-  };
-
-  sync_transforms_with_rb();
+  quark::main_update();
 
   static bool flycam_enabled = false;
   if (input::get("flycam").just_down()) {
@@ -594,7 +487,7 @@ void game_update() {
   MAIN_CAMERA.pos = flycam_enabled ? flycam_pos : player_transform.pos + vec3{0.0, 0.0, 0.8};
   MAIN_CAMERA.dir = spherical_to_cartesian(MAIN_CAMERA.spherical_dir);
 
-  if (fire_bind.down && selected != ecs::null) {
+  if (input::get("fire").down() && selected != ecs::null) {
     Transform& transform = ecs::get<Transform>(selected);
     vec3 pos2 = transform.pos;
 
@@ -665,7 +558,7 @@ void game_update() {
     }
   }
 
-  if (select_bind.just_pressed) {
+  if (input::get("select").just_down()) {
     vec3 from = MAIN_CAMERA.pos;
     vec3 to = MAIN_CAMERA.pos + (MAIN_CAMERA.dir * 100.0f);
 
@@ -772,16 +665,7 @@ void game_update() {
     }
   }
 
-  // update children positions
-  ecs::update_entity_hierarchies();
-
-  render::begin_frame();
-  render::render_frame();
-  render::end_frame();
-
-  if (platform::get_key(GLFW_KEY_ESCAPE)) {
-    platform::close_window();
-  }
+  quark::post_update();
 }
 
 void game_deinit() {}
@@ -796,6 +680,10 @@ int main() {
   quark::INIT_FUNC = game_init;
   quark::UPDATE_FUNC = game_update;
   quark::DEINIT_FUNC = game_deinit;
+
+  //quark::PRE_UPDATE_FUNC = game_pre_update;
+  //quark::MAIN_UPDATE_FUNC = game_main_update;
+  //quark::POST_UPDATE_FUNC = game_post_update;
 
   quark::init();
   quark::run();
