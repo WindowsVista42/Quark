@@ -39,6 +39,41 @@ bool vec2::operator!=(vec2 v) { return !(*this == v); }
 
 f32& vec2::operator[](usize i) { return ((f32*)this)[i]; };
 
+f32 vec2::dot(vec2 v) {
+  return (this->x * v.x) + (this->y * v.y);
+}
+
+f32 vec2::mag() {
+  return sqrtf(this->dot(*this));
+}
+
+vec2 vec2::norm() {
+  return (*this) / this->mag();
+}
+
+vec2 vec2::norm_checked() {
+  if(this->x != 0.0f || this->y != 0.0f) {
+    return this->norm();
+  }
+
+  return *this;
+}
+
+vec2 vec2::norm_max_mag(f32 max) {
+  if(this->mag() > max) {
+    return this->norm() * max;
+  }
+
+  return *this;
+}
+
+vec2 vec2::rotate(f32 rad) {
+  return vec2 {
+    this->x * cosf(rad) - this->y * sinf(rad),
+    this->x * sinf(rad) + this->y * cosf(rad),
+  };
+}
+
 // vec3
 
 vec3::vec3() {}

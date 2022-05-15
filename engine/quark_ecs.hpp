@@ -150,7 +150,6 @@ static void add_mesh(Entity e, const char* mesh_name, const vec3 scale = {1.0f, 
 
 static void add_texture(Entity e, const char* texture_name) {
   Texture tex = assets::get<Texture>(texture_name);
-  printf("%d\n", tex.index);
   ecs::add(e, tex);
 }
 

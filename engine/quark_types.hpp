@@ -56,6 +56,14 @@ struct vec2 {
   bool operator!=(vec2 v);
 
   f32& operator[](usize i);
+
+  f32 dot(vec2 v);
+  f32 mag();
+  vec2 norm();
+  vec2 norm_checked();
+  vec2 norm_max_mag(f32 max);
+
+  vec2 rotate(f32 rad);
 };
 
 struct uvec2 {

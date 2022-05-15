@@ -9,7 +9,7 @@
 #define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
 
 #define panic(message)                                                                                                                               \
-  fprintf(stderr, "Panicked at message: \"%s\"\n", message);                                                                                         \
+  fprintf(stderr, "Panicked at message: \"%s\" : %d : %s\n", message, __LINE__, __FILE__);                                                           \
   char* a = 0;                                                                                                                                       \
   *a = 0
 

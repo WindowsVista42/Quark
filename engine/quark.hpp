@@ -20,6 +20,7 @@ inline std::unordered_map<std::string, Scale> MESH_SCALES;
 
 #include "quark_ecs.hpp"
 #include "quark_platform.hpp"
+#include "input.hpp"
 #include "quark_reflect.hpp"
 #include "render.hpp"
 

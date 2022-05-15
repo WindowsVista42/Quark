@@ -407,117 +407,86 @@ void game_init() {
     add_child_to_base(child_player_e, false);
     add_child_to_base(child_player_e, false);
   }
+
+  input::bind("forward", Key::W);
+  input::bind("backward", Key::S);
+  input::bind("left", Key::A);
+  input::bind("right", Key::D);
+
+  input::bind("up", Key::Space);
+  input::bind("down", Key::LeftControl);
+  input::bind("dash", Key::LeftShift);
+
+  input::bind("f", Key::F);
+  input::bind("c", Key::C);
+  input::bind("flycam", Key::H);
+  input::bind("t", Key::T);
+  input::bind("g", Key::G);
+  input::bind("b", Key::B);
+  input::bind("v", Key::V);
 }
 
 static Bind fire_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_LEFT, QUARK_UNBOUND};
 static Bind select_bind = Bind{QUARK_UNBOUND, GLFW_MOUSE_BUTTON_RIGHT, QUARK_UNBOUND};
 
-static Bind left_bind = Bind{GLFW_KEY_A, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind right_bind = Bind{GLFW_KEY_D, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind forward_bind = Bind{GLFW_KEY_W, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind backward_bind = Bind{GLFW_KEY_S, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind up_bind = Bind{GLFW_KEY_SPACE, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind down_bind = Bind{GLFW_KEY_LEFT_CONTROL, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind f_bind = Bind{GLFW_KEY_F, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind c_bind = Bind{GLFW_KEY_C, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind flycam_bind = Bind{GLFW_KEY_H, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind dash_bind = Bind{GLFW_KEY_LEFT_SHIFT, QUARK_UNBOUND, QUARK_UNBOUND};
-
-static Bind t_bind = Bind{GLFW_KEY_T, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind g_bind = Bind{GLFW_KEY_G, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind b_bind = Bind{GLFW_KEY_B, QUARK_UNBOUND, QUARK_UNBOUND};
-static Bind v_bind = Bind{GLFW_KEY_V, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind left_bind = Bind{GLFW_KEY_A, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind right_bind = Bind{GLFW_KEY_D, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind forward_bind = Bind{GLFW_KEY_W, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind backward_bind = Bind{GLFW_KEY_S, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind up_bind = Bind{GLFW_KEY_SPACE, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind down_bind = Bind{GLFW_KEY_LEFT_CONTROL, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind f_bind = Bind{GLFW_KEY_F, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind c_bind = Bind{GLFW_KEY_C, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind flycam_bind = Bind{GLFW_KEY_H, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind dash_bind = Bind{GLFW_KEY_LEFT_SHIFT, QUARK_UNBOUND, QUARK_UNBOUND};
+//
+//static Bind t_bind = Bind{GLFW_KEY_T, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind g_bind = Bind{GLFW_KEY_G, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind b_bind = Bind{GLFW_KEY_B, QUARK_UNBOUND, QUARK_UNBOUND};
+//static Bind v_bind = Bind{GLFW_KEY_V, QUARK_UNBOUND, QUARK_UNBOUND};
 
 void game_update() {
   //printf("%llu\n", (usize)&ecs::get<RigidBody>(last_box));
 
+  input::update_all();
+
   platform::update_mouse_bind(&fire_bind);
   platform::update_mouse_bind(&select_bind);
 
-  platform::update_key_bind(&left_bind);
-  platform::update_key_bind(&right_bind);
-  platform::update_key_bind(&forward_bind);
-  platform::update_key_bind(&backward_bind);
-  platform::update_key_bind(&up_bind);
-  platform::update_key_bind(&down_bind);
-  platform::update_key_bind(&f_bind);
-  platform::update_key_bind(&c_bind);
-  platform::update_key_bind(&flycam_bind);
-  platform::update_key_bind(&dash_bind);
+  //platform::update_key_bind(&left_bind);
+  //platform::update_key_bind(&right_bind);
+  //platform::update_key_bind(&forward_bind);
+  //platform::update_key_bind(&backward_bind);
+  //platform::update_key_bind(&up_bind);
+  //platform::update_key_bind(&down_bind);
+  //platform::update_key_bind(&f_bind);
+  //platform::update_key_bind(&c_bind);
+  //platform::update_key_bind(&flycam_bind);
+  //platform::update_key_bind(&dash_bind);
 
-  platform::update_key_bind(&t_bind);
-  platform::update_key_bind(&g_bind);
-  platform::update_key_bind(&b_bind);
-  platform::update_key_bind(&v_bind);
+  //platform::update_key_bind(&t_bind);
+  //platform::update_key_bind(&g_bind);
+  //platform::update_key_bind(&b_bind);
+  //platform::update_key_bind(&v_bind);
 
-  vec3 input_movement_dir = VEC3_ZERO;
+  vec3 input_dir = VEC3_ZERO;
 
   bool joystick_connected = false;
 
   // void update_inputs() {
   {
-    // read keyb input and convert to rel dir
-    if (forward_bind.down) {
-      input_movement_dir.y += 1.0f;
-    }
-    if (backward_bind.down) {
-      input_movement_dir.y -= 1.0f;
-    }
-    if (right_bind.down) {
-      input_movement_dir.x += 1.0f;
-    }
-    if (left_bind.down) {
-      input_movement_dir.x -= 1.0f;
-    }
-    if (up_bind.down) {
-      input_movement_dir.z += 1.0f;
-    }
-    if (down_bind.down) {
-      input_movement_dir.z -= 1.0f;
-    }
+    input_dir.y += input::get("forward").value();
+    input_dir.y -= input::get("backward").value();
 
-    // read controller input and convert to rel dir
-    joystick_connected = glfwJoystickPresent(GLFW_JOYSTICK_1) == true ? true : false;
+    input_dir.x += input::get("right").value();
+    input_dir.x -= input::get("left").value();
 
-    if (joystick_connected) {
-      int count;
-      const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &count);
+    input_dir.z += input::get("up").value();
+    input_dir.z -= input::get("down").value();
 
-      auto deadzone = [&](f32 value, f32 threshold) { return fabs(value) > threshold; };
-      const f32 deadzone_value = 0.2f;
+    input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
 
-      if (deadzone(axes[1], deadzone_value)) {
-        input_movement_dir.y -= axes[1];
-      }
-      if (deadzone(axes[0], deadzone_value)) {
-        input_movement_dir.x += axes[0];
-      }
-      if (deadzone(axes[2], deadzone_value)) {
-        MAIN_CAMERA.spherical_dir.y -= axes[2] * DT;
-      }
-      if (deadzone(axes[3], deadzone_value)) {
-        MAIN_CAMERA.spherical_dir.x -= axes[3] * DT;
-      }
-    }
-
-    // Sean: normalzie inputs ofc
-    if (magnitude(input_movement_dir) > 1.0f) {
-      input_movement_dir.xy = normalize(input_movement_dir.xy);
-    }
-
-    // Sean: Translate relative dir to global dir
-    {
-      auto vec2_rotate = [](vec2 v, f32 angle) {
-        vec2 ans = vec2{
-            v.x * cosf(MAIN_CAMERA.spherical_dir.x) - v.y * sinf(MAIN_CAMERA.spherical_dir.x),
-            v.x * sinf(MAIN_CAMERA.spherical_dir.x) + v.y * cosf(MAIN_CAMERA.spherical_dir.x),
-        };
-
-        return ans;
-      };
-
-      input_movement_dir.xy = vec2_rotate(input_movement_dir.xy, MAIN_CAMERA.spherical_dir.x);
-    }
+    input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
   }
 
   // update timers
@@ -536,32 +505,32 @@ void game_update() {
     accumulator -= PHYS_DT;
     // step_physics_simulation(dt, 4); // do this?
     physics_world->stepSimulation(PHYS_DT, 1);
-
-    auto sync_transforms_with_rb = [&]() {
-      // sync physics position and rotations with entities
-      auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
-      for (auto [e, transform, body] : rigid_bodies.each()) {
-        transform = Transform { .pos = body.pos(), .rot = body.rot() };
-      }
-
-      // sync collision objects with entitites
-      auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
-      for (auto [e, transform, obj] : collision_objects.each()) {
-        obj.transform(transform);
-      }
-
-      // sync ghost objects
-      auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
-      for (auto [e, transform, ghost] : ghost_objects.each()) {
-        ghost.transform(transform);
-      }
-    };
-
-    sync_transforms_with_rb();
   }
 
+  auto sync_transforms_with_rb = [&]() {
+    // sync physics position and rotations with entities
+    auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
+    for (auto [e, transform, body] : rigid_bodies.each()) {
+      transform = Transform { .pos = body.pos(), .rot = body.rot() };
+    }
+
+    // sync collision objects with entitites
+    auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
+    for (auto [e, transform, obj] : collision_objects.each()) {
+      obj.transform(transform);
+    }
+
+    // sync ghost objects
+    auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
+    for (auto [e, transform, ghost] : ghost_objects.each()) {
+      ghost.transform(transform);
+    }
+  };
+
+  sync_transforms_with_rb();
+
   static bool flycam_enabled = false;
-  if (flycam_bind.just_pressed) {
+  if (input::get("flycam").just_down()) {
     flycam_enabled = !flycam_enabled;
   }
 
@@ -571,13 +540,13 @@ void game_update() {
 
   player_body.activate();
   if (flycam_enabled) {
-    flycam_pos += input_movement_dir * DT * 10.0f;
+    flycam_pos += input_dir * DT * 10.0f;
 
     player_body.rot(axis_angle(VEC3_UNIT_X, TT));
   } else {
     // move
     vec3 linvel = player_body.linvel();
-    vec3 local_input_dir = input_movement_dir;
+    vec3 local_input_dir = input_dir;
     const f32 max_velocity = 20.0f;
     const f32 acceleration = 10.0f;
     const f32 dash_speed = 80.0f;
@@ -589,7 +558,7 @@ void game_update() {
     // dash
     Player p = ecs::get_first<Player>();
     Timer& dash_timer = ecs::get<Timer>(p.dash_timer);
-    if (dash_bind.just_pressed && dash_timer.done()) {
+    if (input::get("dash").just_down() && dash_timer.done()) {
       vec3 dash_dir = {local_input_dir.xy, 0.0f};
       player_body.linvel(dash_dir * dash_speed);
       dash_timer.reset();
@@ -608,12 +577,12 @@ void game_update() {
     }
 
     // jump
-    if (up_bind.down && on_ground) {
+    if (input::get("up").down() && on_ground) {
       player_body.linvel({linvel.xy, jump_vel});
     }
 
     // sink
-    if (down_bind.just_pressed) {
+    if (input::get("down").just_down()) {
       f32 down_vel = min(-jump_vel, linvel.z - jump_vel);
       player_body.linvel({linvel.xy, down_vel});
     }
@@ -629,7 +598,7 @@ void game_update() {
     Transform& transform = ecs::get<Transform>(selected);
     vec3 pos2 = transform.pos;
 
-    if (t_bind.down) {
+    if (input::get("t").down()) {
       f32 diff = transform.pos.z - MAIN_CAMERA.pos.z;
       f32 t;
 
@@ -643,7 +612,7 @@ void game_update() {
       pos2.y = MAIN_CAMERA.pos.y + MAIN_CAMERA.dir.y * t;
     }
 
-    if (g_bind.down) {
+    if (input::get("g").down()) {
       f32 diff = transform.pos.y - MAIN_CAMERA.pos.y;
       f32 t;
 
@@ -657,7 +626,7 @@ void game_update() {
       pos2.x = MAIN_CAMERA.pos.x + MAIN_CAMERA.dir.x * t;
     }
 
-    if (b_bind.down) {
+    if (input::get("b").down()) {
       f32 diff = transform.pos.x - MAIN_CAMERA.pos.x;
       f32 t;
 
@@ -671,7 +640,7 @@ void game_update() {
       pos2.z = MAIN_CAMERA.pos.z + MAIN_CAMERA.dir.z * t;
     }
 
-    if (v_bind.down) {
+    if (input::get("v").down()) {
       pos2 = MAIN_CAMERA.pos + MAIN_CAMERA.dir * abs(scroll_height);
     }
 
@@ -707,7 +676,7 @@ void game_update() {
     }
   }
 
-  if (f_bind.just_pressed) {
+  if (input::get("f").just_down()) {
     Color rand_col = {((f32)rand() / (f32)RAND_MAX), ((f32)rand() / (f32)RAND_MAX), ((f32)rand() / (f32)RAND_MAX), 1.0f};
 
     entt::entity e = ecs::REGISTRY.create();
@@ -725,7 +694,7 @@ void game_update() {
     //ecs::add_selection_box(e, BoxShape(scl));
   }
 
-  if (c_bind.just_pressed && selected != entt::null && selected != player_e) {
+  if (input::get("c").just_down() && selected != entt::null && selected != player_e) {
     entt::entity base_selected = selected;
 
     Parent* parent = ecs::try_get<Parent>(selected);

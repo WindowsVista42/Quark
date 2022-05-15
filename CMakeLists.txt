@@ -52,6 +52,7 @@ include_directories(lib/qoi)
 
 add_executable(run 
   engine/render.cpp
+  engine/input.cpp
   engine/quark_types.cpp
   engine/quark_math.cpp
   engine/quark_physics.cpp
