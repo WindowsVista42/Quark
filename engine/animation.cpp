@@ -2,15 +2,15 @@
 
 namespace quark::animation {
   vec3 lerp(vec3 start, vec3 end, f32 t) {
-    return start + (end - start) * t;
+    return start + ((end - start) * t);
   }
 
   vec4 lerp(vec4 start, vec4 end, f32 t) {
-    return start + (end - start) * t;
+    return start + ((end - start) * t);
   }
 
   quat lerp(quat start, quat end, f32 t) {
-    return start + (end - start) * t;
+    return start + ((end - start) * t);
   }
 
   // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
@@ -70,6 +70,20 @@ namespace quark::animation {
 
   Transform SimpleAnimation::lerp(f32 t) {
     return animation::lerp(this->start, this->end, t);
+  }
+
+  Transform ComplexAnimation::lerp(f32 dt) {
+    time += dt;
+    if(time >= times[current]) {
+      time -= times[current];
+      current += 1;
+      current %= transforms.size();
+    }
+
+    Transform start = transforms[current];
+    Transform end = transforms[(current + 1) % transforms.size()];
+
+    return animation::lerp(start, end, time / times[current]);
   }
 };
 

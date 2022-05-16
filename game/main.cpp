@@ -307,9 +307,21 @@ void game_init() {
     Extents extents = ecs::get<Extents>(e);
     ecs::add_rigid_body(e, {.shape = BoxShape{extents}, .mass = 0.0f});
 
-    ecs::add(e, SimpleAnimation {
-      .start = transform, 
-      .end = {.pos = {10.0f, 0.0f, 10.0f}, .rot = {.707, 0.0, .707, 0.0f}, },
+    //ecs::add(e, SimpleAnimation {
+    //  .start = transform, 
+    //  .end = {.pos = {10.0f, 0.0f, 10.0f}, .rot = {.707, 0.0, .707, 0.0f}, },
+    //});
+
+    ecs::add(e, ComplexAnimation {
+      .transforms = {
+        transform,
+        {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_X, 10.0f), },
+        {.pos = {0.0f, 10.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Y, 10.0f), },
+        {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f), },
+      },
+      .times = {1.0f, 2.0f, 1.0f, 3.0f},
+      .time = 0.0f,
+      .current = 0,
     });
 
     //ecs::add_transform(e, pos, rot, scl);
@@ -678,6 +690,10 @@ void game_update() {
 
   for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, SimpleAnimation>().each()) {
     transform = anim.lerp((sinf(TT) + 1.0f) / 2.0f);
+  }
+
+  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, ComplexAnimation>().each()) {
+    transform = anim.lerp(DT);
   }
 
   quark::post_update();

@@ -228,4 +228,18 @@ using namespace internal;
 
 }; // namespace quark
 
+namespace quark {
+  // Basically a pointer to an entity
+  template <typename T>
+  struct Handle {
+    Entity e;
+    T& get() { return ecs::get<T>(e); }
+    static Handle create(T t) {
+      Handle<T> h;
+      h.e = ecs::create();
+      ecs::add(h.e, t);
+    }
+  };
+};
+
 using namespace quark::ecs::types;

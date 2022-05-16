@@ -24,8 +24,6 @@ inline std::unordered_map<std::string, Scale> MESH_SCALES;
 #include "quark_reflect.hpp"
 #include "render.hpp"
 
-#include "animation.hpp"
-
 namespace quark {
 using namespace quark;
 
@@ -83,5 +81,7 @@ void main_update();
 void post_update();
 
 }; // namespace quark
+
+#include "animation.hpp"
 
 #endif // QUARK_HPP
