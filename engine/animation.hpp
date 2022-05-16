@@ -21,6 +21,7 @@ namespace quark::animation {
     Transform lerp(f32 t);
   };
 
+  // TODO(sean): use some kind of allocator for this (given that the data in it is likely static)
   struct ComplexAnimation {
     std::vector<Transform> transforms;
     std::vector<f32> times;
@@ -29,11 +30,53 @@ namespace quark::animation {
 
     Transform lerp(f32 dt);
   };
+
+  template <typename T>
+  struct AnimationFrames {
+    std::vector<T> ts;
+    auto get(u32 current, u32 next) {
+      struct Result {
+        T start;
+        T end;
+      };
+
+      return Result { ts[current], ts[next] };
+    }
+  };
+
+  struct AnimationFrameTimes {
+    std::vector<f32> times;
+    f32 time;
+    u32 current;
+
+    f32 percent() {
+      return time / times[current];
+    }
+
+    auto anim(f32 dt) {
+      struct Result {
+        u32 current;
+        u32 next;
+      };
+
+      time += dt;
+      // loop because we could have really small times in times[] and a large dt
+      while(time >= times[current]) {
+        time -= times[current];
+        current += 1;
+        current %= times.size();
+      }
+
+      return Result {
+        current,
+        (current + 1) % (u32)times.size(),
+      };
+    }
+  };
 };
 
 namespace quark {
-  using SimpleAnimation = quark::animation::SimpleAnimation;
-  using ComplexAnimation = quark::animation::ComplexAnimation;
+  using namespace quark::animation;
 };
 
 #endif

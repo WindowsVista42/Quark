@@ -74,7 +74,7 @@ namespace quark::animation {
 
   Transform ComplexAnimation::lerp(f32 dt) {
     time += dt;
-    if(time >= times[current]) {
+    while(time >= times[current]) { // loop because we could have really small times in times[] and a large dt
       time -= times[current];
       current += 1;
       current %= transforms.size();

@@ -305,23 +305,38 @@ void game_init() {
     ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
     Extents extents = ecs::get<Extents>(e);
-    ecs::add_rigid_body(e, {.shape = BoxShape{extents}, .mass = 0.0f});
+    ecs::add_collision_body(e, {.shape = BoxShape{extents}});
 
     //ecs::add(e, SimpleAnimation {
     //  .start = transform, 
     //  .end = {.pos = {10.0f, 0.0f, 10.0f}, .rot = {.707, 0.0, .707, 0.0f}, },
     //});
 
-    ecs::add(e, ComplexAnimation {
-      .transforms = {
+    //ecs::add(e, ComplexAnimation {
+    //  .transforms = {
+    //    transform,
+    //    {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_X, 10.0f), },
+    //    {.pos = {0.0f, 10.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Y, 10.0f), },
+    //    {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f), },
+    //  },
+    //  .times = {1.0f, 2.0f, 1.0f, 3.0f},
+    //  .time = 0.0f,
+    //  .current = 0,
+    //});
+
+    ecs::add(e, AnimationFrameTimes {
+      .times = {1.0f, 2.0f, 1.0f, 3.0f},
+      .time = 0.0f,
+      .current = 0,
+    });
+
+    ecs::add(e, AnimationFrames<Transform> {
+      .ts = {
         transform,
         {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_X, 10.0f), },
         {.pos = {0.0f, 10.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Y, 10.0f), },
         {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f), },
       },
-      .times = {1.0f, 2.0f, 1.0f, 3.0f},
-      .time = 0.0f,
-      .current = 0,
     });
 
     //ecs::add_transform(e, pos, rot, scl);
@@ -437,10 +452,6 @@ void game_update() {
 
     input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
-  }
-
-  if(auto inp = input::get("select_move_away"); inp.value() != 0.0f) {
-    printf("%f\n", inp.value());
   }
 
   quark::main_update();
@@ -686,14 +697,6 @@ void game_update() {
 
       obj_ptr->pos(transform.pos);
     }
-  }
-
-  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, SimpleAnimation>().each()) {
-    transform = anim.lerp((sinf(TT) + 1.0f) / 2.0f);
-  }
-
-  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, ComplexAnimation>().each()) {
-    transform = anim.lerp(DT);
   }
 
   quark::post_update();

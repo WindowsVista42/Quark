@@ -123,7 +123,7 @@ public:
 
   void pos(vec3 pos) { this->getWorldTransform().setOrigin(btVector3(pos.x, pos.y, pos.z)); }
   void rot(quat rot) { this->getWorldTransform().setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w)); }
-  void transform(Transform transform) { pos(transform.pos); rot(transform.rot); }
+  void transform(Transform transform) { this->pos(transform.pos); this->rot(transform.rot); }
 
   void entity(entt::entity e) { this->setUserPointer(RbUserData{.e = e}.ptr); }
   void shape(CollisionShape* shape) { this->setCollisionShape((btCollisionShape*)shape); }

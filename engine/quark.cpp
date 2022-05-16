@@ -154,30 +154,47 @@ void quark::pre_update() {
 }
 
 void quark::main_update() {
+  // Update animations
+
+  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, SimpleAnimation>().each()) {
+    transform = anim.lerp((sinf(TT) + 1.0f) / 2.0f);
+  }
+
+  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, ComplexAnimation>().each()) {
+    transform = anim.lerp(DT);
+  }
+
+  for(auto [e, transform, anim_times, anim_trans] :
+  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>>().each()) {
+    auto [current, next] = anim_times.anim(DT);
+    auto [start, end] = anim_trans.get(current, next);
+    transform = lerp(start, end, anim_times.percent());
+  }
+
+  // Update physics
+
   constexpr f32 PHYS_DT = 1.0f/ 60.0f;
   static f32 accumulator = 0.0f;
   accumulator += DT;
   while(accumulator >= PHYS_DT) {
     accumulator -= PHYS_DT;
-    // step_physics_simulation(dt, 4); // do this?
-    physics_world->stepSimulation(PHYS_DT, 1);
+
+    // sync collision objects with entitites
+    for(auto [e, transform, obj] : ecs::REGISTRY.view<Transform, CollisionBody>().each()) {
+      obj.transform(transform);
+    }
+
+    // sync ghost objects
+    for(auto [e, transform, ghost] : ecs::REGISTRY.view<Transform, GhostBody>().each()) {
+      ghost.transform(transform);
+    }
+
+    physics_world->stepSimulation(PHYS_DT, 4);
 
     // sync physics position and rotations with entities
     auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
     for (auto [e, transform, body] : rigid_bodies.each()) {
       transform = Transform { .pos = body.pos(), .rot = body.rot() };
-    }
-
-    // sync collision objects with entitites
-    auto collision_objects = ecs::REGISTRY.view<Transform, CollisionBody>();
-    for (auto [e, transform, obj] : collision_objects.each()) {
-      obj.transform(transform);
-    }
-
-    // sync ghost objects
-    auto ghost_objects = ecs::REGISTRY.view<Transform, GhostBody>();
-    for (auto [e, transform, ghost] : ghost_objects.each()) {
-      ghost.transform(transform);
     }
   }
 }
