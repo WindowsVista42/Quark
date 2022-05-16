@@ -127,6 +127,12 @@ struct vec3 {
 
   operator btVector3();
 
+  f32 dot(vec3 v);
+  f32 mag();
+  vec3 norm();
+  vec3 norm_checked();
+  vec3 norm_max_mag(f32 max);
+
   static const vec3 unit_x;
   static const vec3 unit_y;
   static const vec3 unit_z;
@@ -182,6 +188,10 @@ struct vec4 {
 
   f32& operator[](int i);
   const f32& operator[](int i) const;
+
+  f32 dot(vec4 v);
+  f32 mag();
+  vec4 norm();
 };
 
 // Quaternion

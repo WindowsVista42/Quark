@@ -147,6 +147,34 @@ vec3 vec3::operator-() { return {-x, -y, -z}; }
 
 f32& vec3::operator[](usize i) { return ((f32*)this)[i]; }
 
+f32 vec3::dot(vec3 v) {
+  return (this->x * v.x) + (this->y * v.y);
+}
+
+f32 vec3::mag() {
+  return sqrtf(this->dot(*this));
+}
+
+vec3 vec3::norm() {
+  return (*this) / this->mag();
+}
+
+vec3 vec3::norm_checked() {
+  if(this->x != 0.0f || this->y != 0.0f) {
+    return this->norm();
+  }
+
+  return *this;
+}
+
+vec3 vec3::norm_max_mag(f32 max) {
+  if(this->mag() > max) {
+    return this->norm() * max;
+  }
+
+  return *this;
+}
+
 // vec4
 
 vec4::vec4() {}
@@ -224,6 +252,18 @@ vec4 vec4::operator-() { return {-x, -y, -z, -w}; }
 
 f32& vec4::operator[](int i) { return ((f32*)this)[i]; }
 const f32& vec4::operator[](int i) const { return ((f32*)this)[i]; };
+
+f32 vec4::dot(vec4 v) {
+  return (this->x * v.x) + (this->y * v.y);
+}
+
+f32 vec4::mag() {
+  return sqrtf(this->dot(*this));
+}
+
+vec4 vec4::norm() {
+  return (*this) / this->mag();
+}
 
 quat quat::axis_angle(vec3 axis, f32 angle) {
   f32 half_angle = angle / 2.0f;

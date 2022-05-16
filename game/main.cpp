@@ -307,6 +307,11 @@ void game_init() {
     Extents extents = ecs::get<Extents>(e);
     ecs::add_rigid_body(e, {.shape = BoxShape{extents}, .mass = 0.0f});
 
+    ecs::add(e, SimpleAnimation {
+      .start = transform, 
+      .end = {.pos = {10.0f, 0.0f, 10.0f}, .rot = {.707, 0.0, .707, 0.0f}, },
+    });
+
     //ecs::add_transform(e, pos, rot, scl);
     //ecs::add_render(e, col, mesh, RENDER_LIT);
     //ecs::add_selection_box(e, BoxShape(scl));
@@ -669,6 +674,10 @@ void game_update() {
 
       obj_ptr->pos(transform.pos);
     }
+  }
+
+  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, SimpleAnimation>().each()) {
+    transform = anim.lerp((sinf(TT) + 1.0f) / 2.0f);
   }
 
   quark::post_update();
