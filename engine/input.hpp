@@ -86,13 +86,12 @@ namespace quark::input {
       Button6        = GLFW_MOUSE_BUTTON_6 + BIAS,
       Button7        = GLFW_MOUSE_BUTTON_7 + BIAS,
       Button8        = GLFW_MOUSE_BUTTON_8 + BIAS,
-      Last           = GLFW_MOUSE_BUTTON_LAST + BIAS,
 
       LeftButton     = GLFW_MOUSE_BUTTON_LEFT   + BIAS,
       RightButton    = GLFW_MOUSE_BUTTON_RIGHT  + BIAS,
       MiddleButton   = GLFW_MOUSE_BUTTON_MIDDLE + BIAS,
 
-      ScrollUp,
+      ScrollUp       = Button8 + 1,
       ScrollDown,
       ScrollLeft,
       ScrollRight,
@@ -143,6 +142,8 @@ namespace quark::input {
   using InputEnum = usize;
   void bind(const char* name, InputEnum input);
   void unbind(const char* name, InputEnum input);
+
+  void init();
 
   void update_all();
 

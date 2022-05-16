@@ -400,12 +400,15 @@ void game_init() {
   input::bind("pan_down", Mouse::MoveDown);
   input::bind("pan_left", Mouse::MoveLeft);
   input::bind("pan_right", Mouse::MoveRight);
+
+  input::bind("select_move_away", Mouse::ScrollUp);
+  input::bind("select_move_closer", Mouse::ScrollDown);
 }
 
 void game_update() {
   quark::pre_update();
 
-  vec3 input_dir = VEC3_ZERO; {
+  vec3 input_dir = vec3::zero; {
     input_dir.y += input::get("forward").value();
     input_dir.y -= input::get("backward").value();
 
@@ -416,8 +419,11 @@ void game_update() {
     input_dir.z -= input::get("down").value();
 
     input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
-
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
+  }
+
+  if(auto inp = input::get("select_move_away"); inp.value() != 0.0f) {
+    printf("%f\n", inp.value());
   }
 
   quark::main_update();

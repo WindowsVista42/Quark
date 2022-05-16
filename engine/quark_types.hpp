@@ -130,11 +130,13 @@ struct vec3 {
   static const vec3 unit_x;
   static const vec3 unit_y;
   static const vec3 unit_z;
+  static const vec3 zero;
 };
 
 inline const vec3 vec3::unit_x = vec3{1,0,0};
 inline const vec3 vec3::unit_y = vec3{0,1,0};
 inline const vec3 vec3::unit_z = vec3{0,0,1};
+inline const vec3 vec3::zero   = vec3{0,0,0};
 
 // Four component vector
 struct vec4 {

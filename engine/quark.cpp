@@ -72,6 +72,8 @@ void quark::init() {
   physics::init();
 
   reflect::init();
+  
+  input::init();
 
   printf("Quark initialized!\n");
 
@@ -132,6 +134,14 @@ void quark::deinit() {
 
 void quark::pre_update() {
   input::update_all();
+
+  f32 dx = input::get("pan_right").value() - input::get("pan_left").value();
+  f32 dy = input::get("pan_up").value() - input::get("pan_down").value();
+
+  MAIN_CAMERA.spherical_dir += (vec2 {dx, dy} / 1024.0f) * config::mouse_sensitivity;
+
+  MAIN_CAMERA.spherical_dir.x = wrap(MAIN_CAMERA.spherical_dir.x, 2.0f * M_PI);
+  MAIN_CAMERA.spherical_dir.y = clamp(MAIN_CAMERA.spherical_dir.y, 0.01f, M_PI - 0.01f);
 
   // update timers
   for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {

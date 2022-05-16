@@ -1,6 +1,9 @@
 #define USING_QUARK_INTERNALS
 #include "quark.hpp"
 
+//TODO(sean): figure out how to properly clamp these values so having something
+//bound to an action twice does not result in 2x the action
+
 namespace quark::input {
 
 static std::unordered_map<std::string, std::vector<InputEnum>> name_to_inputs;
@@ -10,14 +13,25 @@ static std::unordered_map<std::string, ActionState> name_to_action;
 static vec2 scroll_accumulator = {};
 void scroll_callback(GLFWwindow* window, double x, double y) {
   scroll_accumulator.x += (f32)x;
-  scroll_accumulator.y += (f32)y;
+  scroll_accumulator.y -= (f32)y;
 }
 
 // mouse_accumulator gets reset on input::update_all()
 static vec2 mouse_accumulator = {};
 void mouse_callback(GLFWwindow* window, double x, double y) {
-  mouse_accumulator.x += (f32)x;
-  mouse_accumulator.y += (f32)y;
+  static f64 last_x = 0.0f;
+  static f64 last_y = 0.0f;
+
+  mouse_accumulator.x += (f32)(last_x - x);
+  mouse_accumulator.y += (f32)(last_y - y);
+
+  last_x = x;
+  last_y = y;
+}
+
+void init() {
+  glfwSetScrollCallback(platform::window, scroll_callback);
+  glfwSetCursorPosCallback(platform::window, mouse_callback);
 }
 
 void bind(const char* name, InputEnum input) {
@@ -62,7 +76,7 @@ void update_key(ActionState* state, InputEnum input) {
 
 void update_mouse(ActionState* state, InputEnum input) {
   // mouse button input
-  if(input >= Mouse::Button1 && input <= Mouse::Last) {
+  if(input >= Mouse::Button1 && input <= Mouse::Button8) {
     i32 k = glfwGetMouseButton(platform::window, input - Mouse::BIAS);
 
     if(k == GLFW_PRESS) {
@@ -78,16 +92,22 @@ void update_mouse(ActionState* state, InputEnum input) {
     // OR mark the input as using the callback or something??
     // OR get the current accumulated input from the scroll and do the thing
     switch(input) {
-    case(Mouse::ScrollUp):    { state->current = clamp( scroll_accumulator.y, 0.0f, 128.0f); } break;
-    case(Mouse::ScrollDown):  { state->current = clamp(-scroll_accumulator.y, 0.0f, 128.0f); } break;
-    case(Mouse::ScrollLeft):  { state->current = clamp(-scroll_accumulator.x, 0.0f, 128.0f); } break;
-    case(Mouse::ScrollRight): { state->current = clamp( scroll_accumulator.x, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollUp):    { state->current += clamp( scroll_accumulator.y, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollDown):  { state->current += clamp(-scroll_accumulator.y, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollLeft):  { state->current += clamp(-scroll_accumulator.x, 0.0f, 128.0f); } break;
+    case(Mouse::ScrollRight): { state->current += clamp( scroll_accumulator.x, 0.0f, 128.0f); } break;
     }
     return;
   }
 
   // mouse movement input
   if(input >= Mouse::MoveUp && input <= Mouse::MoveRight) {
+    switch(input) {
+    case(Mouse::MoveUp):    { state->current += clamp( mouse_accumulator.y, 0.0f, 4096.0f); } break;
+    case(Mouse::MoveDown):  { state->current += clamp(-mouse_accumulator.y, 0.0f, 4096.0f); } break;
+    case(Mouse::MoveLeft):  { state->current += clamp(-mouse_accumulator.x, 0.0f, 4096.0f); } break;
+    case(Mouse::MoveRight): { state->current += clamp( mouse_accumulator.x, 0.0f, 4096.0f); } break;
+    }
     return;
   }
 }
@@ -119,11 +139,11 @@ void update_all() {
       }
     }
 
-    state.current = clamp(state.current, 0.0f, 1.0f);
+    //state.current = clamp(state.current, 0.0f, 1.0f);
   }
 
-  scroll_accumulator = {};
-  mouse_accumulator = {};
+  scroll_accumulator = {0,0};
+  mouse_accumulator = {0,0};
 }
 
 bool ActionState::down() {
