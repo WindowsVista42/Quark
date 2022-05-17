@@ -1771,6 +1771,10 @@ void update_descriptor_sets() {
 }
 
 void print_performance_statistics() {
+  if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
+    return;
+  }
+
   static f32 timer = 0.0;
   static u32 frame_number = 0;
   static f32 low = 1.0;

@@ -43,7 +43,6 @@ void bind(const char* name, InputEnum input) {
   }
 
   if(name_to_action.find(name) == name_to_action.end()) {
-    printf("%s\n", name);
     name_to_action.insert(std::make_pair(std::string(name), ActionState{0.0f, 0.0f}));
   }
 

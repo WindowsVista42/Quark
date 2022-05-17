@@ -23,6 +23,7 @@ inline std::unordered_map<std::string, Scale> MESH_SCALES;
 #include "input.hpp"
 #include "quark_reflect.hpp"
 #include "render.hpp"
+#include "executor.hpp"
 
 namespace quark {
 using namespace quark;
@@ -31,10 +32,6 @@ inline bool ENABLE_PERFORMANCE_STATISTICS = false;
 // inline const char* window_name = "Quark Game Engine";
 inline f32 DT = 1.0f / 60.0f; // Frame delta time
 inline f32 TT = 0.0f;         // Total elapsed time
-
-inline void (*INIT_FUNC)();
-inline void (*UPDATE_FUNC)();
-inline void (*DEINIT_FUNC)();
 
 // Map of meshes offsets to mesh dimensions
 inline bool ENABLE_PHYSICS_BOUNDING_BOX_VISOR = false;
@@ -71,9 +68,8 @@ struct SaturatingTimer {
 };
 
 // Functions
-void init();
+void add_default_systems();
 void run();
-void deinit();
 
 // Update stages
 void pre_update();

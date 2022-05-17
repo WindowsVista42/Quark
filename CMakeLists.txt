@@ -60,6 +60,7 @@ add_executable(run
   engine/quark_platform.cpp
   engine/quark_ecs.cpp
   engine/quark_assets.cpp
+  engine/executor.cpp
   engine/quark.cpp
 	
 	game/main.cpp

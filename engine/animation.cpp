@@ -89,11 +89,9 @@ namespace quark::animation {
   }
 
   Transform lerp(Transform start, Transform end, f32 t) {
-    quat q = nlerp(start.rot, end.rot, t);
-    print("q: ", q);
     return Transform {
       .pos = lerp(start.pos, end.pos, t),
-      .rot = q,
+      .rot = nlerp(start.rot, end.rot, t),
     };
   }
 };

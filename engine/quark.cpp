@@ -6,22 +6,28 @@
 using namespace quark;
 using namespace render;
 
-void quark::init() {
-  using namespace quark;
+namespace quark {
 
+void init_allocators() {
   scratch_alloc.init(100 * MB);
   RENDER_ALLOC.init(100 * MB);
+}
 
-  // Sean: render data buffer for distance sorted rendering to reduce overdraw
-  //render_data_count = 0;
-  //render_data = (RenderData*)render_alloc.alloc(RENDER_DATA_MAX_COUNT * sizeof(RenderData));
+void init_render_alloc_tracker() {
+  // Init staging buffer and allocation tracker
+  render::GPU_VERTEX_BUFFER = render::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  render::GPU_VERTEX_TRACKER.init(100 * MB);
+}
 
+void add_asset_types() {
   assets::add_type(render::load_vert_shader, render::unload_shader, ".vert.spv");
   assets::add_type(render::load_frag_shader, render::unload_shader, ".frag.spv");
   assets::add_type(render::load_obj_mesh, render::unload_mesh, ".obj");
 
   assets::add_type(render::load_png_texture, render::unload_texture, ".png");
+}
 
+void add_registry_types() {
   ecs::REGISTRY.on_construct<RigidBody>().connect<&physics::add_rb_to_world>();
   ecs::REGISTRY.on_destroy<RigidBody>().connect<&physics::remove_rb_from_world>();
 
@@ -30,70 +36,101 @@ void quark::init() {
 
   ecs::REGISTRY.on_construct<GhostBody>().connect<&physics::add_go_to_world>();
   ecs::REGISTRY.on_destroy<GhostBody>().connect<&physics::remove_go_from_world>();
+}
 
-  //printf("RigidBody in place delete: %d\n", entt::component_traits<RigidBody>::in_place_delete ? 1 : 0);
-  //printf("RigidBody in place delete: %d\n", RigidBody::in_place_delete ? 1 : 0);
-
-  render::init_window();
-  render::init_vulkan();
-
-  // vertex_alloc.init(gpu_alloc, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 20 * MB);
-  // index_alloc.init(gpu_alloc, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 20 * MB);
-  // texture_alloc.init(gpu_alloc, 100 * MB);
-
-  // concurrently load shaders
-  // auto loader_thread = std::thread([&]() { assets.load_directory("assets"); });
-  // auto shader_thread = std::thread([&]() { assets.load_directory("assets/models"); });
-
-  // Init staging buffer and allocation tracker
-  render::GPU_VERTEX_BUFFER = render::create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-  render::GPU_VERTEX_TRACKER.init(100 * MB);
-
+void load_models() {
   assets::load_directory("assets/models");
+}
+
+void load_shaders() {
   assets::load_directory("assets/shaders");
+}
 
-  render::init_swapchain();
-  render::init_command_pools_and_buffers();
-  render::init_render_passes();
-  render::init_framebuffers();
-  render::init_sync_objects();
-
+void load_textures() {
   assets::load_directory("assets/textures");
+}
 
-  // make sure shaders are loaded before we use them in the pipeline init
-  // loader_thread.join();
-  render::init_sampler();
-  render::init_descriptors();
-  render::init_descriptor_sets();
+void wait_gpu_idle() {
+  vkDeviceWaitIdle(DEVICE);
+}
 
-  render::copy_staging_buffers_to_gpu();
-  render::init_pipelines();
+}
 
-  physics::init();
+void quark::add_default_systems() {
+  {
+    executor::add_back(def_system(quark::init_allocators, Init));
+    executor::add_back(def_system(quark::add_asset_types, Init));
+    executor::add_back(def_system(quark::add_registry_types, Init));
 
-  reflect::init();
-  
-  input::init();
+    executor::add_back(def_system(render::init_window, Init));
+    executor::add_back(def_system(render::init_vulkan, Init));
 
-  printf("Quark initialized!\n");
+    executor::add_back(def_system(quark::init_render_alloc_tracker, Init));
+    executor::add_back(def_system(quark::load_models, Init));
+    executor::add_back(def_system(quark::load_shaders, Init));
 
-  if (INIT_FUNC != 0) {
-    (*INIT_FUNC)();
+    executor::add_back(def_system(render::init_swapchain, Init));
+    executor::add_back(def_system(render::init_command_pools_and_buffers, Init));
+    executor::add_back(def_system(render::init_render_passes, Init));
+    executor::add_back(def_system(render::init_framebuffers, Init));
+    executor::add_back(def_system(render::init_sync_objects, Init));
+
+    executor::add_back(def_system(quark::load_textures, Init));
+
+    executor::add_back(def_system(render::init_sampler, Init));
+    executor::add_back(def_system(render::init_descriptors, Init));
+    executor::add_back(def_system(render::init_descriptor_sets, Init));
+    executor::add_back(def_system(render::copy_staging_buffers_to_gpu, Init));
+    executor::add_back(def_system(render::init_pipelines, Init));
+
+    executor::add_back(def_system(physics::init, Init));
+
+    executor::add_back(def_system(reflect::init, Init));
+
+    executor::add_back(def_system(input::init, Init));
+
+    executor::save("default", executor::ExecGroup::Init);
+  }
+
+  {
+    executor::add_back(def_system(quark::pre_update, Update));
+    executor::add_back(def_system(quark::main_update, Update));
+    executor::add_back(def_system(quark::post_update, Update));
+    executor::add_back(def_system(render::print_performance_statistics, Update));
+    executor::save("default", executor::ExecGroup::Update);
+  }
+
+  {
+    executor::add_back(def_system(quark::wait_gpu_idle, Deinit));
+
+    executor::add_back(def_system(render::deinit_sync_objects, Deinit));
+    executor::add_back(def_system(render::deinit_buffers_and_images, Deinit));
+    executor::add_back(def_system(render::deinit_descriptors, Deinit));
+    executor::add_back(def_system(render::deinit_shaders, Deinit));
+    executor::add_back(def_system(render::deinit_framebuffers, Deinit));
+    executor::add_back(def_system(render::deinit_render_passes, Deinit));
+    executor::add_back(def_system(render::deinit_command_pools_and_buffers, Deinit));
+    executor::add_back(def_system(render::deinit_swapchain, Deinit));
+    executor::add_back(def_system(render::deinit_allocators, Deinit));
+    executor::add_back(def_system(render::deinit_vulkan, Deinit));
+    executor::add_back(def_system(render::deinit_window, Deinit));
+
+    executor::save("default", executor::ExecGroup::Deinit);
+  }
+
+  {
+    executor::save("default", executor::ExecGroup::Resize);
   }
 }
 
 void quark::run() {
+  executor::exec(executor::ExecGroup::Init);
+
   do {
     auto frame_begin_time = std::chrono::high_resolution_clock::now();
 
-    // window_should_close = platform:::close_window();
+    executor::exec(executor::ExecGroup::Update);
 
-    if (UPDATE_FUNC != 0) {
-      (*quark::UPDATE_FUNC)();
-    }
-    if (quark::ENABLE_PERFORMANCE_STATISTICS) {
-      render::print_performance_statistics();
-    }
     glfwPollEvents();
     scratch_alloc.reset();
 
@@ -101,35 +138,8 @@ void quark::run() {
     DT = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
     TT += DT;
   } while (!platform::window_should_close);
-}
 
-void quark::deinit() {
-  if (DEINIT_FUNC!= 0) {
-    (*DEINIT_FUNC)();
-  }
-
-  vkDeviceWaitIdle(DEVICE);
-
-// Sean: Don't run cleanup if release build
-#ifdef DEBUG
-  render::deinit_sync_objects();
-
-  render::deinit_buffers_and_images();
-  render::deinit_descriptors();
-
-  render::deinit_shaders();
-
-  render::deinit_pipelines();
-  render::deinit_framebuffers();
-  render::deinit_render_passes();
-  render::deinit_command_pools_and_buffers();
-  render::deinit_swapchain();
-  render::deinit_allocators();
-  render::deinit_vulkan();
-  render::deinit_window();
-#endif
-
-  //#endif
+  executor::exec(executor::ExecGroup::Deinit);
 }
 
 void quark::pre_update() {

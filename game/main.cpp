@@ -43,6 +43,47 @@ struct Player {
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) { scroll_height += (f32)yoffset; }
 
+void init_editor_entities() {
+  {
+    selection_box = ecs::create();
+    ecs::add(selection_box, Transform::identity, TransformOffset::identity, Color{0,1,0,1});
+    ecs::add_parent(selection_box, player_e);
+    ecs::add_mesh(selection_box, "cube", {0.0f});
+    ecs::add_effect(selection_box, Effect::Wireframe);
+  }
+
+  {
+    selection_box_anim = ecs::create();
+    ecs::add(selection_box_anim, Transform::identity, Color{0,1,1,1});
+    ecs::add_mesh(selection_box_anim, "cube", {0.0f});
+    ecs::add_effect(selection_box_anim, Effect::Wireframe);
+  }
+
+  {
+    auto create_bar = [&](vec3 rel_pos, vec4 color) {
+      Scale scl = rel_pos * 0.4f + 0.1f;
+
+      Entity bar = ecs::create();
+      ecs::add(bar, Transform::identity, TransformOffset{rel_pos, quat::identity}, Color{color});
+      ecs::add_parent(bar, player_e);
+      ecs::add_mesh(bar, "cube", scl);
+      ecs::add_effect(bar, Effect::Wireframe);
+      //ecs::add_relative_transform(bar, rel_pos, quat::identity, scl);
+      //ecs::add_render(bar, color, assets::get<Mesh>("cube"), RENDER_WIREFRAME);
+
+      //Position pos = ecs::get<Position>(bar);
+      //Rotation rot = ecs::get<Rotation>(bar);
+      //ecs::add_selection_box(bar, BoxShape(scl));
+
+      return bar;
+    };
+
+    forward_bar = create_bar(vec3{0, 1, 0}, vec4{0, 1, 0, 1});
+    right_bar = create_bar(vec3{1, 0, 0}, vec4{1, 0, 0, 1});
+    up_bar = create_bar(vec3{0, 0, 1}, vec4{0, 0, 1, 1});
+  }
+}
+
 void game_init() {
   reflect::add_fields("value", &Health::value, "base", &Health::base);
   reflect::add_fields("value", &Timer::value, "base", &Timer::base);
@@ -198,44 +239,7 @@ void game_init() {
   }
   */
 
-  {
-    selection_box = ecs::create();
-    ecs::add(selection_box, Transform::identity, TransformOffset::identity, Color{0,1,0,1});
-    ecs::add_parent(selection_box, player_e);
-    ecs::add_mesh(selection_box, "cube", {0.0f});
-    ecs::add_effect(selection_box, Effect::Wireframe);
-  }
-
-  {
-    selection_box_anim = ecs::create();
-    ecs::add(selection_box_anim, Transform::identity, Color{0,1,1,1});
-    ecs::add_mesh(selection_box_anim, "cube", {0.0f});
-    ecs::add_effect(selection_box_anim, Effect::Wireframe);
-  }
-
-  {
-    auto create_bar = [&](vec3 rel_pos, vec4 color) {
-      Scale scl = rel_pos * 0.4f + 0.1f;
-
-      Entity bar = ecs::create();
-      ecs::add(bar, Transform::identity, TransformOffset{rel_pos, quat::identity}, Color{color});
-      ecs::add_parent(bar, player_e);
-      ecs::add_mesh(bar, "cube", scl);
-      ecs::add_effect(bar, Effect::Wireframe);
-      //ecs::add_relative_transform(bar, rel_pos, quat::identity, scl);
-      //ecs::add_render(bar, color, assets::get<Mesh>("cube"), RENDER_WIREFRAME);
-
-      //Position pos = ecs::get<Position>(bar);
-      //Rotation rot = ecs::get<Rotation>(bar);
-      //ecs::add_selection_box(bar, BoxShape(scl));
-
-      return bar;
-    };
-
-    forward_bar = create_bar(vec3{0, 1, 0}, vec4{0, 1, 0, 1});
-    right_bar = create_bar(vec3{1, 0, 0}, vec4{1, 0, 0, 1});
-    up_bar = create_bar(vec3{0, 0, 1}, vec4{0, 0, 1, 1});
-  }
+  init_editor_entities();
 
   // Randomly grab a mesh
   // auto mesh_count = asset_count<Mesh>()
@@ -466,10 +470,9 @@ void game_init() {
   input::bind("select_move_closer", Mouse::ScrollDown);
 }
 
-void game_update() {
-  quark::pre_update();
-
-  vec3 input_dir = vec3::zero; {
+static vec3 input_dir = {};
+void update_input_dir() {
+  input_dir = vec3::zero; {
     input_dir.y += input::get("forward").value();
     input_dir.y -= input::get("backward").value();
 
@@ -482,9 +485,9 @@ void game_update() {
     input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
   }
+}
 
-  quark::main_update();
-
+void update_player_and_camera() {
   static bool flycam_enabled = false;
   if (input::get("flycam").just_down()) {
     flycam_enabled = !flycam_enabled;
@@ -550,6 +553,9 @@ void game_update() {
   MAIN_CAMERA.pos = flycam_enabled ? flycam_pos : player_transform.pos + vec3{0.0, 0.0, 0.8};
   MAIN_CAMERA.dir = spherical_to_cartesian(MAIN_CAMERA.spherical_dir);
 
+}
+
+void update_editor() {
   if (input::get("fire").down() && selected != ecs::null) {
     Transform& transform = ecs::get<Transform>(selected);
     vec3 pos2 = transform.pos;
@@ -710,43 +716,14 @@ void game_update() {
 
     ecs::get<Extents>(selection_box_anim) = {0.0f};
   }
+}
 
-  // move entity that is selected and input is pressed
-  //if (selected != ecs::null) {
-  //  Transform& transform = ecs::get<Transform>(selected);
-  //  CollisionBody* obj_ptr = ecs::try_get<CollisionBody>(selected);
-  //  if (obj_ptr != 0) {
-  //    vec3 move_dir = VEC3_ZERO;
-
-  //    auto move_it = [&](int key, vec3 delta) {
-  //      if (platform::get_key(key)) {
-  //        move_dir += delta;
-  //      }
-  //    };
-
-  //    move_it(GLFW_KEY_I, vec3{1.0f, 0.0f, 0.0f});
-  //    move_it(GLFW_KEY_K, vec3{-1.0f, 0.0f, 0.0f});
-  //    move_it(GLFW_KEY_J, vec3{0.0f, 1.0f, 0.0f});
-  //    move_it(GLFW_KEY_L, vec3{0.0f, -1.0f, 0.0f});
-  //    move_it(GLFW_KEY_U, vec3{0.0f, 0.0f, -1.0f});
-  //    move_it(GLFW_KEY_O, vec3{0.0f, 0.0f, 1.0f});
-
-  //    // update pos
-  //    Parent* parent = ecs::try_get<Parent>(selected);
-  //    if (parent) {
-  //      TransformOffset& rel_tr = ecs::get<TransformOffset>(selected);
-  //      //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
-  //      rel_tr.pos += move_dir * DT;
-
-  //      //RelRotation& rel_rot = ecs::get<RelRotation>(selected);
-  //    } else {
-  //      transform.pos += move_dir * DT;
-  //    }
-
-  //    obj_ptr->pos(transform.pos);
-  //  }
-  //}
-
+void game_update() {
+  quark::pre_update();
+  update_input_dir();
+  quark::main_update();
+  update_player_and_camera();
+  update_editor();
   quark::post_update();
 }
 
@@ -759,17 +736,28 @@ int main() {
   platform::window_w = -1;
   platform::window_h = 1080;
 
-  quark::INIT_FUNC = game_init;
-  quark::UPDATE_FUNC = game_update;
-  quark::DEINIT_FUNC = game_deinit;
+  quark::add_default_systems();
 
-  //quark::PRE_UPDATE_FUNC = game_pre_update;
-  //quark::MAIN_UPDATE_FUNC = game_main_update;
-  //quark::POST_UPDATE_FUNC = game_post_update;
+  {
+    executor::add_back(def_system(game_init, Init));
 
-  quark::init();
+    executor::add_back(def_system(game_deinit, Deinit));
+
+    executor::add_after(def_system(update_input_dir, Update), name(quark::pre_update));
+    executor::add_after(def_system(update_player_and_camera, Update), name(quark::main_update));
+
+    executor::save("quark");
+
+    executor::add_after(def_system(update_editor, Update), name(update_player_and_camera));
+
+    executor::save("quark_editor");
+  }
+
+  executor::load("quark_editor");
+
+  executor::print_all(executor::ExecGroup::Update);
+
   quark::run();
-  quark::deinit();
 
   return 0;
 }
