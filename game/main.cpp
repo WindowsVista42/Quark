@@ -740,7 +740,6 @@ int main() {
 
   {
     executor::add_back(def_system(game_init, Init));
-
     executor::add_back(def_system(game_deinit, Deinit));
 
     executor::add_after(def_system(update_input_dir, Update), name(quark::pre_update));

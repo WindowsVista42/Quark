@@ -7,12 +7,17 @@
 namespace quark::executor {
   namespace ExecGroup {
     enum GroupEnum : usize {
-      Init,
-      Deinit,
-      Resize,
-      Update
+      Init, // engine has globally initialized and must create resources
+      Deinit, // engine has globally deinitialized and must clean up current resources
+
+      StateInit, // engine has transitioned between two states and must create new state resources
+      StateDeinit, // engine has transitioned between two states and must clean up current state resources
+
+      Update, // engine is in state to generall update things, but not output is performed
+      Render, // engine is in state to accept render commands and all that stuff
+      Resize, // engine's framebuffer has resized and must recreate render resources
     };
-    constexpr usize COUNT = 4;
+    constexpr usize COUNT = 7;
   };
 
   struct System {
