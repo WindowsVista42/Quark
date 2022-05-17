@@ -153,22 +153,60 @@ void quark::pre_update() {
   }
 }
 
+template <typename T>
+auto get_anim_frames(AnimationFrameTimes times, AnimationFrames<T> frames) {
+  struct Result {
+    T start;
+    T end;
+    f32 percent;
+  };
+
+  auto [current, next] = times.get();
+  auto [start, end] = frames.get(current, next);
+  return Result { start, end, times.percent() };
+}
+
 void quark::main_update() {
   // Update animations
 
-  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, SimpleAnimation>().each()) {
-    transform = anim.lerp((sinf(TT) + 1.0f) / 2.0f);
+  for(auto [e, anim_times] : ecs::REGISTRY.view<AnimationFrameTimes>().each()) {
+    anim_times.anim(DT);
   }
 
-  for(auto [e, transform, anim] : ecs::REGISTRY.view<Transform, ComplexAnimation>().each()) {
-    transform = anim.lerp(DT);
+  // Non-lerp-able animations
+  for(auto [e, mesh, anim_times, anim_mesh] :
+  ecs::REGISTRY.view<Mesh, AnimationFrameTimes, AnimationFrames<Mesh>>().each()) {
+    auto current = anim_times.get().current;
+    auto start = anim_mesh.get(current);
+    mesh = start;
+  }
+
+  for(auto [e, tex, anim_times, anim_tex] :
+  ecs::REGISTRY.view<Texture, AnimationFrameTimes, AnimationFrames<Texture>>().each()) {
+    auto current = anim_times.get().current;
+    auto start = anim_tex.get(current);
+    tex = start;
+  }
+
+  // Transform Interpolation
+  for(auto [e, transform, anim_times, anim_trans] :
+  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, LinearInterpolation<Transform>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    transform = lerp(start, end, percent);
+  }
+
+  for(auto [e, transform, anim_times, anim_trans, bezier] :
+  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, BezierInterpolation<Transform>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    percent = berp(bezier.A, bezier.B, bezier.C, bezier.D, percent);
+    transform = lerp(start, end, percent);
   }
 
   for(auto [e, transform, anim_times, anim_trans] :
-  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>>().each()) {
-    auto [current, next] = anim_times.anim(DT);
-    auto [start, end] = anim_trans.get(current, next);
-    transform = lerp(start, end, anim_times.percent());
+  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, SmoothStepInterpolation<Transform>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    percent = smoothstep(percent);
+    transform = lerp(start, end, percent);
   }
 
   // Update physics

@@ -19,6 +19,14 @@ namespace quark::animation {
   // this is usually better and cheaper for animation
   quat nlerp(quat start, quat end, f32 t) {
     return lerp(start, end, t).norm();
+    //quat q = quat {
+    //  start.x + (end.x - start.x) * t,
+    //  start.y + (end.y - start.y) * t,
+    //  start.z + (end.z - start.z) * t,
+    //  start.w + (end.w - start.w) * t,
+    //};
+    //q = q.norm();
+    //return q;
   }
 
   quat slerp(quat start, quat end, f32 t) {
@@ -61,29 +69,32 @@ namespace quark::animation {
     };
   }
 
+  f32 smoothstep(f32 x) {
+    return (3.0f * x * x) - (2.0f * x * x * x);
+  }
+
+  f32 berp(f32 A, f32 B, f32 C, f32 D, f32 t) {
+    f32 _t = 1.0f - t;
+    f32 _t3 = _t * _t * _t;
+    f32 _t2 = _t * _t;
+
+    f32 t3 = t * t * t;
+    f32 t2 = t * t;
+
+    return 
+      (A * _t3) +
+      (3.0f * B * _t2 * t) +
+      (3.0f * C * _t * t2) +
+      (D * t3);
+  }
+
   Transform lerp(Transform start, Transform end, f32 t) {
+    quat q = nlerp(start.rot, end.rot, t);
+    print("q: ", q);
     return Transform {
       .pos = lerp(start.pos, end.pos, t),
-      .rot = slerp(start.rot, end.rot, t),
+      .rot = q,
     };
-  }
-
-  Transform SimpleAnimation::lerp(f32 t) {
-    return animation::lerp(this->start, this->end, t);
-  }
-
-  Transform ComplexAnimation::lerp(f32 dt) {
-    time += dt;
-    while(time >= times[current]) { // loop because we could have really small times in times[] and a large dt
-      time -= times[current];
-      current += 1;
-      current %= transforms.size();
-    }
-
-    Transform start = transforms[current];
-    Transform end = transforms[(current + 1) % transforms.size()];
-
-    return animation::lerp(start, end, time / times[current]);
   }
 };
 

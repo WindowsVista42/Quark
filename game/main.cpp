@@ -331,13 +331,15 @@ void game_init() {
     });
 
     ecs::add(e, AnimationFrames<Transform> {
-      .ts = {
+      .frames = {
         transform,
         {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_X, 10.0f), },
         {.pos = {0.0f, 10.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Y, 10.0f), },
         {.pos = {10.0f, 0.0f, 10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f), },
       },
     });
+
+    ecs::add(e, LinearInterpolation<Transform>{});
 
     //ecs::add_transform(e, pos, rot, scl);
     //ecs::add_render(e, col, mesh, RENDER_LIT);

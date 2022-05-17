@@ -148,7 +148,7 @@ vec3 vec3::operator-() { return {-x, -y, -z}; }
 f32& vec3::operator[](usize i) { return ((f32*)this)[i]; }
 
 f32 vec3::dot(vec3 v) {
-  return (this->x * v.x) + (this->y * v.y);
+  return (this->x * v.x) + (this->y * v.y) + (this->z * v.z);
 }
 
 f32 vec3::mag() {
@@ -160,7 +160,7 @@ vec3 vec3::norm() {
 }
 
 vec3 vec3::norm_checked() {
-  if(this->x != 0.0f || this->y != 0.0f) {
+  if(this->x != 0.0f || this->y != 0.0f || this->z != 0.0f) {
     return this->norm();
   }
 
@@ -254,7 +254,7 @@ f32& vec4::operator[](int i) { return ((f32*)this)[i]; }
 const f32& vec4::operator[](int i) const { return ((f32*)this)[i]; };
 
 f32 vec4::dot(vec4 v) {
-  return (this->x * v.x) + (this->y * v.y);
+  return (this->x * v.x) + (this->y * v.y) + (this->z * v.z) + (this->w * v.w);
 }
 
 f32 vec4::mag() {

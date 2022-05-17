@@ -14,33 +14,24 @@ namespace quark::animation {
 
   Transform lerp(Transform start, Transform end, f32 t);
 
-  struct SimpleAnimation {
-    Transform start;
-    Transform end;
-
-    Transform lerp(f32 t);
-  };
-
-  // TODO(sean): use some kind of allocator for this (given that the data in it is likely static)
-  struct ComplexAnimation {
-    std::vector<Transform> transforms;
-    std::vector<f32> times;
-    f32 time;
-    u32 current;
-
-    Transform lerp(f32 dt);
-  };
+  f32 smoothstep(f32 x);
+  f32 berp(f32 A, f32 B, f32 C, f32 D, f32 t);
 
   template <typename T>
   struct AnimationFrames {
-    std::vector<T> ts;
+    std::vector<T> frames;
     auto get(u32 current, u32 next) {
       struct Result {
         T start;
         T end;
       };
 
-      return Result { ts[current], ts[next] };
+      return Result { frames[current], frames[next] };
+
+    }
+
+    T get(u32 current) {
+      return frames[current];
     }
   };
 
@@ -51,6 +42,18 @@ namespace quark::animation {
 
     f32 percent() {
       return time / times[current];
+    }
+
+    auto get() {
+      struct Result {
+        u32 current;
+        u32 next;
+      };
+
+      return Result {
+        current,
+        (current + 1) % (u32)times.size(),
+      };
     }
 
     auto anim(f32 dt) {
@@ -73,6 +76,19 @@ namespace quark::animation {
       };
     }
   };
+
+  template <typename T>
+  struct LinearInterpolation {};
+
+  // https://blog.demofox.org/2014/08/28/one-dimensional-bezier-curves/
+  // Cubic Bezier Curve
+  template <typename T>
+  struct BezierInterpolation {
+    f32 A, B, C, D;
+  };
+
+  template <typename T>
+  struct SmoothStepInterpolation {};
 };
 
 namespace quark {
