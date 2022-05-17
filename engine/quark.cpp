@@ -166,6 +166,45 @@ auto get_anim_frames(AnimationFrameTimes times, AnimationFrames<T> frames) {
   return Result { start, end, times.percent() };
 }
 
+template <typename T>
+void animate_no_interpolate() {
+  for(auto [e, t, anim_times, anim_mesh] :
+  ecs::REGISTRY.view<T, AnimationFrameTimes, AnimationFrames<T>>().each()) {
+    auto current = anim_times.get().current;
+    auto start = anim_mesh.get(current);
+    t = start;
+  }
+}
+
+template <typename T>
+void animate_interpolate() {
+  for(auto [e, transform, anim_times, anim_trans] :
+  ecs::REGISTRY.view<T, AnimationFrameTimes, AnimationFrames<T>, NoInterpolation<T>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    transform = start;
+  }
+
+  for(auto [e, transform, anim_times, anim_trans] :
+  ecs::REGISTRY.view<T, AnimationFrameTimes, AnimationFrames<T>, LinearInterpolation<T>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    transform = lerp(start, end, percent);
+  }
+
+  for(auto [e, transform, anim_times, anim_trans, bezier] :
+  ecs::REGISTRY.view<T, AnimationFrameTimes, AnimationFrames<T>, BezierInterpolation<T>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    percent = berp(bezier.A, bezier.B, bezier.C, bezier.D, percent);
+    transform = lerp(start, end, percent);
+  }
+
+  for(auto [e, transform, anim_times, anim_trans] :
+  ecs::REGISTRY.view<T, AnimationFrameTimes, AnimationFrames<T>, SmoothStepInterpolation<T>>().each()) {
+    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
+    percent = smoothstep(percent);
+    transform = lerp(start, end, percent);
+  }
+}
+
 void quark::main_update() {
   // Update animations
 
@@ -173,41 +212,11 @@ void quark::main_update() {
     anim_times.anim(DT);
   }
 
-  // Non-lerp-able animations
-  for(auto [e, mesh, anim_times, anim_mesh] :
-  ecs::REGISTRY.view<Mesh, AnimationFrameTimes, AnimationFrames<Mesh>>().each()) {
-    auto current = anim_times.get().current;
-    auto start = anim_mesh.get(current);
-    mesh = start;
-  }
+  animate_no_interpolate<Mesh>();
+  animate_no_interpolate<Texture>();
 
-  for(auto [e, tex, anim_times, anim_tex] :
-  ecs::REGISTRY.view<Texture, AnimationFrameTimes, AnimationFrames<Texture>>().each()) {
-    auto current = anim_times.get().current;
-    auto start = anim_tex.get(current);
-    tex = start;
-  }
-
-  // Transform Interpolation
-  for(auto [e, transform, anim_times, anim_trans] :
-  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, LinearInterpolation<Transform>>().each()) {
-    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
-    transform = lerp(start, end, percent);
-  }
-
-  for(auto [e, transform, anim_times, anim_trans, bezier] :
-  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, BezierInterpolation<Transform>>().each()) {
-    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
-    percent = berp(bezier.A, bezier.B, bezier.C, bezier.D, percent);
-    transform = lerp(start, end, percent);
-  }
-
-  for(auto [e, transform, anim_times, anim_trans] :
-  ecs::REGISTRY.view<Transform, AnimationFrameTimes, AnimationFrames<Transform>, SmoothStepInterpolation<Transform>>().each()) {
-    auto [start, end, percent] = get_anim_frames(anim_times, anim_trans);
-    percent = smoothstep(percent);
-    transform = lerp(start, end, percent);
-  }
+  animate_interpolate<Transform>();
+  animate_interpolate<Extents>();
 
   // Update physics
 

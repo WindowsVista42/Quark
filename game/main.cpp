@@ -8,6 +8,7 @@ static Entity child_player_e;
 
 static Entity selected = entt::null;
 static Entity selection_box = entt::null;
+static Entity selection_box_anim = ecs::null;
 
 static Entity forward_bar;
 static Entity right_bar;
@@ -206,6 +207,13 @@ void game_init() {
   }
 
   {
+    selection_box_anim = ecs::create();
+    ecs::add(selection_box_anim, Transform::identity, Color{0,1,1,1});
+    ecs::add_mesh(selection_box_anim, "cube", {0.0f});
+    ecs::add_effect(selection_box_anim, Effect::Wireframe);
+  }
+
+  {
     auto create_bar = [&](vec3 rel_pos, vec4 color) {
       Scale scl = rel_pos * 0.4f + 0.1f;
 
@@ -339,7 +347,26 @@ void game_init() {
       },
     });
 
-    ecs::add(e, LinearInterpolation<Transform>{});
+    ecs::add(e, AnimationFrames<Mesh> {
+      .frames = {
+        assets::get<Mesh>("cube"),
+        assets::get<Mesh>("suzanne"),
+        assets::get<Mesh>("cube"),
+        assets::get<Mesh>("suzanne"),
+      },
+    });
+
+    ecs::add(e, AnimationFrames<Extents> {
+      .frames = {
+        MESH_SCALES.at("cube.obj") * 0.5f,
+        MESH_SCALES.at("suzanne.obj") * 0.5f,
+        MESH_SCALES.at("cube.obj") * 0.5f,
+        MESH_SCALES.at("suzanne.obj") * 0.5f,
+      },
+    });
+
+    ecs::add(e, SmoothStepInterpolation<Transform>{});
+    ecs::add(e, NoInterpolation<Extents>{});
 
     //ecs::add_transform(e, pos, rot, scl);
     //ecs::add_render(e, col, mesh, RENDER_LIT);
@@ -573,13 +600,23 @@ void game_update() {
       pos2 = MAIN_CAMERA.pos + MAIN_CAMERA.dir * abs(scroll_height);
     }
 
+    AnimationFrameTimes* anim_times = ecs::try_get<AnimationFrameTimes>(selected);
+    AnimationFrames<Transform>* anim_trans = ecs::try_get<AnimationFrames<Transform>>(selected);
+
     Parent* parent = ecs::try_get<Parent>(selected);
-    if (parent != 0) {
+    if (parent != 0 && !(anim_times && anim_trans)) {
       TransformOffset& rel_trans = ecs::get<TransformOffset>(selected);
       //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
       Transform ptrans = ecs::get<Transform>(parent->parent);
 
       rel_trans.pos = pos2 - ptrans.pos;
+    } else if (anim_times && anim_trans) { // sync root animation frame to pos2
+      vec3 root_pos = anim_trans->get(0).pos;
+      vec3 delta = pos2 - root_pos;
+
+      for(auto& frame : anim_trans->frames) {
+        frame.pos += delta;
+      }
     } else {
       transform.pos = pos2;
     }
@@ -587,7 +624,7 @@ void game_update() {
     RigidBody* r = ecs::try_get<RigidBody>(selected);
     if (r != 0) {
       //RigidBody rb = r;
-      r->pos(pos2);
+      r->pos(transform.pos);
       r->rot(r->rot());
       r->linvel({0});
       r->angvel({0});
@@ -652,6 +689,13 @@ void game_update() {
     ecs::get<Extents>(forward_bar) = {0.1f, 0.4f, 0.1f};
     ecs::get<Extents>(right_bar) = {0.4f, 0.1f, 0.1f};
     ecs::get<Extents>(up_bar) = {0.1f, 0.1f, 0.4f};
+
+    if (auto trans = ecs::try_get<AnimationFrames<Transform>>(selected); trans != 0) {
+      ecs::get<Transform>(selection_box_anim).pos = trans->get(0).pos;
+      ecs::get<Extents>(selection_box_anim) = {0.25f};
+    } else {
+      ecs::get<Extents>(selection_box_anim) = {0.0f};
+    }
   } else {
     ecs::get<Parent>(selection_box).parent = player_e;
     ecs::get<Extents>(selection_box) = 0.0f;
@@ -663,43 +707,45 @@ void game_update() {
     ecs::get<Extents>(forward_bar) = 0.0f;
     ecs::get<Extents>(right_bar) = 0.0f;
     ecs::get<Extents>(up_bar) = 0.0f;
+
+    ecs::get<Extents>(selection_box_anim) = {0.0f};
   }
 
   // move entity that is selected and input is pressed
-  if (selected != ecs::null) {
-    Transform& transform = ecs::get<Transform>(selected);
-    CollisionBody* obj_ptr = ecs::try_get<CollisionBody>(selected);
-    if (obj_ptr != 0) {
-      vec3 move_dir = VEC3_ZERO;
+  //if (selected != ecs::null) {
+  //  Transform& transform = ecs::get<Transform>(selected);
+  //  CollisionBody* obj_ptr = ecs::try_get<CollisionBody>(selected);
+  //  if (obj_ptr != 0) {
+  //    vec3 move_dir = VEC3_ZERO;
 
-      auto move_it = [&](int key, vec3 delta) {
-        if (platform::get_key(key)) {
-          move_dir += delta;
-        }
-      };
+  //    auto move_it = [&](int key, vec3 delta) {
+  //      if (platform::get_key(key)) {
+  //        move_dir += delta;
+  //      }
+  //    };
 
-      move_it(GLFW_KEY_I, vec3{1.0f, 0.0f, 0.0f});
-      move_it(GLFW_KEY_K, vec3{-1.0f, 0.0f, 0.0f});
-      move_it(GLFW_KEY_J, vec3{0.0f, 1.0f, 0.0f});
-      move_it(GLFW_KEY_L, vec3{0.0f, -1.0f, 0.0f});
-      move_it(GLFW_KEY_U, vec3{0.0f, 0.0f, -1.0f});
-      move_it(GLFW_KEY_O, vec3{0.0f, 0.0f, 1.0f});
+  //    move_it(GLFW_KEY_I, vec3{1.0f, 0.0f, 0.0f});
+  //    move_it(GLFW_KEY_K, vec3{-1.0f, 0.0f, 0.0f});
+  //    move_it(GLFW_KEY_J, vec3{0.0f, 1.0f, 0.0f});
+  //    move_it(GLFW_KEY_L, vec3{0.0f, -1.0f, 0.0f});
+  //    move_it(GLFW_KEY_U, vec3{0.0f, 0.0f, -1.0f});
+  //    move_it(GLFW_KEY_O, vec3{0.0f, 0.0f, 1.0f});
 
-      // update pos
-      Parent* parent = ecs::try_get<Parent>(selected);
-      if (parent) {
-        TransformOffset& rel_tr = ecs::get<TransformOffset>(selected);
-        //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
-        rel_tr.pos += move_dir * DT;
+  //    // update pos
+  //    Parent* parent = ecs::try_get<Parent>(selected);
+  //    if (parent) {
+  //      TransformOffset& rel_tr = ecs::get<TransformOffset>(selected);
+  //      //RelPosition& rel_pos = ecs::get<RelPosition>(selected);
+  //      rel_tr.pos += move_dir * DT;
 
-        //RelRotation& rel_rot = ecs::get<RelRotation>(selected);
-      } else {
-        transform.pos += move_dir * DT;
-      }
+  //      //RelRotation& rel_rot = ecs::get<RelRotation>(selected);
+  //    } else {
+  //      transform.pos += move_dir * DT;
+  //    }
 
-      obj_ptr->pos(transform.pos);
-    }
-  }
+  //    obj_ptr->pos(transform.pos);
+  //  }
+  //}
 
   quark::post_update();
 }

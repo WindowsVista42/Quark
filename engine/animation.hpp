@@ -89,6 +89,9 @@ namespace quark::animation {
 
   template <typename T>
   struct SmoothStepInterpolation {};
+
+  template <typename T>
+  struct NoInterpolation {};
 };
 
 namespace quark {
