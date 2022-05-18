@@ -14,7 +14,6 @@ namespace quark::executor {
       StateDeinit, // engine has transitioned between two states and must clean up current state resources
 
       Update, // engine is in state to generall update things, but not output is performed
-      Render, // engine is in state to accept render commands and all that stuff
       Resize, // engine's framebuffer has resized and must recreate render resources
     };
     constexpr usize COUNT = 7;

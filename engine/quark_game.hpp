@@ -148,6 +148,10 @@ struct SunLight {
   float directionality;
 };
 
+struct Effect2 {
+  u32 id;
+};
+
 // TAGS
 
 // Render this entity with a solid color render pass

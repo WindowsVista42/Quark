@@ -54,10 +54,7 @@ void begin_frame() {
   //CURRENT_DESCRIPTOR_SET = 0;
 }
 
-void render_frame(bool end_forward) {
-  // Todo Sean: Look into not recalculating frustum stuff?
-  // Selectively copy then re-use likely
-
+void update_cameras() {
   SUN_CAMERA.pos = MAIN_CAMERA.pos + vec3{20.0f, 20.0f, 300.0f};
   SUN_CAMERA.dir = normalize(MAIN_CAMERA.pos - SUN_CAMERA.pos);
   SUN_CAMERA.znear = 10.0f;
@@ -67,97 +64,94 @@ void render_frame(bool end_forward) {
   MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
 
   update_world_data();
+}
 
-  begin_shadow_rendering();
-  {
-    const auto shadow_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseShadowPass>();
-    for (auto [e, transform, scl, mesh, tex] : shadow_pass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        draw_shadow(transform.pos, transform.rot, scl, mesh);
-      }
+void draw_shadow_things() {
+  const auto shadow_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseShadowPass>();
+  for (auto [e, transform, scl, mesh, tex] : shadow_pass.each()) {
+    if (box_in_frustum(transform.pos, scl)) {
+      draw_shadow(transform.pos, transform.rot, scl, mesh);
     }
   }
+}
+
+void draw_depth_prepass_things() {
+  const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture>(entt::exclude<IsTransparent>);
+  for (auto [e, transform, scl, mesh, tex] : depth_prepass.each()) {
+    if (box_in_frustum(transform.pos, scl)) {
+      draw_depth(transform.pos, transform.rot, scl, mesh);
+    }
+  }
+}
+
+void draw_lit_pass_things() {
+  const auto lit_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseLitPass>();
+  for (auto [e, transform, scl, mesh, tex] : lit_pass.each()) {
+    if (box_in_frustum(transform.pos, scl)) {
+      //add_to_render_batch(transform.pos, transform.rot, scl, mesh);
+      draw_lit(transform.pos, transform.rot, scl, mesh, tex);
+    }
+  }
+}
+
+void draw_solid_pass_things() {
+  const auto solid_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Color, UseSolidPass>();
+  for (auto [e, transform, scl, mesh, col] : solid_pass.each()) {
+    if (box_in_frustum(transform.pos, scl)) {
+      draw_color(transform.pos, transform.rot, scl, col, mesh);
+    }
+  }
+}
+
+void draw_wireframe_pass_things() {
+  const auto wireframe_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Color, UseWireframePass>();
+  for (auto [e, transform, scl, mesh, col] : wireframe_pass.each()) {
+    if (box_in_frustum(transform.pos, scl)) {
+      draw_color(transform.pos, transform.rot, scl, col, mesh);
+    }
+  }
+}
+
+//if (ENABLE_PHYSICS_BOUNDING_BOX_VISOR) {
+//  Mesh mesh = assets::get<Mesh>("cube");
+//  const auto physics_rb_pass = ecs::registry.view<Position, Rotation, Color, RigidBody>();
+//  for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
+//    //btVector3 aabb_min, aabb_max;
+//    Aabb aabb = rb->aabb(aabb_min, aabb_max);
+//    vec3 scl = (aabb_min - aabb_max) / 2.0f;
+
+//    if (box_in_frustum(pos, scl)) {
+//      draw_color(pos, rot, scl, col, mesh);
+//    }
+//  }
+//}
+
+void render_frame() {
+  update_cameras();
+
+  begin_shadow_rendering();
+  draw_shadow_things();
   end_shadow_rendering();
 
   begin_depth_prepass_rendering();
-  {
-    const auto depth_prepass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture>(entt::exclude<IsTransparent>);
-    for (auto [e, transform, scl, mesh, tex] : depth_prepass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        draw_depth(transform.pos, transform.rot, scl, mesh);
-      }
-    }
-  }
+  draw_depth_prepass_things();
   end_depth_prepass_rendering();
 
   begin_forward_rendering();
-  {
-    begin_lit_pass();
-    const auto lit_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseLitPass>();
-    for (auto [e, transform, scl, mesh, tex] : lit_pass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        //add_to_render_batch(transform.pos, transform.rot, scl, mesh);
-        draw_lit(transform.pos, transform.rot, scl, mesh, tex);
-      }
-    }
-    end_lit_pass();
 
-    begin_solid_pass();
-    const auto solid_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Color, UseSolidPass>();
-    for (auto [e, transform, scl, mesh, col] : solid_pass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        draw_color(transform.pos, transform.rot, scl, col, mesh);
-      }
-    }
-    end_solid_pass();
+  begin_lit_pass();
+  draw_lit_pass_things();
+  end_lit_pass();
 
-    begin_wireframe_pass();
-    const auto wireframe_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Color, UseWireframePass>();
-    for (auto [e, transform, scl, mesh, col] : wireframe_pass.each()) {
-      if (box_in_frustum(transform.pos, scl)) {
-        draw_color(transform.pos, transform.rot, scl, col, mesh);
-      }
-    }
+  begin_solid_pass();
+  draw_solid_pass_things();
+  end_solid_pass();
 
-    if (ENABLE_PHYSICS_BOUNDING_BOX_VISOR) {
-      //Mesh mesh = assets::get<Mesh>("cube");
-      //const auto physics_rb_pass = ecs::registry.view<Position, Rotation, Color, RigidBody>();
-      //for (auto [e, pos, rot, col, rb] : physics_rb_pass.each()) {
-      //  //btVector3 aabb_min, aabb_max;
-      //  Aabb aabb = rb->aabb(aabb_min, aabb_max);
-      //  vec3 scl = (aabb_min - aabb_max) / 2.0f;
+  begin_wireframe_pass();
+  draw_wireframe_pass_things();
+  end_wireframe_pass();
 
-      //  if (box_in_frustum(pos, scl)) {
-      //    draw_color(pos, rot, scl, col, mesh);
-      //  }
-      //}
-    }
-    end_wireframe_pass();
-  }
-
-  if (end_forward) {
-    end_forward_rendering();
-  }
-
-  //begin_effect(SHADOWMAP_EFFECT);
-  ////
-  //end_effect();
-
-  //begin_effect(DEPTH_PREPASS_EFFECT);
-  ////
-  //end_effect();
-
-  //begin_effect(LIT_SHADOW_EFFECT);
-  ////
-  //end_effect();
-
-  //begin_effect(SOLID_EFFECT);
-  ////
-  //end_effect();
-
-  //begin_effect(WIREFRAME_EFFECT);
-  ////
-  //end_effect();
+  end_forward_rendering();
 }
 
 void end_frame() {

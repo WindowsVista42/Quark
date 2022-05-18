@@ -250,7 +250,7 @@ void game_init() {
 
         entt::entity e = ecs::REGISTRY.create();
         ecs::add(e, transform, col);
-        ecs::add_mesh(e, "suzanne", {1.0f});
+        ecs::add_mesh(e, "cube", {1.0f});
         ecs::add_texture(e, "test");
         //ecs::add(e, assets::get<Texture>("test"));
         ecs::add_effect(e, Effect::Lit | Effect::Shadow);
@@ -507,8 +507,6 @@ void update_player_and_camera() {
   player_body.activate();
   if (flycam_enabled) {
     flycam_pos += input_dir * DT * 10.0f;
-
-    player_body.rot(axis_angle(VEC3_UNIT_X, TT));
   } else {
     // move
     vec3 linvel = player_body.linvel();
@@ -559,7 +557,6 @@ void update_player_and_camera() {
 
   MAIN_CAMERA.pos = flycam_enabled ? flycam_pos : player_transform.pos + vec3{0.0, 0.0, 0.8};
   MAIN_CAMERA.dir = spherical_to_cartesian(MAIN_CAMERA.spherical_dir);
-
 }
 
 void update_editor() {
@@ -728,22 +725,12 @@ void update_editor() {
 void switch_state() {
   static int a = 0;
   static std::string names[] = {"quark", "quark_editor"};
-  if (input::get("next_state").just_down()) {
+  if (input::get("next_state").down()) {
     states::set_next(names[a].c_str());
-    printf("%s\n", names[a].c_str());
 
     a += 1;
     a %= 2;
   }
-}
-
-void game_update() {
-  quark::pre_update();
-  update_input_dir();
-  quark::main_update();
-  update_player_and_camera();
-  update_editor();
-  quark::post_update();
 }
 
 void game_deinit() {
@@ -766,9 +753,9 @@ int main() {
     executor::add_back(def_system(game_init, StateInit));
     executor::add_back(def_system(game_deinit, StateDeinit));
 
-    executor::add_after(def_system(update_input_dir, Update), name(quark::pre_update));
-    executor::add_after(def_system(update_player_and_camera, Update), name(quark::main_update));
-    executor::add_after(def_system(switch_state, Update), name(quark::pre_update));
+    executor::add_before(def_system(update_input_dir, Update), name(quark::update_physics));
+    executor::add_after(def_system(update_player_and_camera, Update), name(quark::update_physics));
+    executor::add_after(def_system(switch_state, Update), name(quark::check_for_close));
 
     executor::save("quark");
 

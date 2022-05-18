@@ -32,6 +32,13 @@ namespace quark::executor {
     auto& s = systems[system.group];
 
     auto npos = std::find(n.begin(), n.end(), after);
+#ifdef DEBUG
+    if(npos == n.end()) {
+      printf("%s\n", after);
+      panic("Function not found!");
+    }
+#endif
+
     npos += 1; // this is important for after
     auto i = npos - n.begin();
     auto spos = s.begin() + i;
@@ -45,6 +52,13 @@ namespace quark::executor {
     auto& s = systems[system.group];
 
     auto npos = std::find(n.begin(), n.end(), before);
+#ifdef DEBUG
+    if(npos < n.begin()) {
+      printf("%s\n", before);
+      panic("Function not found!");
+    }
+#endif
+
     auto i = npos - n.begin();
     auto spos = s.begin() + i;
 

@@ -23,6 +23,10 @@ namespace quark::render {
     static Camera from_transform(Transform transform);
   };
 
+  struct Effect2 {
+    u32 id;
+  };
+
   // VARIABLES
 
   inline Camera MAIN_CAMERA = {
@@ -38,9 +42,16 @@ namespace quark::render {
   };
 
   // FUNCTIONS
+
+  void update_cameras();
+  void draw_shadow_things();
+  void draw_depth_prepass_things();
+  void draw_lit_pass_things();
+  void draw_solid_pass_things();
+  void draw_wireframe_pass_things();
   
   void begin_frame();
-  void render_frame(bool end_forward = true);
+  void render_frame();
   void end_frame();
 };
 

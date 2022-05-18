@@ -54,118 +54,36 @@ void wait_gpu_idle() {
   vkDeviceWaitIdle(DEVICE);
 }
 
-}
-
-void quark::add_default_systems() {
-  {
-    executor::add_back(def_system(quark::init_allocators, Init));
-    executor::add_back(def_system(quark::add_asset_types, Init));
-    executor::add_back(def_system(quark::add_registry_types, Init));
-
-    executor::add_back(def_system(render::init_window, Init));
-    executor::add_back(def_system(render::init_vulkan, Init));
-
-    executor::add_back(def_system(quark::init_render_alloc_tracker, Init));
-    executor::add_back(def_system(quark::load_models, Init));
-    executor::add_back(def_system(quark::load_shaders, Init));
-
-    executor::add_back(def_system(render::init_swapchain, Init));
-    executor::add_back(def_system(render::init_command_pools_and_buffers, Init));
-    executor::add_back(def_system(render::init_render_passes, Init));
-    executor::add_back(def_system(render::init_framebuffers, Init));
-    executor::add_back(def_system(render::init_sync_objects, Init));
-
-    executor::add_back(def_system(quark::load_textures, Init));
-
-    executor::add_back(def_system(render::init_sampler, Init));
-    executor::add_back(def_system(render::init_descriptors, Init));
-    executor::add_back(def_system(render::init_descriptor_sets, Init));
-    executor::add_back(def_system(render::copy_staging_buffers_to_gpu, Init));
-    executor::add_back(def_system(render::init_pipelines, Init));
-
-    executor::add_back(def_system(physics::init, Init));
-
-    executor::add_back(def_system(reflect::init, Init));
-
-    executor::add_back(def_system(input::init, Init));
-
-    executor::save("default", executor::ExecGroup::Init);
-  }
-
-  {
-    executor::add_back(def_system(quark::pre_update, Update));
-    executor::add_back(def_system(quark::main_update, Update));
-    executor::add_back(def_system(quark::post_update, Update));
-    executor::add_back(def_system(render::print_performance_statistics, Update));
-    executor::save("default", executor::ExecGroup::Update);
-  }
-
-  {
-    executor::add_back(def_system(quark::wait_gpu_idle, Deinit));
-
-    executor::add_back(def_system(render::deinit_sync_objects, Deinit));
-    executor::add_back(def_system(render::deinit_buffers_and_images, Deinit));
-    executor::add_back(def_system(render::deinit_descriptors, Deinit));
-    executor::add_back(def_system(render::deinit_shaders, Deinit));
-    executor::add_back(def_system(render::deinit_framebuffers, Deinit));
-    executor::add_back(def_system(render::deinit_render_passes, Deinit));
-    executor::add_back(def_system(render::deinit_command_pools_and_buffers, Deinit));
-    executor::add_back(def_system(render::deinit_swapchain, Deinit));
-    executor::add_back(def_system(render::deinit_allocators, Deinit));
-    executor::add_back(def_system(render::deinit_vulkan, Deinit));
-    executor::add_back(def_system(render::deinit_window, Deinit));
-
-    executor::save("default", executor::ExecGroup::Deinit);
-  }
-
-  {
-    executor::save("default", executor::ExecGroup::Resize);
+void check_for_close() {
+  if (platform::get_key(GLFW_KEY_ESCAPE)) {
+    platform::close_window();
   }
 }
 
-void quark::run() {
-  executor::exec(executor::ExecGroup::Init);
-  states::load("quark_editor");
+void update_physics() {
+  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
+  static f32 accumulator = 0.0f;
+  accumulator += DT;
+  while(accumulator >= PHYS_DT) {
+    accumulator -= PHYS_DT;
 
-  do {
-    auto frame_begin_time = std::chrono::high_resolution_clock::now();
-
-    executor::exec(executor::ExecGroup::Update);
-
-    if (states::changed()) {
-      states::load_next();
+    // sync collision objects with entitites
+    for(auto [e, transform, obj] : ecs::REGISTRY.view<Transform, CollisionBody>().each()) {
+      obj.transform(transform);
     }
 
-    glfwPollEvents();
-    scratch_alloc.reset();
+    // sync ghost objects
+    for(auto [e, transform, ghost] : ecs::REGISTRY.view<Transform, GhostBody>().each()) {
+      ghost.transform(transform);
+    }
 
-    auto frame_end_time = std::chrono::high_resolution_clock::now();
-    DT = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
-    TT += DT;
-  } while (!platform::window_should_close);
+    physics_world->stepSimulation(PHYS_DT, 4);
 
-  states::unload();
-  executor::exec(executor::ExecGroup::Deinit);
-}
-
-void quark::pre_update() {
-  input::update_all();
-
-  f32 dx = input::get("pan_right").value() - input::get("pan_left").value();
-  f32 dy = input::get("pan_up").value() - input::get("pan_down").value();
-
-  MAIN_CAMERA.spherical_dir += (vec2 {dx, dy} / 1024.0f) * config::mouse_sensitivity;
-
-  MAIN_CAMERA.spherical_dir.x = wrap(MAIN_CAMERA.spherical_dir.x, 2.0f * M_PI);
-  MAIN_CAMERA.spherical_dir.y = clamp(MAIN_CAMERA.spherical_dir.y, 0.01f, M_PI - 0.01f);
-
-  // update timers
-  for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {
-    timer.value -= DT;
-  }
-
-  for(auto [e, timer] : ecs::REGISTRY.view<SaturatingTimer>().each()) {
-    timer.value -= DT;
+    // sync physics position and rotations with entities
+    auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
+    for (auto [e, transform, body] : rigid_bodies.each()) {
+      transform = Transform { .pos = body.pos(), .rot = body.rot() };
+    }
   }
 }
 
@@ -221,56 +139,197 @@ void animate_interpolate() {
   }
 }
 
-void quark::main_update() {
-  // Update animations
-
+void update_animation_frame_times() {
   for(auto [e, anim_times] : ecs::REGISTRY.view<AnimationFrameTimes>().each()) {
     anim_times.anim(DT);
   }
+}
 
-  animate_no_interpolate<Mesh>();
-  animate_no_interpolate<Texture>();
+void pan_camera() {
+  f32 dx = input::get("pan_right").value() - input::get("pan_left").value();
+  f32 dy = input::get("pan_up").value() - input::get("pan_down").value();
 
-  animate_interpolate<Transform>();
-  animate_interpolate<Extents>();
+  MAIN_CAMERA.spherical_dir += (vec2 {dx, dy} / 1024.0f) * config::mouse_sensitivity;
 
-  // Update physics
+  MAIN_CAMERA.spherical_dir.x = wrap(MAIN_CAMERA.spherical_dir.x, 2.0f * M_PI);
+  MAIN_CAMERA.spherical_dir.y = clamp(MAIN_CAMERA.spherical_dir.y, 0.01f, M_PI - 0.01f);
+}
 
-  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
-  static f32 accumulator = 0.0f;
-  accumulator += DT;
-  while(accumulator >= PHYS_DT) {
-    accumulator -= PHYS_DT;
+void update_timers() {
+  // update timers
+  for(auto [e, timer] : ecs::REGISTRY.view<Timer>().each()) {
+    timer.value -= DT;
+  }
 
-    // sync collision objects with entitites
-    for(auto [e, transform, obj] : ecs::REGISTRY.view<Transform, CollisionBody>().each()) {
-      obj.transform(transform);
-    }
-
-    // sync ghost objects
-    for(auto [e, transform, ghost] : ecs::REGISTRY.view<Transform, GhostBody>().each()) {
-      ghost.transform(transform);
-    }
-
-    physics_world->stepSimulation(PHYS_DT, 4);
-
-    // sync physics position and rotations with entities
-    auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
-    for (auto [e, transform, body] : rigid_bodies.each()) {
-      transform = Transform { .pos = body.pos(), .rot = body.rot() };
-    }
+  for(auto [e, timer] : ecs::REGISTRY.view<SaturatingTimer>().each()) {
+    timer.value -= DT;
   }
 }
 
-void quark::post_update() {
-  ecs::update_child_transforms(); // needs to happen here otherwise children lag behind by 1 frame
+}
 
-  render::begin_frame();
-  render::render_frame();
-  render::end_frame();
+void quark::add_default_systems() {
+  {
+    executor::add_back(def_system(quark::init_allocators, Init));
+    executor::add_back(def_system(quark::add_asset_types, Init));
+    executor::add_back(def_system(quark::add_registry_types, Init));
 
-  if (platform::get_key(GLFW_KEY_ESCAPE)) {
-    platform::close_window();
+    executor::add_back(def_system(render::init_window, Init));
+    executor::add_back(def_system(render::init_vulkan, Init));
+
+    executor::add_back(def_system(quark::init_render_alloc_tracker, Init));
+    executor::add_back(def_system(quark::load_models, Init));
+    executor::add_back(def_system(quark::load_shaders, Init));
+
+    executor::add_back(def_system(render::init_swapchain, Init));
+    executor::add_back(def_system(render::init_command_pools_and_buffers, Init));
+    executor::add_back(def_system(render::init_render_passes, Init));
+    executor::add_back(def_system(render::init_framebuffers, Init));
+    executor::add_back(def_system(render::init_sync_objects, Init));
+
+    executor::add_back(def_system(quark::load_textures, Init));
+
+    executor::add_back(def_system(render::init_sampler, Init));
+    executor::add_back(def_system(render::init_descriptors, Init));
+    executor::add_back(def_system(render::init_descriptor_sets, Init));
+    executor::add_back(def_system(render::copy_staging_buffers_to_gpu, Init));
+    executor::add_back(def_system(render::init_pipelines, Init));
+
+    executor::add_back(def_system(physics::init, Init));
+
+    executor::add_back(def_system(reflect::init, Init));
+
+    executor::add_back(def_system(input::init, Init));
+
+    executor::save("default", executor::ExecGroup::Init);
   }
+
+  {
+    // UPDATE
+
+    executor::add_back(def_system(input::update_all, Update));
+    executor::add_back(def_system(quark::pan_camera, Update));
+    executor::add_back(def_system(quark::update_timers, Update));
+
+    executor::add_back(def_system(quark::update_physics, Update));
+
+    executor::add_back(def_system(quark::update_animation_frame_times, Update));
+    executor::add_back(def_system(quark::animate_no_interpolate<Mesh>, Update));
+    executor::add_back(def_system(quark::animate_no_interpolate<Texture>, Update));
+    executor::add_back(def_system(quark::animate_interpolate<Transform>, Update));
+    executor::add_back(def_system(quark::animate_interpolate<Extents>, Update));
+
+    executor::add_back(def_system(ecs::update_child_transforms, Update));
+
+    executor::add_back(def_system(quark::check_for_close, Update));
+
+    // RENDER
+
+    executor::add_back(def_system(render::begin_frame, Update));
+
+    executor::add_back(def_system(render::update_cameras, Update));
+
+    executor::add_back(def_system(render::begin_shadow_rendering, Update));
+    executor::add_back(def_system(render::draw_shadow_things, Update));
+    executor::add_back(def_system(render::end_shadow_rendering, Update));
+
+    executor::add_back(def_system(render::begin_depth_prepass_rendering, Update));
+    executor::add_back(def_system(render::draw_depth_prepass_things, Update));
+    executor::add_back(def_system(render::end_depth_prepass_rendering, Update));
+
+    executor::add_back(def_system(render::begin_forward_rendering, Update));
+
+    executor::add_back(def_system(render::begin_lit_pass, Update));
+    executor::add_back(def_system(render::draw_lit_pass_things, Update));
+    executor::add_back(def_system(render::end_lit_pass, Update));
+
+    executor::add_back(def_system(render::begin_solid_pass, Update));
+    executor::add_back(def_system(render::draw_solid_pass_things, Update));
+    executor::add_back(def_system(render::end_solid_pass, Update));
+
+    executor::add_back(def_system(render::begin_wireframe_pass, Update));
+    executor::add_back(def_system(render::draw_wireframe_pass_things, Update));
+    executor::add_back(def_system(render::end_wireframe_pass, Update));
+
+    executor::add_back(def_system(render::end_forward_rendering, Update));
+
+    executor::add_back(def_system(render::end_frame, Update));
+    
+    // LAST
+
+    executor::add_back(def_system(render::print_performance_statistics, Update));
+
+    executor::save("default", executor::ExecGroup::Update);
+  }
+
+  {
+    executor::add_back(def_system(quark::wait_gpu_idle, Deinit));
+
+    executor::add_back(def_system(render::deinit_sync_objects, Deinit));
+    executor::add_back(def_system(render::deinit_buffers_and_images, Deinit));
+    executor::add_back(def_system(render::deinit_descriptors, Deinit));
+    executor::add_back(def_system(render::deinit_shaders, Deinit));
+    executor::add_back(def_system(render::deinit_framebuffers, Deinit));
+    executor::add_back(def_system(render::deinit_render_passes, Deinit));
+    executor::add_back(def_system(render::deinit_command_pools_and_buffers, Deinit));
+    executor::add_back(def_system(render::deinit_swapchain, Deinit));
+    executor::add_back(def_system(render::deinit_allocators, Deinit));
+    executor::add_back(def_system(render::deinit_vulkan, Deinit));
+    executor::add_back(def_system(render::deinit_window, Deinit));
+
+    executor::save("default", executor::ExecGroup::Deinit);
+  }
+
+  {
+    executor::save("default", executor::ExecGroup::Resize);
+  }
+}
+
+void quark::run() {
+  executor::exec(executor::ExecGroup::Init);
+  states::load("quark_editor");
+
+  do {
+    auto frame_begin_time = std::chrono::high_resolution_clock::now();
+
+    executor::exec(executor::ExecGroup::Update);
+
+    if (states::changed()) {
+      states::load_next();
+    }
+
+    glfwPollEvents();
+    scratch_alloc.reset();
+
+    auto frame_end_time = std::chrono::high_resolution_clock::now();
+    DT = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
+    TT += DT;
+  } while (!platform::window_should_close);
+
+  states::unload();
+  executor::exec(executor::ExecGroup::Deinit);
+}
+
+void quark::pre_update() {
+  //
+}
+
+void quark::main_update() {
+  // Update animations
+  //animate_no_interpolate<Mesh>();
+  //animate_no_interpolate<Texture>();
+
+  //animate_interpolate<Transform>();
+  //animate_interpolate<Extents>();
+
+  // Update physics
+}
+
+void quark::post_update() {
+  //ecs::update_child_transforms(); // needs to happen here otherwise children lag behind by 1 frame
+
+  //render::begin_frame();
+  //render::render_frame();
+  //render::end_frame();
 }
 
