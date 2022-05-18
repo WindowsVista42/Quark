@@ -27,6 +27,38 @@ namespace quark::render {
     u32 id;
   };
 
+  Effect2 get_effect(const char* name);
+
+  // Baseline data that every effect needs:
+  // Transform, Extents, Mesh, Effect2
+  // Augment data that only some effects need:
+  // Color, Texture
+  //
+  // Effects are essentially an index into EFFECT_BUFFERS
+  // Different effects have different EFFECT_BUFFER layouts
+  //
+  // I don't want to dynamically call a function to read the effect data
+  // I don't want to ecs::get() the remaining data
+  // I can't quite entt::exclude that data i don't want
+  //
+  // I think I can iterate over
+  // Transform + Effect2 -- Extents + Effect2 -- Mesh + Effect2
+  // In separate loops and just write to the right offsets for each
+  //
+  // Then for the
+  // Color + Effect2 -- Texture + Effect2
+  // They only get iterated over if the effect actually requires that data to be used
+  //
+  // And of course this can all be wrapped to exclude RenderingDisabled items or something
+  //
+  // I need to figure out some way to pragmatically get data into two buffers
+
+  void fill_effect_buffers();
+
+  void draw_effect_a(); // reads its buffer as XYZ
+  void draw_effect_b(); // reas its buffer as ABC
+  void draw_effect_c(); // reads its buffer as ASDJKL
+
   // VARIABLES
 
   inline Camera MAIN_CAMERA = {
@@ -56,6 +88,7 @@ namespace quark::render {
 };
 
 namespace quark::render::internal {
+
   struct AllocatedBuffer {
     VmaAllocation alloc;
     VkBuffer buffer;

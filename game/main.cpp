@@ -226,7 +226,7 @@ void game_init() {
   }
   */
 
-  init_editor_entities();
+  //init_editor_entities();
 
   // Randomly grab a mesh
   // auto mesh_count = asset_count<Mesh>()
@@ -725,7 +725,7 @@ void update_editor() {
 void switch_state() {
   static int a = 0;
   static std::string names[] = {"quark", "quark_editor"};
-  if (input::get("next_state").down()) {
+  if (input::get("next_state").just_down()) {
     states::set_next(names[a].c_str());
 
     a += 1;
@@ -759,6 +759,7 @@ int main() {
 
     executor::save("quark");
 
+    executor::add_back(def_system(init_editor_entities, StateInit));
     executor::add_after(def_system(update_editor, Update), name(update_player_and_camera));
 
     executor::save("quark_editor");

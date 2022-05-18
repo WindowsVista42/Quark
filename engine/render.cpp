@@ -17,6 +17,133 @@ Camera Camera::from_transform(Transform transform) {
   return {};
 }
 
+std::unordered_map<std::string, Effect2> name_to_effect;
+
+struct EffectCopyData {
+  u16 size;
+  u16 transform_offset;
+  u16 extents_offset;
+  u16 mesh_offset;
+  u16 custom_offset0;
+  u16 custom_offset1;
+  u16 custom_offset2;
+  u16 custom_offset3;
+};
+
+struct WithNone {
+  Transform transform;
+  Extents extents;
+  Mesh mesh;
+};
+
+struct WithTexture {
+  Transform transform;
+  Extents extents;
+  Mesh mesh;
+  Texture texture;
+};
+
+struct WithColor {
+  Transform transform;
+  Extents extents;
+  Mesh mesh;
+  Color color;
+};
+
+std::array<EffectCopyData, 5> EFFECT_COPY_DATA = {
+  EffectCopyData { // Sun Shadow
+    .size = sizeof(WithNone),
+    .transform_offset = offsetof(WithNone, transform),
+    .extents_offset   = offsetof(WithNone, extents),
+    .mesh_offset      = offsetof(WithNone, mesh),
+  },
+  EffectCopyData { // Depth Prepass
+    .size = sizeof(WithNone),
+    .transform_offset = offsetof(WithNone, transform),
+    .extents_offset   = offsetof(WithNone, extents),
+    .mesh_offset      = offsetof(WithNone, mesh),
+  },
+  EffectCopyData { // Lit Shadow
+    .size = sizeof(WithTexture),
+    .transform_offset = offsetof(WithTexture, transform),
+    .extents_offset   = offsetof(WithTexture, extents),
+    .mesh_offset      = offsetof(WithTexture, mesh),
+    .custom_offset0   = offsetof(WithTexture, texture),
+  },
+  EffectCopyData { // Solid Color
+    .size = sizeof(WithColor),
+    .transform_offset = offsetof(WithColor, transform),
+    .extents_offset   = offsetof(WithColor, extents),
+    .mesh_offset      = offsetof(WithColor, mesh),
+    .custom_offset0   = offsetof(WithColor, color),
+  },
+  EffectCopyData { // Wireframe Color
+    .size = sizeof(WithColor),
+    .transform_offset = offsetof(WithColor, transform),
+    .extents_offset   = offsetof(WithColor, extents),
+    .mesh_offset      = offsetof(WithColor, mesh),
+    .custom_offset0   = offsetof(WithColor, color),
+  },
+};
+
+
+std::array<usize, 5> EFFECT_COUNTS;
+std::array<char[1024 * 1024], 5> EFFECT_BUFFERS;
+
+void fill_effect_buffers() {
+  EFFECT_COUNTS = {0,0,0,0,0};
+  for(auto [e, transform, extents, mesh, effect] :
+  ecs::REGISTRY.view<Transform, Extents, Mesh, Effect2>().each()) {
+    auto& id = effect.id;
+    auto& count = EFFECT_COUNTS[id];
+    auto& size = EFFECT_COPY_DATA[id].size;
+    auto& transform_offset = EFFECT_COPY_DATA[id].transform_offset;
+    auto& extents_offset = EFFECT_COPY_DATA[id].extents_offset;
+    auto& mesh_offset = EFFECT_COPY_DATA[id].mesh_offset;
+    char* data = EFFECT_BUFFERS[id];
+
+    *(Transform*)(data + (size * count) + transform_offset) = transform;
+    *(Extents*)(data + (size * count) + extents_offset) = extents;
+    *(Mesh*)(data + (size * count) + mesh_offset) = mesh;
+
+    count += 1;
+  }
+
+  std::array<usize, 5> LOCAL_EFFECT_COUNTS;
+
+  LOCAL_EFFECT_COUNTS = {0,0,0,0,0};
+  for(auto [e, texture, effect] :
+  ecs::REGISTRY.view<Texture, Effect2>().each()) {
+    auto& id = effect.id;
+    auto& count = LOCAL_EFFECT_COUNTS[id];
+    auto& size = EFFECT_COPY_DATA[id].size;
+    auto& texture_offset = EFFECT_COPY_DATA[id].custom_offset0;
+    char* data = EFFECT_BUFFERS[id];
+
+    *(Texture*)(data + (size * count) + texture_offset) = texture;
+
+    count += 1;
+  }
+
+  LOCAL_EFFECT_COUNTS = {0,0,0,0,0};
+  for(auto [e, color, effect] :
+  ecs::REGISTRY.view<Color, Effect2>().each()) {
+    auto& id = effect.id;
+    auto& count = LOCAL_EFFECT_COUNTS[id];
+    auto& size = EFFECT_COPY_DATA[id].size;
+    auto& color_offset = EFFECT_COPY_DATA[id].custom_offset0;
+    char* data = EFFECT_BUFFERS[id];
+
+    *(Color*)(data + (size * count) + color_offset) = color;
+
+    count += 1;
+  }
+}
+
+Effect2 get_effect(const char* name) {
+  return name_to_effect.at(name);
+}
+
 void begin_frame() {
   // TODO Sean: dont block the thread
   vk_check(vkWaitForFences(DEVICE, 1, &RENDER_FENCE[FRAME_INDEX], true, OP_TIMEOUT));
@@ -69,9 +196,11 @@ void update_cameras() {
 void draw_shadow_things() {
   const auto shadow_pass = ecs::REGISTRY.view<Transform, Extents, Mesh, Texture, UseShadowPass>();
   for (auto [e, transform, scl, mesh, tex] : shadow_pass.each()) {
-    if (box_in_frustum(transform.pos, scl)) {
+    // NOTE(sean): frustum culling temporarily removed because it is culling
+    // using the MAIN_CAMERA instead of the SUN_CAMERA
+    //if (box_in_frustum(transform.pos, scl)) {
       draw_shadow(transform.pos, transform.rot, scl, mesh);
-    }
+    //}
   }
 }
 
@@ -127,31 +256,31 @@ void draw_wireframe_pass_things() {
 //}
 
 void render_frame() {
-  update_cameras();
+  //update_cameras();
 
-  begin_shadow_rendering();
-  draw_shadow_things();
-  end_shadow_rendering();
+  //begin_shadow_rendering();
+  //draw_shadow_things();
+  //end_shadow_rendering();
 
-  begin_depth_prepass_rendering();
-  draw_depth_prepass_things();
-  end_depth_prepass_rendering();
+  //begin_depth_prepass_rendering();
+  //draw_depth_prepass_things();
+  //end_depth_prepass_rendering();
 
-  begin_forward_rendering();
+  //begin_forward_rendering();
 
-  begin_lit_pass();
-  draw_lit_pass_things();
-  end_lit_pass();
+  //begin_lit_pass();
+  //draw_lit_pass_things();
+  //end_lit_pass();
 
-  begin_solid_pass();
-  draw_solid_pass_things();
-  end_solid_pass();
+  //begin_solid_pass();
+  //draw_solid_pass_things();
+  //end_solid_pass();
 
-  begin_wireframe_pass();
-  draw_wireframe_pass_things();
-  end_wireframe_pass();
+  //begin_wireframe_pass();
+  //draw_wireframe_pass_things();
+  //end_wireframe_pass();
 
-  end_forward_rendering();
+  //end_forward_rendering();
 }
 
 void end_frame() {
@@ -1813,6 +1942,7 @@ void print_performance_statistics() {
 void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
 template <typename F> void flush_render_batch(F f) {}
 
+//TODO(sean): update this so that it can output cull data to the input camera
 mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
   mat4 view_projection = MAT4_IDENTITY;
 
