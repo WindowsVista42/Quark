@@ -85,19 +85,6 @@ void init_editor_entities() {
 }
 
 void game_init() {
-  reflect::add_fields("value", &Health::value, "base", &Health::base);
-  reflect::add_fields("value", &Timer::value, "base", &Timer::base);
-  reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
-  reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
-  reflect::add_fields("dash_timer", &Player::dash_timer);
-
-  reflect::add_name<Health>("Health");
-  reflect::add_name<Timer>("Timer");
-  reflect::add_name<SaturatingTimer>("SaturatingTimer");
-  reflect::add_name<Enemy>("Enemy");
-  reflect::add_name<Player>("Player");
-
-  glfwSetScrollCallback(platform::window, scroll_callback);
 
   {
     auto& e = player_e;
@@ -440,6 +427,10 @@ void game_init() {
     add_child_to_base(child_player_e, false);
     add_child_to_base(child_player_e, false);
   }
+}
+
+void bind_inputs() {
+  input::bind("next_state", Key::P);
 
   input::bind("forward", Key::W);
   input::bind("backward", Key::S);
@@ -468,6 +459,22 @@ void game_init() {
 
   input::bind("select_move_away", Mouse::ScrollUp);
   input::bind("select_move_closer", Mouse::ScrollDown);
+}
+
+void add_reflection() {
+  reflect::add_fields("value", &Health::value, "base", &Health::base);
+  reflect::add_fields("value", &Timer::value, "base", &Timer::base);
+  reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
+  reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
+  reflect::add_fields("dash_timer", &Player::dash_timer);
+
+  reflect::add_name<Health>("Health");
+  reflect::add_name<Timer>("Timer");
+  reflect::add_name<SaturatingTimer>("SaturatingTimer");
+  reflect::add_name<Enemy>("Enemy");
+  reflect::add_name<Player>("Player");
+
+  glfwSetScrollCallback(platform::window, scroll_callback);
 }
 
 static vec3 input_dir = {};
@@ -718,6 +725,18 @@ void update_editor() {
   }
 }
 
+void switch_state() {
+  static int a = 0;
+  static std::string names[] = {"quark", "quark_editor"};
+  if (input::get("next_state").just_down()) {
+    states::set_next(names[a].c_str());
+    printf("%s\n", names[a].c_str());
+
+    a += 1;
+    a %= 2;
+  }
+}
+
 void game_update() {
   quark::pre_update();
   update_input_dir();
@@ -727,7 +746,9 @@ void game_update() {
   quark::post_update();
 }
 
-void game_deinit() {}
+void game_deinit() {
+  ecs::REGISTRY.clear();
+}
 
 int main() {
   quark::ENABLE_PERFORMANCE_STATISTICS = true;
@@ -739,11 +760,15 @@ int main() {
   quark::add_default_systems();
 
   {
-    executor::add_back(def_system(game_init, Init));
-    executor::add_back(def_system(game_deinit, Deinit));
+    executor::add_back(def_system(bind_inputs, Init));
+    executor::add_back(def_system(add_reflection, Init));
+
+    executor::add_back(def_system(game_init, StateInit));
+    executor::add_back(def_system(game_deinit, StateDeinit));
 
     executor::add_after(def_system(update_input_dir, Update), name(quark::pre_update));
     executor::add_after(def_system(update_player_and_camera, Update), name(quark::main_update));
+    executor::add_after(def_system(switch_state, Update), name(quark::pre_update));
 
     executor::save("quark");
 

@@ -125,11 +125,16 @@ void quark::add_default_systems() {
 
 void quark::run() {
   executor::exec(executor::ExecGroup::Init);
+  states::load("quark_editor");
 
   do {
     auto frame_begin_time = std::chrono::high_resolution_clock::now();
 
     executor::exec(executor::ExecGroup::Update);
+
+    if (states::changed()) {
+      states::load_next();
+    }
 
     glfwPollEvents();
     scratch_alloc.reset();
@@ -139,6 +144,7 @@ void quark::run() {
     TT += DT;
   } while (!platform::window_should_close);
 
+  states::unload();
   executor::exec(executor::ExecGroup::Deinit);
 }
 
