@@ -59,6 +59,9 @@ namespace quark::render {
   void draw_effect_b(); // reas its buffer as ABC
   void draw_effect_c(); // reads its buffer as ASDJKL
 
+  // I think for now iwth effects I will just have the user attach a component for the effect to
+  // whatever thing that they want to do 
+
   // VARIABLES
 
   inline Camera MAIN_CAMERA = {

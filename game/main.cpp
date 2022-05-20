@@ -20,16 +20,27 @@ static f32 scroll_height = 0.0f;
 
 static Entity last_box = entt::null;
 
+static Entity enemy_e;
+
 //
 
 struct Health {
   f32 value;
   f32 base;
+
+  f32 percent() {
+    return value / base;
+  }
 };
 
 struct Enemy {
   Entity attack_timer;
   Entity move_timer;
+};
+
+struct Enemy2 {
+  Handle<Timer> attack_timer;
+  Handle<Timer> move_timer;
 };
 
 struct Speed {
@@ -39,6 +50,40 @@ struct Speed {
 struct Player {
   Entity dash_timer;
   Entity sat_dash_timer;
+};
+
+struct Movement {
+  f32 max_velocity;
+  f32 acceleration;
+};
+
+template <usize Id>
+struct EffectId {};
+
+namespace Effect4 {
+  template <usize Id>
+  struct EffectId {};
+
+  namespace {
+    enum EffectNum {
+      SolidNum = 0,
+      WireframeNum,
+      LitNum,
+      ShadowNum,
+    };
+  };
+
+  using Solid     = EffectId<0>;
+  using Wireframe = EffectId<1>;
+  using Lit       = EffectId<2>;
+  using Shadow    = EffectId<3>;
+};
+
+namespace Effect5 {
+  using Solid     = UseSolidPass;
+  using Wireframe = UseWireframePass;
+  using Lit       = UseLitPass;
+  using Shadow    = UseShadowPass;
 };
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) { scroll_height += (f32)yoffset; }
@@ -459,6 +504,8 @@ void bind_inputs() {
 
   input::bind("select_move_away", Mouse::ScrollUp);
   input::bind("select_move_closer", Mouse::ScrollDown);
+
+  input::bind("spawn", Key::N);
 }
 
 void add_reflection() {
@@ -467,12 +514,20 @@ void add_reflection() {
   reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
   reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
   reflect::add_fields("dash_timer", &Player::dash_timer);
+  reflect::add_fields("max_velocity", &Movement::max_velocity, "acceleration", &Movement::acceleration);
+  //reflect::add_fields("e", &Handle<Timer>::e);
+
+  reflect::add_fields("attack_timer", &Enemy2::attack_timer, "move_timer", &Enemy2::move_timer);
 
   reflect::add_name<Health>("Health");
   reflect::add_name<Timer>("Timer");
   reflect::add_name<SaturatingTimer>("SaturatingTimer");
   reflect::add_name<Enemy>("Enemy");
   reflect::add_name<Player>("Player");
+  reflect::add_name<Movement>("Movement");
+  reflect::add_name<Handle<Timer>>("Handle<Timer>");
+
+  reflect::add_function<Handle<Timer>, Timer, &Handle<Timer>::get_copy, 0>("Timer");
 
   glfwSetScrollCallback(platform::window, scroll_callback);
 }
@@ -491,6 +546,80 @@ void update_input_dir() {
 
     input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
+  }
+}
+
+void add_enemies() {
+  if(!input::get("spawn").just_down()) {
+    return;
+  }
+
+  // add enemy
+  enemy_e = ecs::create();
+  auto transform = Transform::identity;
+  transform.pos = {-10.0f, 0.0f, 0.0f};
+  auto color = Color{1.0f, 0.0f, 0.0f, 1.0f};
+
+  ecs::add(enemy_e, transform, color);
+  ecs::add_mesh(enemy_e, "cube", {1.0f});
+  ecs::add(enemy_e, Effect5::Solid {});
+
+  Extents extents = ecs::get<Extents>(enemy_e);
+  ecs::add_rigid_body(enemy_e, {.shape = BoxShape{extents}, .mass = 1.0f});
+
+  ecs::add(enemy_e,
+    Enemy2 {
+      .attack_timer = Handle<Timer>::create(enemy_e, {1.0f, 2.0f}),
+      .move_timer = Handle<Timer>::create(enemy_e, {0.0f, 0.25f}),
+    },
+    Health {4.0f, 4.0f},
+    Movement {
+      .max_velocity = 20.0f,
+      .acceleration = 0.1f,
+    }
+  );
+}
+
+void movement_rigid_body(RigidBody* rigid_body, vec3 move_dir, Movement movement) {
+  vec3 linvel = rigid_body->linvel();
+  vec3 movement_dir = vec3{(move_dir.xy * movement.max_velocity) - linvel.xy, 0.0f};
+  rigid_body->add_force(movement_dir * movement.acceleration);
+}
+
+void update_enemies() {
+  auto player_transform = ecs::get<Transform>(player_e);
+
+  for(auto [e, transform, rigid_body, movement, health, color, enemy2] :
+  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy2>().each()) {
+    if(fabs(transform.pos.dist(player_transform.pos)) > 5.0f) {
+      vec3 dir = (player_transform.pos - transform.pos).norm();
+      movement_rigid_body(&rigid_body, dir, movement);
+
+      color = Color {1.0f, 0.0f, 0.0f, 1.0f} * health.percent();
+    } else {
+      color = Color {0.0f, 1.0f, 0.0f, 1.0f} * health.percent();
+    }
+  }
+}
+
+void player_shoot() {
+  if (!input::get("fire").just_down()) {
+    return;
+  }
+
+  auto ray = NearestRay::test(MAIN_CAMERA.pos, MAIN_CAMERA.pos + MAIN_CAMERA.dir * 100.0f);
+  if (!ray.hit()) {
+    return;
+  }
+
+  Entity hit = ray.entity();
+
+  if(Health* health = ecs::try_get<Health>(hit); health != 0) {
+    health->value -= 1.0f;
+
+    if(health->value <= 0.0001f) {
+      ecs::recursively_destroy(hit);
+    }
   }
 }
 
@@ -560,6 +689,10 @@ void update_player_and_camera() {
 }
 
 void update_editor() {
+  if(!ecs::valid(selected)) {
+    selected = entt::null;
+  }
+
   if (input::get("fire").down() && selected != ecs::null) {
     Transform& transform = ecs::get<Transform>(selected);
     vec3 pos2 = transform.pos;
@@ -630,6 +763,10 @@ void update_editor() {
     } else {
       transform.pos = pos2;
     }
+
+    //if(Health* health = ecs::try_get<Health>(selected); health != 0) {
+    //  health->value = health->base;
+    //}
 
     RigidBody* r = ecs::try_get<RigidBody>(selected);
     if (r != 0) {
@@ -756,6 +893,10 @@ int main() {
     executor::add_before(def_system(update_input_dir, Update), name(quark::update_physics));
     executor::add_after(def_system(update_player_and_camera, Update), name(quark::update_physics));
     executor::add_after(def_system(switch_state, Update), name(quark::check_for_close));
+
+    executor::add_after(def_system(add_enemies, Update), name(quark::update_physics));
+    executor::add_after(def_system(update_enemies, Update), name(add_enemies));
+    executor::add_after(def_system(player_shoot, Update), name(update_enemies));
 
     executor::save("quark");
 

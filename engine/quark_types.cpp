@@ -175,6 +175,10 @@ vec3 vec3::norm_max_mag(f32 max) {
   return *this;
 }
 
+f32 vec3::dist(vec3 v) {
+  return (*this - v).mag();
+}
+
 // vec4
 
 vec4::vec4() {}

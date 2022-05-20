@@ -419,7 +419,6 @@ static void init() {
   reflect::add_name<SphereShape>("SphereShape");
   reflect::add_name<CapsuleShape>("CapsuleShape");
 
-
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
   reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
   reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);

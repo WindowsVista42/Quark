@@ -133,6 +133,8 @@ struct vec3 {
   vec3 norm_checked();
   vec3 norm_max_mag(f32 max);
 
+  f32 dist(vec3 v);
+
   static const vec3 unit_x;
   static const vec3 unit_y;
   static const vec3 unit_z;

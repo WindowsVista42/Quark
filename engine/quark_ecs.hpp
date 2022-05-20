@@ -234,10 +234,13 @@ namespace quark {
   struct Handle {
     Entity e;
     T& get() { return ecs::get<T>(e); }
-    static Handle create(T t) {
+    T get_copy() { return ecs::get<T>(e); }
+    static Handle create(Entity parent, T t) {
       Handle<T> h;
       h.e = ecs::create();
       ecs::add(h.e, t);
+      ecs::add_parent(h.e, parent);
+      return h;
     }
   };
 };
