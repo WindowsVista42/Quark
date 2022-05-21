@@ -30,8 +30,8 @@ void recursively_destroy(Entity e, bool destroy_root = true);
 
 template <typename T> static void add(Entity e, T t) { REGISTRY.emplace<T>(e, t); }
 template <typename A, typename... T> static void add(Entity e, A a, T... t) { REGISTRY.emplace<A>(e, a); add<T...>(e, t...); }
-template <typename T> static T& get(Entity e) { return REGISTRY.get<T>(e); }
-//template <typename... T> static decltype(auto) get(Entity e) { return REGISTRY.get<T...>(e); }
+//template <typename T> static T& get(Entity e) { return REGISTRY.get<T>(e); }
+template <typename... T> static decltype(auto) get(Entity e) { return REGISTRY.get<T...>(e); }
 //template <typename T> T& get_first() { return REGISTRY.get<T>(REGISTRY.view<T>().front()); }
 template <typename... T> decltype(auto) get_first() { return REGISTRY.get<T...>(REGISTRY.view<T...>().front()); }
 template <typename T> static T* try_get(Entity e) { return REGISTRY.try_get<T>(e); }
@@ -230,18 +230,35 @@ using namespace internal;
 
 namespace quark {
   // Basically a pointer to an entity
-  template <typename T>
+  template <typename... T>
   struct Handle {
     Entity e;
-    T& get() { return ecs::get<T>(e); }
-    T get_copy() { return ecs::get<T>(e); }
-    static Handle create(Entity parent, T t) {
-      Handle<T> h;
+    decltype(auto) get() { return ecs::get<T...>(e); }
+    decltype(auto) get_copy() { auto a = ecs::get<T...>(e); return a; }
+    static Handle create(Entity parent, T... t) {
+      // adding handles as a child entity allows for automatic garbage collection when
+      // the parent entity is deleted
+      Handle<T...> h;
       h.e = ecs::create();
-      ecs::add(h.e, t);
+      ecs::add(h.e, t...);
       ecs::add_parent(h.e, parent);
       return h;
     }
+    static Handle from_existing(Entity p) {
+      Handle<T...> h;
+      h.e = p;
+      return h;
+    };
+
+    Handle(Entity p) {
+      e = p;
+    }
+    Handle(Entity p, T... t) {
+      e = ecs::create();
+      ecs::add(e, t...);
+      ecs::add_parent(e, p);
+    };
+    Handle() {}
   };
 };
 

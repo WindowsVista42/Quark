@@ -29,27 +29,56 @@ struct Health {
   f32 base;
 
   f32 percent() {
-    return value / base;
+    return max(value / base, 0.0f); // wanted non-negative
   }
 };
 
 struct Enemy {
-  Entity attack_timer;
-  Entity move_timer;
-};
-
-struct Enemy2 {
   Handle<Timer> attack_timer;
   Handle<Timer> move_timer;
+
+  Handle<Timer> timer;
+  Handle<Transform, Health> target;
+
+  Health last_health = {1.0f, 1.0f};
+
+  u32 state;
+
+  enum States : u32 {
+    AttackTarget, // damages target
+    PursueTarget, // target pos known
+    FleeTarget, // runs from target
+
+    FindTarget, // target pos unknown, rough direction known
+
+    Count
+  };
+
+  static constexpr Timer timers[Count] = {
+    Timer {.value = 1.0f, .base = 2.0f},
+    Timer {.value = 1.0f, .base = 2.0f},
+    Timer {.value = 2.0f, .base = 2.0f},
+    Timer {.value = 1.0f, .base = 2.0f},
+  };
+
+  static Color colors[Count];
 };
+
+Color Enemy::colors[Count] = {
+    Color {1,0,0,1},
+    Color {0,1,0,1},
+    Color {0,1,1,1},
+    Color {1,0,1,1},
+  };
+
 
 struct Speed {
   float speed;
 };
 
 struct Player {
-  Entity dash_timer;
-  Entity sat_dash_timer;
+  Handle<Timer> dash_timer;
+  Handle<SaturatingTimer> sat_dash_timer;
 };
 
 struct Movement {
@@ -174,17 +203,17 @@ void game_init() {
 
   // Timers and other stuff
   {
-    auto dash_timer_e = ecs::create();
-    ecs::add(dash_timer_e, Timer{0.0f, 4.0f});
-    ecs::add_parent(dash_timer_e, player_e);
+    //dash_timer_e = Handle::create(); ecs::create();
+    //ecs::add(dash_timer_e, Timer{0.0f, 4.0f});
+    //ecs::add_parent(dash_timer_e, player_e);
 
-    auto sat_dash_timer_e = ecs::create();
-    ecs::add(sat_dash_timer_e, SaturatingTimer{0.0f, 1.0f, 3.0f});
-    ecs::add_parent(sat_dash_timer_e, player_e);
+    //auto sat_dash_timer_e = ecs::create();
+    //ecs::add(sat_dash_timer_e, SaturatingTimer{0.0f, 1.0f, 3.0f});
+    //ecs::add_parent(sat_dash_timer_e, player_e);
 
     Player& p = ecs::get<Player>(player_e);
-    p.dash_timer = dash_timer_e;
-    p.sat_dash_timer = sat_dash_timer_e;
+    p.dash_timer = Handle<Timer>::create(player_e, Timer{0.0f, 4.0f});// dash_timer_e;
+    p.sat_dash_timer = Handle<SaturatingTimer>::create(player_e, SaturatingTimer{0.0f, 1.0f, 3.0f});// sat_dash_timer_e;
   }
 
   /*
@@ -513,11 +542,8 @@ void add_reflection() {
   reflect::add_fields("value", &Timer::value, "base", &Timer::base);
   reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
   reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
-  reflect::add_fields("dash_timer", &Player::dash_timer);
+  reflect::add_fields("dash_timer", &Player::dash_timer, "sat_dash_timer", &Player::sat_dash_timer);
   reflect::add_fields("max_velocity", &Movement::max_velocity, "acceleration", &Movement::acceleration);
-  //reflect::add_fields("e", &Handle<Timer>::e);
-
-  reflect::add_fields("attack_timer", &Enemy2::attack_timer, "move_timer", &Enemy2::move_timer);
 
   reflect::add_name<Health>("Health");
   reflect::add_name<Timer>("Timer");
@@ -526,8 +552,10 @@ void add_reflection() {
   reflect::add_name<Player>("Player");
   reflect::add_name<Movement>("Movement");
   reflect::add_name<Handle<Timer>>("Handle<Timer>");
+  reflect::add_name<Handle<SaturatingTimer>>("Handle<SaturatingTimer>");
 
   reflect::add_function<Handle<Timer>, Timer, &Handle<Timer>::get_copy, 0>("Timer");
+  reflect::add_function<Handle<SaturatingTimer>, SaturatingTimer, &Handle<SaturatingTimer>::get_copy, 0>("SaturatingTimer");
 
   glfwSetScrollCallback(platform::window, scroll_callback);
 }
@@ -568,9 +596,13 @@ void add_enemies() {
   ecs::add_rigid_body(enemy_e, {.shape = BoxShape{extents}, .mass = 1.0f});
 
   ecs::add(enemy_e,
-    Enemy2 {
+    Enemy {
       .attack_timer = Handle<Timer>::create(enemy_e, {1.0f, 2.0f}),
       .move_timer = Handle<Timer>::create(enemy_e, {0.0f, 0.25f}),
+
+      .timer = Handle<Timer>(enemy_e, {1.0f, 2.0f}),
+      .target = Handle<Transform, Health>(player_e),
+      .state = Enemy::PursueTarget,
     },
     Health {4.0f, 4.0f},
     Movement {
@@ -586,19 +618,109 @@ void movement_rigid_body(RigidBody* rigid_body, vec3 move_dir, Movement movement
   rigid_body->add_force(movement_dir * movement.acceleration);
 }
 
+u32 ai_distance(Transform& a, Transform& b, f32 threshold, u32 state_more, u32 state_less) {
+  f32 dist = a.pos.dist(b.pos);
+  if (dist > threshold) {
+    return state_more;
+  } else  {
+    return state_less;
+  }
+}
+
+u32 ai_health_diff(Health& prev, Health& curr, f32 precent_threshold, u32 state_more, u32 state_less) {
+  if(prev.percent() - curr.percent() >= precent_threshold) {
+    return state_less;
+  } else {
+    return state_more;
+  }
+}
+
+u32 ai_health_lower(Health& prev, Health& curr, f32 percent_threshold, u32 state_more, u32 state_less) {
+  if(prev.percent() > percent_threshold && curr.percent() <= percent_threshold) {
+    return state_less;
+  } else {
+    return state_more;
+  }
+}
+
+bool ai_health_diff2(Health& prev, Health& curr, f32 percent_threshold) {
+  return (prev.percent() - curr.percent()) >= percent_threshold;
+}
+
+struct Combinatorics {
+  u64 value;
+
+  enum Combo {
+    Fear = 0x1,
+    Turbo = 0x2,
+    Heal = 0x4,
+  };
+};
+
 void update_enemies() {
   auto player_transform = ecs::get<Transform>(player_e);
 
-  for(auto [e, transform, rigid_body, movement, health, color, enemy2] :
-  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy2>().each()) {
-    if(fabs(transform.pos.dist(player_transform.pos)) > 5.0f) {
-      vec3 dir = (player_transform.pos - transform.pos).norm();
+  for(auto [e, transform, rigid_body, movement, health, color, enemy] :
+  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy>().each()) {
+    Combinatorics combo = {0};
+    combo.value |= Combinatorics::Fear;
+
+    if(combo.value & Combinatorics::Fear) {
+    }
+
+    if(combo.value & Combinatorics::Turbo) {
+    }
+
+    if(combo.value & Combinatorics::Heal) {
+    }
+
+    auto [targ_trans, targ_health] = enemy.target.get();
+    auto& timer = enemy.timer.get();
+
+    color = Enemy::colors[enemy.state];
+
+    // if enemy suffered a large health loss then fear?
+    auto last_state = enemy.state;
+    enemy.state = ai_health_diff(enemy.last_health, health, 0.5f, enemy.state, Enemy::FleeTarget);
+    enemy.state = ai_health_lower(enemy.last_health, health, 0.25f, enemy.state, Enemy::FleeTarget);
+    if(last_state != enemy.state) {
+      timer = Enemy::timers[Enemy::FleeTarget];
+    }
+
+    if(enemy.state == Enemy::FleeTarget && timer.done_reset()) {
+      enemy.state = Enemy::PursueTarget;
+    }
+
+    if (enemy.state == Enemy::AttackTarget) {
+      if (timer.done_reset()) {
+        targ_health.value -= 1.0f;
+        color = {1,1,1,1};
+        printf("ATTACKED!\n");
+      }
+
+      ai_distance(transform, targ_trans, 5.0f, Enemy::PursueTarget, Enemy::AttackTarget);
+    } else if(enemy.state == Enemy::PursueTarget) {
+      vec3 dir = (targ_trans.pos - transform.pos).norm();
       movement_rigid_body(&rigid_body, dir, movement);
 
-      color = Color {1.0f, 0.0f, 0.0f, 1.0f} * health.percent();
+      f32 dist = transform.pos.dist(targ_trans.pos);
+      if (dist > 5.0f) {
+        enemy.state = Enemy::PursueTarget;
+      } else  {
+        enemy.state = Enemy::AttackTarget;
+      }
+    } else if(enemy.state == Enemy::FleeTarget) {
+      vec3 dir = (targ_trans.pos - transform.pos).norm();
+      dir = -dir; // run away
+      movement_rigid_body(&rigid_body, dir, movement);
+    } else if(enemy.state == Enemy::FindTarget) {
+      enemy.state = Enemy::PursueTarget;
     } else {
-      color = Color {0.0f, 1.0f, 0.0f, 1.0f} * health.percent();
+      // some kind of dumb thing happened
     }
+
+    enemy.last_health = health;
+    color *= health.percent();
   }
 }
 
@@ -650,7 +772,7 @@ void update_player_and_camera() {
 
     // dash
     Player p = ecs::get_first<Player>();
-    Timer& dash_timer = ecs::get<Timer>(p.dash_timer);
+    Timer& dash_timer = p.dash_timer.get();// ecs::get<Timer>(p.dash_timer);
     if (input::get("dash").just_down() && dash_timer.done()) {
       vec3 dash_dir = {local_input_dir.xy, 0.0f};
       player_body.linvel(dash_dir * dash_speed);

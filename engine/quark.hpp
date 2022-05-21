@@ -48,6 +48,15 @@ struct Timer {
   void reset() {
     value = base;
   };
+
+  bool done_reset() {
+    if(done()) {
+      reset();
+      return true;
+    }
+
+    return false;
+  }
 };
 
 struct SaturatingTimer {
