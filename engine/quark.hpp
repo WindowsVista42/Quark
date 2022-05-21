@@ -57,6 +57,10 @@ struct Timer {
 
     return false;
   }
+
+  f32 percent() {
+    return max(value / base, 0.0f);
+  }
 };
 
 struct SaturatingTimer {

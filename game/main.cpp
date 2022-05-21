@@ -67,12 +67,11 @@ struct Enemy {
 };
 
 Color Enemy::colors[Count] = {
-    Color {1,0,0,1},
-    Color {0,1,0,1},
-    Color {0,1,1,1},
-    Color {1,0,1,1},
-  };
-
+  Color {1,0,0,1},
+  Color {0,1,0,1},
+  Color {0,1,1,1},
+  Color {1,0,1,1},
+};
 
 struct Speed {
   float speed;
@@ -86,6 +85,9 @@ struct Player {
 struct Movement {
   f32 max_velocity;
   f32 acceleration;
+  f32 forwards_acceleration;
+  f32 backwards_acceleration;
+  f32 sideways_accerlation;
 };
 
 template <usize Id>
@@ -115,6 +117,12 @@ namespace Effect5 {
   using Wireframe = UseWireframePass;
   using Lit       = UseLitPass;
   using Shadow    = UseShadowPass;
+};
+
+struct Status {
+  Handle<Timer> fear;
+  Handle<Timer> turbo;
+  Handle<Timer> heal;
 };
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) { scroll_height += (f32)yoffset; }
@@ -177,6 +185,14 @@ void game_init() {
 
     Extents& extents = ecs::get<Extents>(e);
     ecs::add_rigid_body(e, { .shape = CapsuleShape(extents.z, (extents.x + extents.y)), .mass = 1.0f});
+
+    ecs::add(player_e, Movement {
+      .max_velocity = 20.0f,
+      .acceleration = 0.5f,
+      .forwards_acceleration = 4.0f,
+      .backwards_acceleration = 0.0f,
+      .sideways_accerlation = 0.5f,
+    });
   }
 
   RigidBody& player_body = ecs::get<RigidBody>(player_e);
@@ -610,6 +626,14 @@ void add_enemies() {
     Movement {
       .max_velocity = 20.0f,
       .acceleration = 0.1f,
+      .forwards_acceleration = 0.8f,
+      .backwards_acceleration = 0.2f,
+      .sideways_accerlation = 0.2f,
+    },
+    Status {
+      .fear = Handle<Timer>(enemy_e, {0.0f, 0.25f}),
+      .turbo = Handle<Timer>(enemy_e, {0.0f, 1.0f}),
+      .heal = Handle<Timer>(enemy_e, {0.0f, 1.0f}),
     }
   );
 }
@@ -617,7 +641,13 @@ void add_enemies() {
 void movement_rigid_body(RigidBody* rigid_body, vec3 move_dir, Movement movement) {
   vec3 linvel = rigid_body->linvel();
   vec3 movement_dir = vec3{(move_dir.xy * movement.max_velocity) - linvel.xy, 0.0f};
-  rigid_body->add_force(movement_dir * movement.acceleration);
+  vec3 accu_force =
+    movement_dir * movement.acceleration +
+    (movement_dir * movement.forwards_acceleration * max(linvel.norm().dot(move_dir), 0.0f)) +
+    (movement_dir * movement.backwards_acceleration * max((1.0f - linvel.norm().dot(move_dir)), 0.0f)) +
+    (movement_dir * movement.sideways_accerlation * max(1.0f - fabs(linvel.norm().dot(move_dir)), 0.0f));
+
+  rigid_body->add_force(accu_force);
 }
 
 u32 ai_distance(Transform& a, Transform& b, f32 threshold, u32 state_more, u32 state_less) {
@@ -649,37 +679,31 @@ bool ai_health_diff2(Health& prev, Health& curr, f32 percent_threshold) {
   return (prev.percent() - curr.percent()) >= percent_threshold;
 }
 
-struct Combinatorics {
-  u64 value;
-
-  enum Combo {
-    Fear = 0x1,
-    Turbo = 0x2,
-    Heal = 0x4,
-  };
-};
-
 void update_enemies() {
   auto player_transform = ecs::get<Transform>(player_e);
 
-  for(auto [e, transform, rigid_body, movement, health, color, enemy] :
-  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy>().each()) {
-    Combinatorics combo = {0};
-    combo.value |= Combinatorics::Fear;
+  for(auto [e, transform, rigid_body, movement, health, color, enemy, status] :
+  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy, Status>().each()) {
+    f32 move_speed_mod = 1.0f;
 
-    if(combo.value & Combinatorics::Fear) {
+    if(auto timer = status.fear.get(); true) {
+      move_speed_mod = 1.0f - powf(timer.percent(), 0.25);
     }
 
-    if(combo.value & Combinatorics::Turbo) {
-    }
+    //if(status.value & Status::Turbo) {
+    //  status.value & ~Status::Turbo;
+    //}
 
-    if(combo.value & Combinatorics::Heal) {
-    }
+    //if(status.value & Status::Heal) {
+    //  status.value & ~Status::Heal;
+    //}
 
     auto [targ_trans, targ_health] = enemy.target.get();
     auto& timer = enemy.timer.get();
 
     color = Enemy::colors[enemy.state];
+    Movement move = movement;
+    move.max_velocity = move.max_velocity * move_speed_mod;
 
     // if enemy suffered a large health loss then fear?
     auto last_state = enemy.state;
@@ -694,16 +718,17 @@ void update_enemies() {
     }
 
     if (enemy.state == Enemy::AttackTarget) {
-      if (timer.done_reset()) {
-        targ_health.value -= 1.0f;
-        color = {1,1,1,1};
-        printf("ATTACKED!\n");
-      }
+      // TODO(sean): do something for timers
+      //if (timer.done_reset()) {
+      //  targ_health.value -= 1.0f;
+      //  printf("ATTACKED!\n");
+      //}
 
+      color = {1,1,1,1};
       ai_distance(transform, targ_trans, 5.0f, Enemy::PursueTarget, Enemy::AttackTarget);
     } else if(enemy.state == Enemy::PursueTarget) {
       vec3 dir = (targ_trans.pos - transform.pos).norm();
-      movement_rigid_body(&rigid_body, dir, movement);
+      movement_rigid_body(&rigid_body, dir, move);
 
       f32 dist = transform.pos.dist(targ_trans.pos);
       if (dist > 5.0f) {
@@ -714,7 +739,7 @@ void update_enemies() {
     } else if(enemy.state == Enemy::FleeTarget) {
       vec3 dir = (targ_trans.pos - transform.pos).norm();
       dir = -dir; // run away
-      movement_rigid_body(&rigid_body, dir, movement);
+      movement_rigid_body(&rigid_body, dir, move);
     } else if(enemy.state == Enemy::FindTarget) {
       enemy.state = Enemy::PursueTarget;
     } else {
@@ -744,6 +769,11 @@ void player_shoot() {
     if(health->value <= 0.0001f) {
       ecs::recursively_destroy(hit);
     }
+
+    if(Status* status = ecs::try_get<Status>(hit); status != 0) {
+      Timer& fear = status->fear.get();
+      fear.value = fear.base;
+    }
   }
 }
 
@@ -769,8 +799,9 @@ void update_player_and_camera() {
     const f32 dash_speed = 80.0f;
     const f32 jump_vel = 10.0f;
 
-    vec3 movement_dir = vec3{(local_input_dir.xy * max_velocity) - linvel.xy, 0.0f};
-    player_body.add_force(movement_dir * acceleration);
+    //vec3 movement_dir = vec3{(local_input_dir.xy * max_velocity) - linvel.xy, 0.0f};
+    //player_body.add_force(movement_dir * acceleration);
+    movement_rigid_body(&player_body, local_input_dir, ecs::get<Movement>(player_e));
 
     // dash
     Player p = ecs::get_first<Player>();
