@@ -1,4 +1,6 @@
 #include <quark.hpp>
+#include "binary_heap.hpp"
+#include "bitset.hpp"
 
 using namespace quark;
 using namespace quark::render;
