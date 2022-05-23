@@ -7,9 +7,9 @@ set(CXX_STANDARD 17)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(GLFW_BUILD_DOCS OFF)
-set(GLFW_BUILD_EXAMPLES OFF)
-set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 if(WIN32)
     set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
@@ -37,6 +37,7 @@ add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
 add_subdirectory(lib/meshoptimizer)
+add_subdirectory(lib/openal-soft)
 
 find_package(Vulkan REQUIRED)
 
@@ -87,6 +88,11 @@ target_precompile_headers(run #PUBLIC
   <btBulletDynamicsCommon.h>
   <stb_image.h>
   <qoi.h>
+  <AL/al.h>
+  <AL/alc.h>
+  <AL/alext.h>
+  <AL/efx.h>
+  <AL/efx-presets.h>
 
   #PRIVATE
   #src/quark_math.hpp
@@ -112,6 +118,7 @@ target_link_libraries(run
     tinyobjloader
     vk-bootstrap::vk-bootstrap
     VulkanMemoryAllocator
+    OpenAL
 
     Bullet3Common
     BulletDynamics
