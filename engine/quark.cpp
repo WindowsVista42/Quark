@@ -216,7 +216,7 @@ void quark::add_default_systems() {
     executor::add_back(def_system(quark::update_animation_frame_times, Update));
     executor::add_back(def_system(quark::animate_no_interpolate<Mesh>, Update));
     executor::add_back(def_system(quark::animate_no_interpolate<Texture>, Update));
-    executor::add_back(def_system(quark::animate_interpolate<Transform>, Update));
+    //executor::add_back(def_system(quark::animate_interpolate<Transform>, Update));
     executor::add_back(def_system(quark::animate_interpolate<Extents>, Update));
 
     executor::add_back(def_system(ecs::update_child_transforms, Update));

@@ -92,6 +92,156 @@ namespace quark::animation {
 
   template <typename T>
   struct NoInterpolation {};
+
+  //template <typename T>
+  //struct AnimationFrames2 {
+  //  std::vector<f32> times;
+  //  f32 time;
+  //  u32 previous;
+  //  u32 current;
+  //  u32 group;
+  //  bool switch_group;
+
+  //  std::vector<u32> roots;
+  //  std::vector<u32> groups;
+  //  std::vector<T> frames;
+  //};
+
+  template <typename T>
+  class slice {
+    T* _data;
+    usize _size;
+
+   public:
+    slice(std::initializer_list<T> list) {
+      _data = malloc(list.size() * sizeof(T));
+      _size = list.size();
+      // TODO(sean): use a different allocator, or allow for alloc specification
+      memcpy(_data, list.begin(), list.size() * sizeof(T));
+    }
+
+    // TODO(sean): check and implement
+    //~slice() {
+    //  free(_data);
+    //}
+
+    //slice(slice<T>&& other) {
+    //  _data = std::move(other._data);
+    //  _size = std::exchange(other._size);
+    //}
+
+    T& operator [](std::size_t i) {
+      return _data[i];
+    }
+
+    std::size_t size() {
+      return _size;
+    }
+  };
+
+  template <typename T>
+  struct ComplexAnimationFrames {
+    u32 current_state;
+    u32 next_state; // gets changed externally
+
+    u32 current_frame;
+
+    f32 time;
+
+    //slice<slice<f32>> times;
+    //slice<slice<T>> states;
+
+    std::vector<std::vector<f32>> times;
+    std::vector<std::vector<T>> states;
+
+    f32 percent() {
+      return time / times[current_state][current_frame];
+    }
+
+    auto anim(f32 dt) {
+      struct Result {
+        u32 state_current;
+        u32 state_next;
+
+        u32 frame_current;
+        u32 frame_next;
+      };
+
+      // Same code as AnimationFrames<T>::anim()
+      if (current_state == next_state) {
+        time += dt;
+
+        // loop to decrement frame times till we have no more remaining time
+        while(time >= times[current_state][current_frame]) {
+          time -= times[current_state][current_frame];
+          current_frame += 1;
+          current_frame %= times[current_state].size();
+        }
+
+        return Result {
+          current_state,
+          current_state,
+
+          current_frame,
+          (current_frame + 1) % (u32)times[current_state].size(),
+        };
+      }
+
+      // Loops over current_state till it can go to the next state
+      // then goes through those
+      // TODO(sean): flatten this out
+      else {
+        time += dt;
+
+        // switch to next state
+        if(time >= times[current_state][current_frame]) {
+          // switch to next state
+          time -= times[current_state][current_frame];
+          current_frame = 0;
+          current_state = next_state;
+
+          // NOTE(sean): this doesnt necessarily need to be
+          // inside of the if statement, but
+          // i put it here because it "logically" should run in here
+          //
+          // iterate through the current state all the amount that we need to
+          while(time >= times[current_state][current_frame]) {
+            time -= times[current_state][current_frame];
+            current_frame += 1;
+            current_frame %= times[current_state].size();
+          }
+
+          return Result {
+            current_state,
+            current_state,
+
+            // this needs to handle
+            // current -> current
+            // current -> next
+            // next -> next
+            current_frame,
+            (current_frame + 1) % (u32)times[current_state].size(),
+          };
+        }
+
+        // dont switch to next state
+        else {
+          printf("here2!\n");
+          return Result {
+            current_state,
+            current_state,
+
+            current_frame,
+            (current_frame + 1) % (u32)times[current_state].size(),
+          };
+        }
+      }
+    }
+  };
+
+  struct AnimationEvents {
+    bool finished_and_changed;
+  };
 };
 
 namespace quark {

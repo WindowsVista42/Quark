@@ -448,6 +448,34 @@ void game_init() {
       },
     });
 
+    ecs::add(e, ComplexAnimationFrames<Transform> {
+      .current_state = 0,
+      .next_state = 0,
+
+      .current_frame= 0,
+
+      .time = 0.0f,
+
+      // In theory could use a fat ptr
+      .times = {
+        {1.0, 2.0, 1.0, 3.0},
+        {4.0, 5.0},
+      },
+
+      .states = {
+        { // group 0
+          transform,
+          {.pos = { 10.0f,   0.0f,  10.0f}, .rot = axis_angle(VEC3_UNIT_X, 10.0f)},
+          {.pos = {  0.0f,  10.0f,  10.0f}, .rot = axis_angle(VEC3_UNIT_Y, 10.0f)},
+          {.pos = { 10.0f,   0.0f,  10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f)},
+        },
+        { // group 1
+          {.pos = { 10.0f,  10.0f,  10.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f)},
+          {.pos = {-10.0f, -10.0f,   5.0f}, .rot = axis_angle(VEC3_UNIT_Z, 10.0f)},
+        },
+      },
+    });
+
     ecs::add(e, SmoothStepInterpolation<Transform>{});
     ecs::add(e, NoInterpolation<Extents>{});
 
@@ -553,6 +581,7 @@ void bind_inputs() {
   input::bind("select_move_closer", Mouse::ScrollDown);
 
   input::bind("spawn", Key::N);
+  input::bind("test", Key::Period);
 }
 
 void add_reflection() {
@@ -592,6 +621,25 @@ void update_input_dir() {
 
     input_dir.xy = input_dir.xy.norm_max_mag(1.0f);
     input_dir.xy = input_dir.xy.rotate(MAIN_CAMERA.spherical_dir.x);
+  }
+}
+
+void update_animation_frame2() {
+  bool switch_state = input::get("test").just_down();
+
+  for(auto [e, transform, anim] :
+  ecs::REGISTRY.view<Transform, ComplexAnimationFrames<Transform>>().each()) {
+    if(switch_state) {
+      anim.next_state += 1;
+      anim.next_state %= 2;
+      //anim.current_frame = 0;
+      //anim.time = 0.0f;
+    }
+
+    auto [current_state, next_state, current_frame, next_frame] = anim.anim(DT);
+    Transform& A = anim.states[current_state][current_frame];
+    Transform& B = anim.states[next_state][next_frame];
+    transform = lerp(A, B, anim.percent());
   }
 }
 
@@ -1052,6 +1100,8 @@ int main() {
     executor::add_after(def_system(add_enemies, Update), name(quark::update_physics));
     executor::add_after(def_system(update_enemies, Update), name(add_enemies));
     executor::add_after(def_system(player_shoot, Update), name(update_enemies));
+
+    executor::add_after(def_system(update_animation_frame2, Update), "quark::animate_no_interpolate<Texture>");
 
     executor::save("quark");
 
