@@ -86,7 +86,6 @@ std::array<EffectCopyData, 5> EFFECT_COPY_DATA = {
   },
 };
 
-
 std::array<usize, 5> EFFECT_COUNTS;
 std::array<char[1024 * 1024], 5> EFFECT_BUFFERS;
 

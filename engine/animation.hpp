@@ -141,6 +141,14 @@ namespace quark::animation {
 
   template <typename T>
   struct ComplexAnimationFrames {
+    struct Result {
+      u32 state_current;
+      u32 state_next;
+
+      u32 frame_current;
+      u32 frame_next;
+    };
+
     u32 current_state;
     u32 next_state; // gets changed externally
 
@@ -158,15 +166,7 @@ namespace quark::animation {
       return time / times[current_state][current_frame];
     }
 
-    auto anim(f32 dt) {
-      struct Result {
-        u32 state_current;
-        u32 state_next;
-
-        u32 frame_current;
-        u32 frame_next;
-      };
-
+    auto animate_full_frame(f32 dt) {
       // Same code as AnimationFrames<T>::anim()
       if (current_state == next_state) {
         time += dt;
@@ -190,6 +190,8 @@ namespace quark::animation {
       // Loops over current_state till it can go to the next state
       // then goes through those
       // TODO(sean): flatten this out
+      // TODO(sean): build a version of this that waits for the full
+      // state cycle to finish
       else {
         time += dt;
 
@@ -226,7 +228,6 @@ namespace quark::animation {
 
         // dont switch to next state
         else {
-          printf("here2!\n");
           return Result {
             current_state,
             current_state,
@@ -236,6 +237,54 @@ namespace quark::animation {
           };
         }
       }
+    }
+
+    // assumes `time += dt` has already been done
+    auto anim0() {
+      // loop to decrement frame times till we have no more remaining time
+      while(time >= times[current_state][current_frame]) {
+        time -= times[current_state][current_frame];
+        current_frame += 1;
+        current_frame %= times[current_state].size();
+      }
+
+      return Result {
+        current_state,
+        current_state,
+
+        current_frame,
+        (current_frame + 1) % (u32)times[current_state].size(),
+      };
+    }
+
+    auto animate_full_state(f32 dt) {
+      time += dt;
+
+      // Animate like normal
+      if (current_state == next_state) {
+        return anim0();
+      }
+
+      // we might want to switch to next state
+      while(time >= times[current_state][current_frame]) {
+        time -= times[current_state][current_frame];
+        current_frame += 1;
+        current_frame %= times[current_state].size();
+
+        // if we have gone to
+        // frame 0 then we want to switch to the next state
+        if (current_frame == 0) {
+          current_state = next_state;
+        }
+      }
+
+      return Result {
+        current_state,
+        current_state,
+
+        current_frame,
+        (current_frame + 1) % (u32)times[current_state].size(),
+      };
     }
   };
 

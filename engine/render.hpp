@@ -27,6 +27,16 @@ namespace quark::render {
     u32 id;
   };
 
+  namespace Effect4 {
+    template <usize Id>
+    struct EffectId {};
+  
+    using Solid     = EffectId<0>;
+    using Wireframe = EffectId<1>;
+    using Lit       = EffectId<2>;
+    using Shadow    = EffectId<3>;
+  };
+
   Effect2 get_effect(const char* name);
 
   // Baseline data that every effect needs:

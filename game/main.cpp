@@ -93,25 +93,6 @@ struct Movement {
 template <usize Id>
 struct EffectId {};
 
-namespace Effect4 {
-  template <usize Id>
-  struct EffectId {};
-
-  namespace {
-    enum EffectNum {
-      SolidNum = 0,
-      WireframeNum,
-      LitNum,
-      ShadowNum,
-    };
-  };
-
-  using Solid     = EffectId<0>;
-  using Wireframe = EffectId<1>;
-  using Lit       = EffectId<2>;
-  using Shadow    = EffectId<3>;
-};
-
 namespace Effect5 {
   using Solid     = UseSolidPass;
   using Wireframe = UseWireframePass;
@@ -632,14 +613,26 @@ void update_animation_frame2() {
     if(switch_state) {
       anim.next_state += 1;
       anim.next_state %= 2;
-      //anim.current_frame = 0;
-      //anim.time = 0.0f;
     }
 
-    auto [current_state, next_state, current_frame, next_frame] = anim.anim(DT);
+    auto [current_state, next_state, current_frame, next_frame] = anim.animate_full_state(DT);
     Transform& A = anim.states[current_state][current_frame];
     Transform& B = anim.states[next_state][next_frame];
     transform = lerp(A, B, anim.percent());
+  }
+
+  for(auto [e, mesh, anim] :
+  ecs::REGISTRY.view<Mesh, ComplexAnimationFrames<Mesh>>().each()) {
+    auto [current_state, next_state, current_frame, next_frame] = anim.animate_full_state(DT);
+    Mesh& A = anim.states[current_state][current_frame];
+    mesh = A;
+  }
+
+  for(auto [e, ext, anim] :
+  ecs::REGISTRY.view<Extents, ComplexAnimationFrames<Extents>>().each()) {
+    auto [current_state, next_state, current_frame, next_frame] = anim.animate_full_state(DT);
+    Extents& A = anim.states[current_state][current_frame];
+    ext = A;
   }
 }
 
@@ -660,6 +653,14 @@ void add_enemies() {
 
   Extents extents = ecs::get<Extents>(enemy_e);
   ecs::add_rigid_body(enemy_e, {.shape = BoxShape{extents}, .mass = 1.0f});
+
+  constexpr f32 fps = (1.0 / 60.0) * 10.0f;
+
+  auto cube_mesh = assets::get<Mesh>("cube");
+  auto suzanne_mesh = assets::get<Mesh>("suzanne");
+
+  auto cube_ext = MESH_SCALES.at("cube.obj");
+  auto suzanne_ext = MESH_SCALES.at("suzanne.obj");
 
   ecs::add(enemy_e,
     Enemy {
@@ -682,6 +683,72 @@ void add_enemies() {
       .fear = Handle<Timer>(enemy_e, {0.0f, 0.25f}),
       .turbo = Handle<Timer>(enemy_e, {0.0f, 1.0f}),
       .heal = Handle<Timer>(enemy_e, {0.0f, 1.0f}),
+    },
+    ComplexAnimationFrames<Mesh> {
+      .current_state = 0,
+      .next_state = 0,
+      .current_frame= 0,
+      .time = 0.0f,
+      .times = {
+        { fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+        },
+        { fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+          fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+        },
+        { fps, fps,
+        },
+      },
+      .states = {
+        { // moving
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh,
+        },
+        { // shooting
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+          cube_mesh, suzanne_mesh, cube_mesh, suzanne_mesh,
+        },
+        { // idle
+          cube_mesh,
+          cube_mesh,
+        },
+      },
+    },
+    ComplexAnimationFrames<Extents> {
+      .current_state = 0,
+      .next_state = 0,
+      .current_frame= 0,
+      .time = 0.0f,
+      .times = {
+        { fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+        },
+        { fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+          fps, fps, fps, fps, fps, fps, fps, fps, fps, fps,
+        },
+        { fps, fps,
+        },
+      },
+      .states = {
+        { // moving
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext,
+        },
+        { // shooting
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+          cube_ext, suzanne_ext, cube_ext, suzanne_ext,
+        },
+        { // idle
+          cube_ext,
+          cube_ext,
+        },
+      },
     }
   );
 }
@@ -730,8 +797,14 @@ bool ai_health_diff2(Health& prev, Health& curr, f32 percent_threshold) {
 void update_enemies() {
   auto player_transform = ecs::get<Transform>(player_e);
 
-  for(auto [e, transform, rigid_body, movement, health, color, enemy, status] :
-  ecs::REGISTRY.view<Transform, RigidBody, Movement, Health, Color, Enemy, Status>().each()) {
+  for(auto [
+      e, transform, rigid_body, movement, health, color, enemy, status,
+      mesh_frames, ext_frames
+  ] :
+  ecs::REGISTRY.view<
+    Transform, RigidBody, Movement, Health, Color, Enemy, Status,
+    ComplexAnimationFrames<Mesh>, ComplexAnimationFrames<Extents>
+  >().each()) {
     f32 move_speed_mod = 1.0f;
 
     if(auto timer = status.fear.get(); true) {
@@ -796,6 +869,22 @@ void update_enemies() {
 
     enemy.last_health = health;
     color *= health.percent();
+
+    u32 next_thing = mesh_frames.current_state;
+
+    if (enemy.state == Enemy::AttackTarget) {
+      next_thing = 1;
+    } else if(enemy.state == Enemy::PursueTarget) {
+      next_thing = 0;
+    } else if(enemy.state == Enemy::FleeTarget) {
+      next_thing = 2;
+    } else if(enemy.state == Enemy::FindTarget) {
+      next_thing = 0;
+    } else {
+    }
+
+    mesh_frames.next_state = next_thing;
+    ext_frames.next_state = next_thing;
   }
 }
 
