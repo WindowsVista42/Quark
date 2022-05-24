@@ -65,7 +65,7 @@ add_executable(run
   engine/states.cpp
   engine/quark.cpp
 	
-	game/main.cpp
+	test/main.cpp
 )
 
 target_precompile_headers(run #PUBLIC
