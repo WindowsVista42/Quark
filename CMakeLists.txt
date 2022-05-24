@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)
 
 project(Game)
 
@@ -10,6 +10,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_ENET OFF CACHE BOOL "" FORCE)
+set(BUILD_CLSOCKET OFF CACHE BOOL "" FORCE)
+set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 
 if(WIN32)
     set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
@@ -38,12 +46,13 @@ add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
 add_subdirectory(lib/meshoptimizer)
 add_subdirectory(lib/openal-soft)
+add_subdirectory(lib/bullet3)
 
 find_package(Vulkan REQUIRED)
 
-include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
+#include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
-find_package(Bullet CONFIG REQUIRED)
+#find_package(Bullet CONFIG REQUIRED)
 include_directories(${BULLET_INCLUDE_DIRS})
 
 include_directories(lib/vk-bootstrap/src)
