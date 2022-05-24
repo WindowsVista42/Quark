@@ -18,6 +18,7 @@ set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_ENET OFF CACHE BOOL "" FORCE)
 set(BUILD_CLSOCKET OFF CACHE BOOL "" FORCE)
 set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
+set(INSTALL_LIBS ON )
 
 if(WIN32)
     set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
@@ -52,31 +53,32 @@ find_package(Vulkan REQUIRED)
 
 #include($ENV{VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake)
 
-#find_package(Bullet CONFIG REQUIRED)
-include_directories(${BULLET_INCLUDE_DIRS})
+find_package(Bullet CONFIG REQUIRED)
+
+include_directories(${BULLET_INCLUDE_DIR})
 
 include_directories(lib/vk-bootstrap/src)
 include_directories(engine/)
 include_directories(lib/stb)
 include_directories(lib/qoi)
-
 add_executable(run 
-  engine/render.cpp
-  engine/input.cpp
-  engine/animation.cpp
-  engine/quark_types.cpp
-  engine/quark_math.cpp
-  engine/quark_physics.cpp
-  engine/quark_platform.cpp
-  engine/quark_ecs.cpp
-  engine/quark_assets.cpp
-  engine/executor.cpp
-  engine/states.cpp
-  engine/quark.cpp
-	
-	test/main.cpp
+engine/render.cpp
+engine/input.cpp
+engine/animation.cpp
+engine/quark_types.cpp
+engine/quark_math.cpp
+engine/quark_physics.cpp
+engine/quark_platform.cpp
+engine/quark_ecs.cpp
+engine/quark_assets.cpp
+engine/executor.cpp
+engine/states.cpp
+engine/quark.cpp
+
+test/main.cpp
 )
 
+#target_include_directories(run PUBLIC lib/bullet3/src)
 target_precompile_headers(run #PUBLIC
   PUBLIC
   <cstdint>
@@ -128,7 +130,6 @@ target_link_libraries(run
     vk-bootstrap::vk-bootstrap
     VulkanMemoryAllocator
     OpenAL
-
     Bullet3Common
     BulletDynamics
     BulletCollision

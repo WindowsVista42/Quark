@@ -355,7 +355,7 @@ void game_init() {
     entt::entity e = ecs::REGISTRY.create();
     ecs::add(e, transform, col);
     ecs::add_mesh(e, "cube", {400.0f, 400.0f, 1.0f});
-    ecs::add_texture(e, "missing");
+    ecs::add_texture(e, "test");
     ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
     Extents extents = ecs::get<Extents>(e);

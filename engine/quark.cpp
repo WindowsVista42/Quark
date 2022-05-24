@@ -64,7 +64,7 @@ void update_physics() {
   constexpr f32 PHYS_DT = 1.0f/ 60.0f;
   static f32 accumulator = 0.0f;
   accumulator += DT;
-  while(accumulator >= PHYS_DT) {
+  //while(accumulator >= PHYS_DT) {
     accumulator -= PHYS_DT;
 
     // sync collision objects with entitites
@@ -77,14 +77,14 @@ void update_physics() {
       ghost.transform(transform);
     }
 
-    physics_world->stepSimulation(PHYS_DT, 4);
+    physics_world->stepSimulation(DT, 4);
 
     // sync physics position and rotations with entities
     auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
     for (auto [e, transform, body] : rigid_bodies.each()) {
       transform = Transform { .pos = body.pos(), .rot = body.rot() };
     }
-  }
+  //}
 }
 
 template <typename T>
