@@ -20,6 +20,5 @@
 #include <entt/entity/registry.hpp>
 
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
-#include <BulletCollision/btBulletCollisionCommon.h>
-#include <BulletDynamics/btBulletDynamicsCommon.h>
+#include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
