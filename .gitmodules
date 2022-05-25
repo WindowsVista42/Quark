@@ -25,3 +25,6 @@
 [submodule "lib\\openal-soft"]
 	path = lib\\openal-soft
 	url = https://github.com/kcat/openal-soft
+[submodule "lib\\bullet3"]
+	path = lib\\bullet3
+	url = https://github.com/bulletphysics/bullet3
