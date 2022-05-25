@@ -36,11 +36,6 @@ wr:
 
 b:
 	rm -r build || true
-	mkdir build || true
-	mkdir assets || true
-	mkdir assets/shaders || true
-	mkdir assets/textures || true
-	mkdir assets/models || true
 	cmake -B build/debug -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .
 	cmake -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .
 	cmake -B build/release_with_debug_info -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo .
