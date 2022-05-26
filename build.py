@@ -19,15 +19,8 @@ if __name__ == "__main__":
   if mode == "compile_run" or mode == "compile":
     print(opt_level)
     
-    match opt_level:
-      case "debug":
-        print()
-      case "release":
-        print()
-      case "release_with_debug_info":
-        print()
-      case _:
-        sys.exit("opt_level not recognized!")
+    if opt_level != "debug" or opt_level != "release" or opt_level != "release_with_debug_info":
+      sys.exit("opt_level not recognized!")
     
     os.system("ninja -C build" + os.sep + opt_level + " -f build.ninja")
     shutil.copyfile("build" + os.sep + "debug" + os.sep + "compile_commands.json", "compile_commands.json")
