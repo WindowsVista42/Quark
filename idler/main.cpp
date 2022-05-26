@@ -1,16 +1,10 @@
 #include <quark.hpp>
-#include <GLFW/glfw3.h>
 
 using namespace quark;
 
 void bind_inputs() {
   input::bind("do_thing", Key::Z);
   input::bind("toggle_perf", Key::Backslash);
-}
-
-
-void add_reflection() {
-  glfwSetInputMode(platform::window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 void game_init() {
@@ -48,12 +42,9 @@ int main() {
   quark::add_default_systems();
 
   {
-    executor::add_back(def_system(add_reflection, Init));
     executor::add_back(def_system(bind_inputs, Init));
-
     executor::add_back(def_system(game_init, StateInit));
     executor::add_back(def_system(game_deinit, StateDeinit));
-
     executor::add_after(def_system(game_update, Update), "input::update_all");
 
     executor::save("my_game");
@@ -61,7 +52,6 @@ int main() {
 
   executor::load("my_game");
   executor::print_all(executor::ExecGroup::Update);
-
   quark::run();
 
   return 0;
