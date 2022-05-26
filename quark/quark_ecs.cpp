@@ -92,6 +92,7 @@ void add_selection_box(Entity e, BoxShape shape) {
   CollisionShape* shape_ptr = (CollisionShape*)&ecs::get<Shape>(e); \
  \
   vec3 local_inertia = info.mass == 0.0f ? vec3{0} : shape_ptr->calc_local_inertia(info.mass); \
+ \
   btRigidBody::btRigidBodyConstructionInfo rb_info(info.mass, 0, (btCollisionShape*)shape_ptr, local_inertia); \
   RigidBody body = RigidBody(rb_info); \
  \

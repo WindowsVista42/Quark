@@ -15,19 +15,6 @@
 #include "quark_physics.hpp"
 
 namespace quark {
-inline std::unordered_map<std::string, Scale> MESH_SCALES;
-};
-
-#include "quark_ecs.hpp"
-#include "quark_platform.hpp"
-#include "input.hpp"
-#include "quark_reflect.hpp"
-#include "render.hpp"
-#include "executor.hpp"
-#include "states.hpp"
-
-namespace quark {
-using namespace quark;
 
 inline bool ENABLE_PERFORMANCE_STATISTICS = false;
 // inline const char* window_name = "Quark Game Engine";
@@ -37,6 +24,10 @@ inline f32 TT = 0.0f;         // Total elapsed time
 // Map of meshes offsets to mesh dimensions
 inline bool ENABLE_PHYSICS_BOUNDING_BOX_VISOR = false;
 
+inline std::unordered_map<std::string, Scale> MESH_SCALES;
+};
+
+namespace quark {
 struct Timer {
   f32 value;
   f32 base;
@@ -80,9 +71,21 @@ struct SaturatingTimer {
     value += base;
   }
 };
+};
 
+#include "quark_ecs.hpp"
+#include "quark_platform.hpp"
+#include "input.hpp"
+#include "quark_reflect.hpp"
+#include "render.hpp"
+#include "executor.hpp"
+#include "states.hpp"
+
+namespace quark {
+using namespace quark;
 // Functions
 void add_default_systems();
+void add_fps_systems();
 void run();
 
 // Update stages

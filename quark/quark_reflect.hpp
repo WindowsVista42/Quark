@@ -419,6 +419,9 @@ static void init() {
   reflect::add_name<SphereShape>("SphereShape");
   reflect::add_name<CapsuleShape>("CapsuleShape");
 
+  reflect::add_name<Timer>("Timer");
+  reflect::add_name<SaturatingTimer>("SaturatingTimer");
+
   reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
   reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
   reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);
@@ -436,6 +439,9 @@ static void init() {
 
   reflect::add_fields("pos", &Transform::pos, "rot", &Transform::rot);
   reflect::add_fields("pos", &TransformOffset::pos, "rot", &TransformOffset::rot);
+
+  reflect::add_fields("value", &Timer::value, "base", &Timer::base);
+  reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
 
   reflect::add_inheritance<quat, vec4>();
   reflect::add_inheritance<Position, vec3>();

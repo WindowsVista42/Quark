@@ -283,8 +283,8 @@ namespace quark::render::internal {
   #define OP_TIMEOUT 1000000000
   #define FRAME_OVERLAP 2
   
-  extern i32 WINDOW_W; // Current window width
-  extern i32 WINDOW_H; // Current window height
+  //extern i32 WINDOW_W; // Current window width
+  //extern i32 WINDOW_H; // Current window height
   extern bool FRAMEBUFFER_RESIZED;
   
   inline VkInstance INSTANCE;                      // Vulkan instance

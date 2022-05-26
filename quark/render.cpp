@@ -187,7 +187,7 @@ void update_cameras() {
   SUN_CAMERA.zfar = 500.0f;
   SUN_CAMERA.fov = 16.0f;
   SUN_VIEW_PROJECTION = update_matrices(SUN_CAMERA, 2048, 2048);
-  MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, WINDOW_W, WINDOW_H);
+  MAIN_VIEW_PROJECTION = update_matrices(MAIN_CAMERA, platform::window_w, platform::window_h);
 
   update_world_data();
 }
@@ -362,8 +362,6 @@ const VertexInputDescription<1, 3> VertexPNC::input_description = {
   }
 };
 
-i32 WINDOW_W = 1920;
-i32 WINDOW_H = 1080;
 bool FRAMEBUFFER_RESIZED = false;
 
 usize FRAME_COUNT = 0;
@@ -561,33 +559,40 @@ void init_window() {
   }
   
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+  if(platform::ENABLE_WINDOW_RESIZING) {
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  } else {
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  }
   
   const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
   
-  if (WINDOW_W < 0) {
-    WINDOW_W = vid_mode->width;
+  if (platform::window_w < 0) {
+    platform::window_w = vid_mode->width;
   }
   
-  if (WINDOW_H < 0) {
-    WINDOW_H = vid_mode->height;
+  if (platform::window_h < 0) {
+    platform::window_h = vid_mode->height;
   }
   
-  window = glfwCreateWindow(WINDOW_W, WINDOW_H, window_name, 0, 0);
-  glfwSetWindowPos(window, 0, 0);
+  window = glfwCreateWindow(platform::window_w, platform::window_h, window_name, 0, 0);
   
   if (window_is_fullscreen) {
-    glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, WINDOW_W, WINDOW_H, vid_mode->refreshRate);
+    glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, platform::window_w, platform::window_h, vid_mode->refreshRate);
   }
   
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  if(platform::ENABLE_CURSOR) {
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  } else {
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  }
+
   if (glfwRawMouseMotionSupported()) {
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
   }
   
-  glfwSetCursorPosCallback(window, internal::update_cursor_position);
-  
-  glfwGetFramebufferSize(window, &WINDOW_W, &WINDOW_H);
+  glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
 }
 
 void init_vulkan() {
@@ -693,7 +698,7 @@ void init_swapchain() {
 
   swapchain_builder = swapchain_builder.use_default_format_selection();
   swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
-  swapchain_builder = swapchain_builder.set_desired_extent(WINDOW_W, WINDOW_H);
+  swapchain_builder = swapchain_builder.set_desired_extent(platform::window_w, platform::window_h);
 
   vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
 
@@ -703,7 +708,7 @@ void init_swapchain() {
   SWAPCHAIN_FORMAT = vkb_swapchain.image_format;
 
   GLOBAL_DEPTH_IMAGE =
-      create_allocated_image(WINDOW_W, WINDOW_H, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+      create_allocated_image(platform::window_w, platform::window_h, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
   SUN_DEPTH_IMAGE = create_allocated_image(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
@@ -835,14 +840,14 @@ void init_framebuffers() {
     VkImageView attachments[2];
     attachments[0] = SWAPCHAIN_IMAGE_VIEWS[index];
     attachments[1] = GLOBAL_DEPTH_IMAGE.view;
-    GLOBAL_FRAMEBUFFERS[index] = create_framebuffer(DEFAULT_RENDER_PASS, WINDOW_W, WINDOW_H, attachments, count_of(attachments));
+    GLOBAL_FRAMEBUFFERS[index] = create_framebuffer(DEFAULT_RENDER_PASS, platform::window_w, platform::window_h, attachments, count_of(attachments));
   }
 
   DEPTH_PREPASS_FRAMEBUFFERS = (VkFramebuffer*)RENDER_ALLOC.alloc(sizeof(VkFramebuffer) * img_count);
   for_every(index, img_count) {
     VkImageView attachments[1];
     attachments[0] = GLOBAL_DEPTH_IMAGE.view;
-    DEPTH_PREPASS_FRAMEBUFFERS[index] = create_framebuffer(DEPTH_PREPASS_RENDER_PASS, WINDOW_W, WINDOW_H, attachments, count_of(attachments));
+    DEPTH_PREPASS_FRAMEBUFFERS[index] = create_framebuffer(DEPTH_PREPASS_RENDER_PASS, platform::window_w, platform::window_h, attachments, count_of(attachments));
   }
 
   SUN_SHADOW_FRAMEBUFFERS = (VkFramebuffer*)RENDER_ALLOC.alloc(sizeof(VkFramebuffer) * img_count);
@@ -955,14 +960,14 @@ void init_pipelines() {
   VkViewport viewport = {};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (f32)WINDOW_W;
-  viewport.height = (f32)WINDOW_H;
+  viewport.width = (f32)platform::window_w;
+  viewport.height = (f32)platform::window_h;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
   VkRect2D scissor = {};
   scissor.offset = {0, 0};
-  scissor.extent = {(u32)WINDOW_W, (u32)WINDOW_H};
+  scissor.extent = {(u32)platform::window_w, (u32)platform::window_h};
 
   VkPipelineViewportStateCreateInfo viewport_info = {};
   viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1863,9 +1868,9 @@ void deinit_window() {
 }
 
 void resize_swapchain() {
-  glfwGetFramebufferSize(window, &WINDOW_W, &WINDOW_H);
-  while (WINDOW_W == 0 || WINDOW_H == 0) {
-    glfwGetFramebufferSize(window, &WINDOW_W, &WINDOW_H);
+  glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
+  while (platform::window_w == 0 || platform::window_h == 0) {
+    glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
     glfwWaitEvents();
   }
 
@@ -2071,8 +2076,8 @@ void begin_forward_rendering() {
   render_pass_begin_info.renderPass = DEFAULT_RENDER_PASS;
   render_pass_begin_info.renderArea.offset.x = 0;
   render_pass_begin_info.renderArea.offset.y = 0;
-  render_pass_begin_info.renderArea.extent.width = WINDOW_W;
-  render_pass_begin_info.renderArea.extent.height = WINDOW_H;
+  render_pass_begin_info.renderArea.extent.width = platform::window_w;
+  render_pass_begin_info.renderArea.extent.height = platform::window_h;
   render_pass_begin_info.framebuffer = GLOBAL_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
   render_pass_begin_info.clearValueCount = 2;
   render_pass_begin_info.pClearValues = clear_values;
@@ -2101,8 +2106,8 @@ void begin_depth_prepass_rendering() {
   render_pass_begin_info.renderPass = DEPTH_PREPASS_RENDER_PASS;
   render_pass_begin_info.renderArea.offset.x = 0;
   render_pass_begin_info.renderArea.offset.y = 0;
-  render_pass_begin_info.renderArea.extent.width = WINDOW_W;
-  render_pass_begin_info.renderArea.extent.height = WINDOW_H;
+  render_pass_begin_info.renderArea.extent.width = platform::window_w;
+  render_pass_begin_info.renderArea.extent.height = platform::window_h;
   render_pass_begin_info.framebuffer = DEPTH_PREPASS_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
   render_pass_begin_info.clearValueCount = 1;
   render_pass_begin_info.pClearValues = clear_values;

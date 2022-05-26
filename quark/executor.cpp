@@ -68,7 +68,9 @@ namespace quark::executor {
 
   void exec(usize group) {
     //TODO(sean): add some kind of debug printing so i know what functions are being called when
+    //printf("Beginning exec group!\n");
     for_every(i, systems[group].size()) {
+      //printf("%s\n", names[group][i].c_str());
       (*systems[group][i])();
     }
   }
@@ -90,6 +92,11 @@ namespace quark::executor {
 
   void load(const char* name) {
     for_every(group, ExecGroup::COUNT) {
+      if(saved[group].find(name) == saved[group].end()) {
+        printf("%s\n", name);
+        panic("Could not find group name!");
+      }
+
       auto [new_names, new_systems] = saved[group].at(name);
       names[group] = new_names;
       systems[group] = new_systems;
@@ -102,6 +109,11 @@ namespace quark::executor {
   }
 
   void load(const char* name, usize group) {
+    if(saved[group].find(name) == saved[group].end()) {
+      printf("%s\n", name);
+      panic("Could not find group name!");
+    }
+
     auto [new_names, new_systems] = saved[group].at(name);
     names[group] = new_names;
     systems[group] = new_systems;

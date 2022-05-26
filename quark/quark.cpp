@@ -8,6 +8,8 @@ using namespace render;
 
 namespace quark {
 
+//
+
 void init_allocators() {
   scratch_alloc.init(100 * MB);
   RENDER_ALLOC.init(100 * MB);
@@ -55,16 +57,17 @@ void wait_gpu_idle() {
 }
 
 void check_for_close() {
-  if (platform::get_key(GLFW_KEY_ESCAPE)) {
+  if (platform::get_key(GLFW_KEY_ESCAPE) || glfwWindowShouldClose(platform::window)) {
     platform::close_window();
   }
 }
 
 void update_physics() {
-  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
+  constexpr f32 PHYS_DT = 1.0f/ 5.0f;
   static f32 accumulator = 0.0f;
   accumulator += DT;
-  //while(accumulator >= PHYS_DT) {
+
+  while(accumulator >= PHYS_DT) {
     accumulator -= PHYS_DT;
 
     // sync collision objects with entitites
@@ -77,14 +80,14 @@ void update_physics() {
       ghost.transform(transform);
     }
 
-    physics_world->stepSimulation(DT, 4);
+    physics_world->stepSimulation(PHYS_DT, 4);
 
     // sync physics position and rotations with entities
     auto rigid_bodies = ecs::REGISTRY.view<Transform, RigidBody>(entt::exclude<DontSyncTransformWithPhysics>);
     for (auto [e, transform, body] : rigid_bodies.each()) {
       transform = Transform { .pos = body.pos(), .rot = body.rot() };
     }
-  //}
+  }
 }
 
 template <typename T>
@@ -208,9 +211,7 @@ void quark::add_default_systems() {
     // UPDATE
 
     executor::add_back(def_system(input::update_all, Update));
-    executor::add_back(def_system(quark::pan_camera, Update));
     executor::add_back(def_system(quark::update_timers, Update));
-
     executor::add_back(def_system(quark::update_physics, Update));
 
     executor::add_back(def_system(quark::update_animation_frame_times, Update));
@@ -220,8 +221,6 @@ void quark::add_default_systems() {
     executor::add_back(def_system(quark::animate_interpolate<Extents>, Update));
 
     executor::add_back(def_system(ecs::update_child_transforms, Update));
-
-    executor::add_back(def_system(quark::check_for_close, Update));
 
     // RENDER
 
@@ -258,6 +257,7 @@ void quark::add_default_systems() {
     // LAST
 
     executor::add_back(def_system(render::print_performance_statistics, Update));
+    executor::add_back(def_system(quark::check_for_close, Update));
 
     executor::save("default", executor::ExecGroup::Update);
   }
@@ -285,9 +285,14 @@ void quark::add_default_systems() {
   }
 }
 
+void quark::add_fps_systems() {
+  {
+    executor::add_after(def_system(quark::pan_camera, Update), "input::update_all");
+  }
+}
+
 void quark::run() {
   executor::exec(executor::ExecGroup::Init);
-  states::load("quark_editor");
 
   do {
     auto frame_begin_time = std::chrono::high_resolution_clock::now();

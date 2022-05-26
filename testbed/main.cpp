@@ -1,7 +1,6 @@
 #include <quark.hpp>
 #include "binary_heap.hpp"
 #include "bitset.hpp"
-#include <AL/al.h>
 
 using namespace quark;
 using namespace quark::render;
@@ -170,10 +169,10 @@ void game_init() {
 
     ecs::add(player_e, Movement {
       .max_velocity = 20.0f,
-      .acceleration = 0.5f,
-      .forwards_acceleration = 4.0f,
-      .backwards_acceleration = 0.0f,
-      .sideways_accerlation = 0.5f,
+      .acceleration = 50.0f,
+      .forwards_acceleration = 200.0f,
+      .backwards_acceleration = 25.0f,
+      .sideways_accerlation = 50.0f,
     });
   }
 
@@ -325,7 +324,7 @@ void game_init() {
         entt::entity e = ecs::REGISTRY.create();
         ecs::add(e, transform, col);
         ecs::add_mesh(e, "cube", {1.0f});
-        ecs::add_texture(e, "test");
+        ecs::add_texture(e, "missing");
         //ecs::add(e, assets::get<Texture>("test"));
         ecs::add_effect(e, Effect::Lit | Effect::Shadow);
 
@@ -757,13 +756,13 @@ void add_enemies() {
 void movement_rigid_body(RigidBody* rigid_body, vec3 move_dir, Movement movement) {
   vec3 linvel = rigid_body->linvel();
   vec3 movement_dir = vec3{(move_dir.xy * movement.max_velocity) - linvel.xy, 0.0f};
-  vec3 accu_force =
-    movement_dir * movement.acceleration +
-    (movement_dir * movement.forwards_acceleration * max(linvel.norm().dot(move_dir), 0.0f)) +
-    (movement_dir * movement.backwards_acceleration * max((1.0f - linvel.norm().dot(move_dir)), 0.0f)) +
-    (movement_dir * movement.sideways_accerlation * max(1.0f - fabs(linvel.norm().dot(move_dir)), 0.0f));
+  vec3 accu_force = movement_dir * movement.acceleration;
+    //+
+    //(movement_dir * movement.forwards_acceleration * max(linvel.norm().dot(move_dir), 0.0f)) +
+    //(movement_dir * movement.backwards_acceleration * max((1.0f - linvel.norm().dot(move_dir)), 0.0f)) +
+    //(movement_dir * movement.sideways_accerlation * max(1.0f - fabs(linvel.norm().dot(move_dir)), 0.0f));
 
-  rigid_body->add_force(accu_force);
+  rigid_body->add_force(accu_force * DT);
 }
 
 u32 ai_distance(Transform& a, Transform& b, f32 threshold, u32 state_more, u32 state_less) {
@@ -1171,10 +1170,11 @@ int main() {
   quark::ENABLE_PERFORMANCE_STATISTICS = true;
 
   platform::window_name = "Quark";
-  platform::window_w = -1;
-  platform::window_h = 1080;
+  platform::window_w = 720;
+  platform::window_h = 480;
 
   quark::add_default_systems();
+  quark::add_fps_systems();
 
   {
     executor::add_back(def_system(bind_inputs, Init));

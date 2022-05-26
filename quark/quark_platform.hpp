@@ -19,6 +19,9 @@ constexpr int QUARK_UNBOUND = -1;
 }; // namespace types
 using namespace types;
 
+inline bool ENABLE_WINDOW_RESIZING = true;
+inline bool ENABLE_CURSOR = false;
+
 inline Window* window; // GLFW window pointer
 inline const char* window_name = "Quark Game Engine";
 inline i32 window_w = 800;
