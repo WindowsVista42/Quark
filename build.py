@@ -1,12 +1,38 @@
 import os
 import shutil
 import sys
+import atexit
+
+OPT_LEVELS = ["debug", "release", "release_with_debug_info"]
+MODES = ["compile_run", "compile", "setup"]
+DEBUG_DIR = "build" + os.sep + "debug"
+
+mode = None
+opt_level = None
+bin_name = None
+build_dir = None
+
+def replace_compile_commands():
+  COMP_CMD = "compile_commands.json"
+  COMP_CMD_DIR = DEBUG_DIR + os.sep + COMP_CMD
+
+  if not os.path.exists(COMP_CMD_DIR):
+    print("Failed to locate " + COMP_CMD_DIR + " ignoring copy!")
+    return
+
+  if os.path.exists(COMP_CMD):
+    os.remove(COMP_CMD)
+
+  if shutil.copy2(COMP_CMD_DIR, COMP_CMD) != COMP_CMD:
+    sys.exit("Failed to copy " + COMP_CMD + "!")
+
+  print("Copied " + COMP_CMD_DIR + " to " + COMP_CMD)
+
+def run_program():
+  os.system("." + os.sep + build_dir + os.sep + bin_name)
 
 if __name__ == "__main__":
-  mode = None
-  opt_level = None
-  binary = None
-  
+  # Error handling
   if len(sys.argv) > 1:
     mode = sys.argv[1]
   
@@ -14,25 +40,33 @@ if __name__ == "__main__":
     opt_level = sys.argv[2]
   
   if len(sys.argv) > 3:
-    binary = sys.argv[3]
+    bin_name = sys.argv[3]
+
+  if not (mode in MODES):
+    sys.exit("mode not recognized: " + mode)
   
+  # Compile if one of the compile modes
   if mode == "compile_run" or mode == "compile":
-    print(opt_level)
-    
-    if opt_level != "debug" and opt_level != "release" and opt_level != "release_with_debug_info":
-      sys.exit("opt_level not recognized!")
-    
-    if(os.system("ninja -C build" + os.sep + opt_level + " -f build.ninja") != 0):
+    if not (opt_level in OPT_LEVELS):
+      sys.exit("opt_level not recognized: " + opt_level)
+
+    build_dir = "build" + os.sep + opt_level
+
+    print("Compiling " + build_dir + os.sep + bin_name)
+
+    if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0:
       sys.exit("Failed to build!")
 
-    #if(shutil.copyfile("build" + os.sep + "debug" + os.sep + "compile_commands.json", "compile_commands.json") != 0):
-    #  sys.exit("Failed to move compile_commands.json!")
+    replace_compile_commands()
   
-  if mode == "compile_run":
-    os.system("." + os.sep + "build" + os.sep + opt_level + os.sep + binary)
+    # Run if run mode
+    if mode == "compile_run":
+      atexit.register(run_program)
   
+  # Setup if setup mode
   if mode == "setup":
     os.system("cmake -B build/debug -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     os.system("cmake -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     os.system("cmake -B build/release_with_debug_info -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
-    shutil.copyfile("build" + os.sep + "debug" + os.sep + "compile_commands.json", "compile_commands.json")
+    replace_compile_commands()
+
