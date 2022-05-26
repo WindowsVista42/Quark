@@ -8,7 +8,7 @@ OUTPUT_PATH = "assets/shaders/"
 
 SHADER_DIRS = [
     "",
-    "engine/shaders/",
+    "quark/shaders/",
 ]
 
 FLAGS = [
