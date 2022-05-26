@@ -19,7 +19,7 @@ if __name__ == "__main__":
   if mode == "compile_run" or mode == "compile":
     print(opt_level)
     
-    if opt_level != "debug" or opt_level != "release" or opt_level != "release_with_debug_info":
+    if opt_level != "debug" and opt_level != "release" and opt_level != "release_with_debug_info":
       sys.exit("opt_level not recognized!")
     
     os.system("ninja -C build" + os.sep + opt_level + " -f build.ninja")
