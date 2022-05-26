@@ -1,18 +1,13 @@
 #include <quark.hpp>
 #include <GLFW/glfw3.h>
-#include "binary_heap.hpp"
-#include "bitset.hpp"
 
 using namespace quark;
 
 void bind_inputs() {
-  input::bind("do_thing", Key::A);
+  input::bind("do_thing", Key::Z);
   input::bind("toggle_perf", Key::Backslash);
 }
 
-static Entity aaa;
-
-struct Test {};
 
 void add_reflection() {
   glfwSetInputMode(platform::window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -44,8 +39,8 @@ void game_deinit() {
 
 int main() {
   platform::window_name = "Quark";
-  platform::window_w = 720;
-  platform::window_h = 480;
+  platform::window_w = 1920;
+  platform::window_h = 1000;
 
   platform::ENABLE_CURSOR = true;
   platform::ENABLE_WINDOW_RESIZING = false;
@@ -73,4 +68,3 @@ int main() {
 
   return 0;
 }
-

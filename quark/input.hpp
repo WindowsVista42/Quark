@@ -169,18 +169,5 @@ namespace quark {
   using ActionState = quark::input::ActionState;
 };
 
-static void a() {
-  using namespace quark;
-
-  struct Player {
-    static void move_forward(f32 v) {}
-  };
-
-  input::bind("forward", Key::Num0);
-
-  if(auto state = input::get("forward"); state.down()) {
-    Player::move_forward(state.value());
-  }
-}
 
 #endif
