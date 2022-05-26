@@ -22,8 +22,11 @@ if __name__ == "__main__":
     if opt_level != "debug" and opt_level != "release" and opt_level != "release_with_debug_info":
       sys.exit("opt_level not recognized!")
     
-    os.system("ninja -C build" + os.sep + opt_level + " -f build.ninja")
-    shutil.copyfile("build" + os.sep + "debug" + os.sep + "compile_commands.json", "compile_commands.json")
+    if(os.system("ninja -C build" + os.sep + opt_level + " -f build.ninja") != 0):
+      sys.exit("Failed to build!")
+
+    #if(shutil.copyfile("build" + os.sep + "debug" + os.sep + "compile_commands.json", "compile_commands.json") != 0):
+    #  sys.exit("Failed to move compile_commands.json!")
   
   if mode == "compile_run":
     os.system("." + os.sep + "build" + os.sep + opt_level + os.sep + binary)

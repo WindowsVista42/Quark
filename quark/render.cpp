@@ -582,7 +582,7 @@ void init_window() {
     glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, platform::window_w, platform::window_h, vid_mode->refreshRate);
   }
   
-  if(platform::ENABLE_CURSOR) {
+  if(!platform::ENABLE_CURSOR) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   } else {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

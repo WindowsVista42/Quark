@@ -1,12 +1,10 @@
 #include <quark.hpp>
 #include <GLFW/glfw3.h>
-#include "binary_heap.hpp"
-#include "bitset.hpp"
 
 using namespace quark;
 
 void bind_inputs() {
-  input::bind("do_thing", Key::A);
+  input::bind("do_thing", Key::Z);
   input::bind("toggle_perf", Key::Backslash);
 }
 
@@ -65,8 +63,6 @@ int main() {
   }
 
   executor::load("my_game");
-  states::load("my_game");
-
   executor::print_all(executor::ExecGroup::Update);
 
   quark::run();

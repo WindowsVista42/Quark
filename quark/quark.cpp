@@ -63,7 +63,7 @@ void check_for_close() {
 }
 
 void update_physics() {
-  constexpr f32 PHYS_DT = 1.0f/ 5.0f;
+  constexpr f32 PHYS_DT = 1.0f/ 60.0f;
   static f32 accumulator = 0.0f;
   accumulator += DT;
 
@@ -293,6 +293,7 @@ void quark::add_fps_systems() {
 
 void quark::run() {
   executor::exec(executor::ExecGroup::Init);
+  executor::exec(executor::ExecGroup::StateInit);
 
   do {
     auto frame_begin_time = std::chrono::high_resolution_clock::now();
@@ -311,7 +312,7 @@ void quark::run() {
     TT += DT;
   } while (!platform::window_should_close);
 
-  states::unload();
+  executor::exec(executor::ExecGroup::StateDeinit);
   executor::exec(executor::ExecGroup::Deinit);
 }
 

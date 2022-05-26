@@ -169,10 +169,10 @@ void game_init() {
 
     ecs::add(player_e, Movement {
       .max_velocity = 20.0f,
-      .acceleration = 50.0f,
-      .forwards_acceleration = 200.0f,
-      .backwards_acceleration = 25.0f,
-      .sideways_accerlation = 50.0f,
+      .acceleration = 200.0f,
+      .forwards_acceleration = 1000.0f,
+      .backwards_acceleration = 200.0f,
+      .sideways_accerlation = 500.0f,
     });
   }
 
@@ -567,15 +567,15 @@ void bind_inputs() {
 
 void add_reflection() {
   reflect::add_fields("value", &Health::value, "base", &Health::base);
-  reflect::add_fields("value", &Timer::value, "base", &Timer::base);
-  reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
+  //reflect::add_fields("value", &Timer::value, "base", &Timer::base);
+  //reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
   reflect::add_fields("attack_timer", &Enemy::attack_timer, "move_timer", &Enemy::move_timer);
   reflect::add_fields("dash_timer", &Player::dash_timer, "sat_dash_timer", &Player::sat_dash_timer);
   reflect::add_fields("max_velocity", &Movement::max_velocity, "acceleration", &Movement::acceleration);
 
   reflect::add_name<Health>("Health");
-  reflect::add_name<Timer>("Timer");
-  reflect::add_name<SaturatingTimer>("SaturatingTimer");
+  //reflect::add_name<Timer>("Timer");
+  //reflect::add_name<SaturatingTimer>("SaturatingTimer");
   reflect::add_name<Enemy>("Enemy");
   reflect::add_name<Player>("Player");
   reflect::add_name<Movement>("Movement");
@@ -1172,6 +1172,8 @@ int main() {
   platform::window_name = "Quark";
   platform::window_w = 720;
   platform::window_h = 480;
+
+  platform::ENABLE_CURSOR = false;
 
   quark::add_default_systems();
   quark::add_fps_systems();
