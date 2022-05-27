@@ -128,3 +128,4 @@ target_link_libraries(quark
 #PUT YOUR PROJECT FOLDER HERE
 include(testbed/_build.cmake)
 include(idler/_build.cmake)
+include(sim/_build.cmake)
