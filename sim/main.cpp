@@ -1,8 +1,34 @@
 #include <quark.hpp>
 using namespace quark;
 
-static Entity selected = ecs::null;
 
+struct Hunger{
+  float value;
+  float rate;
+};
+
+struct Thirst{
+  float value;
+  float rate;
+};
+
+struct Velocity{
+  vec2 value;
+};
+
+struct SingleCelled{
+
+};
+struct Behaviour{
+
+};
+
+struct Tolerance{
+
+};
+
+
+static Entity selected = ecs::null;
 void bind_inputs() {
   input::bind("pan_up", Mouse::MoveUp);
   input::bind("pan_down", Mouse::MoveDown);
@@ -20,15 +46,27 @@ void bind_inputs() {
 
 void game_init() {
   float t=1.0;
-  for(int i=0;i<5;i++){
-    Transform tran = {.pos = vec3{2.0f*(float)i, 3.0, 1.0}, .rot = quat::identity};  //define where and what orientation stuff is
-    Color col = {0.5, 0.3, 0.2, 1.0};
-    Entity ent=ecs::create();
-    ecs::add(ent, tran, col);
+  // for(int i=0;i<5;i++){
+  //   Transform tran = {.pos = vec3{2.0f*(float)i, 3.0, 1.0}, .rot = quat::identity};  //define where and what orientation stuff is
+  //   Color col = {0.5, 0.3, 0.2, 1.0};
+  //   Entity ent=ecs::create();
+  //   ecs::add(ent, tran, col);
+  //   ecs::add_mesh(ent, "suzanne");
+  //   ecs::add_effect(ent, Effect::Wireframe);
+  //   Extents var = ecs::get<Extents>(ent);   //size is Extents
+  //   ecs::add_collision_body(ent, {.shape= BoxShape{var}});
+  // }
+  for(int i=0;i<10; i++){
+    Entity ent = ecs::create();
+    Transform tr = { .pos = vec3(rand()%10, rand()%10, 0), .rot = quat::identity};
+    Color col = {float(rand()%10)/10,float(rand()%10)/10,float(rand()%10)/10,1.0};
+
+    ecs::add(ent, tr, col, Hunger{0.0,2}, Thirst{0.0,3}, Velocity{{float(rand()%10), float(rand()%10)}});
     ecs::add_mesh(ent, "suzanne");
-    ecs::add_effect(ent, Effect::Wireframe);
-    Extents var = ecs::get<Extents>(ent);   //size is Extents
-    ecs::add_collision_body(ent, {.shape= BoxShape{var}});
+    ecs::add_effect(ent, Effect::Solid);
+    Extents var = ecs:: get<Extents>(ent);
+    ecs::add_collision_body(ent, {.shape = BoxShape{var}});
+    
   }
 }
 
@@ -63,7 +101,24 @@ void game_update() {
     }
 
   }
+  for(auto [ent, trans, vel]: ecs::REGISTRY.view<Transform, Velocity>().each()){
+    if(trans.pos.x < 30 && trans.pos.y <30 && trans.pos.x>-30 &&trans.pos.y>-30){
+      trans.pos.xy += vel.value*DT;
+    } 
+    else{
+      trans.pos.x = rand()%10;
+      trans.pos.y = rand()%10;
+    }
+  }
+  for(auto [ent, thirst, vel]: ecs::REGISTRY.view<Thirst, Velocity>().each()){
+    thirst.value+=thirst.rate*DT;
+    if (thirst.value>10.00){
+      vel.value -= 4*DT;
+    }
+  }
+
 }
+
 void game_deinit() {
   ecs::REGISTRY.clear();
 }
