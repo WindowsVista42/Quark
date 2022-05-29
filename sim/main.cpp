@@ -16,9 +16,7 @@ struct Velocity{
   vec2 value;
 };
 
-struct SingleCelled{
 
-};
 struct Behaviour{
 
 };
@@ -61,13 +59,28 @@ void game_init() {
     Transform tr = { .pos = vec3(rand()%10, rand()%10, 0), .rot = quat::identity};
     Color col = {float(rand()%10)/10,float(rand()%10)/10,float(rand()%10)/10,1.0};
 
-    ecs::add(ent, tr, col, Hunger{0.0,2}, Thirst{0.0,3}, Velocity{{float(rand()%10), float(rand()%10)}});
-    ecs::add_mesh(ent, "suzanne");
+    ecs::add(ent, tr, col, Hunger{0.0,2}, Thirst{0.0,3}, Velocity{{float(((rand()%10))-4), float((rand()%10)-5)}});
+    ecs::add_mesh(ent, "sphere");
     ecs::add_effect(ent, Effect::Solid);
     Extents var = ecs:: get<Extents>(ent);
     ecs::add_collision_body(ent, {.shape = BoxShape{var}});
     
+    Entity child = ecs::create();
+    Transform ctr= Transform::identity;
+    TransformOffset offset = {.pos= {0, 3, 0}, .rot = quat::identity };
+    Color ccol = {0.1, 0.4, 0.6, 1.0};
+    ecs::add(child, ctr, offset, ccol);
+    ecs::add_mesh(child, "cube",{2.0}); //2.0 is the scale
+    ecs::add_effect(child, Effect::Wireframe);
+    ecs::add_parent(child, ent);
+  
   }
+  Entity floor = ecs::create();
+  Transform floortrans = {.pos{0, 0, -1.1}, .rot = quat::identity};
+  Color floorcolor = {0.1, 0.1, 0.1, 1.0};
+  ecs::add(floor, floorcolor,floortrans);
+  ecs::add_mesh(floor, "cube", {10.0, 10.0, 0.1});
+  ecs::add_effect(floor, Effect::Solid);
 }
 
 void game_update() {
@@ -106,17 +119,16 @@ void game_update() {
       trans.pos.xy += vel.value*DT;
     } 
     else{
-      trans.pos.x = rand()%10;
-      trans.pos.y = rand()%10;
-    }
-  }
-  for(auto [ent, thirst, vel]: ecs::REGISTRY.view<Thirst, Velocity>().each()){
-    thirst.value+=thirst.rate*DT;
-    if (thirst.value>10.00){
-      vel.value -= 4*DT;
-    }
-  }
+      vel.value.x = float((rand()%10)-5);
 
+      vel.value.y = float((rand()%10)-5);
+      trans.pos.x = rand()%10;  //velocity goes to 0 at some point, fix it
+      trans.pos.y = rand()%10;
+
+    }
+    trans.rot = axis_angle(vec3::unit_z,TT);
+  }
+  
 }
 
 void game_deinit() {
