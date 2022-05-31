@@ -1,7 +1,11 @@
 #include <quark.hpp>
+#include<stdio.h>
+#include<stdlib.h>
+#include<ctime>
+#include<random>
 using namespace quark;
 
-
+//organism
 struct Hunger{
   float value;
   float rate;
@@ -11,14 +15,16 @@ struct Thirst{
   float value;
   float rate;
 };
+struct Mutation{
+  
+};
 
 struct Velocity{
   vec2 value;
 };
 
-
 struct Behaviour{
-
+  float agression;
 };
 
 struct Tolerance{
@@ -26,6 +32,11 @@ struct Tolerance{
 };
 
 
+//food
+struct food{
+  float quality;
+  float quantity;
+};
 static Entity selected = ecs::null;
 void bind_inputs() {
   input::bind("pan_up", Mouse::MoveUp);
@@ -41,6 +52,22 @@ void bind_inputs() {
   input::bind("speed", Key::LeftShift);
   input::bind("click", Mouse::LeftButton);
 }
+int random(int x){
+    int val=rand()%x+1;
+    int t=1;
+    // srand(std::time(NULL));
+    if(rand()%2==0){
+        return (val);
+    }
+    else{
+        return -val;
+    }
+    
+}
+
+int nrandom(int x){
+  
+}
 
 void game_init() {
   float t=1.0;
@@ -54,16 +81,16 @@ void game_init() {
   //   Extents var = ecs::get<Extents>(ent);   //size is Extents
   //   ecs::add_collision_body(ent, {.shape= BoxShape{var}});
   // }
-  for(int i=0;i<10; i++){
-    Entity ent = ecs::create();
+  for(int i=0;i<100; i++){
+    Entity animal = ecs::create();
     Transform tr = { .pos = vec3(rand()%10, rand()%10, 0), .rot = quat::identity};
     Color col = {float(rand()%10)/10,float(rand()%10)/10,float(rand()%10)/10,1.0};
 
-    ecs::add(ent, tr, col, Hunger{0.0,2}, Thirst{0.0,3}, Velocity{{float(((rand()%10))-4), float((rand()%10)-5)}});
-    ecs::add_mesh(ent, "sphere");
-    ecs::add_effect(ent, Effect::Solid);
-    Extents var = ecs:: get<Extents>(ent);
-    ecs::add_collision_body(ent, {.shape = BoxShape{var}});
+    ecs::add(animal, tr, col, Hunger{0.0,2}, Thirst{0.0,3}, Velocity{{float(((rand()%10))-4), float((rand()%10)-5)}});
+    ecs::add_mesh(animal, "sphere");
+    ecs::add_effect(animal, Effect::Solid);
+    Extents var = ecs:: get<Extents>(animal);
+    ecs::add_collision_body(animal, {.shape = BoxShape{var}});
     
     Entity child = ecs::create();
     Transform ctr= Transform::identity;
@@ -72,7 +99,7 @@ void game_init() {
     ecs::add(child, ctr, offset, ccol);
     ecs::add_mesh(child, "cube",{2.0}); //2.0 is the scale
     ecs::add_effect(child, Effect::Wireframe);
-    ecs::add_parent(child, ent);
+    ecs::add_parent(child, animal);
   
   }
   Entity floor = ecs::create();
@@ -81,6 +108,9 @@ void game_init() {
   ecs::add(floor, floorcolor,floortrans);
   ecs::add_mesh(floor, "cube", {10.0, 10.0, 0.1});
   ecs::add_effect(floor, Effect::Solid);
+
+  // Entity tree = ecs::create();
+  // Transform treetrans = { .pos {random()}}
 }
 
 void game_update() {
@@ -122,8 +152,8 @@ void game_update() {
       vel.value.x = float((rand()%10)-5);
 
       vel.value.y = float((rand()%10)-5);
-      trans.pos.x = rand()%10;  //velocity goes to 0 at some point, fix it
-      trans.pos.y = rand()%10;
+      trans.pos.x =  random(10);//velocity goes to 0 at some point, fix it
+      trans.pos.y = random(10);
 
     }
     trans.rot = axis_angle(vec3::unit_z,TT);
