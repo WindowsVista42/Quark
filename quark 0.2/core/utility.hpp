@@ -1,0 +1,38 @@
+#pragma once
+
+#include <cstdint>
+
+namespace quark::core::utility {
+
+using f32 = float;
+using f64 = double;
+
+using i8 = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
+using isize = intptr_t;
+
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+using usize = uintptr_t;
+
+static constexpr usize KB = 1024lu;
+static constexpr usize MB = 1024lu * 1024lu;
+static constexpr usize GB = 1024lu * 1024lu * 1024lu;
+
+#define for_every(name, end) for (usize name = 0; name < end; name += 1)
+#define for_range(name, start, end) for (usize name = start; name < end; name += 1)
+#define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
+
+#define panic(message)                                                                                                                               \
+  fprintf(stderr, "Panicked at message: \"%s\" : %d : %s\n", message, __LINE__, __FILE__);                                                           \
+  char* a = 0;                                                                                                                                       \
+  *a = 0
+
+template<typename T, size_t size>
+constexpr size_t count_of(T(&)[size]) { return size; };
+
+};

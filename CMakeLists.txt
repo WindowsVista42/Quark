@@ -68,6 +68,7 @@ include_directories(PUBLIC lib/bullet3/src)
 
 # QUARK ENGINE LIBRARY
 add_library(quark
+  quark/ext.cpp
   quark/render.cpp
   quark/input.cpp
   quark/animation.cpp
