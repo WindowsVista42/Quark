@@ -1,14 +1,25 @@
 #include "qmath.hpp"
+#include <cmath>
 
-namespace quark::math {
+namespace quark::core::math {
 
   // vec2
+
+  const vec2 vec2::unit_x = vec2{1,0};
+  const vec2 vec2::unit_y = vec2{0,1};
+  const vec2 vec2::zero   = vec2{0,0};
+  const vec2 vec2::one    = vec2{1,1};
 
   vec2::vec2() {}
 
   vec2::vec2(f32 x, f32 y) {
     this->x = x;
     this->y = y;
+  }
+
+  vec2::vec2(simd_vec2 v) {
+    this->x = v.x;
+    this->y = v.y;
   }
 
   vec2 vec2::operator+(f32 v) { return {x + v, y + v}; }
@@ -73,7 +84,17 @@ namespace quark::math {
     };
   }
 
+  simd_vec2 vec2::shfl() {
+    return simd_vec2 { x, y };
+  }
+
   // vec3
+
+  const vec3 vec3::unit_x = vec3{1,0,0};
+  const vec3 vec3::unit_y = vec3{0,1,0};
+  const vec3 vec3::unit_z = vec3{0,0,1};
+  const vec3 vec3::zero   = vec3{0,0,0};
+  const vec3 vec3::one    = vec3{1,1,1};
 
   vec3::vec3() {}
 
@@ -105,6 +126,12 @@ namespace quark::math {
     this->x = v.x();
     this->y = v.y();
     this->z = v.z();
+  }
+
+  vec3::vec3(simd_vec3 v) {
+    this->x = v.x;
+    this->y = v.y;
+    this->z = v.z;
   }
 
   vec3 vec3::operator+(f32 v) { return {x + v, y + v, z + v}; }
@@ -147,7 +174,17 @@ namespace quark::math {
   f32& vec3::operator[](usize i) { return ((f32*)this)[i]; }
 
   f32 vec3::dot(vec3 v) {
-    return (this->x * v.x) + (this->y * v.y) + (this->z * v.z);
+    return (x * v.x) + (y * v.y) + (z * v.z);
+  }
+
+  vec3 vec3::cross(vec3 v) {
+    vec3& b = v;
+
+    return vec3 {
+      y * v.z - z * v.y,
+      z * v.x - x * v.z,
+      x * v.y - y * v.x
+    };
   }
 
   f32 vec3::mag() {
@@ -176,6 +213,10 @@ namespace quark::math {
 
   f32 vec3::dist(vec3 v) {
     return (*this - v).mag();
+  }
+
+  simd_vec3 vec3::shfl() {
+    return simd_vec3 { x, y, z };
   }
 
   // vec4
@@ -231,6 +272,13 @@ namespace quark::math {
     this->w = zw.y;
   }
 
+  vec4::vec4(simd_vec4 v) {
+    this->x = v.x;
+    this->y = v.y;
+    this->z = v.z;
+    this->w = v.w;
+  }
+
   vec4 vec4::operator+(f32 v) { return {x + v, y + v, z + v, w + v}; }
   vec4 vec4::operator-(f32 v) { return {x - v, y - v, z - v, w - v}; }
   vec4 vec4::operator*(f32 v) { return {x * v, y * v, z * v, w * v}; }
@@ -268,6 +316,27 @@ namespace quark::math {
     return (*this) / this->mag();
   }
 
+  simd_vec4 vec4::shfl() {
+    return simd_vec4 {x, y, z, w};
+  }
+
+  // quat
+
+  const quat quat::identity = quat{0,0,0,1};
+
+  quat::quat() {}
+  quat::quat(vec4 v) { *this = *(quat*)&v; }
+  quat::quat(f32 x, f32 y, f32 z, f32 w) {
+    this->x = x;
+    this->y = y;
+    this->z = z;
+    this->w = w;
+  }
+
+  quat::quat(btQuaternion q) { x = q.x(); y = q.y(); z = q.z(); w = q.w(); }
+  quat::operator btQuaternion() { return {this->x, this->y, this->z, this->w}; }
+  quat::operator const btQuaternion() const { return {this->x, this->y, this->z, this->w}; }
+
   quat quat::axis_angle(vec3 axis, f32 angle) {
     f32 half_angle = angle / 2.0f;
     quat quat;
@@ -301,7 +370,7 @@ namespace quark::math {
   vec3 quat::rotate(vec3 point) {
     vec3 u = xyz;
     f32 s = w;
-    return point + ((cross(u, point) * s) + cross(u, cross(u, point))) * 2.0f;
+    return point + ((u.cross(point) * s) + u.cross(u.cross(point))) * 2.0f;
   }
 
   mat2 mat2::operator+(mat2 v) { return {xs + v.xs, ys + v.ys}; }
@@ -322,13 +391,22 @@ namespace quark::math {
 
   // TODO sean: flip a and b around its calculating the wrong result
   mat3 mat3::operator*(mat3 v) {
-    return {
-        {(xs.x * v.xs.x) + (xs.y * v.ys.x) + (xs.z * v.zs.x), (xs.x * v.xs.y) + (xs.y * v.ys.y) + (xs.z * v.zs.y),
-            (xs.x * v.xs.z) + (xs.y * v.ys.z) + (xs.z * v.zs.z)},
-        {(ys.x * v.xs.x) + (ys.y * v.ys.x) + (ys.z * v.zs.x), (ys.x * v.xs.y) + (ys.y * v.ys.y) + (ys.z * v.zs.y),
-            (ys.x * v.xs.z) + (ys.y * v.ys.z) + (ys.z * v.zs.z)},
-        {(zs.x * v.xs.x) + (zs.y * v.ys.x) + (zs.z * v.zs.x), (zs.x * v.xs.y) + (zs.y * v.ys.y) + (zs.z * v.zs.y),
-            (zs.x * v.xs.z) + (zs.y * v.ys.z) + (zs.z * v.zs.z)},
+    return mat3 {
+      {
+        (xs.x * v.xs.x) + (xs.y * v.ys.x) + (xs.z * v.zs.x),
+        (xs.x * v.xs.y) + (xs.y * v.ys.y) + (xs.z * v.zs.y),
+        (xs.x * v.xs.z) + (xs.y * v.ys.z) + (xs.z * v.zs.z)
+      },
+      {
+        (ys.x * v.xs.x) + (ys.y * v.ys.x) + (ys.z * v.zs.x),
+        (ys.x * v.xs.y) + (ys.y * v.ys.y) + (ys.z * v.zs.y),
+        (ys.x * v.xs.z) + (ys.y * v.ys.z) + (ys.z * v.zs.z)
+      },
+      {
+        (zs.x * v.xs.x) + (zs.y * v.ys.x) + (zs.z * v.zs.x),
+        (zs.x * v.xs.y) + (zs.y * v.ys.y) + (zs.z * v.zs.y),
+        (zs.x * v.xs.z) + (zs.y * v.ys.z) + (zs.z * v.zs.z)
+      },
     };
   }
 
@@ -338,19 +416,32 @@ namespace quark::math {
   mat4 mat4::operator-(mat4 v) { return {xs - v.xs, ys - v.ys, zs - v.zs, ws - v.ws}; }
 
   mat4 mat4::operator*(mat4 v) {
-    return {
-        {(xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w), (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
-            (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w),
-            (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)},
-        {(xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w), (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
-            (xs.z * v.ys.x) + (ys.z * v.ys.y) + (zs.z * v.ys.z) + (ws.z * v.ys.w),
-            (xs.w * v.ys.x) + (ys.w * v.ys.y) + (zs.w * v.ys.z) + (ws.w * v.ys.w)},
-        {(xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w), (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
-            (xs.z * v.zs.x) + (ys.z * v.zs.y) + (zs.z * v.zs.z) + (ws.z * v.zs.w),
-            (xs.w * v.zs.x) + (ys.w * v.zs.y) + (zs.w * v.zs.z) + (ws.w * v.zs.w)},
-        {(xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w), (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
-            (xs.z * v.ws.x) + (ys.z * v.ws.y) + (zs.z * v.ws.z) + (ws.z * v.ws.w),
-            (xs.w * v.ws.x) + (ys.w * v.ws.y) + (zs.w * v.ws.z) + (ws.w * v.ws.w)}};
+    return mat4 {
+      {
+        (xs.x * v.xs.x) + (ys.x * v.xs.y) + (zs.x * v.xs.z) + (ws.x * v.xs.w),
+        (xs.y * v.xs.x) + (ys.y * v.xs.y) + (zs.y * v.xs.z) + (ws.y * v.xs.w),
+        (xs.z * v.xs.x) + (ys.z * v.xs.y) + (zs.z * v.xs.z) + (ws.z * v.xs.w),
+        (xs.w * v.xs.x) + (ys.w * v.xs.y) + (zs.w * v.xs.z) + (ws.w * v.xs.w)
+      },
+      {
+        (xs.x * v.ys.x) + (ys.x * v.ys.y) + (zs.x * v.ys.z) + (ws.x * v.ys.w),
+        (xs.y * v.ys.x) + (ys.y * v.ys.y) + (zs.y * v.ys.z) + (ws.y * v.ys.w),
+        (xs.z * v.ys.x) + (ys.z * v.ys.y) + (zs.z * v.ys.z) + (ws.z * v.ys.w),
+        (xs.w * v.ys.x) + (ys.w * v.ys.y) + (zs.w * v.ys.z) + (ws.w * v.ys.w)
+      },
+      {
+        (xs.x * v.zs.x) + (ys.x * v.zs.y) + (zs.x * v.zs.z) + (ws.x * v.zs.w),
+        (xs.y * v.zs.x) + (ys.y * v.zs.y) + (zs.y * v.zs.z) + (ws.y * v.zs.w),
+        (xs.z * v.zs.x) + (ys.z * v.zs.y) + (zs.z * v.zs.z) + (ws.z * v.zs.w),
+        (xs.w * v.zs.x) + (ys.w * v.zs.y) + (zs.w * v.zs.z) + (ws.w * v.zs.w)
+      },
+      {
+        (xs.x * v.ws.x) + (ys.x * v.ws.y) + (zs.x * v.ws.z) + (ws.x * v.ws.w),
+        (xs.y * v.ws.x) + (ys.y * v.ws.y) + (zs.y * v.ws.z) + (ws.y * v.ws.w),
+        (xs.z * v.ws.x) + (ys.z * v.ws.y) + (zs.z * v.ws.z) + (ws.z * v.ws.w),
+        (xs.w * v.ws.x) + (ys.w * v.ws.y) + (zs.w * v.ws.z) + (ws.w * v.ws.w)
+      }
+    };
   }
 
   vec4& mat4::operator[](usize i) { return ((vec4*)this)[i]; }

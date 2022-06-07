@@ -81,6 +81,12 @@ add_library(quark
   quark/executor.cpp
   quark/states.cpp
   quark/quark.cpp
+
+  quark3/core/qmath.cpp
+
+  quark3/engine/registry.cpp
+  quark3/engine/entity.cpp
+  quark3/engine/state.cpp
 )
 
 # PRECOMPILED HEADERS FOR QUARK

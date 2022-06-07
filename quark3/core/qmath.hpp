@@ -1,17 +1,28 @@
 #pragma once
 
-//#include <btBulletDynamicsCommon.h>
 #include "utility.hpp"
+#include <btBulletDynamicsCommon.h>
 
 namespace quark::core::math {
   using namespace quark::core::utility;
+
+  using simd_vec2 = float __attribute__((ext_vector_type(2)));
+  using simd_vec3 = float __attribute__((ext_vector_type(3)));
+  using simd_vec4 = float __attribute__((ext_vector_type(5)));
 
   // Two component vector
   struct vec2 {
     f32 x, y;
 
+    static const vec2 unit_x;
+    static const vec2 unit_y;
+    static const vec2 zero;
+    static const vec2 one;
+
     vec2();
     vec2(f32 x, f32 y);
+
+    explicit vec2(simd_vec2 v);
 
     vec2 operator+(f32 v);
     vec2 operator-(f32 v);
@@ -41,12 +52,15 @@ namespace quark::core::math {
     f32& operator[](usize i);
 
     f32 dot(vec2 v);
+    //vec2 cross(vec2 v);
     f32 mag();
     vec2 norm();
     vec2 norm_checked();
     vec2 norm_max_mag(f32 max);
 
     vec2 rotate(f32 rad);
+
+    simd_vec2 shfl();
   };
 
   struct uvec2 {
@@ -64,12 +78,20 @@ namespace quark::core::math {
       };
     };
 
+    static const vec3 unit_x;
+    static const vec3 unit_y;
+    static const vec3 unit_z;
+    static const vec3 zero;
+    static const vec3 one;
+
     vec3();
     vec3(f32 a);
     vec3(f32 x, f32 y, f32 z);
     vec3(vec2 xy, f32 z);
     vec3(f32 x, vec2 yz);
     vec3(btVector3 v);
+
+    explicit vec3(simd_vec3 v);
 
     vec3 operator+(f32 v);
     vec3 operator-(f32 v);
@@ -111,6 +133,7 @@ namespace quark::core::math {
     operator btVector3();
 
     f32 dot(vec3 v);
+    vec3 cross(vec3 v);
     f32 mag();
     vec3 norm();
     vec3 norm_checked();
@@ -118,16 +141,8 @@ namespace quark::core::math {
 
     f32 dist(vec3 v);
 
-    static const vec3 unit_x;
-    static const vec3 unit_y;
-    static const vec3 unit_z;
-    static const vec3 zero;
+    simd_vec3 shfl();
   };
-
-  inline const vec3 vec3::unit_x = vec3{1,0,0};
-  inline const vec3 vec3::unit_y = vec3{0,1,0};
-  inline const vec3 vec3::unit_z = vec3{0,0,1};
-  inline const vec3 vec3::zero   = vec3{0,0,0};
 
   // Four component vector
   struct vec4 {
@@ -148,6 +163,8 @@ namespace quark::core::math {
     vec4(f32 x, vec3 yzw);
     vec4(f32 x, vec2 yz, f32 w);
     vec4(f32 x, f32 y, vec2 zw);
+
+    explicit vec4(simd_vec4 v);
 
     vec4 operator+(f32 v);
     vec4 operator-(f32 v);
@@ -177,22 +194,19 @@ namespace quark::core::math {
     f32 dot(vec4 v);
     f32 mag();
     vec4 norm();
+
+    simd_vec4 shfl();
   };
 
   // Quaternion
   struct quat : public vec4 {
-    quat() {}
-    quat(vec4 v) { *this = *(quat*)&v; }
-    quat(f32 x, f32 y, f32 z, f32 w) {
-      this->x = x;
-      this->y = y;
-      this->z = z;
-      this->w = w;
-    }
+    quat();
+    quat(vec4 v);
+    quat(f32 x, f32 y, f32 z, f32 w);
 
-    quat(btQuaternion q) { x = q.x(); y = q.y(); z = q.z(); w = q.w(); }
-    operator btQuaternion() { return {this->x, this->y, this->z, this->w}; }
-    operator const btQuaternion() const { return {this->x, this->y, this->z, this->w}; }
+    quat(btQuaternion q);
+    operator btQuaternion();
+    operator const btQuaternion() const;
 
     // convert a quaternion to euler angles
     auto axis_angle();
@@ -206,8 +220,6 @@ namespace quark::core::math {
     static quat axis_angle(vec3 axis, f32 angle);
     static const quat identity;
   };
-
-  inline const quat quat::identity = quat{0,0,0,1};
 
   // Two by two matrix
   struct mat2 {
