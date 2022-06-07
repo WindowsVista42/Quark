@@ -28,3 +28,7 @@ namespace quark::platform::allocator {
     usize capacity();
   };
 };
+
+namespace quark {
+  using namespace quark::platform::allocator;
+};

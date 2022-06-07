@@ -1,18 +1,34 @@
 #pragma once
-#ifndef QUARK_STATES_HPP
-#define QUARK_STATES_HPP
 
-#include "quark.hpp"
+namespace quark::engine::state {
+  namespace internal {
+    extern std::string current;
+    extern std::string next;
+  };
 
-namespace quark::states {
+  // Return true of the next queued state has changed
   bool changed();
 
-  void set_next(const char* name);
+  // Set the next state to the state designated by name
+  void next(const char* name);
 
-  void load_next();
+  // Transition to the next state
+  //
+  // This will unload the current state
+  // then load the next state
+  void transition();
 
-  void load(const char* name);
-  void unload();
+  // Conditionally transition to the next state
+  // if the next state has changed
+  void transition_if_changed();
+
+  // Force load of next state without unloading the current state
+  //
+  // This is typically only used when loading the state system for the first time
+  void force_load(const char* name);
+
+  // Force unload of the current state without loading the next state
+  //
+  // This is typically only used when unloading the state system for the last time
+  void force_unload();
 };
-
-#endif

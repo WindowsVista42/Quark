@@ -1,4 +1,8 @@
 #include "global.hpp"
+#include "reflect.hpp"
+#include "state.hpp"
+#include "system.hpp"
+#include "../platform.hpp"
 
 namespace quark::engine::global {
   namespace internal {
@@ -14,4 +18,21 @@ namespace quark::engine::global {
 
   // Scratch linear allocator, this gets reset every frame
   LinearAllocator SCRATCH = LinearAllocator {};
+
+  void init() {
+    SCRATCH.init(100 * MB);
+  };
+
+  void run() {
+    system::list("init").run();
+    system::list("state_init").run();
+
+    while(!window::should_close()) {
+      system::list("update").run();
+      state::transition_if_changed();
+    }
+
+    system::list("state_deinit").run();
+    system::list("deinit").run();
+  }
 };

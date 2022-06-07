@@ -21,6 +21,12 @@ namespace quark::engine::global {
 
   // Scratch linear allocator, this gets reset every frame
   extern LinearAllocator SCRATCH;
+
+  // Global engine initialization
+  void init();
+
+  // Global engine run
+  void run();
 };
 
 // EXPORTS

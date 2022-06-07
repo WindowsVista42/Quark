@@ -1,5 +1,4 @@
 #include "reflect.hpp"
-#include "component.hpp"
 
 namespace quark::engine::reflect {
   namespace internal {
@@ -221,13 +220,25 @@ namespace quark::engine::reflect {
     reflect::add_base_type<Entity[15]>(print_entity15, write_entity15);
   
     reflect::add_name<vec2>("vec2");
+    reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
+
     reflect::add_name<vec3>("vec3");
+    reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
+
     reflect::add_name<vec4>("vec4");
+    reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);
+
+    reflect::add_inheritance<quat, vec4>();
+
     //reflect::add_name<Position>("Position");
     //reflect::add_name<Rotation>("Rotation");
     //reflect::add_name<Scale>("Scale");
+
     //reflect::add_name<Color>("Color");
-    reflect::add_name<Transform>("Transform");
+    //reflect::add_name<Transform>("Transform");
+    //reflect::add_name<Model>("Model");
+    //reflect::add_name<Mesh>("Mesh");
+
     //reflect::add_name<TransformOffset>("TransformOffset");
     //reflect::add_name<Extents>("Extents");
   
@@ -255,10 +266,6 @@ namespace quark::engine::reflect {
     //reflect::add_name<Timer>("Timer");
     //reflect::add_name<SaturatingTimer>("SaturatingTimer");
   
-    reflect::add_fields<vec2, f32, f32>("x", &vec2::x, "y", &vec2::y);
-    reflect::add_fields<vec3, f32, f32, f32>("x", &vec3::x, "y", &vec3::y, "z", &vec3::z);
-    reflect::add_fields<vec4, f32, f32, f32, f32>("x", &vec4::x, "y", &vec4::y, "z", &vec4::z, "w", &vec4::w);
-  
     //reflect::add_fields<&vec2::x, &vec2::y>("x", "y");
     //reflect::add_fields<&Mesh::offset, &Mesh::size>("offset", "size");
     //reflect::add_fields<&Parent::parent>("parent");
@@ -270,13 +277,12 @@ namespace quark::engine::reflect {
     //reflect::add_fields("parent", &Parent::parent);
     //reflect::add_fields("count", &Children::count, "children", &Children::children);
   
-    reflect::add_fields("position", &Transform::position, "rotation", &Transform::rotation);
+    //reflect::add_fields("position", &Transform::position, "rotation", &Transform::rotation);
     //reflect::add_fields("pos", &TransformOffset::pos, "rot", &TransformOffset::rot);
   
     //reflect::add_fields("value", &Timer::value, "base", &Timer::base);
     //reflect::add_fields("value", &SaturatingTimer::value, "base", &SaturatingTimer::base, "max", &SaturatingTimer::max);
   
-    reflect::add_inheritance<quat, vec4>();
     //reflect::add_inheritance<Position, vec3>();
     //reflect::add_inheritance<Rotation, vec4>();
     //reflect::add_inheritance<Scale, vec3>();

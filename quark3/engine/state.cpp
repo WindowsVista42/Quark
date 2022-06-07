@@ -1,45 +1,52 @@
-#include "states.hpp"
+#include "state.hpp"
 
-namespace quark::states {
-  std::string current = "";
-  std::string next = "";
+namespace quark::engine::state {
+  namespace internal {
+    std::string current = "";
+    std::string next = "";
+  };
 
   bool changed() {
-    return next != "";
+    return internal::next != "";
   }
 
-  void set_next(const char* name) {
-    next = name;
+  void next(const char* name) {
+    internal::next = name;
   }
 
-  void load_next() {
-    // deinit the current state
-    executor::load(current.c_str(), executor::ExecGroup::StateDeinit);
-    executor::exec(executor::ExecGroup::StateDeinit);
+  void transition() {
+    //// deinit the current state
+    //executor::load(internal::current.c_str(), executor::ExecGroup::StateDeinit);
+    //executor::exec(executor::ExecGroup::StateDeinit);
 
-    // init the next state
-    executor::load(next.c_str(), executor::ExecGroup::StateInit);
-    executor::exec(executor::ExecGroup::StateInit);
+    //// init the next state
+    //executor::load(next.c_str(), executor::ExecGroup::StateInit);
+    //executor::exec(executor::ExecGroup::StateInit);
 
-    executor::load(next.c_str(), executor::ExecGroup::Update);
+    //executor::load(next.c_str(), executor::ExecGroup::Update);
 
-    current = next;
-    next = "";
+    //current = next;
+    //next = "";
   }
 
-  /// First time loading of a state, will not run the
-  /// deinit of the previous state
-  void load(const char* name) {
-    current = name;
-
-    executor::load(current.c_str(), executor::ExecGroup::StateInit);
-    executor::exec(executor::ExecGroup::StateInit);
+  void transition_if_changed() {
   }
 
-  void unload() {
-    executor::load(current.c_str(), executor::ExecGroup::StateDeinit);
-    executor::exec(executor::ExecGroup::StateDeinit);
+  void force_load(const char* name) {
+    //current = name;
 
-    current = "";
+    //executor::load(current.c_str(), executor::ExecGroup::StateInit);
+    //executor::exec(executor::ExecGroup::StateInit);
   }
+
+  void force_unload() {
+    //executor::load(current.c_str(), executor::ExecGroup::StateDeinit);
+    //executor::exec(executor::ExecGroup::StateDeinit);
+
+    //current = "";
+  }
+};
+
+namespace quark {
+  namespace state = engine::state;
 };

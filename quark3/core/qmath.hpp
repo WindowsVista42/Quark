@@ -65,6 +65,10 @@ namespace quark::core::math {
     u32 x, y;
   };
 
+  struct ivec2 {
+    i32 x, y;
+  };
+
   // Three component vector
   struct vec3 {
     union {

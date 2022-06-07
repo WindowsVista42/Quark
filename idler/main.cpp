@@ -86,13 +86,25 @@ int main() {
 //  quark::add_default_systems();
 //  quark::run();
 
-  Entity e = Entity::create();
-  e.add(Transform {.position = vec3::one, .rotation = quat::one});
+  quark::init();
 
-  reflect::add_base_types();
-  reflect::print_components(e);
+  // add systems
+  {
+  }
 
-  printf("%f\ncompiles!\n", DT);
+  window::init();
+
+  quark::run();
+
+  //Entity e = Entity::create();
+  //e.add(Transform {.position = vec3::one, .rotation = quat::one});
+
+  //reflect::add_base_types();
+  //quark::init();
+
+  //reflect::print_components(e);
+
+  //printf("%f\ncompiles!\n", DT);
 
   return 0;
 }

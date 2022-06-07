@@ -1,27 +1,15 @@
 #pragma once
 
-#include "quark_types.hpp"
-#include "quark_utils.hpp"
-#include "GLFW/glfw3.h"
+#include "../core.hpp"
 
-namespace quark::window {
-  namespace {
-    inline GLFWwindow* _window;
-    inline std::string _name = "Quark";
-    inline uvec2 _dimensions = {1920, 1080};
-    inline bool _cursor = false;
-    inline bool _window_resizing = false;
-    inline bool _resize = false;
-    inline bool _init = true;
-  };
-
+namespace quark::platform::window {
   // Platform window settings
-  struct Config {
+  struct WindowConfig {
     // Window name
     std::string name = "Quark";
   
     // Window dimensions in pixels
-    uvec2 dimensions = {1920, 1080};
+    ivec2 dimensions = {1920, 1080};
   
     // Enable the cursor in the window, useful for 
     // certain types of applications
@@ -29,112 +17,119 @@ namespace quark::window {
   
     // Allow the user to resize the window
     bool enable_window_resizing = false;
+
+    // Enable raw mouse motion, this is
+    // typically preferred as a default option for
+    // fps-style games
+    bool enable_raw_mouse = true;
   };
 
-  // Retrieve the internal GLFWwindow*
-  static GLFWwindow* ptr() {
-    return _window;
-  }
+  namespace internal {
+    #include "GLFW/glfw3.h"
 
-  // Window name
-  static std::string name_() {
-    return _name;
-  }
+    extern WindowConfig _config;
+    extern GLFWwindow* _window;
+  };
 
-  // Force the window the change name
-  static void name_(std::string name) {
-    _name = name;
+  // Get the window name
+  std::string name();
 
-    if(_init) {
-      return;
-    }
+  // Set the window name
+  void name(const char* name);
 
-    panic("Setting the window name is currently not supported after initialization!");
-  }
+  // Get the window dimensions in pixels
+  ivec2 dimensions();
 
-  // Window dimensions in pixels
-  static uvec2 dimensions() {
-    return _dimensions;
-  }
+  // Set the window close flag
+  void close(bool value);
+
+  // Get if the current window should close
+  bool should_close();
+
+  // Initialize the window
+  void init();
 
   // Resize window to specified dimensions in pixels
-  static void dimensions(uvec2 dimensions) {
-    _dimensions = dimensions;
-    _resize = true;
+  //static void dimensions(uvec2 dimensions) {
+  //  _dimensions = dimensions;
+  //  _resize = true;
 
-    if(_init) {
-      return;
-    }
+  //  if(_init) {
+  //    return;
+  //  }
 
-    panic("Setting the window dimensions is currently not supported after initialization!");
-  }
+  //  panic("Setting the window dimensions is currently not supported after the window is created!");
+  //}
 
-  // Does the window need a resize
-  static bool resize() {
-    return _resize;
-  }
+  //// Does the window need a resize
+  //bool resize() {
+  //  return _resize;
+  //}
 
-  // Force the window resize state
-  //
-  // WARNING: you could do very unsafe things with this function!
-  static void resize(bool resize) {
-    _resize = resize;
-  }
+  //// Force the window resize state
+  ////
+  //// WARNING: you could do very unsafe things with this function!
+  //static void resize(bool resize) {
+  //  _resize = resize;
+  //}
 
-  // Does the window currently have the cursor enabled
-  static bool cursor() {
-    return _cursor;
-  }
+  //// Does the window currently have the cursor enabled
+  //bool cursor() {
+  //  return _cursor;
+  //}
 
-  static void cursor(bool enable) {
-    _cursor = enable;
-    if(!_cursor || _init) {
-      return;
-    }
+  //void cursor(bool enable) {
+  //  _cursor = enable;
+  //  if(!_cursor || _init) {
+  //    return;
+  //  }
 
-    panic("Setting the window cursor state is currently not supported after initialization!");
-  }
+  //  panic("Setting the window cursor state is currently not supported after the window is created!");
+  //}
 
-  // Does the window have resizing currently enabled
-  static bool window_resizing() {
-    return _window_resizing;
-  }
+  //// Does the window have resizing currently enabled
+  //static bool window_resizing() {
+  //  return _window_resizing;
+  //}
 
-  // Force the window to enable resizing
-  //
-  // This forces the window to rebuild.
-  static void window_resizing(bool enable) {
-    _window_resizing = enable;
-    if(!_window_resizing || _init) {
-      return;
-    }
+  //// Force the window to enable resizing
+  ////
+  //// This forces the window to rebuild.
+  //static void window_resizing(bool enable) {
+  //  _window_resizing = enable;
+  //  if(!_window_resizing || _init) {
+  //    return;
+  //  }
 
-    panic("Setting window resizing is currently not supported after initialization!");
-  }
+  //  panic("Setting window resizing is currently not supported after the window is created!");
+  //}
 
-  // Forcibly set the internal window pointer
-  //
-  // WARNING: Only intended for debug engine usage
-  static void FORCE_SET_GLFW_WINDOW_PTR_DEBUG(GLFWwindow* window) {
-    _window = window;
-  }
+  //// Forcibly set the internal window pointer
+  ////
+  //// WARNING: Only intended for debug engine usage
+  //void FORCE_SET_GLFW_WINDOW_PTR_DEBUG(GLFWwindow* window) {
+  //  _window = window;
+  //}
 
-  // Setup the window settings and configuration
-  static void load_config(Config config = {
-    .name = "Quark",
-    .dimensions = { 1920, 1080 },
-    .enable_cursor = false,
-    .enable_window_resizing = false,
-  }) {
-    if(!_init) {
-      panic("Window settings can only be applied during init!");
-    }
+  //// Setup the window settings and configuration
+  //void load_config(Config config = {
+  //  .name = "Quark",
+  //  .dimensions = { 1920, 1080 },
+  //  .enable_cursor = false,
+  //  .enable_window_resizing = false,
+  //}) {
+  //  if(internal::_window != 0) {
+  //    panic("Window settings can only be applied before the window is created!");
+  //  }
 
-    name_(config.name);
-    dimensions(config.dimensions);
-    cursor(config.enable_cursor);
-    window_resizing(config.enable_window_resizing);
+  //  name_(config.name);
+  //  dimensions(config.dimensions);
+  //  cursor(config.enable_cursor);
+  //  window_resizing(config.enable_window_resizing);
+  //}
+};
 
-    _init = false;
-  }
-}
+// EXPORTS
+namespace quark {
+  namespace window = platform::window;
+};
