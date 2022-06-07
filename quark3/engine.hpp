@@ -6,21 +6,18 @@
 //#include "engine/audio.hpp"
 //#include "engine/render.hpp"
 
+#include "engine/global.hpp"
+
 #include "engine/registry.hpp"
 #include "engine/entity.hpp"
 #include "engine/component.hpp"
+#include "engine/reflect.hpp"
 //#include "engine/system.hpp"
 
 //#include "engine/state.hpp"
 //#include "engine/reflect.hpp"
 
-// NAMESPACE DEFINITIONS
+// EXPORTS
 
 namespace quark {
-  using namespace engine::entity; // imports Entity and Handle<T...>
-  using namespace engine::component; // imports common component types
-
-  namespace registry = engine::registry;
-  namespace entity = engine::entity;
-  namespace component = engine::component;
 };

@@ -4,8 +4,6 @@
 #include <btBulletDynamicsCommon.h>
 
 namespace quark::core::math {
-  using namespace quark::core::utility;
-
   using simd_vec2 = float __attribute__((ext_vector_type(2)));
   using simd_vec3 = float __attribute__((ext_vector_type(3)));
   using simd_vec4 = float __attribute__((ext_vector_type(5)));
@@ -155,6 +153,13 @@ namespace quark::core::math {
       };
     };
 
+    static const vec4 unit_x;
+    static const vec4 unit_y;
+    static const vec4 unit_z;
+    static const vec4 unit_w;
+    static const vec4 zero;
+    static const vec4 one;
+
     vec4();
     vec4(f32 x, f32 y, f32 z, f32 w);
     vec4(vec2 xy, f32 z, f32 w);
@@ -292,5 +297,12 @@ namespace quark::core::math {
 
     vec4& operator[](usize i);
   };
+};
 
-}; // namespace quark
+// EXPORTS
+namespace quark {
+  using namespace core::math;
+
+  namespace math = core::math;
+};
+

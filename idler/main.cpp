@@ -86,7 +86,13 @@ int main() {
 //  quark::add_default_systems();
 //  quark::run();
 
-  printf("compiles!\n");
+  Entity e = Entity::create();
+  e.add(Transform {.position = vec3::one, .rotation = quat::one});
+
+  reflect::add_base_types();
+  reflect::print_components(e);
+
+  printf("%f\ncompiles!\n", DT);
 
   return 0;
 }

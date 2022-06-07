@@ -110,12 +110,12 @@ namespace quark::engine::entity {
         }
       #endif
   
-      if constexpr(std::is_invocable<Component, Entity>::_value) {
+      if constexpr(std::is_invocable_v<Component, Entity>) {
         // Invoke functions/lambdas that may have been passed to us for construction
         t(*this);
       } else {
         // Add the component
-        _registry.insert(_value, t);
+        _registry.emplace<Component>(_value, t);
       }
   
       return *this;
@@ -184,9 +184,7 @@ namespace quark::engine::entity {
     }
 
     // Get the internal entt::entity value of the entity
-    entt::entity value() {
-      return _value;
-    }
+    operator entt::entity();
   };
 
   // Handle to an entity with components T...
@@ -216,3 +214,9 @@ namespace quark::engine::entity {
   };
 };
 
+// EXPORTS
+namespace quark {
+  using namespace engine::entity;
+
+  namespace entity = engine::entity;
+};

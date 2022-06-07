@@ -5,10 +5,10 @@ namespace quark::core::math {
 
   // vec2
 
-  const vec2 vec2::unit_x = vec2{1,0};
-  const vec2 vec2::unit_y = vec2{0,1};
-  const vec2 vec2::zero   = vec2{0,0};
-  const vec2 vec2::one    = vec2{1,1};
+  const vec2 vec2::unit_x = vec2 {1,0};
+  const vec2 vec2::unit_y = vec2 {0,1};
+  const vec2 vec2::zero   = vec2 {0,0};
+  const vec2 vec2::one    = vec2 {1,1};
 
   vec2::vec2() {}
 
@@ -90,11 +90,11 @@ namespace quark::core::math {
 
   // vec3
 
-  const vec3 vec3::unit_x = vec3{1,0,0};
-  const vec3 vec3::unit_y = vec3{0,1,0};
-  const vec3 vec3::unit_z = vec3{0,0,1};
-  const vec3 vec3::zero   = vec3{0,0,0};
-  const vec3 vec3::one    = vec3{1,1,1};
+  const vec3 vec3::unit_x = vec3 {1,0,0};
+  const vec3 vec3::unit_y = vec3 {0,1,0};
+  const vec3 vec3::unit_z = vec3 {0,0,1};
+  const vec3 vec3::zero   = vec3 {0,0,0};
+  const vec3 vec3::one    = vec3 {1,1,1};
 
   vec3::vec3() {}
 
@@ -220,6 +220,13 @@ namespace quark::core::math {
   }
 
   // vec4
+
+  const vec4 vec4::unit_x = vec4 {1,0,0,0};
+  const vec4 vec4::unit_y = vec4 {0,1,0,0};
+  const vec4 vec4::unit_z = vec4 {0,0,1,0};
+  const vec4 vec4::unit_w = vec4 {0,0,0,1};
+  const vec4 vec4::zero   = vec4 {0,0,0,0};
+  const vec4 vec4::one    = vec4 {1,1,1,1};
 
   vec4::vec4() {}
 

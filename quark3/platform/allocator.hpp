@@ -1,8 +1,8 @@
 #pragma once
 
-#include "utility.hpp"
+#include "../core.hpp"
 
-namespace quark::allocator {
+namespace quark::platform::allocator {
   struct LinearAllocator {
   private:
     u8* data;
@@ -10,33 +10,21 @@ namespace quark::allocator {
     usize cap;
 
   public:
-    void init(usize capacity) {
-      this->data = (u8*)malloc(capacity);
-      this->length = 0;
-      this->cap = capacity;
-    }
+    // Initialize the allocate linear allocator with the specified number of bytes
+    void init(usize capacity);
 
-    u8* alloc(usize size) {
-      usize new_length = this->length + size;
+    // Allocate memory out of the linear allocator of the specified size
+    u8* alloc(usize size);
 
-      // TODO: figure out how I want to conditional enable this
-      if (new_length > this->cap) {
-        panic("Failed to allocate to FixedBufferAllocator!");
-      }
+    // Reset the linear allocator's allocation pool
+    //
+    // This has the effect of overwriting previously allocated blocks
+    void reset();
 
-      u8* ptr = (data + length);
-      this->length += size;
-      return ptr;
-    }
+    // Deinitialize and deallocate internal memory
+    void deinit();
 
-    void reset() { length = 0; }
-
-    void deinit() {
-      free(this->data);
-      this->length = 0;
-      this->cap = 0;
-    }
-
-    usize capacity() { return cap; }
+    // Get the number of bytes this allocator can store
+    usize capacity();
   };
 };

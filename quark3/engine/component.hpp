@@ -3,6 +3,8 @@
 #include "../core.hpp"
 
 namespace quark::engine::component {
+  void add_reflection();
+
   // Position (vec3) + Rotation (quat)
   //
   // This stores the positional and rotational information of an entity
@@ -85,4 +87,11 @@ namespace quark::engine::component {
     f32 volume;
     u32 id;
   };
+};
+
+// EXPORTS
+namespace quark {
+  using namespace engine::component;
+
+  namespace component = engine::component;
 };

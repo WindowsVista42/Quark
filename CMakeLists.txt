@@ -84,9 +84,14 @@ add_library(quark
 
   quark3/core/qmath.cpp
 
+  quark3/platform/allocator.cpp
+
+  quark3/engine/global.cpp
+
   quark3/engine/registry.cpp
   quark3/engine/entity.cpp
   quark3/engine/state.cpp
+  quark3/engine/reflect.cpp
 )
 
 # PRECOMPILED HEADERS FOR QUARK
