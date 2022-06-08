@@ -7,16 +7,20 @@
 
 namespace quark::engine::global {
   // Delta time between frames
-  volatile const f32 DT = 1.0f / 60.0f;
+  f32 DT = 1.0f / 60.0f;
 
   // Total time the program has been running
-  volatile const f32 TT = 0.0f;
+  f32 TT = 0.0f;
 
   // Scratch linear allocator, this gets reset every frame
   LinearAllocator SCRATCH = LinearAllocator {};
 
   void init() {
     SCRATCH.init(100 * MB);
+    *(f32*)&DT = 0.6f;
+    std::cout << DT << std::endl;
+    *(f32*)&DT = 0.2f;
+    std::cout << DT << std::endl;
   }
 
   void run() {

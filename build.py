@@ -12,9 +12,9 @@ opt_level = None
 bin_name = None
 build_dir = None
 
-def replace_compile_commands():
-  COMP_CMD = "compile_commands.json"
-  COMP_CMD_DIR = DEBUG_DIR + os.sep + COMP_CMD
+def copy_file(dst_file, src_file):
+  COMP_CMD = dst_file# "compile_commands.json"
+  COMP_CMD_DIR = src_file#DEBUG_DIR + os.sep + COMP_CMD
 
   if not os.path.exists(COMP_CMD_DIR):
     print("Failed to locate " + COMP_CMD_DIR + " ignoring copy!")
@@ -57,7 +57,10 @@ if __name__ == "__main__":
     if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0:
       sys.exit("Failed to build!")
 
-    replace_compile_commands()
+    copy_file("compile_commands.json", DEBUG_DIR + os.sep + "compile_commands.json")
+
+    #TODO(sean): MAKE THIS OS INDEPENDANT
+    copy_file(DEBUG_DIR + os.sep + "quark_engine.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "quark_engine.dll")
   
     # Run if run mode
     if mode == "compile_run":

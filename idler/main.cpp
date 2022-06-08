@@ -87,6 +87,9 @@ int main() {
 //  quark::add_default_systems();
 //  quark::run();
 
+  DT = 0.4f;
+  std::cout << DT << std::endl;
+
   quark::init();
 
   SCRATCH.alloc(16);
