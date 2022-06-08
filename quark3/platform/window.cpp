@@ -1,3 +1,4 @@
+#define QUARK_ENGINE_IMPL
 #include "window.hpp"
 
 namespace quark::platform::window {
@@ -6,11 +7,11 @@ namespace quark::platform::window {
     quark_def GLFWwindow* _window = 0;
   };
 
-  std::string name() {
+  quark_def std::string name() {
     return internal::_config.name;
   }
 
-  void name(const char* name) {
+  quark_def void name(const char* name) {
     if(internal::_window != 0) {
       panic("Setting the window name is currently not supported after the window is created!");
     }
@@ -18,19 +19,19 @@ namespace quark::platform::window {
     internal::_config.name = std::string(name);
   }
 
-  ivec2 dimensions() {
+  quark_def ivec2 dimensions() {
     return internal::_config.dimensions;
   }
 
-  void close(bool value) {
+  quark_def void close(bool value) {
     internal::glfwSetWindowShouldClose(internal::_window, value ? GLFW_TRUE : GLFW_FALSE);
   }
 
-  bool should_close() {
+  quark_def bool should_close() {
     return glfwWindowShouldClose(internal::_window);
   }
 
-  void init() {
+  quark_def void init() {
     using namespace internal;
 
     if(internal::_window != 0) {

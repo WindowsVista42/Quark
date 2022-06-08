@@ -1,3 +1,4 @@
+#define QUARK_ENGINE_IMPL
 #include "global.hpp"
 #include "reflect.hpp"
 #include "state.hpp"
@@ -6,13 +7,13 @@
 
 namespace quark::engine::global {
   // Delta time between frames
-  quark_def volatile const f32 DT = 1.0f / 60.0f;
+  volatile const f32 DT = 1.0f / 60.0f;
 
   // Total time the program has been running
-  quark_def volatile const f32 TT = 0.0f;
+  volatile const f32 TT = 0.0f;
 
   // Scratch linear allocator, this gets reset every frame
-  quark_def LinearAllocator SCRATCH = LinearAllocator {};
+  LinearAllocator SCRATCH = LinearAllocator {};
 
   void init() {
     SCRATCH.init(100 * MB);

@@ -24,6 +24,7 @@ set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
+  #set(FORCE_SHARED_CRT ON)
   set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness -Wno-ignored-attributes")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2")# -Wno-unused -Wno-nullability-completeness")

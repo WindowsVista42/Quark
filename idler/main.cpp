@@ -8,6 +8,7 @@
 //#include "../quark3/core.hpp"
 //#include "../quark3/engine.hpp"
 
+#define QUARK_IMPL
 #include "../quark3/lib.hpp"
 
 using namespace quark;
@@ -89,6 +90,7 @@ int main() {
   quark::init();
 
   SCRATCH.alloc(16);
+  std::cout << DT << std::endl;
 
   // add systems
   {

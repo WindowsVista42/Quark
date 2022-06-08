@@ -36,9 +36,19 @@ namespace quark::core::utility {
   constexpr size_t count_of(T(&)[size]) { return size; };
 
   #if defined(_WIN32) || defined(_WIN64)
-    #define quark_api __declspec(dllexport)
-    #define quark_var extern __declspec(dllimport)
-    #define quark_def __declspec(dllexport)
+    #ifndef QUARK_ENGINE_IMPL
+      #define quark_api __declspec(dllexport)
+      #define quark_var extern __declspec(dllimport)
+      #define quark_def __declspec(dllexport)
+    #elif QUARK_IMPL
+      #define quark_api __declspec(dllimport)
+      #define quark_var extern __declspec(dllimport)
+      #define quark_def __declspec(dllexport)
+    #else
+      #define quark_api __declspec(dllexport)
+      #define quark_var extern __declspec(dllexport)
+      #define quark_def __declspec(dllexport)
+    #endif
   #endif
 
   #ifndef quark_api
