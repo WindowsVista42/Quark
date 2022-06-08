@@ -88,6 +88,8 @@ int main() {
 
   quark::init();
 
+  SCRATCH.alloc(16);
+
   // add systems
   {
   }

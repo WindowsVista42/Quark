@@ -2,13 +2,13 @@
 
 namespace quark::engine::reflect {
   namespace internal {
-    std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types =
+    quark_def std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types =
       std::unordered_map<entt::id_type, ReflectionInfo>();
 
-    std::unordered_map<std::string, entt::id_type> _name_to_type =
+    quark_def std::unordered_map<std::string, entt::id_type> _name_to_type =
       std::unordered_map<std::string, entt::id_type>();
 
-    std::unordered_map<entt::id_type, BaseType> _base_types =
+    quark_def std::unordered_map<entt::id_type, BaseType> _base_types =
       std::unordered_map<entt::id_type, BaseType>();
 
     void add_if_new(entt::id_type ty_hash) {
@@ -331,5 +331,4 @@ namespace quark::engine::reflect {
     //reflect::add_function<GhostBody, i32, &GhostBody::flags, &GhostBody::flags>("flags");
     //reflect::add_function<GhostBody, usize, &GhostBody::num_overlapping, 0>("num_overlapping");
   }
-
 };

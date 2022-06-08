@@ -2,8 +2,8 @@
 
 namespace quark::platform::window {
   namespace internal {
-    WindowConfig _config = WindowConfig {};
-    GLFWwindow* _window = 0;
+    quark_def WindowConfig _config = WindowConfig {};
+    quark_def GLFWwindow* _window = 0;
   };
 
   std::string name() {

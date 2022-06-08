@@ -38,13 +38,13 @@ namespace quark::engine::reflect {
   };
 
   namespace internal {
-    extern std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types;
-    extern std::unordered_map<std::string, entt::id_type> _name_to_type;
-    extern std::unordered_map<entt::id_type, BaseType> _base_types;
+    quark_var std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types;
+    quark_var std::unordered_map<std::string, entt::id_type> _name_to_type;
+    quark_var std::unordered_map<entt::id_type, BaseType> _base_types;
 
     constexpr entt::id_type _null_hash = entt::type_hash<NullReflection>();
 
-    void add_if_new(entt::id_type ty_hash);
+    quark_api void add_if_new(entt::id_type ty_hash);
 
     template <typename T>
     void print_generic(void* data);
@@ -67,13 +67,13 @@ namespace quark::engine::reflect {
       std::cout << *(T*)data;
     }
     
-    void print_entity(void* data);
+    quark_api void print_entity(void* data);
     
-    void print_entity15(void* data);
+    quark_api void print_entity15(void* data);
     
-    void write_entity(void* dst, void* src);
+    quark_api void write_entity(void* dst, void* src);
     
-    void write_entity15(void* dst, void* src);
+    quark_api void write_entity15(void* dst, void* src);
     
     template <typename T>
     void write_generic(void* dst, void* src) {
@@ -121,18 +121,18 @@ namespace quark::engine::reflect {
       return (void*)v;
     }
 
-    bool is_base_type(entt::id_type id);
+    quark_api bool is_base_type(entt::id_type id);
 
-    void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");
+    quark_api void print_reflection(void* data, std::string name, entt::type_info info, bool print_name = false, bool use_supplied_name = false, std::string tab = "");
 
-    void* calc_offset(void* data, usize offset);
+    quark_api void* calc_offset(void* data, usize offset);
     
-    void print_ptr(void* data, std::string& name, entt::type_info type, std::string tab);
+    quark_api void print_ptr(void* data, std::string& name, entt::type_info type, std::string tab);
     
-    void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab);
+    quark_api void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab);
 
     // Get a pointer to a copy of the internal data of some type
-    void* get_internal(void* data, entt::id_type type, const char* arg);  
+    quark_api void* get_internal(void* data, entt::id_type type, const char* arg);  
 
     // Get a poitner to a copy of the internal data of some type
     template <typename... T>
@@ -249,15 +249,15 @@ namespace quark::engine::reflect {
     }
   }
   
-  entt::type_info get_inheritance(entt::id_type type_hash);
+  quark_api entt::type_info get_inheritance(entt::id_type type_hash);
   
-  std::vector<ReflectionField>& get_fields(entt::id_type type_hash);
+  quark_api std::vector<ReflectionField>& get_fields(entt::id_type type_hash);
   
-  std::vector<ReflectionFunction>& get_functions(entt::id_type type_hash);
+  quark_api std::vector<ReflectionFunction>& get_functions(entt::id_type type_hash);
   
-  ReflectionInfo& get_info(entt::id_type type_hash);
+  quark_api ReflectionInfo& get_info(entt::id_type type_hash);
   
-  bool has(int type_hash);
+  quark_api bool has(int type_hash);
   
   template <typename T, typename V, V (T::*GET)(), void (T::*SET)(V)>
   constexpr void add_function(const char* name, const bool reads_ptr = false) {//V (T::*get)(), void (T::*set)(V)) {
@@ -355,13 +355,13 @@ namespace quark::engine::reflect {
     }
   }
   
-  std::string get_name(entt::id_type type);
+  quark_api std::string get_name(entt::id_type type);
 
-  void add_base_types();
+  quark_api void add_base_types();
 
   // Iterate through all of the components
   // that an entity has and print them out
-  void print_components(Entity e);
+  quark_api void print_components(Entity e);
   
   // Get the data of some entities component
   template <typename... T>

@@ -24,13 +24,13 @@ set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
-  set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -Wno-unused -Wno-nullability-completeness")
-  set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness -Wno-ignored-attributes")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2")# -Wno-unused -Wno-nullability-completeness")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -Wno-unused -Wno-nullability-completeness")
-  set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2")# -Wno-unused -Wno-nullability-completeness")
 endif(WIN32)
 
 if(UNIX)

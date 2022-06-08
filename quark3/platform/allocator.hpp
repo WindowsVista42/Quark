@@ -3,7 +3,7 @@
 #include "../core.hpp"
 
 namespace quark::platform::allocator {
-  struct LinearAllocator {
+  struct quark_api LinearAllocator {
   private:
     u8* data;
     usize length;
