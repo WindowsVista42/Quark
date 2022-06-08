@@ -21,7 +21,7 @@ namespace quark::engine::global {
 
   void init() {
     SCRATCH.init(100 * MB);
-  };
+  }
 
   void run() {
     system::list("init").run();

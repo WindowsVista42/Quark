@@ -66,23 +66,25 @@ include_directories(PUBLIC lib/qoi)
 include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
 
-# QUARK ENGINE LIBRARY
-add_library(quark
-  quark/ext.cpp
-  quark/render.cpp
-  quark/input.cpp
-  quark/animation.cpp
-  quark/quark_types.cpp
-  quark/quark_math.cpp
-  quark/quark_physics.cpp
-  quark/quark_platform.cpp
-  quark/quark_ecs.cpp
-  quark/quark_assets.cpp
-  quark/executor.cpp
-  quark/states.cpp
-  quark/quark.cpp
-
+add_library(quark_core
   quark3/core/qmath.cpp
+)
+
+# QUARK ENGINE LIBRARY
+add_library(quark_engine SHARED
+  #quark/ext.cpp
+  #quark/render.cpp
+  #quark/input.cpp
+  #quark/animation.cpp
+  #quark/quark_types.cpp
+  #quark/quark_math.cpp
+  #quark/quark_physics.cpp
+  #quark/quark_platform.cpp
+  #quark/quark_ecs.cpp
+  #quark/quark_assets.cpp
+  #quark/executor.cpp
+  #quark/states.cpp
+  #quark/quark.cpp
 
   quark3/platform/allocator.cpp
   quark3/platform/window.cpp
@@ -96,7 +98,7 @@ add_library(quark
 )
 
 # PRECOMPILED HEADERS FOR QUARK
-target_precompile_headers(quark
+target_precompile_headers(quark_engine
   PUBLIC
   <cstdint>
   <cstdio>
@@ -124,7 +126,7 @@ target_precompile_headers(quark
 )
 
 # LIB LINKING FOR QUARK
-target_link_libraries(quark
+target_link_libraries(quark_engine
   Vulkan::Vulkan
   glfw
   EnTT::EnTT
@@ -136,6 +138,7 @@ target_link_libraries(quark
   BulletDynamics
   BulletCollision
   LinearMath
+  quark_core
 )
 
 #PUT YOUR PROJECT FOLDER HERE

@@ -5,28 +5,28 @@
 
 namespace quark::engine::global {
   namespace internal {
-    extern f32 _dt;
-    extern f32 _tt;
+    quark_export f32 _dt;
+    quark_export f32 _tt;
   };
 
   // Delta time between frames
   //
   // This value is not intended to be changed externally
-  extern const f32& DT;
+  quark_export const f32& DT;
 
   // Total time the program has been running
   //
   // This value is not intended to be changed externally
-  extern const f32& TT;
+  quark_export const f32& TT;
 
   // Scratch linear allocator, this gets reset every frame
-  extern LinearAllocator SCRATCH;
+  quark_export LinearAllocator SCRATCH;
 
   // Global engine initialization
-  void init();
+  quark_export void init();
 
   // Global engine run
-  void run();
+  quark_export void run();
 };
 
 // EXPORTS

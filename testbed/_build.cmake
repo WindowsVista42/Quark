@@ -3,6 +3,6 @@ add_executable(testbed
 )
 
 target_link_libraries(testbed
-  quark
+  quark_engine
 )
 

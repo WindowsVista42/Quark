@@ -27,27 +27,27 @@ namespace quark::platform::window {
   namespace internal {
     #include "GLFW/glfw3.h"
 
-    extern WindowConfig _config;
-    extern GLFWwindow* _window;
+    quark_export WindowConfig _config;
+    quark_export GLFWwindow* _window;
   };
 
   // Get the window name
-  std::string name();
+  quark_export std::string name();
 
   // Set the window name
-  void name(const char* name);
+  quark_export void name(const char* name);
 
   // Get the window dimensions in pixels
-  ivec2 dimensions();
+  quark_export ivec2 dimensions();
 
   // Set the window close flag
-  void close(bool value);
+  quark_export void close(bool value);
 
   // Get if the current window should close
-  bool should_close();
+  quark_export bool should_close();
 
   // Initialize the window
-  void init();
+  quark_export void init();
 
   // Resize window to specified dimensions in pixels
   //static void dimensions(uvec2 dimensions) {

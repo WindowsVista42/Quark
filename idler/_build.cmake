@@ -4,6 +4,6 @@ add_executable(idler
 )
 
 target_link_libraries(idler
-  quark
+  quark_engine
 )
 
