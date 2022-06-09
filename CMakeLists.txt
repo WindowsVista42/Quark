@@ -25,11 +25,11 @@ set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
   #set(FORCE_SHARED_CRT ON)
-  set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -Wno-unused -Wno-nullability-completeness -Wno-ignored-attributes")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O1 -Wall -DDEBUG -Wno-unused -Wno-nullability-completeness -Wno-ignored-attributes")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2")# -Wno-unused -Wno-nullability-completeness")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -Wall -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG")# -Wno-unused -Wno-nullability-completeness")
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2")# -Wno-unused -Wno-nullability-completeness")
 endif(WIN32)
@@ -44,9 +44,13 @@ if(UNIX)
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -Wno-unused -Wno-nullability-completeness")
 endif(UNIX)
 
+#target_compile_options(glfw PRIVATE "-DBUILD_SHARED_LIBS=ON")
+
 # DEPENDENCIES
 find_package(Vulkan REQUIRED)
+set(BUILD_SHARED_LIBS ON)
 add_subdirectory(lib/glfw)
+unset(BUILD_SHARED_LIBS)
 add_subdirectory(lib/entt)
 add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)

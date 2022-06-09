@@ -3,35 +3,44 @@
 
 namespace quark::platform::allocator {
   void LinearAllocator::init(usize capacity) {
-    this->data = (u8*)malloc(capacity);
-    this->length = 0;
-    this->cap = capacity;
+    _data = (u8*)malloc(capacity);
+    _size = 0;
+    _capacity = capacity;
   }
 
   u8* LinearAllocator::alloc(usize size) {
-    usize new_length = this->length + size;
+    usize new_length = this->_size + size;
 
     // TODO: figure out how I want to conditional enable this
-    if (new_length > this->cap) {
+    if (new_length > _capacity) {
       panic("Failed to allocate to FixedBufferAllocator!");
     }
 
-    u8* ptr = (data + length);
-    this->length += size;
+    u8* ptr = (_data + _size);
+    _size += size;
     return ptr;
   }
 
   void LinearAllocator::reset() {
-    length = 0;
+    _size = 0;
   }
 
   void LinearAllocator::deinit() {
-    free(this->data);
-    this->length = 0;
-    this->cap = 0;
+    free(_data);
+    _size = 0;
+    _capacity = 0;
   }
 
   usize LinearAllocator::capacity() {
-    return cap;
+    return _capacity;
+  }
+
+  usize LinearAllocator::size() {
+    return _size;
+  }
+
+  usize LinearAllocator::remainder() {
+    usize rem = _capacity - _size;
+    return rem > 0 ? rem : 0;
   }
 };

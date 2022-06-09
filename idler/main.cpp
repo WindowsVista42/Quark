@@ -28,7 +28,19 @@ void game_init() {
 //  printf("Window name: %s\n", window::name_().c_str());
 }
 
+namespace quark::platform::window {
+
 void game_update() {
+  if (get_key(GLFW_KEY_ESCAPE)) {
+    std::cout << get_key(GLFW_KEY_ESCAPE) << std::endl;
+    std::cout << glfwGetKey(internal::ptr(), GLFW_KEY_ESCAPE) << std::endl;
+
+    std::cout << internal::_window << std::endl;
+    std::cout << internal::ptr() << std::endl;
+    printf("here!\n");
+    //close();
+    glfwSetWindowShouldClose(internal::_window, GLFW_TRUE);
+  }
 //  auto do_thing = input::get("do_thing");
 //
 //  if(do_thing.just_down()) {
@@ -47,6 +59,8 @@ void game_update() {
 //    //print("t: ", transform.pos);
 //  }
 }
+
+};
 
 void game_deinit() {
 //  printf("game unloaded!\n");
@@ -87,19 +101,13 @@ int main() {
 //  quark::add_default_systems();
 //  quark::run();
 
-  DT = 0.4f;
-  std::cout << DT << std::endl;
-
   quark::init();
-
-  SCRATCH.alloc(16);
-  std::cout << DT << std::endl;
 
   // add systems
   {
+    system::list("update")
+      .add(def(window::game_update), -1);
   }
-
-  window::init();
 
   quark::run();
 
@@ -111,7 +119,7 @@ int main() {
 
   //reflect::print_components(e);
 
-  //printf("%f\ncompiles!\n", DT);
+  printf("%f\ncompiles!\n", DT);
 
   return 0;
 }

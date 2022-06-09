@@ -3,74 +3,64 @@
 #include "../core.hpp"
 
 namespace quark::engine::system {
+  using system_function = void (*)();
+
+  class quark_api SystemList {
+    std::vector<std::string> _names;
+    std::vector<void (*)()> _functions;
+
+    public:
+    // Add a function into the system list with the given name and the given relative position
+    //
+    // Relative positions are calculated such that negative numbers work from the end
+    // of the list forwards, while positive numbes work normally like an index going forward
+    //
+    // Positions are calculated using the formula:
+    // (array.length + pos) % array.length
+    // 
+    // With which internal items will get shifted around accordingly to put the new
+    // system at that position
+    SystemList& add(const char* name, system_function function, isize relative_position);
+
+    // Like normal adding, but the position is relative to the named system
+    SystemList& add(const char* name, system_function function, const char* relative_system, isize relative_position);
+
+    // Remove the system with the given name
+    SystemList& remove(const char* name);
+
+    // Remove the system as the given index
+    SystemList& remove(usize index);
+
+    // Print all of the systems in the list
+    SystemList& print();
+
+    // Clear all of the systems from the list
+    SystemList& clear();
+
+    // Get the number of systems in the list
+    usize size();
+
+    // Get the index of a named system
+    usize index_of(const char* name);
+
+    // Return true if the system is in the list
+    bool has(const char* name);
+
+    // Run all of the systems in the list
+    //
+    // Optionally: print = true, print out the systems being run
+    void run(bool print = false);
+  };
+
   namespace internal {
-    class SystemList {
-      std::vector<std::string> names;
-      std::vector<void (*)()> functions;
-
-      public:
-      SystemList& add(const char* name, void (*function)(), int relative_position) {
-        //panic("add stub!");
-        return *this;
-      };
-
-      SystemList& add(const char* name, void (*function)(), const char* relative_system, int relative_position) {
-        //panic("add stub!");
-        return *this;
-      };
-
-      SystemList& remove(const char* name) {
-        //panic("remove stub!");
-        return *this;
-      };
-
-      SystemList& print() {
-        //panic("print stub!");
-        return *this;
-      }
-
-      void run() {
-        for(auto f : functions) {
-          (*f)();
-        }
-      }
-
-      void run_print() {
-        for(int i = 0; i < names.size(); i += 1) {
-          std::cout << names[i] << std::endl;
-          (*functions[i])();
-        }
-      }
-
-      void init();
-    };
-
-    extern std::unordered_map<std::string, SystemList> _system_lists;
+    quark_var std::unordered_map<std::string, SystemList> _system_lists;
   };
 
-  static internal::SystemList& create(const char* name) {
-    if(internal::_system_lists.find(name) != internal::_system_lists.end()) {
-      panic("Attempted to create a system list that already exists!");
-    }
+  // Create an empty system list with the given name
+  quark_api SystemList& create(const char* name);
 
-    internal::_system_lists.insert(std::make_pair(std::string(name), internal::SystemList {}));
-
-    return internal::_system_lists.at(name);
-  }
-
-  static internal::SystemList& list(const char* name) {
-    if(internal::_system_lists.find(name) == internal::_system_lists.end()) {
-      panic("Attempted to find a system list that does not exist!");
-    }
-
-    return internal::_system_lists.at(name);
-  }
-
-  static void save(const char* save_name) {
-  };
-
-  static void save(const char* system_list, const char* save_name) {
-  };
+  // Get the system list with the given name
+  quark_api SystemList& list(const char* name);
 };
 
 #define def(n) #n, n

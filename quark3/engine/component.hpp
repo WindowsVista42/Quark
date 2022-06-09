@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../core.hpp"
+#include "vulkan/vulkan.h"
 
 namespace quark::engine::component {
   void add_reflection();

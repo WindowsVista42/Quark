@@ -3,15 +3,19 @@
 
 namespace quark::platform::window {
   namespace internal {
-    quark_def WindowConfig _config = WindowConfig {};
-    quark_def GLFWwindow* _window = 0;
+    WindowConfig _config = WindowConfig {};
+    GLFWwindow* _window = 0;
+
+    GLFWwindow* ptr() {
+      return _window;
+    }
   };
 
-  quark_def std::string name() {
+  std::string name() {
     return internal::_config.name;
   }
 
-  quark_def void name(const char* name) {
+  void name(const char* name) {
     if(internal::_window != 0) {
       panic("Setting the window name is currently not supported after the window is created!");
     }
@@ -19,22 +23,30 @@ namespace quark::platform::window {
     internal::_config.name = std::string(name);
   }
 
-  quark_def ivec2 dimensions() {
+  ivec2 dimensions() {
     return internal::_config.dimensions;
   }
 
-  quark_def void close(bool value) {
-    internal::glfwSetWindowShouldClose(internal::_window, value ? GLFW_TRUE : GLFW_FALSE);
+  void close() {
+    glfwSetWindowShouldClose(internal::_window, GLFW_TRUE);
   }
 
-  quark_def bool should_close() {
+  bool should_close() {
     return glfwWindowShouldClose(internal::_window);
   }
 
-  quark_def void init() {
+  void poll_events() {
+    glfwPollEvents();
+  }
+
+  int get_key(int key) {
+    return glfwGetKey(internal::_window, key);
+  }
+
+  void init() {
     using namespace internal;
 
-    if(internal::_window != 0) {
+    if(_window != 0) {
       panic("Attempted to create the window twice!");
     };
 

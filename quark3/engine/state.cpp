@@ -1,17 +1,18 @@
+#define QUARK_ENGINE_IMPL
 #include "state.hpp"
 
 namespace quark::engine::state {
   namespace internal {
-    std::string current = "";
-    std::string next = "";
+    std::string _current = "";
+    std::string _next = "";
   };
 
   bool changed() {
-    return internal::next != "";
+    return internal::_next != "";
   }
 
   void next(const char* name) {
-    internal::next = name;
+    internal::_next = name;
   }
 
   void transition() {
@@ -45,8 +46,4 @@ namespace quark::engine::state {
 
     //current = "";
   }
-};
-
-namespace quark {
-  namespace state = engine::state;
 };

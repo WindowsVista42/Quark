@@ -5,9 +5,9 @@
 namespace quark::platform::allocator {
   struct quark_api LinearAllocator {
   private:
-    u8* data;
-    usize length;
-    usize cap;
+    u8* _data;
+    usize _size;
+    usize _capacity;
 
   public:
     // Initialize the allocate linear allocator with the specified number of bytes
@@ -24,8 +24,15 @@ namespace quark::platform::allocator {
     // Deinitialize and deallocate internal memory
     void deinit();
 
+    // Get the number of bytes current allocated
+    usize size();
+
     // Get the number of bytes this allocator can store
     usize capacity();
+
+    // Get the number of bytes the allocator has left in
+    // its buffer
+    usize remainder();
   };
 };
 

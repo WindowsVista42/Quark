@@ -1,10 +1,11 @@
 #pragma once
 
 #include "../core.hpp"
+#include "GLFW/glfw3.h"
 
 namespace quark::platform::window {
   // Platform window settings
-  struct WindowConfig {
+  struct quark_api WindowConfig {
     // Window name
     std::string name = "Quark";
   
@@ -25,10 +26,10 @@ namespace quark::platform::window {
   };
 
   namespace internal {
-    #include "GLFW/glfw3.h"
-
     quark_var WindowConfig _config;
     quark_var GLFWwindow* _window;
+
+    quark_api GLFWwindow* ptr();
   };
 
   // Get the window name
@@ -41,13 +42,18 @@ namespace quark::platform::window {
   quark_api ivec2 dimensions();
 
   // Set the window close flag
-  quark_api void close(bool value);
+  quark_api void close();
 
   // Get if the current window should close
   quark_api bool should_close();
 
+  // Poll internal event queue
+  quark_api void poll_events();
+
   // Initialize the window
   quark_api void init();
+
+  quark_api int get_key(int key);
 
   // Resize window to specified dimensions in pixels
   //static void dimensions(uvec2 dimensions) {

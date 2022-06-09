@@ -11,6 +11,7 @@
 #include "engine/registry.hpp"
 #include "engine/entity.hpp"
 #include "engine/component.hpp"
+#include "engine/system.hpp"
 #include "engine/reflect.hpp"
 //#include "engine/system.hpp"
 

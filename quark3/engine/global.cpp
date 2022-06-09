@@ -16,11 +16,29 @@ namespace quark::engine::global {
   LinearAllocator SCRATCH = LinearAllocator {};
 
   void init() {
-    SCRATCH.init(100 * MB);
-    *(f32*)&DT = 0.6f;
-    std::cout << DT << std::endl;
-    *(f32*)&DT = 0.2f;
-    std::cout << DT << std::endl;
+    // Add default system lists
+    {
+      system::create("init");
+      system::create("state_init");
+      system::create("update");
+      system::create("state_deinit");
+      system::create("deinit");
+    }
+
+    // Add our default engine systems
+    {
+      system::list("init")
+        .add(def(window::init), -1);
+
+      system::list("update")
+        .add(def(window::poll_events), -1);
+    }
+
+    // Load systems from quark_*.dll/so
+    {
+    }
+
+    // Let the user add their systems
   }
 
   void run() {

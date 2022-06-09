@@ -61,6 +61,7 @@ if __name__ == "__main__":
 
     #TODO(sean): MAKE THIS OS INDEPENDANT
     copy_file(DEBUG_DIR + os.sep + "quark_engine.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "quark_engine.dll")
+    copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
   
     # Run if run mode
     if mode == "compile_run":
