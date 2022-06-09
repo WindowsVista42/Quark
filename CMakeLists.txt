@@ -75,25 +75,13 @@ add_library(quark_core
   quark3/core/qmath.cpp
 )
 
-# QUARK ENGINE LIBRARY
-add_library(quark_engine SHARED
-  #quark/ext.cpp
-  #quark/render.cpp
-  #quark/input.cpp
-  #quark/animation.cpp
-  #quark/quark_types.cpp
-  #quark/quark_math.cpp
-  #quark/quark_physics.cpp
-  #quark/quark_platform.cpp
-  #quark/quark_ecs.cpp
-  #quark/quark_assets.cpp
-  #quark/executor.cpp
-  #quark/states.cpp
-  #quark/quark.cpp
-
+add_library(quark_platform SHARED
   quark3/platform/allocator.cpp
   quark3/platform/window.cpp
+)
 
+# QUARK ENGINE LIBRARY
+add_library(quark_engine SHARED
   quark3/engine/global.cpp
   quark3/engine/registry.cpp
   quark3/engine/entity.cpp
@@ -105,35 +93,40 @@ add_library(quark_engine SHARED
 # PRECOMPILED HEADERS FOR QUARK
 target_precompile_headers(quark_engine
   PUBLIC
-  <cstdint>
-  <cstdio>
-  <iostream>
-  <vector>
-  <filesystem>
-  <string>
-  <typeindex>
-  <unordered_map>
-  <math.h>
-  <VkBootstrap.h>
-  <tiny_obj_loader.h>
-  <vk_mem_alloc.h>
-  <entt/entity/entity.hpp>
-  <entt/entity/registry.hpp>
-  <BulletCollision/CollisionDispatch/btGhostObject.h>
-  <btBulletDynamicsCommon.h>
-  <stb_image.h>
-  <qoi.h>
-  <AL/al.h>
-  <AL/alc.h>
-  <AL/alext.h>
-  <AL/efx.h>
-  <AL/efx-presets.h>
+  #<cstdint>
+  #<cstdio>
+  #<iostream>
+  #<vector>
+  #<filesystem>
+  #<string>
+  #<typeindex>
+  #<unordered_map>
+  #<math.h>
+  #<VkBootstrap.h>
+  #<tiny_obj_loader.h>
+  #<vk_mem_alloc.h>
+  #<entt/entity/entity.hpp>
+  #<entt/entity/registry.hpp>
+  #<BulletCollision/CollisionDispatch/btGhostObject.h>
+  #<btBulletDynamicsCommon.h>
+  #<stb_image.h>
+  #<qoi.h>
+  #<AL/al.h>
+  #<AL/alc.h>
+  #<AL/alext.h>
+  #<AL/efx.h>
+  #<AL/efx-presets.h>
 )
 
-# LIB LINKING FOR QUARK
-target_link_libraries(quark_engine
-  Vulkan::Vulkan
+target_link_libraries(quark_platform
+  quark_core
   glfw
+)
+
+target_link_libraries(quark_engine
+  quark_core
+  quark_platform
+  Vulkan::Vulkan
   EnTT::EnTT
   tinyobjloader
   vk-bootstrap::vk-bootstrap
@@ -143,7 +136,6 @@ target_link_libraries(quark_engine
   BulletDynamics
   BulletCollision
   LinearMath
-  quark_core
 )
 
 #PUT YOUR PROJECT FOLDER HERE

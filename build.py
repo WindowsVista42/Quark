@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import atexit
+from glob import glob
 
 OPT_LEVELS = ["debug", "release", "release_with_debug_info"]
 MODES = ["compile_run", "compile", "setup"]
@@ -60,8 +61,11 @@ if __name__ == "__main__":
     copy_file("compile_commands.json", DEBUG_DIR + os.sep + "compile_commands.json")
 
     #TODO(sean): MAKE THIS OS INDEPENDANT
-    copy_file(DEBUG_DIR + os.sep + "quark_engine.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "quark_engine.dll")
-    copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
+    dlls = glob(DEBUG_DIR + os.sep + "lib" + os.sep + "*.dll")
+    for dll in dlls:
+        dll_name = os.path.basename(dll)
+        copy_file(DEBUG_DIR + os.sep + dll_name, DEBUG_DIR + os.sep + "lib" + os.sep + dll_name)
+        #copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
   
     # Run if run mode
     if mode == "compile_run":

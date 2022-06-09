@@ -1,11 +1,16 @@
 #pragma once
 
+#include "api.hpp"
 #include "../core.hpp"
+#include <vector>
+#include <iostream>
+#include <unordered_map>
+#include <string>
 
 namespace quark::engine::system {
   using system_function = void (*)();
 
-  class quark_api SystemList {
+  class engine_api SystemList {
     std::vector<std::string> _names;
     std::vector<void (*)()> _functions;
 
@@ -53,14 +58,14 @@ namespace quark::engine::system {
   };
 
   namespace internal {
-    quark_var std::unordered_map<std::string, SystemList> _system_lists;
+    engine_var std::unordered_map<std::string, SystemList> _system_lists;
   };
 
   // Create an empty system list with the given name
-  quark_api SystemList& create(const char* name);
+  engine_api SystemList& create(const char* name);
 
   // Get the system list with the given name
-  quark_api SystemList& list(const char* name);
+  engine_api SystemList& list(const char* name);
 };
 
 #define def(n) #n, n

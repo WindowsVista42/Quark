@@ -1,9 +1,10 @@
 #pragma once
 
+#include "api.hpp"
 #include "../core.hpp"
 
 namespace quark::platform::allocator {
-  struct quark_api LinearAllocator {
+  struct platform_api LinearAllocator {
   private:
     u8* _data;
     usize _size;

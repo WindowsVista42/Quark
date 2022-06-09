@@ -1,3 +1,4 @@
+#define QUARK_PLATFORM_IMPL
 #include "allocator.hpp"
 #include <cstdlib>
 

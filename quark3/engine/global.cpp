@@ -1,8 +1,9 @@
-#define QUARK_ENGINE_IMPL
+#define QUARK_ENGINE_INTERNAL
 #include "global.hpp"
 #include "reflect.hpp"
 #include "state.hpp"
 #include "system.hpp"
+
 #include "../platform.hpp"
 
 namespace quark::engine::global {

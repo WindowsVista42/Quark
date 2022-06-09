@@ -6,6 +6,7 @@
 //#include "engine/audio.hpp"
 //#include "engine/render.hpp"
 
+#define USING_QUARK_ENGINE
 #include "engine/global.hpp"
 
 #include "engine/registry.hpp"

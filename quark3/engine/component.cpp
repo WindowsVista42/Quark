@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_IMPL
+#define QUARK_ENGINE_INTERNAL
 #include "component.hpp"
 #include "reflect.hpp"
 

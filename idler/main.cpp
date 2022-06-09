@@ -8,8 +8,8 @@
 //#include "../quark3/core.hpp"
 //#include "../quark3/engine.hpp"
 
-#define QUARK_IMPL
 #include "../quark3/lib.hpp"
+#include <iostream>
 
 using namespace quark;
 
@@ -28,18 +28,10 @@ void game_init() {
 //  printf("Window name: %s\n", window::name_().c_str());
 }
 
-namespace quark::platform::window {
-
 void game_update() {
-  if (get_key(GLFW_KEY_ESCAPE)) {
-    std::cout << get_key(GLFW_KEY_ESCAPE) << std::endl;
-    std::cout << glfwGetKey(internal::ptr(), GLFW_KEY_ESCAPE) << std::endl;
-
-    std::cout << internal::_window << std::endl;
-    std::cout << internal::ptr() << std::endl;
-    printf("here!\n");
-    //close();
-    glfwSetWindowShouldClose(internal::_window, GLFW_TRUE);
+  if (window::key(GLFW_KEY_ESCAPE)) {
+    printf("Closing window!\n");
+    window::close();
   }
 //  auto do_thing = input::get("do_thing");
 //
@@ -59,8 +51,6 @@ void game_update() {
 //    //print("t: ", transform.pos);
 //  }
 }
-
-};
 
 void game_deinit() {
 //  printf("game unloaded!\n");
@@ -106,7 +96,7 @@ int main() {
   // add systems
   {
     system::list("update")
-      .add(def(window::game_update), -1);
+      .add(def(game_update), -1);
   }
 
   quark::run();

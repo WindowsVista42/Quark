@@ -1,18 +1,18 @@
-#define QUARK_ENGINE_IMPL
+#define QUARK_ENGINE_INTERNAL
 #include "reflect.hpp"
 
 namespace quark::engine::reflect {
   namespace internal {
-    quark_def std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types =
+    std::unordered_map<entt::id_type, ReflectionInfo> _reflected_types =
       std::unordered_map<entt::id_type, ReflectionInfo>();
 
-    quark_def std::unordered_map<std::string, entt::id_type> _name_to_type =
+    std::unordered_map<std::string, entt::id_type> _name_to_type =
       std::unordered_map<std::string, entt::id_type>();
 
-    quark_def std::unordered_map<entt::id_type, BaseType> _base_types =
+    std::unordered_map<entt::id_type, BaseType> _base_types =
       std::unordered_map<entt::id_type, BaseType>();
 
-    quark_def void add_if_new(entt::id_type ty_hash) {
+    void add_if_new(entt::id_type ty_hash) {
       if (_reflected_types.find(ty_hash) == _reflected_types.end()) {
         _reflected_types.insert(std::make_pair(ty_hash,
             ReflectionInfo{std::string(""), entt::type_id<NullReflection>(), std::vector<ReflectionField>(), std::vector<ReflectionFunction>()}));
@@ -20,33 +20,33 @@ namespace quark::engine::reflect {
       }
     }
 
-    quark_def void print_entity(void* data) {
+    void print_entity(void* data) {
       printf("%d", (entt::entity)(*(Entity*)data));
     }
 
-    quark_def void print_entity15(void* data) {
+    void print_entity15(void* data) {
       for(usize i = 0; i < std::extent<Entity[15]>::value; i += 1) {
         print_entity((void*)((Entity*)data + i));
         if(i != std::extent<Entity[15]>::value - 1) { printf(", "); }
       }
     }
 
-    quark_def void write_entity(void* dst, void* src) {
+    void write_entity(void* dst, void* src) {
       *(Entity*)dst = *(Entity*)src;
     }
 
-    quark_def void write_entity15(void* dst, void* src) {
+    void write_entity15(void* dst, void* src) {
       for(usize i = 0; i < std::extent<Entity[15]>::value; i += 1) {
         *((Entity*)dst + i) = *((Entity*)src + i);
       }
     }
 
-    quark_def bool is_base_type(entt::id_type id) {
+    bool is_base_type(entt::id_type id) {
       using namespace internal;
       return _base_types.find(id) != _base_types.end();
     }
 
-    quark_def void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
+    void print_reflection(void* data, std::string name, entt::type_info info, bool print_name, bool use_supplied_name, std::string tab) {
       using namespace internal;
       entt::id_type type = info.hash();
     
@@ -90,11 +90,11 @@ namespace quark::engine::reflect {
       }
     }
 
-    quark_def void* calc_offset(void* data, usize offset) {
+    void* calc_offset(void* data, usize offset) {
       return (char*)data + offset;
     }
 
-    quark_def void print_ptr(void* data, std::string& name, entt::type_info type, std::string tab) {
+    void print_ptr(void* data, std::string& name, entt::type_info type, std::string tab) {
       using namespace internal;
     
       auto hash = type.hash();
@@ -107,14 +107,14 @@ namespace quark::engine::reflect {
       }
     }
 
-    quark_def void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
+    void call_getter_func(ReflectionFunction function, void* data, std::string& name, entt::type_info type, entt::type_info value, std::string tab) {
       if(auto get = function.get; get != 0) {
         void* v = (*get)(data);
         print_reflection(v, name, value, true, true, tab + " ");
       }
     }
 
-    quark_def void* get_internal(void* data, entt::id_type type, const char* arg) {
+    void* get_internal(void* data, entt::id_type type, const char* arg) {
       using namespace internal;
     
       ReflectionInfo& info = _reflected_types.at(type);
@@ -144,32 +144,32 @@ namespace quark::engine::reflect {
     }
   };
 
-  quark_def entt::type_info get_inheritance(entt::id_type type_hash) {
+  entt::type_info get_inheritance(entt::id_type type_hash) {
     using namespace internal;
     return _reflected_types.at(type_hash).inheritance;
   }
 
-  quark_def std::vector<ReflectionField>& get_fields(entt::id_type type_hash) {
+  std::vector<ReflectionField>& get_fields(entt::id_type type_hash) {
     using namespace internal;
     return _reflected_types.at(type_hash).fields;
   }
 
-  quark_def std::vector<ReflectionFunction>& get_functions(entt::id_type type_hash) {
+  std::vector<ReflectionFunction>& get_functions(entt::id_type type_hash) {
     using namespace internal;
     return _reflected_types.at(type_hash).functions;
   }
 
-  quark_def ReflectionInfo& get_info(entt::id_type type_hash) {
+  ReflectionInfo& get_info(entt::id_type type_hash) {
     using namespace internal;
     return _reflected_types.at(type_hash);
   }
 
-  quark_def bool has(int type_hash) {
+  bool has(int type_hash) {
     using namespace internal;
     return _reflected_types.find(type_hash) != _reflected_types.end();
   }
 
-  quark_def std::string get_name(entt::id_type type) {
+  std::string get_name(entt::id_type type) {
     using namespace internal;
     if (reflect::has(type)) {
       return _reflected_types.at(type).name;
@@ -178,7 +178,7 @@ namespace quark::engine::reflect {
     }
   }
 
-  quark_def void print_components(Entity e) {
+  void print_components(Entity e) {
     using namespace internal;
   
     for (auto&& curr : registry::storage()) {
@@ -196,7 +196,7 @@ namespace quark::engine::reflect {
     SCRATCH.reset();
   }
 
-  quark_def void add_base_types() {
+  void add_base_types() {
     using namespace internal;
   
     reflect::add_base_type_automatic<bool>();

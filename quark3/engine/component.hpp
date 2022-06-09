@@ -1,5 +1,6 @@
 #pragma once
 
+#include "api.hpp"
 #include "../core.hpp"
 #include "vulkan/vulkan.h"
 

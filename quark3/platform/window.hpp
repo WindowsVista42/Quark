@@ -1,11 +1,13 @@
 #pragma once
 
+#include "api.hpp"
 #include "../core.hpp"
 #include "GLFW/glfw3.h"
 
+// INTERFACE
 namespace quark::platform::window {
   // Platform window settings
-  struct quark_api WindowConfig {
+  struct platform_api WindowConfig {
     // Window name
     std::string name = "Quark";
   
@@ -26,34 +28,42 @@ namespace quark::platform::window {
   };
 
   namespace internal {
-    quark_var WindowConfig _config;
-    quark_var GLFWwindow* _window;
-
-    quark_api GLFWwindow* ptr();
+    platform_var WindowConfig _config;
+    platform_var GLFWwindow* _window;
   };
 
   // Get the window name
-  quark_api std::string name();
+  inline std::string name();
 
   // Set the window name
-  quark_api void name(const char* name);
+  inline void name(const char* name);
 
   // Get the window dimensions in pixels
-  quark_api ivec2 dimensions();
+  inline ivec2 dimensions();
 
   // Set the window close flag
-  quark_api void close();
+  inline void close();
 
   // Get if the current window should close
-  quark_api bool should_close();
+  //inline bool should_close();
 
   // Poll internal event queue
-  quark_api void poll_events();
+  inline void poll_events();
+
+  // Get the state of the current key:
+  // 0, GLFW_PRESS, GLFW_RELEASE, GLFW_REPEAT
+  inline int key(int key);
+
+  // Get the state of the current mouse button:
+  // 0, GLFW_PRESS, GLFW_RELEASE
+  inline int mouse_button(int mouse_button);
+
+  // Get the state of the current mouse button:
+  // 0, GLFW_PRESS, GLFW_RELEASE
+  inline int joystick_button(int key);
 
   // Initialize the window
-  quark_api void init();
-
-  quark_api int get_key(int key);
+  platform_api void init();
 
   // Resize window to specified dimensions in pixels
   //static void dimensions(uvec2 dimensions) {
@@ -133,6 +143,45 @@ namespace quark::platform::window {
   //  cursor(config.enable_cursor);
   //  window_resizing(config.enable_window_resizing);
   //}
+};
+
+// INLINE IMPL
+namespace quark::platform::window {
+  inline std::string name() {
+    return internal::_config.name;
+  }
+
+  inline void name(const char* name) {
+    if(internal::_window != 0) {
+      panic("Setting the window name is currently not supported after the window is created!");
+    }
+
+    internal::_config.name = std::string(name);
+  }
+
+  inline ivec2 dimensions() {
+    return internal::_config.dimensions;
+  }
+
+  inline void close() {
+    glfwSetWindowShouldClose(quark::platform::window::internal::_window, GLFW_TRUE);
+  }
+
+  inline bool should_close() {
+    return glfwWindowShouldClose(internal::_window);
+  }
+
+  inline void poll_events() {
+    glfwPollEvents();
+  }
+
+  inline int key(int key) {
+    return glfwGetKey(internal::_window, key);
+  }
+
+  inline int mouse_button(int mouse) {
+    return glfwGetMouseButton(internal::_window, mouse);
+  }
 };
 
 // EXPORTS

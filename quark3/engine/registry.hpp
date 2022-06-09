@@ -1,12 +1,13 @@
 #pragma once
 
+#include "api.hpp"
 #include "../core.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 
 namespace quark::engine::registry {
   namespace internal {
-    quark_var entt::basic_registry<entt::entity> _registry;
+    engine_var entt::basic_registry<entt::entity> _registry;
   };
 
   // Clear the registry of the given components T...
@@ -15,7 +16,7 @@ namespace quark::engine::registry {
   //
   // Clear the entire registry by not specifying any components
   template <typename... T>
-  quark_api void clear() {
+  inline void clear() {
     internal::_registry.clear<T...>();
   }
 
@@ -27,23 +28,20 @@ namespace quark::engine::registry {
   // 
   // "Compacting" involves the removal of tombstones, typically increasing performance
   template <typename... T>
-  quark_api void compact() {
+  inline void compact() {
     internal::_registry.compact<T...>();
   }
 
   // Return a view into the registry of the given entities with components T...
   template <typename... T>
-  quark_api decltype(auto) view() {
+  inline decltype(auto) view() {
     return internal::_registry.view<T...>();
   }
 
-  using storage_type =
-    entt::iterable_adaptor<entt::internal::storage_proxy_iterator<
-    entt::internal::dense_hash_map_iterator<entt::internal::dense_hash_map_node<
-    const unsigned int, std::unique_ptr<entt::basic_sparse_set<entt::entity>>> *>>>;
-
   // Get the storage pools of the registry
-  quark_api storage_type storage();
+  inline auto storage() {
+    return internal::_registry.storage();
+  }
 };
 
 // EXPORTS

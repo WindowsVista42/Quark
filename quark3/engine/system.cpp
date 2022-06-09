@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_IMPL
+#define QUARK_ENGINE_INTERNAL
 #include "system.hpp"
 
 namespace quark::engine::system {
@@ -64,7 +64,7 @@ namespace quark::engine::system {
       std::unordered_map<std::string, SystemList>();
   };
 
-  quark_api SystemList& create(const char* name) {
+  SystemList& create(const char* name) {
     if(internal::_system_lists.find(name) != internal::_system_lists.end()) {
       panic("Attempted to create a system list that already exists!");
     }
