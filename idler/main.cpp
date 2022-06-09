@@ -11,8 +11,6 @@
 #include "../quark3/lib.hpp"
 #include <iostream>
 
-using namespace quark;
-
 void bind_inputs() {
 //  input::bind("do_thing", Key::Z);
 //  input::bind("toggle_perf", Key::Backslash);

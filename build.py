@@ -6,7 +6,6 @@ from glob import glob
 
 OPT_LEVELS = ["debug", "release", "release_with_debug_info"]
 MODES = ["compile_run", "compile", "setup"]
-DEBUG_DIR = "build" + os.sep + "debug"
 
 mode = None
 opt_level = None
@@ -58,13 +57,13 @@ if __name__ == "__main__":
     if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0:
       sys.exit("Failed to build!")
 
-    copy_file("compile_commands.json", DEBUG_DIR + os.sep + "compile_commands.json")
+    copy_file("compile_commands.json", build_dir + os.sep + "compile_commands.json")
 
     #TODO(sean): MAKE THIS OS INDEPENDANT
-    dlls = glob(DEBUG_DIR + os.sep + "lib" + os.sep + "*.dll")
+    dlls = glob(build_dir + os.sep + "lib" + os.sep + "*.dll")
     for dll in dlls:
         dll_name = os.path.basename(dll)
-        copy_file(DEBUG_DIR + os.sep + dll_name, DEBUG_DIR + os.sep + "lib" + os.sep + dll_name)
+        copy_file(build_dir + os.sep + dll_name, build_dir + os.sep + "lib" + os.sep + dll_name)
         #copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
   
     # Run if run mode

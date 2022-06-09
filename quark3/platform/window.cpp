@@ -1,4 +1,4 @@
-#define QUARK_PLATFORM_IMPL
+#define QUARK_PLATFORM_INTERNAL
 #include "window.hpp"
 
 namespace quark::platform::window {

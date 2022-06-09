@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_IMPL
+#define QUARK_ENGINE_INTERNAL
 #include "state.hpp"
 
 namespace quark::engine::state {
