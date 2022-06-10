@@ -29,7 +29,7 @@ def copy_file(dst_file, src_file):
   print("Copied " + COMP_CMD_DIR + " to " + COMP_CMD)
 
 def run_program():
-  os.system("." + os.sep + build_dir + os.sep + bin_name)
+  os.system("." + os.sep + build_dir + os.sep + "loader")
 
 if __name__ == "__main__":
   # Error handling
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     print("Compiling " + build_dir + os.sep + bin_name)
 
-    if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0:
+    if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0 and os.system("cmake --build " + build_dir + " --target loader") != 0:
       sys.exit("Failed to build!")
 
     copy_file("compile_commands.json", build_dir + os.sep + "compile_commands.json")
@@ -62,9 +62,11 @@ if __name__ == "__main__":
     #TODO(sean): MAKE THIS OS INDEPENDANT
     dlls = glob(build_dir + os.sep + "lib" + os.sep + "*.dll")
     for dll in dlls:
-        dll_name = os.path.basename(dll)
-        copy_file(build_dir + os.sep + dll_name, build_dir + os.sep + "lib" + os.sep + dll_name)
-        #copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
+      dll_name = os.path.basename(dll)
+      copy_file(build_dir + os.sep + dll_name, build_dir + os.sep + "lib" + os.sep + dll_name)
+      #copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
+
+    copy_file("mods" + os.sep + bin_name + ".dll", build_dir + os.sep + bin_name + ".dll")
   
     # Run if run mode
     if mode == "compile_run":

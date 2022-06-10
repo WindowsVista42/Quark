@@ -78,6 +78,7 @@ add_library(quark_core
 add_library(quark_platform SHARED
   quark3/platform/allocator.cpp
   quark3/platform/window.cpp
+  quark3/platform/shared.cpp
 )
 
 # QUARK ENGINE LIBRARY
@@ -136,6 +137,14 @@ target_link_libraries(quark_engine
   BulletDynamics
   BulletCollision
   LinearMath
+)
+
+add_executable(loader
+  quark3/loader.cpp
+)
+
+target_link_libraries(loader
+  quark_engine
 )
 
 #PUT YOUR PROJECT FOLDER HERE

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "api.hpp"
 #include "registry.hpp"
 
 namespace quark::engine::entity {

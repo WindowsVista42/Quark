@@ -1,6 +1,5 @@
-add_executable(idler
-  idler/main.cpp
-  # ADD CPP FILES HERE
+add_library(idler SHARED
+  idler/mod.cpp
 )
 
 target_link_libraries(idler

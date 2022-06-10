@@ -34,6 +34,8 @@ namespace quark::core::utility {
   
   template<typename T, size_t size>
   constexpr size_t count_of(T(&)[size]) { return size; };
+
+  #define mod_api extern "C" __declspec(dllexport)
 };
 
 namespace quark {
