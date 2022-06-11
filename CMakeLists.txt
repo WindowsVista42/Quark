@@ -94,29 +94,29 @@ add_library(quark_engine SHARED
 # PRECOMPILED HEADERS FOR QUARK
 target_precompile_headers(quark_engine
   PUBLIC
-  #<cstdint>
-  #<cstdio>
-  #<iostream>
-  #<vector>
-  #<filesystem>
-  #<string>
-  #<typeindex>
-  #<unordered_map>
-  #<math.h>
-  #<VkBootstrap.h>
-  #<tiny_obj_loader.h>
-  #<vk_mem_alloc.h>
-  #<entt/entity/entity.hpp>
-  #<entt/entity/registry.hpp>
-  #<BulletCollision/CollisionDispatch/btGhostObject.h>
-  #<btBulletDynamicsCommon.h>
-  #<stb_image.h>
-  #<qoi.h>
-  #<AL/al.h>
-  #<AL/alc.h>
-  #<AL/alext.h>
-  #<AL/efx.h>
-  #<AL/efx-presets.h>
+  <cstdint>
+  <cstdio>
+  <iostream>
+  <vector>
+  <filesystem>
+  <string>
+  <typeindex>
+  <unordered_map>
+  <math.h>
+  <VkBootstrap.h>
+  <tiny_obj_loader.h>
+  <vk_mem_alloc.h>
+  <entt/entity/entity.hpp>
+  <entt/entity/registry.hpp>
+  <BulletCollision/CollisionDispatch/btGhostObject.h>
+  <btBulletDynamicsCommon.h>
+  <stb_image.h>
+  <qoi.h>
+  <AL/al.h>
+  <AL/alc.h>
+  <AL/alext.h>
+  <AL/efx.h>
+  <AL/efx-presets.h>
 )
 
 target_link_libraries(quark_platform
@@ -139,11 +139,11 @@ target_link_libraries(quark_engine
   LinearMath
 )
 
-add_executable(loader
+add_executable(quark_loader
   quark3/loader.cpp
 )
 
-target_link_libraries(loader
+target_link_libraries(quark_loader
   quark_engine
 )
 

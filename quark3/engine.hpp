@@ -19,5 +19,9 @@
 //#include "engine/state.hpp"
 //#include "engine/reflect.hpp"
 
-namespace quark {
+namespace quark::engine {
+  using Entity = entity::Entity;
+
+  template <typename... Components>
+  using Handle = entity::Handle<Components...>;
 };

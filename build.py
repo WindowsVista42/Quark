@@ -29,7 +29,7 @@ def copy_file(dst_file, src_file):
   print("Copied " + COMP_CMD_DIR + " to " + COMP_CMD)
 
 def run_program():
-  os.system("." + os.sep + build_dir + os.sep + "loader")
+  os.system("." + os.sep + build_dir + os.sep + "quark_loader")
 
 if __name__ == "__main__":
   # Error handling
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     print("Compiling " + build_dir + os.sep + bin_name)
 
-    if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0 and os.system("cmake --build " + build_dir + " --target loader") != 0:
+    if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0 or os.system("cmake --build " + build_dir + " --target quark_loader") != 0:
       sys.exit("Failed to build!")
 
     copy_file("compile_commands.json", build_dir + os.sep + "compile_commands.json")

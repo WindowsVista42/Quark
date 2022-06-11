@@ -1,12 +1,21 @@
 #include "../quark3/lib.hpp"
 
-void close_if_esc() {
-  if(window::key(GLFW_KEY_ESCAPE)) {
-    window::close();
+namespace my_mod {
+  void exit_on_escape() {
+    if (window::key(GLFW_KEY_ESCAPE)) {
+      window::close();
+    }
   }
-}
+
+  void print_message_on_exit() {
+    printf("Goodbye!\n");
+  }
+};
 
 mod_api void load_mod() {
   system::list("update")
-    .add(def(close_if_esc), -1);
+    .add(def(my_mod::exit_on_escape), -1);
+
+  system::list("deinit")
+    .add(def(my_mod::print_message_on_exit), -1);
 }
