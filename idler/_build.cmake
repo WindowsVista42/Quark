@@ -1,5 +1,6 @@
 add_library(idler SHARED
-  idler/mod.cpp
+  idler/main.cpp
+  idler/idler.cpp
 )
 
 target_precompile_headers(idler
