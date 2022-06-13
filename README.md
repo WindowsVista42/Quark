@@ -20,3 +20,16 @@ Setup build environment using
 
 Compile and run  
 ```make d```
+
+## Future Directory Structure
+```
+build/     - Most recent make e
+content/   - Mods and main game
+examples/  - Example mods and games
+my_game/   - Working directory for current game
+quark/     - Engine/API
+scripts/   - Build Scripts
+target/    - Build target data
+wiki/      - Wiki
+./         - Current directory
+```
