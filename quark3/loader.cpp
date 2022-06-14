@@ -3,7 +3,7 @@
 int main() {
   quark::init();
 
-  shared::SharedLibrary lib = shared::load("mods\\idler.dll");
+  shared::SharedLibrary lib = shared::load("mods\\common3d.dll");
   lib.run("mod_main");
 
   quark::run();

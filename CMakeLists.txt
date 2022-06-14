@@ -89,6 +89,7 @@ add_library(quark_engine SHARED
   quark3/engine/system.cpp
   quark3/engine/state.cpp
   quark3/engine/reflect.cpp
+  quark3/engine/asset.cpp
 )
 
 # PRECOMPILED HEADERS FOR QUARK
@@ -147,7 +148,10 @@ target_link_libraries(quark_loader
   quark_engine
 )
 
+add_subdirectory(common)
+add_subdirectory(idler)
+
 #PUT YOUR PROJECT FOLDER HERE
 include(testbed/_build.cmake)
-include(idler/_build.cmake)
+#include(idler/_build.cmake)
 include(sim/_build.cmake)

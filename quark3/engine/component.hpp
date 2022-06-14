@@ -2,7 +2,7 @@
 
 #include "api.hpp"
 #include "../core.hpp"
-#include "vulkan/vulkan.h"
+#include "vulkan.h"
 
 namespace quark::engine::component {
   void add_reflection();
@@ -11,12 +11,8 @@ namespace quark::engine::component {
   //
   // This stores the positional and rotational information of an entity
   struct Transform {
-    vec3 position;
-    quat rotation;
-
-    static Transform from_position(vec3 position) {
-      return Transform {.position = position, .rotation = quat::identity};
-    }
+    vec3 position = vec3::zero;
+    quat rotation = quat::identity;
   };
 
   // Vertex input desription helper
@@ -35,40 +31,40 @@ namespace quark::engine::component {
   // Typed pointer + size
   template <typename T>
   struct Slice {
-    T* ptr;
-    usize size;
+    T* ptr = 0;
+    usize size = 0;
   };
 
   // Axis Aligned Bounding Box
   //
   // Used internally for collision detection and frustum culling
   struct Aabb {
-    vec3 position;
-    vec3 half_extents;
+    vec3 position = vec3::zero;
+    vec3 half_extents = vec3::zero;
   };
 
   // Raw mesh data
   // 
   // This is allocated and stored internally and is assumed to be static
   struct Mesh {
-    Slice<VertexPNT> data;
-    vec3 half_extents;
+    Slice<VertexPNT> data = {};
+    vec3 half_extents = vec3::zero;
   };
 
   // Mesh scale + Mesh id
   //
   // Used for rendering
   struct Model {
-    vec3 scale;
-    u32 id;
+    vec3 scale = vec3::zero;
+    u32 id = 0;
   };
 
   // Raw image data
   //
   // This is allocated and stored internally and is assumed to be static
   struct Image {
-    uvec2 dimensions;
-    u64 vk_format;
+    uvec2 dimensions = uvec2::zero;
+    u64 vk_format = VK_FORMAT_UNDEFINED;
   };
 
   // Image scale + Image id
@@ -89,6 +85,8 @@ namespace quark::engine::component {
     f32 volume;
     u32 id;
   };
+
+  void init();
 };
 
 // EXPORTS

@@ -1,6 +1,6 @@
 #export CC = clang
 #export CXX = clang++
-export BIN = idler
+export BIN = common3d
 
 d:
 	python3 compile_shaders.py

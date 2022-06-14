@@ -88,6 +88,10 @@ namespace quark::core::math {
     return simd_vec2 { x, y };
   }
 
+  // uvec2
+
+  const uvec2 uvec2::zero = uvec2 {0, 0};
+
   // vec3
 
   const vec3 vec3::unit_x = vec3 {1,0,0};

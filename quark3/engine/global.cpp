@@ -29,7 +29,8 @@ namespace quark::engine::global {
     // Add our default engine systems
     {
       system::list("init")
-        .add(def(window::init), -1);
+        .add(def(window::init), -1)
+        .add(def(render::init), -1);
 
       system::list("update")
         .add(def(window::poll_events), -1);

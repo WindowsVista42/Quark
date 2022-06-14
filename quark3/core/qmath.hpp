@@ -63,6 +63,8 @@ namespace quark::core::math {
 
   struct uvec2 {
     u32 x, y;
+
+    static const uvec2 zero;
   };
 
   struct ivec2 {
