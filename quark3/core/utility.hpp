@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <cstdio>
 
+#define _USE_MATH_DEFINES
+#include <cmath>
+
 namespace quark::core::utility {
   using f32 = float;
   using f64 = double;
@@ -47,7 +50,7 @@ namespace quark {
 
   namespace utility = core::utility;
 
-  template <typename T>
-  auto& count_of = utility::count_of<T>;
+  //template <typename T>
+  //auto& count_of = utility::count_of<T>;
 };
 

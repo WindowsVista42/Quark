@@ -33,9 +33,9 @@ namespace quark::engine::registry {
   }
 
   // Return a view into the registry of the given entities with components T...
-  template <typename... T>
-  inline decltype(auto) view() {
-    return internal::_registry.view<T...>();
+  template <typename... T, typename... R>
+  inline decltype(auto) view(entt::exclude_t<R...> = {}) {
+    return internal::_registry.view<T...>(entt::exclude<R...>);
   }
 
   // Get the storage pools of the registry
@@ -47,5 +47,8 @@ namespace quark::engine::registry {
 // EXPORTS
 
 namespace quark {
+  template <typename... T>
+  using exclude = entt::exclude_t<T...>;
+
   namespace registry = engine::registry;
 };

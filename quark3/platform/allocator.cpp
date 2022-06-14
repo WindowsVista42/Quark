@@ -44,4 +44,35 @@ namespace quark::platform::allocator {
     usize rem = _capacity - _size;
     return rem > 0 ? rem : 0;
   }
+
+  void LinearAllocationTracker::init(usize capacity) {
+    this->length = 0;
+    this->capacity = capacity;
+  }
+
+  usize LinearAllocationTracker::alloc(usize size) {
+    usize new_length = this->length + size;
+
+    // TODO: figure out how I want to conditional enable this
+    if (new_length > this->capacity) {
+      panic("Failed to allocate to FixedBufferAllocator!");
+    }
+
+    usize offset = this->length;
+    this->length += size;
+    return offset;
+  }
+
+  void LinearAllocationTracker::reset() {
+    length = 0;
+  }
+
+  void LinearAllocationTracker::deinit() {
+    this->length = 0;
+    this->capacity = 0;
+  }
+
+  usize LinearAllocationTracker::size() {
+    return length;
+  }
 };

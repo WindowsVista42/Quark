@@ -19,7 +19,7 @@
 
 // IO
 //#include "engine/audio.hpp"
-//#include "engine/render.hpp"
+#include "engine/render.hpp"
 
 namespace quark::engine {
   using Entity = entity::Entity;

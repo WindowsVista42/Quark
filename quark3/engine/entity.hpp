@@ -4,10 +4,7 @@
 #include "registry.hpp"
 
 namespace quark::engine::entity {
-  class Entity {
-    // The actual value of our entity in the global registry
-    entt::entity _value;
-
+  namespace internal {
     // Utility
     template <typename... Z>
     struct pack {};
@@ -52,13 +49,17 @@ namespace quark::engine::entity {
   
       template <typename C> static one test( decltype(&C::has_required_components) ) ;
       template <typename C> static two test(...);    
-  
     public:
       enum { value = sizeof(test<T>(0)) == sizeof(char) };
     };
+  };
+
+  class Entity {
+    // The actual value of our entity in the global registry
+    entt::entity _value;
   
     template <typename... A>
-    void unpack(pack<A...> a) {
+    void unpack(internal::pack<A...> a) {
       list<A...>();
     }
   
@@ -102,7 +103,7 @@ namespace quark::engine::entity {
         // Provide the user feedback on if the
         // added component has been added after other
         // required components have been added
-        if constexpr(has_required_components<Component>::value) {
+        if constexpr(internal::has_required_components<Component>::value) {
           if(!Component::has_required_components(*this)) {
             std::cout << "Attempted to add : " << typeid(Component).name() << " :" << std::endl;
             unpack(typename Component::args());

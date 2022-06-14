@@ -2,7 +2,8 @@
 
 #include "api.hpp"
 #include "../core.hpp"
-#include "vulkan.h"
+#include "vulkan/vulkan.h"
+#include "entity.hpp"
 
 namespace quark::engine::component {
   void add_reflection();
@@ -26,6 +27,8 @@ namespace quark::engine::component {
     vec3 position;
     vec3 normal;
     vec2 texture;
+
+    static const VertexInputDescription<1, 3> input_description;
   };
 
   // Typed pointer + size
@@ -47,7 +50,8 @@ namespace quark::engine::component {
   // 
   // This is allocated and stored internally and is assumed to be static
   struct Mesh {
-    Slice<VertexPNT> data = {};
+    u32 size = 0;
+    u32 offset = 0;
     vec3 half_extents = vec3::zero;
   };
 
@@ -86,7 +90,28 @@ namespace quark::engine::component {
     u32 id;
   };
 
-  void init();
+  // RGBA color represented values between 0.0 and 1.0
+  struct Color : vec4 {};
+
+  namespace Effect {
+    template <u32 yd, typename... T>
+    struct Id {
+      static constexpr u32 id = yd;
+      static bool has_required_components(Entity entity) { return entity.has<T...>(); };
+      using args = entity::internal::pack<T...>;
+    };
+  
+    using LitTexture = Id<0, Transform, Model, Texture>;
+
+    using WireframeColor = Id<1, Transform, Model, Color>;
+    using FillColor      = Id<2, Transform, Model, Color>;
+    using FillTexture    = Id<3, Transform, Model, Texture>;
+
+    using ShadowPass     = Id<4, Transform, Model>;
+    using Transparent    = Id<5, Transform, Model>;
+  };
+
+  //void init();
 };
 
 // EXPORTS

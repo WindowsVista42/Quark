@@ -35,6 +35,23 @@ namespace quark::platform::allocator {
     // its buffer
     usize remainder();
   };
+
+  struct platform_api LinearAllocationTracker {
+  private:
+    usize length;
+    usize capacity;
+  
+  public:
+    void init(usize capacity);
+  
+    usize alloc(usize size);
+  
+    void reset();
+  
+    void deinit();
+  
+    usize size();
+  };
 };
 
 namespace quark {
