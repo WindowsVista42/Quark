@@ -53,4 +53,10 @@ namespace quark::platform::window {
 
     glfwGetFramebufferSize(_window, &_config.dimensions.x, &_config.dimensions.y);
   }
+
+  void deinit() {
+    using namespace internal;
+    glfwDestroyWindow(_window);
+    glfwTerminate();
+  }
 };

@@ -182,8 +182,6 @@ namespace quark::core::math {
   }
 
   vec3 vec3::cross(vec3 v) {
-    vec3& b = v;
-
     return vec3 {
       y * v.z - z * v.y,
       z * v.x - x * v.z,
@@ -423,6 +421,14 @@ namespace quark::core::math {
 
   vec3& mat3::operator[](usize i) { return ((vec3*)this)[i]; }
 
+  // MAT4
+  const mat4 mat4::identity = mat4 {
+    {1, 0, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 1, 0},
+    {0, 0, 0, 1},
+  };
+
   mat4 mat4::operator+(mat4 v) { return {xs + v.xs, ys + v.ys, zs + v.zs, ws + v.ws}; }
   mat4 mat4::operator-(mat4 v) { return {xs - v.xs, ys - v.ys, zs - v.zs, ws - v.ws}; }
 
@@ -455,6 +461,127 @@ namespace quark::core::math {
     };
   }
 
-  vec4& mat4::operator[](usize i) { return ((vec4*)this)[i]; }
+  vec4& mat4::operator[](usize i) {
+    return ((vec4*)this)[i];
+  }
 
+  mat4 mat4::transpose() {
+    return mat4 {
+      {(*this)[0][0], (*this)[1][0], (*this)[2][0], (*this)[3][0]},
+      {(*this)[0][1], (*this)[1][1], (*this)[2][1], (*this)[3][1]},
+      {(*this)[0][2], (*this)[1][2], (*this)[2][2], (*this)[3][2]},
+      {(*this)[0][3], (*this)[1][3], (*this)[2][3], (*this)[3][3]},
+    };
+  }
+
+  mat4 mat4::perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far) {
+    f32 inv_length = 1.0f / (z_near - z_far);
+    f32 f = 1.0f / tanf((0.5f * fov_radians));
+    f32 a = f / aspect;
+    f32 b = (z_near + z_far) * inv_length;
+    f32 c = (2.0f * z_near * z_far) * inv_length;
+
+    return mat4{
+      {a, 0.0f, 0.0f, 0.0f},
+      {0.0f, -f, 0.0f, 0.0f},
+      {0.0f, 0.0f, b, -1.0f},
+      {0.0f, 0.0f, c, 0.0f},
+    };
+  }
+
+  mat4 mat4::orthographic() {
+    return mat4::identity;
+  }
+
+  mat4 mat4::look_dir(vec3 position, vec3 direction, vec3 up) {
+    //TODO(sean): make this not negate it
+    direction = -direction; // Sean: left handed coordinates that are being wonk
+    vec3 f = direction.norm();
+    vec3 s = up.cross(f).norm();
+    vec3 u = f.cross(s);
+
+    return mat4 {
+      {s.x, u.x, f.x, 0.0f},
+      {s.y, u.y, f.y, 0.0f},
+      {s.z, u.z, f.z, 0.0f},
+      {-s.dot(position), -u.dot(position), -f.dot(position), 1.0f},
+    };
+  }
+
+  mat4 mat4::look_at(vec3 position, vec3 target, vec3 up) {
+    vec3 dir = position - target;
+    return look_dir(position, dir, up);
+  }
+
+  mat4 mat4::axis_angle(vec3 axis, f32 angle) {
+    f32 sin = sinf(angle);
+    f32 cos = cosf(angle);
+    vec3 axis_sin = axis * sin;
+    vec3 axis_sq = axis * axis;
+    f32 omc = 1.0 - cos;
+    f32 xyomc = axis.x * axis.y * omc;
+    f32 xzomc = axis.x * axis.z * omc;
+    f32 yzomc = axis.y * axis.z * omc;
+
+    return mat4 {
+      { 
+        axis_sq.x * omc + cos,
+        xyomc + axis_sin.z,
+        xzomc - axis_sin.y,
+        0.0f,
+      },
+      {
+        xyomc - axis_sin.z,
+        axis_sq.y * omc + cos,
+        yzomc + axis_sin.x,
+        0.0f,
+      },
+      {
+        xzomc + axis_sin.y,
+        yzomc - axis_sin.x,
+        axis_sq.z * omc + cos,
+        0.0f,
+      },
+      vec4::unit_w,
+    };
+  }
+
+  mat4 mat4::rotate(quat rotation) {
+    // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
+
+    mat4 m = mat4::identity;
+
+    f32 xx = rotation.x * rotation.x;
+    f32 xy = rotation.x * rotation.y;
+    f32 xz = rotation.x * rotation.z;
+    f32 xw = rotation.x * rotation.w;
+
+    f32 yy = rotation.y * rotation.y;
+    f32 yz = rotation.y * rotation.z;
+    f32 yw = rotation.y * rotation.w;
+
+    f32 zz = rotation.z * rotation.z;
+    f32 zw = rotation.z * rotation.w;
+
+    // Sean: this is transposed because we get weird results from bullet3 otherwise
+    m[0][0] = 1.0f - 2.0f * (yy + zz);
+    m[1][0] = 2.0f * (xy - zw);
+    m[2][0] = 2.0f * (xz + yw);
+
+    m[0][1] = 2.0f * (xy + zw);
+    m[1][1] = 1.0f - 2.0f * (xx + zz);
+    m[2][1] = 2.0f * (yz - xw);
+
+    m[0][2] = 2.0f * (xz - yw);
+    m[1][2] = 2.0f * (yz + xw);
+    m[2][2] = 1.0f - 2.0f * (xx + yy);
+
+    m[3][3] = 1;
+
+    return m;
+  }
+
+  f32 radians(f32 degrees) {
+    return (degrees * M_PI) / 180.0f;
+  }
 };

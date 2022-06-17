@@ -65,6 +65,9 @@ namespace quark::platform::window {
   // Initialize the window
   platform_api void init();
 
+  // Deinitialize the window
+  platform_api void deinit();
+
   // Resize window to specified dimensions in pixels
   //static void dimensions(uvec2 dimensions) {
   //  _dimensions = dimensions;

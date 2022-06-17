@@ -201,7 +201,7 @@ namespace quark::engine::render {
     VkQueue _present_queue = {};
     
     u32 _graphics_queue_family = {};
-    u32 _transform_queue_family = {};
+    u32 _transfer_queue_family = {};
     u32 _present_queue_family = {};
     
     VkCommandPool _transfer_cmd_pool = {};
@@ -280,6 +280,10 @@ namespace quark::engine::render {
     
     LinearAllocator _render_alloc = {};
     VmaAllocator _gpu_alloc = {};
+
+    namespace mesh_data {
+      Slice<Mesh> _meshes;
+    };
     
     // FUNCTIONS
     
@@ -1135,7 +1139,7 @@ namespace quark::engine::render {
     
     // This function is that it takes a DescriptorLayoutInfo and writes to a descriptor set from it
     template <auto C>
-    void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayoutInfo layout_info[C], bool is_initialize) {
+    void update_desc_set(VkDescriptorSet desc_set, usize frame_index, DescriptorLayoutInfo (&layout_info)[C], bool is_initialize) {
       VkWriteDescriptorSet desc_write[C] = {};
     
       // some temporary vector of vectors because im not sure how to do the super nice compile-time solution without flipping
@@ -1338,12 +1342,12 @@ namespace quark::engine::render {
     // Mesh loading
     void create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
       mesh->size = size;
-      mesh->offset = GPU_VERTEX_TRACKER.alloc(size);
+      mesh->offset = _gpu_vertex_tracker.alloc(size);
     
       void* ptr;
-      vmaMapMemory(GPU_ALLOC, GPU_VERTEX_BUFFER.alloc, &ptr);
+      vmaMapMemory(_gpu_alloc, _gpu_vertex_buffer.alloc, &ptr);
       memcpy((u8*)ptr + (elemsize * mesh->offset), data, elemsize * mesh->size);
-      vmaUnmapMemory(GPU_ALLOC, GPU_VERTEX_BUFFER.alloc);
+      vmaUnmapMemory(_gpu_alloc, _gpu_vertex_buffer.alloc);
     }
     
     Mesh* load_obj_mesh(std::string* path) {
@@ -1370,7 +1374,7 @@ namespace quark::engine::render {
       for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
     
       usize memsize = size * sizeof(VertexPNT);
-      VertexPNT* data = (VertexPNT*)RENDER_ALLOC.alloc(memsize);
+      VertexPNT* data = (VertexPNT*)_render_alloc.alloc(memsize);
       usize count = 0;
     
       vec3 max_ext = {0.0f, 0.0f, 0.0f};
@@ -1456,67 +1460,67 @@ namespace quark::engine::render {
       // if(ext.z > largest_side) { largest_side = ext.z; }
     
       auto path_path = std::filesystem::path(*path);
-      MESH_SCALES.insert(std::make_pair(path_path.filename().string(), ext));
-      print("extents: ", ext);
+      //_mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
+      //print("extents: ", ext);
     
       // normalize vertex positions to -1, 1
       for (usize i = 0; i < size; i += 1) {
         data[i].position /= (ext * 0.5f);
       }
     
-      Mesh* mesh = (Mesh*)RENDER_ALLOC.alloc(sizeof(Mesh));
+      Mesh* mesh = (Mesh*)_render_alloc.alloc(sizeof(Mesh));
       create_mesh(data, size, sizeof(VertexPNT), mesh);
       return mesh;
     }
     
     // TODO(sean): do some kind of better file checking
-    Mesh* load_vbo_mesh(std::string* path) {
-      // Sean: VBO file format:
-      // https://github.com/microsoft/DirectXMesh/blob/master/Meshconvert/Mesh.cpp
-      u32 vertex_count;
-      u32 index_count;
-      VertexPNC* vertices; // Sean: we initialize this to the count of indices
-      u16* indices;        // Sean: we alloc to the scratch buffer as we're not using index
-                           // buffers yet
-    
-      FILE* fp = fopen(path->c_str(), "rb");
-    
-      fread(&vertex_count, sizeof(u32), 1, fp);
-      fread(&index_count, sizeof(u32), 1, fp);
-    
-      vertices = (VertexPNC*)RENDER_ALLOC.alloc(index_count * sizeof(VertexPNC));
-      indices = (u16*)scratch_alloc.alloc(index_count * sizeof(u16));
-    
-      // Sean: we use this as a temporary buffer for vertices
-      VertexPNT* vert_list = (VertexPNT*)scratch_alloc.alloc(vertex_count * sizeof(VertexPNT));
-    
-      fread(vert_list, sizeof(VertexPNT), vertex_count, fp);
-      fread(indices, sizeof(u16), index_count, fp);
-    
-      fclose(fp);
-    
-      for_every(i, index_count) {
-        vertices[i].position.x = vert_list[indices[i]].position.x;
-        vertices[i].position.y = vert_list[indices[i]].position.y;
-        vertices[i].position.z = vert_list[indices[i]].position.z;
-    
-        vertices[i].normal.x = vert_list[indices[i]].normal.x;
-        vertices[i].normal.y = vert_list[indices[i]].normal.y;
-        vertices[i].normal.z = vert_list[indices[i]].normal.z;
-    
-        vertices[i].color.x = vert_list[indices[i]].normal.x;
-        vertices[i].color.y = vert_list[indices[i]].normal.y;
-        vertices[i].color.z = vert_list[indices[i]].normal.z;
-      }
-    
-      Mesh* mesh = (Mesh*)RENDER_ALLOC.alloc(sizeof(Mesh));
-    
-      create_mesh(vertices, index_count, sizeof(VertexPNC), mesh);
-    
-      scratch_alloc.reset();
-    
-      return mesh;
-    }
+    //Mesh* load_vbo_mesh(std::string* path) {
+    //  // Sean: VBO file format:
+    //  // https://github.com/microsoft/DirectXMesh/blob/master/Meshconvert/Mesh.cpp
+    //  u32 vertex_count;
+    //  u32 index_count;
+    //  VertexPNC* vertices; // Sean: we initialize this to the count of indices
+    //  u16* indices;        // Sean: we alloc to the scratch buffer as we're not using index
+    //                       // buffers yet
+    //
+    //  FILE* fp = fopen(path->c_str(), "rb");
+    //
+    //  fread(&vertex_count, sizeof(u32), 1, fp);
+    //  fread(&index_count, sizeof(u32), 1, fp);
+    //
+    //  vertices = (VertexPNC*)RENDER_ALLOC.alloc(index_count * sizeof(VertexPNC));
+    //  indices = (u16*)scratch_alloc.alloc(index_count * sizeof(u16));
+    //
+    //  // Sean: we use this as a temporary buffer for vertices
+    //  VertexPNT* vert_list = (VertexPNT*)scratch_alloc.alloc(vertex_count * sizeof(VertexPNT));
+    //
+    //  fread(vert_list, sizeof(VertexPNT), vertex_count, fp);
+    //  fread(indices, sizeof(u16), index_count, fp);
+    //
+    //  fclose(fp);
+    //
+    //  for_every(i, index_count) {
+    //    vertices[i].position.x = vert_list[indices[i]].position.x;
+    //    vertices[i].position.y = vert_list[indices[i]].position.y;
+    //    vertices[i].position.z = vert_list[indices[i]].position.z;
+    //
+    //    vertices[i].normal.x = vert_list[indices[i]].normal.x;
+    //    vertices[i].normal.y = vert_list[indices[i]].normal.y;
+    //    vertices[i].normal.z = vert_list[indices[i]].normal.z;
+    //
+    //    vertices[i].color.x = vert_list[indices[i]].normal.x;
+    //    vertices[i].color.y = vert_list[indices[i]].normal.y;
+    //    vertices[i].color.z = vert_list[indices[i]].normal.z;
+    //  }
+    //
+    //  Mesh* mesh = (Mesh*)RENDER_ALLOC.alloc(sizeof(Mesh));
+    //
+    //  create_mesh(vertices, index_count, sizeof(VertexPNC), mesh);
+    //
+    //  scratch_alloc.reset();
+    //
+    //  return mesh;
+    //}
     
     void unload_mesh(Mesh* mesh) {}
     
@@ -1538,9 +1542,9 @@ namespace quark::engine::render {
       AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     
       void* data;
-      vmaMapMemory(GPU_ALLOC, staging_buffer.alloc, &data);
+      vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
       memcpy(data, pixels, (isize)image_size);
-      vmaUnmapMemory(GPU_ALLOC, staging_buffer.alloc);
+      vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
     
       stbi_image_free(pixels);
     
@@ -1610,15 +1614,15 @@ namespace quark::engine::render {
       }
       end_quick_commands(cmd);
     
-      vmaDestroyBuffer(GPU_ALLOC, staging_buffer.buffer, staging_buffer.alloc);
+      vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
     
       //TODO(sean): store our AllocatedImage in the global textures array and 
-      Texture* texture = (Texture*)RENDER_ALLOC.alloc(sizeof(Texture));
-      texture->index = GLOBAL_CONSTANTS_LAYOUT_INFO[2].count;
+      Texture* texture = (Texture*)_render_alloc.alloc(sizeof(Texture));
+      texture->id = _global_constants_layout_info[2].count;
     
-      GPU_IMAGE_BUFFER_ARRAY[GLOBAL_CONSTANTS_LAYOUT_INFO[2].count] = alloc_image;
-      GLOBAL_CONSTANTS_LAYOUT_INFO[2].count += 1;
-      printf("%llu\n", GLOBAL_CONSTANTS_LAYOUT_INFO[2].count);
+      _gpu_image_buffer_array[_global_constants_layout_info[2].count] = alloc_image;
+      _global_constants_layout_info[2].count += 1;
+      printf("%llu\n", _global_constants_layout_info[2].count);
     
       return texture;
     }
@@ -1628,9 +1632,9 @@ namespace quark::engine::render {
     }
     
     void unload_texture(Texture* texture) {
-      AllocatedImage* alloc_image = &GPU_IMAGE_BUFFER_ARRAY[texture->index];
-      vkDestroyImageView(DEVICE, alloc_image->view, 0);
-      vmaDestroyImage(GPU_ALLOC, alloc_image->image, alloc_image->alloc);
+      AllocatedImage* alloc_image = &_gpu_image_buffer_array[texture->id];
+      vkDestroyImageView(_device, alloc_image->view, 0);
+      vmaDestroyImage(_gpu_alloc, alloc_image->image, alloc_image->alloc);
     
     #ifdef DEBUG
       alloc_image->format = (VkFormat)0;
@@ -1639,211 +1643,208 @@ namespace quark::engine::render {
     }
     
     void deinit_sync_objects() {
-      for_every(i, FRAME_OVERLAP) {
-        vkDestroyFence(DEVICE, RENDER_FENCE[i], 0);
+      for_every(i, _FRAME_OVERLAP) {
+        vkDestroyFence(_device, _render_fence[i], 0);
     
-        vkDestroySemaphore(DEVICE, PRESENT_SEMAPHORE[i], 0);
-        vkDestroySemaphore(DEVICE, RENDER_SEMAPHORE[i], 0);
+        vkDestroySemaphore(_device, _present_semaphore[i], 0);
+        vkDestroySemaphore(_device, _render_semaphore[i], 0);
       }
     }
     
     void deinit_descriptors() {
-      vkDestroyDescriptorSetLayout(DEVICE, GLOBAL_CONSTANTS_LAYOUT, 0);
-      vkDestroyDescriptorPool(DEVICE, GLOBAL_DESCRIPTOR_POOL, 0);
+      vkDestroyDescriptorSetLayout(_device, _global_constants_layout, 0);
+      vkDestroyDescriptorPool(_device, _global_descriptor_pool, 0);
     }
     
     void deinit_sampler() {
-      vkDestroySampler(DEVICE, DEFAULT_SAMPLER, 0);
+      vkDestroySampler(_device, _default_sampler, 0);
     }
     
     void deinit_buffers_and_images() {
       // Destroy vma buffers
-      assets::unload_all(".obj");
+      asset::unload_all(".obj");
     
-      for_every(i, FRAME_OVERLAP) { vmaDestroyBuffer(GPU_ALLOC, WORLD_DATA_BUF[i].buffer, WORLD_DATA_BUF[i].alloc); }
+      for_every(i, _FRAME_OVERLAP) { vmaDestroyBuffer(_gpu_alloc, _world_data_buf[i].buffer, _world_data_buf[i].alloc); }
     }
     
     void deinit_shaders() {
-      assets::unload_all(".vert.spv");
-      assets::unload_all(".frag.spv");
+      asset::unload_all(".vert.spv");
+      asset::unload_all(".frag.spv");
     }
     
     void deinit_allocators() {
-      RENDER_ALLOC.deinit();
-      scratch_alloc.deinit();
-      vmaDestroyBuffer(GPU_ALLOC, GPU_VERTEX_BUFFER.buffer, GPU_VERTEX_BUFFER.alloc);
-      vmaDestroyAllocator(GPU_ALLOC);
+      _render_alloc.deinit();
+      SCRATCH.deinit();
+      vmaDestroyBuffer(_gpu_alloc, _gpu_vertex_buffer.buffer, _gpu_vertex_buffer.alloc);
+      vmaDestroyAllocator(_gpu_alloc);
     }
     
     void deinit_pipelines() {
-      vkDestroyPipelineLayout(DEVICE, LIT_PIPELINE_LAYOUT, 0);
-      vkDestroyPipelineLayout(DEVICE, COLOR_PIPELINE_LAYOUT, 0);
-      vkDestroyPipeline(DEVICE, LIT_PIPELINE, 0);
-      vkDestroyPipeline(DEVICE, SOLID_PIPELINE, 0);
-      vkDestroyPipeline(DEVICE, WIREFRAME_PIPELINE, 0);
+      vkDestroyPipelineLayout(_device, _lit_pipeline_layout, 0);
+      vkDestroyPipelineLayout(_device, _color_pipeline_layout, 0);
+      vkDestroyPipeline(_device, _lit_pipeline, 0);
+      vkDestroyPipeline(_device, _solid_pipeline, 0);
+      vkDestroyPipeline(_device, _wireframe_pipeline, 0);
     }
     
     void deinit_framebuffers() {
-      for_every(index, SWAPCHAIN_IMAGE_VIEWS.size()) {
-        vkDestroyFramebuffer(DEVICE, GLOBAL_FRAMEBUFFERS[index], 0);
-        vkDestroyFramebuffer(DEVICE, DEPTH_PREPASS_FRAMEBUFFERS[index], 0);
-        vkDestroyFramebuffer(DEVICE, SUN_SHADOW_FRAMEBUFFERS[index], 0);
+      for_every(index, _swapchain_image_views.size()) {
+        vkDestroyFramebuffer(_device, _global_framebuffers[index], 0);
+        vkDestroyFramebuffer(_device, _depth_prepass_framebuffers[index], 0);
+        vkDestroyFramebuffer(_device, _sun_shadow_framebuffers[index], 0);
       }
     }
     
-    void deinit_render_passes() { vkDestroyRenderPass(DEVICE, DEFAULT_RENDER_PASS, 0); }
+    void deinit_render_passes() { vkDestroyRenderPass(_device, _default_render_pass, 0); }
     
     void deinit_command_pools_and_buffers() {
-      for_every(i, FRAME_OVERLAP) { vkDestroyCommandPool(DEVICE, GRAPHICS_CMD_POOL[i], 0); }
-      vkDestroyCommandPool(DEVICE, TRANSFER_CMD_POOL, 0);
+      for_every(i, _FRAME_OVERLAP) { vkDestroyCommandPool(_device, _graphics_cmd_pool[i], 0); }
+      vkDestroyCommandPool(_device, _transfer_cmd_pool, 0);
     }
     
     void deinit_swapchain() {
       // Destroy depth texture
-      vkDestroyImageView(DEVICE, GLOBAL_DEPTH_IMAGE.view, 0);
-      vmaDestroyImage(GPU_ALLOC, GLOBAL_DEPTH_IMAGE.image, GLOBAL_DEPTH_IMAGE.alloc);
+      vkDestroyImageView(_device, _global_depth_image.view, 0);
+      vmaDestroyImage(_gpu_alloc, _global_depth_image.image, _global_depth_image.alloc);
     
-      vkDestroySwapchainKHR(DEVICE, SWAPCHAIN, 0);
+      vkDestroySwapchainKHR(_device, _swapchain, 0);
     
-      for_every(index, SWAPCHAIN_IMAGE_VIEWS.size()) { vkDestroyImageView(DEVICE, SWAPCHAIN_IMAGE_VIEWS[index], 0); }
+      for_every(index, _swapchain_image_views.size()) { vkDestroyImageView(_device, _swapchain_image_views[index], 0); }
     }
     
     void deinit_vulkan() {
-      vkDestroyDevice(DEVICE, 0);
-      vkDestroySurfaceKHR(INSTANCE, SURFACE, 0);
-      vkb::destroy_debug_utils_messenger(INSTANCE, DEBUG_MESSENGER);
-      vkDestroyInstance(INSTANCE, 0);
-    }
-    
-    void deinit_window() {
-      glfwDestroyWindow(window);
-      glfwTerminate();
+      vkDestroyDevice(_device, 0);
+      vkDestroySurfaceKHR(_instance, _surface, 0);
+      vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+      vkDestroyInstance(_instance, 0);
     }
     
     void resize_swapchain() {
-      glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
-      while (platform::window_w == 0 || platform::window_h == 0) {
-        glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
-        glfwWaitEvents();
-      }
+      //glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
+      //while (platform::window_w == 0 || platform::window_h == 0) {
+      //  glfwGetFramebufferSize(window, &platform::window_w, &platform::window_h);
+      //  glfwWaitEvents();
+      //}
     
-      vkDeviceWaitIdle(DEVICE);
+      //vkDeviceWaitIdle(DEVICE);
     
-      deinit_pipelines();
-      deinit_framebuffers();
-      deinit_render_passes();
-      deinit_command_pools_and_buffers();
-      deinit_swapchain();
+      //deinit_pipelines();
+      //deinit_framebuffers();
+      //deinit_render_passes();
+      //deinit_command_pools_and_buffers();
+      //deinit_swapchain();
     
-      init_swapchain();
-      init_command_pools_and_buffers();
-      init_render_passes();
-      init_framebuffers();
-      init_pipelines();
+      //init_swapchain();
+      //init_command_pools_and_buffers();
+      //init_render_passes();
+      //init_framebuffers();
+      //init_pipelines();
     
-      update_descriptor_sets();
+      //update_descriptor_sets();
     }
     
     void update_descriptor_sets() {
-      for_every(frame_index, FRAME_OVERLAP) {
-        update_desc_set<count_of(GLOBAL_CONSTANTS_LAYOUT_INFO)>(GLOBAL_CONSTANTS_SETS[frame_index], frame_index, GLOBAL_CONSTANTS_LAYOUT_INFO, false);
+      for_every(frame_index, _FRAME_OVERLAP) {
+        update_desc_set(_global_constants_sets[frame_index], frame_index, _global_constants_layout_info, false);
       }
     }
     
     void print_performance_statistics() {
-      if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
-        return;
-      }
+      //if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
+      //  return;
+      //}
     
-      static f32 timer = 0.0;
-      static u32 frame_number = 0;
-      static f32 low = 1.0;
-      static f32 high = 0.0;
+      //static f32 timer = 0.0;
+      //static u32 frame_number = 0;
+      //static f32 low = 1.0;
+      //static f32 high = 0.0;
     
-      const u32 target = 60;
-      const f32 threshold = 1.0;
+      //const u32 target = 60;
+      //const f32 threshold = 1.0;
     
-      frame_number += 1;
-      timer += DT;
+      //frame_number += 1;
+      //timer += DT;
     
-      if (DT > high) {
-        high = DT;
-      }
-      if (DT < low) {
-        low = DT;
-      }
+      //if (DT > high) {
+      //  high = DT;
+      //}
+      //if (DT < low) {
+      //  low = DT;
+      //}
     
-      if (timer > threshold) {
-        // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
-        // to work
-        printf("---- Performance Statistics ----\n"
-               "Target:  %.2fms (%.2f%%)\n"
-               "Average: %.2fms (%.2f%%)\n"
-               "High:    %.2fms (%.2f%%)\n"
-               "Low:     %.2fms (%.2f%%)\n"
-               "\n",
-            (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
-            (1.0f / (f32)frame_number) * 1000.0f,
-            100.0f / ((f32)frame_number / (f32)target),             // Average framerate calculation
-            high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
-            low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
-        );
+      //if (timer > threshold) {
+      //  // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
+      //  // to work
+      //  printf("---- Performance Statistics ----\n"
+      //         "Target:  %.2fms (%.2f%%)\n"
+      //         "Average: %.2fms (%.2f%%)\n"
+      //         "High:    %.2fms (%.2f%%)\n"
+      //         "Low:     %.2fms (%.2f%%)\n"
+      //         "\n",
+      //      (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
+      //      (1.0f / (f32)frame_number) * 1000.0f,
+      //      100.0f / ((f32)frame_number / (f32)target),             // Average framerate calculation
+      //      high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
+      //      low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
+      //  );
     
-        timer -= threshold;
-        frame_number = 0;
-        low = 1.0;
-        high = 0.0;
-      }
+      //  timer -= threshold;
+      //  frame_number = 0;
+      //  low = 1.0;
+      //  high = 0.0;
+      //}
     }
     
-    void add_to_render_batch(Position pos, Rotation rot, Scale scl, Mesh mesh) {}
+    void add_to_render_batch(Transform transform, Model model) {}
     template <typename F> void flush_render_batch(F f) {}
     
     //TODO(sean): update this so that it can output cull data to the input camera
     mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
-      mat4 view_projection = MAT4_IDENTITY;
+      mat4 view_projection = mat4::identity;
     
       f32 aspect = (f32)width / (f32)height;
       mat4 projection, view;
     
       if (projection_type == PERSPECTIVE_PROJECTION) {
-        projection = perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
       } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
-        projection = orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
+        //projection = mat4::orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
+        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
       } else {
-        projection = perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
       }
     
-      view = look_dir(camera.pos, camera.dir, VEC3_UNIT_Z);
+      view = mat4::look_dir(camera.pos, camera.dir, vec3::unit_z);
       view_projection = projection * view;
     
       // Calculate updated frustum
-      if (!PAUSE_FRUSTUM_CULLING) {
-        mat4 projection_matrix_t = transpose(projection);
+      //if (!PAUSE_FRUSTUM_CULLING) {
+      if (true) {
+        mat4 projection_matrix_t = projection.transpose();//transpose(projection);
     
-        auto normalize_plane = [](vec4 p) { return p / length(p.xyz); };
+        auto normalize_plane = [](vec4 p) { return p / p.xyz.mag(); };
     
         vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
         vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
     
-        CULL_DATA.view = view;
-        CULL_DATA.p00 = projection[0][0];
-        CULL_DATA.p22 = projection[1][1];
-        CULL_DATA.frustum[0] = frustum_x.x;
-        CULL_DATA.frustum[1] = frustum_x.z;
-        CULL_DATA.frustum[2] = frustum_y.y;
-        CULL_DATA.frustum[3] = frustum_y.z;
-        CULL_DATA.lod_base = 10.0f;
-        CULL_DATA.lod_step = 1.5f;
+        _cull_data.view = view;
+        _cull_data.p00 = projection[0][0];
+        _cull_data.p22 = projection[1][1];
+        _cull_data.frustum[0] = frustum_x.x;
+        _cull_data.frustum[1] = frustum_x.z;
+        _cull_data.frustum[2] = frustum_y.y;
+        _cull_data.frustum[3] = frustum_y.z;
+        _cull_data.lod_base = 10.0f;
+        _cull_data.lod_step = 1.5f;
     
         {
-          mat4 m = transpose(view_projection);
-          CULL_PLANES[0] = m[3] + m[0];
-          CULL_PLANES[1] = m[3] - m[0];
-          CULL_PLANES[2] = m[3] + m[1];
-          CULL_PLANES[3] = m[3] - m[1];
-          CULL_PLANES[4] = m[3] + m[2];
-          CULL_PLANES[5] = m[3] - m[2];
+          mat4 m = view_projection.transpose();
+          _cull_planes[0] = m[3] + m[0];
+          _cull_planes[1] = m[3] - m[0];
+          _cull_planes[2] = m[3] + m[1];
+          _cull_planes[3] = m[3] - m[1];
+          _cull_planes[4] = m[3] + m[2];
+          _cull_planes[5] = m[3] - m[2];
         }
       }
     
@@ -1852,12 +1853,12 @@ namespace quark::engine::render {
     
     void update_world_data() {
       void* ptr;
-      vmaMapMemory(GPU_ALLOC, WORLD_DATA_BUF[FRAME_INDEX].alloc, &ptr);
+      vmaMapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc, &ptr);
       WorldData* world_data = (WorldData*)ptr;
     
       u32 count = 0;
-      for (auto [e, transform, color, light] : ecs::REGISTRY.view<Transform, Color, PointLight>().each()) {
-        world_data->point_lights[count].position = transform.pos;
+      for (auto [e, transform, color, light] : registry::view<Transform, Color, PointLight>().each()) {
+        world_data->point_lights[count].position = transform.position;
         world_data->point_lights[count].falloff = light.falloff;
         world_data->point_lights[count].color = color.xyz;
         world_data->point_lights[count].directionality = light.directionality;
@@ -1866,10 +1867,10 @@ namespace quark::engine::render {
       world_data->point_light_count = count;
     
       count = 0;
-      for (auto [e, transform, color, light] : ecs::REGISTRY.view<Transform, Color, DirectionalLight>().each()) {
-        world_data->directional_lights[count].position = transform.pos;
+      for (auto [e, transform, color, light] : registry::view<Transform, Color, DirectionalLight>().each()) {
+        world_data->directional_lights[count].position = transform.position;
         world_data->directional_lights[count].falloff = light.falloff;
-        world_data->directional_lights[count].direction = transform.rot.forward();
+        world_data->directional_lights[count].direction = transform.rotation.forward();
         world_data->directional_lights[count].color = color.xyz;
         world_data->directional_lights[count].directionality = light.directionality;
         count += 1;
@@ -1903,10 +1904,10 @@ namespace quark::engine::render {
       world_data->TT = TT;
       world_data->DT = DT;
     
-      world_data->sun_view_projection = SUN_VIEW_PROJECTION;
-      world_data->main_view_projection = MAIN_VIEW_PROJECTION;
+      world_data->sun_view_projection = _sun_view_projection;
+      world_data->main_view_projection = _main_view_projection;
     
-      vmaUnmapMemory(GPU_ALLOC, WORLD_DATA_BUF[FRAME_INDEX].alloc);
+      vmaUnmapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc);
     }
     
     void begin_forward_rendering() {
@@ -1914,10 +1915,10 @@ namespace quark::engine::render {
       // update_matrices(window_w, window_h);
     
       VkClearValue color_clear;
-      color_clear.color.float32[0] = PURE_BLACK[0];
-      color_clear.color.float32[1] = PURE_BLACK[1];
-      color_clear.color.float32[2] = PURE_BLACK[2];
-      color_clear.color.float32[3] = PURE_BLACK[3];
+      color_clear.color.float32[0] = 0.0f; // _pure_black[0];
+      color_clear.color.float32[1] = 0.0f; // _pure_black[1];
+      color_clear.color.float32[2] = 0.0f; // _pure_black[2];
+      color_clear.color.float32[3] = 1.0f; // _pure_black[3];
     
       VkClearValue depth_clear;
       depth_clear.depthStencil.depth = 1.0f;
@@ -1926,24 +1927,24 @@ namespace quark::engine::render {
     
       VkRenderPassBeginInfo render_pass_begin_info = {};
       render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = DEFAULT_RENDER_PASS;
+      render_pass_begin_info.renderPass = _default_render_pass;
       render_pass_begin_info.renderArea.offset.x = 0;
       render_pass_begin_info.renderArea.offset.y = 0;
-      render_pass_begin_info.renderArea.extent.width = platform::window_w;
-      render_pass_begin_info.renderArea.extent.height = platform::window_h;
-      render_pass_begin_info.framebuffer = GLOBAL_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
+      render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
+      render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+      render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
       render_pass_begin_info.clearValueCount = 2;
       render_pass_begin_info.pClearValues = clear_values;
       render_pass_begin_info.pNext = 0;
     
-      vkCmdBeginRenderPass(MAIN_CMD_BUF[FRAME_INDEX], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_PREPASS_PIPELINE);
+      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
     }
     
-    void end_forward_rendering() { vkCmdEndRenderPass(MAIN_CMD_BUF[FRAME_INDEX]); }
+    void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
     
     void begin_depth_prepass_rendering() {
       // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
@@ -1956,36 +1957,43 @@ namespace quark::engine::render {
     
       VkRenderPassBeginInfo render_pass_begin_info = {};
       render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = DEPTH_PREPASS_RENDER_PASS;
+      render_pass_begin_info.renderPass = _depth_prepass_render_pass;
       render_pass_begin_info.renderArea.offset.x = 0;
       render_pass_begin_info.renderArea.offset.y = 0;
-      render_pass_begin_info.renderArea.extent.width = platform::window_w;
-      render_pass_begin_info.renderArea.extent.height = platform::window_h;
-      render_pass_begin_info.framebuffer = DEPTH_PREPASS_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
+      render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
+      render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+      render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
       render_pass_begin_info.clearValueCount = 1;
       render_pass_begin_info.pClearValues = clear_values;
       render_pass_begin_info.pNext = 0;
     
-      vkCmdBeginRenderPass(MAIN_CMD_BUF[FRAME_INDEX], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_PREPASS_PIPELINE);
-      vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_PREPASS_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
+      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
+      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    }
+
+    template <typename T>
+    void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
+      vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
+      vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
     }
     
-    void draw_depth(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+    void draw_depth(Transform transform, Model model) {
+      Mesh& mesh = mesh_data::_meshes[model.id];
+
       DefaultPushConstant dpc;
-      dpc.MODEL_POSITION = pos;
+      dpc.MODEL_POSITION = transform.position;
       dpc.TEXTURE_INDEX = 2;
-      dpc.MODEL_ROTATION = rot;
-      dpc.MODEL_SCALE = vec4(scl, 1.0f);
+      dpc.MODEL_ROTATION = transform.rotation;
+      dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
     
-      vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
-      vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
+      _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
     }
     
-    void end_depth_prepass_rendering() { vkCmdEndRenderPass(MAIN_CMD_BUF[FRAME_INDEX]); }
+    void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
     
     void begin_shadow_rendering() {
       VkClearValue depth_clear;
@@ -1995,121 +2003,92 @@ namespace quark::engine::render {
     
       VkRenderPassBeginInfo render_pass_begin_info = {};
       render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = DEPTH_ONLY_RENDER_PASS;
+      render_pass_begin_info.renderPass = _depth_only_render_pass;
       render_pass_begin_info.renderArea.offset.x = 0;
       render_pass_begin_info.renderArea.offset.y = 0;
       render_pass_begin_info.renderArea.extent.width = 2048;
       render_pass_begin_info.renderArea.extent.height = 2048;
-      render_pass_begin_info.framebuffer = SUN_SHADOW_FRAMEBUFFERS[SWAPCHAIN_IMAGE_INDEX];
+      render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
       render_pass_begin_info.clearValueCount = 1;
       render_pass_begin_info.pClearValues = clear_values;
       render_pass_begin_info.pNext = 0;
     
-      vkCmdBeginRenderPass(MAIN_CMD_BUF[FRAME_INDEX], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_ONLY_PIPELINE);
-      vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, DEPTH_ONLY_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
+      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
+      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
     }
     
-    void draw_shadow(Position pos, Rotation rot, Scale scl, Mesh mesh) {
+    void draw_shadow(Transform transform, Model model) {
+      Mesh& mesh = mesh_data::_meshes[model.id];
+
       DefaultPushConstant dpc;
-      dpc.MODEL_POSITION = pos;
+      dpc.MODEL_POSITION = transform.position;
       dpc.TEXTURE_INDEX = 2;
-      dpc.MODEL_ROTATION = rot;
-      dpc.MODEL_SCALE = vec4(scl, 1.0f);
-      //mat4 world_m = translate_rotate_scale(pos, rot, scl);
-      //mat4 world_view_projection = SUN_VIEW_PROJECTION * world_m;
+      dpc.MODEL_ROTATION = transform.rotation;
+      dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
     
-      vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
-      vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
+      vkCmdPushConstants(_main_cmd_buf[_frame_index], _lit_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
+      vkCmdDraw(_main_cmd_buf[_frame_index], mesh.size, 1, mesh.offset, 0);
     }
     
-    void end_shadow_rendering() { vkCmdEndRenderPass(MAIN_CMD_BUF[FRAME_INDEX]); }
+    void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
     
     void begin_lit_pass() {
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, LIT_PIPELINE);
-      vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, LIT_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
+      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
     }
     
-    void draw_lit(Position pos, Rotation rot, Scale scl, Mesh mesh, Texture tex) {
-      // if(counter > 10) { return; }
-      // counter += 1;
-    
+    void draw_lit(Transform transform, Model model, Texture texture) {
+      Mesh& mesh = mesh_data::_meshes[model.id];
+
       DefaultPushConstant dpc;
-    
-      // mesh_scls[]
-    
-      //mat4 world_m = translate_rotate_scale(pos, rot, scl);
-      //dpc.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
-    
-      dpc.MODEL_POSITION = pos;
-      dpc.TEXTURE_INDEX = tex.index;
-      dpc.MODEL_ROTATION = rot;
-      dpc.MODEL_SCALE = vec4(scl, 1.0f);
-      //u32 texture_index = 0;
-      //dpc.world_position.w = *(f32*)&texture_index;
-    
-      vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], LIT_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
-      // vkCmdBindVertexBuffers(main_cmd_buf[frame_index], 0, 1, &mesh->alloc_buffer.buffer, &offset);
-      // vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, 0, 0);
-      // printf("o: %d, s: %d\n", mesh->offset, mesh->size);
-      vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
-      // mesh_sizes[mesh.index], mesh_offsets[mesh.index]
-      //  vkCmdDraw(main_cmd_buf[frame_index], mesh->size, 1, mesh->offset, 0);
+      dpc.MODEL_POSITION = transform.position;
+      dpc.TEXTURE_INDEX = texture.id;
+      dpc.MODEL_ROTATION = transform.rotation;
+      dpc.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+
+      _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
     }
     
     void end_lit_pass() {
-      // std::sort(render_data, render_data + render_data_count, [](const RenderData& a, const RenderData& b) {
-      //     return a.camera_distance < b.camera_distance;
-      // });
-    
-      // flush_render_batch(draw_lit);
-    
-      //for_every(index, render_data_count) {
-      //  RenderData rd = render_data[index];
-      //  draw_lit(rd.pos, rd.rot, rd.scl, rd.mesh, index);
-      //}
-    
-      //render_data_count = 0;
     }
     
     void begin_solid_pass() {
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, SOLID_PIPELINE);
-      vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, COLOR_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
+      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
     }
     
     void end_solid_pass() {}
     
     void begin_wireframe_pass() {
-      vkCmdBindPipeline(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, WIREFRAME_PIPELINE);
-      vkCmdBindDescriptorSets(MAIN_CMD_BUF[FRAME_INDEX], VK_PIPELINE_BIND_POINT_GRAPHICS, COLOR_PIPELINE_LAYOUT, 0, 1, &GLOBAL_CONSTANTS_SETS[FRAME_INDEX], 0, 0);
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
+      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
     
       VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(MAIN_CMD_BUF[FRAME_INDEX], 0, 1, &GPU_VERTEX_BUFFER.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
     }
     
     void end_wireframe_pass() {}
     
-    void draw_color(Position pos, Rotation rot, Scale scl, Color col, Mesh mesh) {
+    void draw_color(Transform transform, Model model, Color color) {
+      Mesh& mesh = mesh_data::_meshes[model.id];
+
       ColorPushConstant pcd;
-      pcd.MODEL_POSITION = vec4(pos, 1.0f);
-      pcd.MODEL_ROTATION = rot;
-      pcd.MODEL_SCALE = vec4(scl, 1.0f);
-      pcd.color = col;
-    
-      //mat4 world_m = translate_rotate_scale(pos, rot, scl);
-      //pcd.world_view_projection = MAIN_VIEW_PROJECTION * world_m;
-    
-      vkCmdPushConstants(MAIN_CMD_BUF[FRAME_INDEX], COLOR_PIPELINE_LAYOUT, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ColorPushConstant), &pcd);
-      vkCmdDraw(MAIN_CMD_BUF[FRAME_INDEX], mesh.size, 1, mesh.offset, 0);
+      pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
+      pcd.MODEL_ROTATION = transform.rotation;
+      pcd.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+      pcd.color = color;
+
+      _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
     };
   };
 };

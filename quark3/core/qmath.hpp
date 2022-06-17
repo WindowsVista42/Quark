@@ -297,12 +297,26 @@ namespace quark::core::math {
   struct mat4 {
     vec4 xs, ys, zs, ws;
 
+    static const mat4 identity;
+
     mat4 operator+(mat4 v);
     mat4 operator-(mat4 v);
     mat4 operator*(mat4 v);
 
     vec4& operator[](usize i);
+
+    mat4 transpose();
+
+    static mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
+    static mat4 orthographic();
+    static mat4 look_dir(vec3 position, vec3 direction, vec3 up);
+    static mat4 look_at(vec3 position, vec3 target, vec3 up);
+    static mat4 axis_angle(vec3 axis, f32 angle);
+    static mat4 rotate(quat rotation);
   };
+
+  f32 radians(f32 degrees);
+  f32 degrees(f32 radians);
 };
 
 // EXPORTS

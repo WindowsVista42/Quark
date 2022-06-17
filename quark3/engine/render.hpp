@@ -286,6 +286,10 @@ namespace quark::engine::render {
     engine_var LinearAllocator _render_alloc;
     engine_var VmaAllocator _gpu_alloc;
 
+    namespace mesh_data {
+      engine_var Slice<Mesh> _meshes;
+    };
+
     // FUNCTIONS
 
     engine_api void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
@@ -352,7 +356,7 @@ namespace quark::engine::render {
     template <typename F>
     void flush_render_batch(F f);
 
-    engine_api enum PROJECTION_TYPE { PERSPECTIVE_PROJECTION, ORTHOGRAPHIC_PROJECTION, };
+    enum PROJECTION_TYPE { PERSPECTIVE_PROJECTION, ORTHOGRAPHIC_PROJECTION, };
     engine_api mat4 update_matrices(Camera camera, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION);
 
     engine_api void update_world_data();

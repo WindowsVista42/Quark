@@ -36,6 +36,20 @@ namespace quark::engine::component {
   struct Slice {
     T* ptr = 0;
     usize size = 0;
+
+    T& operator [](size_t index) {
+      return ptr[index];
+    }
+  };
+
+  struct PointLight {
+    f32 falloff;
+    f32 directionality;
+  };
+
+  struct DirectionalLight {
+    f32 falloff;
+    f32 directionality;
   };
 
   // Axis Aligned Bounding Box

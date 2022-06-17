@@ -86,10 +86,12 @@ add_library(quark_engine SHARED
   quark3/engine/global.cpp
   quark3/engine/registry.cpp
   quark3/engine/entity.cpp
+  quark3/engine/component.cpp
   quark3/engine/system.cpp
   quark3/engine/state.cpp
   quark3/engine/reflect.cpp
   quark3/engine/asset.cpp
+  quark3/engine/render.cpp
 )
 
 # PRECOMPILED HEADERS FOR QUARK
