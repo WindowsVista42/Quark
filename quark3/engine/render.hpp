@@ -29,14 +29,43 @@ namespace quark::engine::render {
 
   // FUNCTIONS
 
+  enum PROJECTION_TYPE { PERSPECTIVE_PROJECTION, ORTHOGRAPHIC_PROJECTION, };
+  engine_api mat4 update_matrices(Camera camera, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION);
+
   engine_api void update_cameras();
-  engine_api void draw_shadow_things();
-  engine_api void draw_depth_prepass_things();
-  engine_api void draw_lit_pass_things();
-  engine_api void draw_solid_pass_things();
-  engine_api void draw_wireframe_pass_things();
+  engine_api void update_world_data();
 
   engine_api void begin_frame();
+
+  engine_api void begin_shadow_rendering();
+  engine_api void draw_shadow(Transform transform, Model model);
+  engine_api void draw_shadow_things();
+  engine_api void end_shadow_rendering();
+
+  engine_api void begin_depth_prepass_rendering();
+  engine_api void draw_depth(Transform transform, Model model);
+  engine_api void draw_depth_prepass_things();
+  engine_api void end_depth_prepass_rendering();
+
+  engine_api void begin_forward_rendering();
+
+  engine_api void begin_lit_pass();
+  engine_api void draw_lit(Transform transform, Model model, Texture texture);
+  engine_api void draw_lit_pass_things();
+  engine_api void end_lit_pass();
+
+  engine_api void draw_color(Transform transform, Model model, Color color);
+
+  engine_api void begin_solid_pass();
+  engine_api void draw_solid_pass_things();
+  engine_api void end_solid_pass();
+
+  engine_api void begin_wireframe_pass();
+  engine_api void draw_wireframe_pass_things();
+  engine_api void end_wireframe_pass();
+
+  engine_api void end_forward_rendering();
+
   engine_api void end_frame();
   
   namespace internal {
@@ -300,17 +329,29 @@ namespace quark::engine::render {
     engine_api AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
     engine_api AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
+    // All shaders must be loaded after the call to this function
     engine_api void init_vulkan();
-    engine_api void copy_staging_buffers_to_gpu();
-    engine_api void init_swapchain();
+
+    // All meshes must be loaded after the call to this function
+    engine_api void init_mesh_buffer();
+
+    // All textures mest be loaded after the call to this function
     engine_api void init_command_pools_and_buffers();
+
+    engine_api void init_swapchain();
     engine_api void init_render_passes();
     engine_api void init_framebuffers();
     engine_api void init_sync_objects();
-    engine_api void init_pipelines();
     engine_api void init_sampler();
-    engine_api void init_descriptors();
-    engine_api void init_descriptor_sets();
+
+    // All textures must be loaded before the call to this function
+    engine_api void init_global_descriptors();
+
+    // All meshes must be loaded before the call to this function
+    engine_api void copy_meshes_to_gpu();
+
+    // All shaders must be loaded before the call to this function
+    engine_api void init_pipelines();
 
     engine_api bool sphere_in_frustum(vec3 pos, quat rot, vec3 scl);
     engine_api bool box_in_frustum(vec3 pos, vec3 Scl);
@@ -355,32 +396,9 @@ namespace quark::engine::render {
     engine_api void add_to_render_batch(Transform transform, Model model);
     template <typename F>
     void flush_render_batch(F f);
-
-    enum PROJECTION_TYPE { PERSPECTIVE_PROJECTION, ORTHOGRAPHIC_PROJECTION, };
-    engine_api mat4 update_matrices(Camera camera, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION);
-
-    engine_api void update_world_data();
-    engine_api void begin_forward_rendering();
-    engine_api void end_forward_rendering();
-
-    engine_api void begin_depth_prepass_rendering();
-    engine_api void draw_depth(Transform transform, Model model);
-    engine_api void end_depth_prepass_rendering();
-
-    engine_api void begin_shadow_rendering();
-    engine_api void draw_shadow(Transform transform, Model model);
-    engine_api void end_shadow_rendering();
-
-    engine_api void begin_lit_pass();
-    engine_api void draw_lit(Transform transform, Model model, Texture texture);
-    engine_api void end_lit_pass();
-
-    engine_api void begin_solid_pass();
-    engine_api void end_solid_pass();
-
-    engine_api void begin_wireframe_pass();
-    engine_api void end_wireframe_pass();
-
-    engine_api void draw_color(Transform transform, Model model, Color color);
   };
+};
+
+namespace quark {
+  namespace render = engine::render;
 };

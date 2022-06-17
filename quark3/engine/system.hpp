@@ -12,10 +12,14 @@ namespace quark::engine::system {
 
   class engine_api SystemList {
     std::vector<std::string> _names;
-    std::vector<void (*)()> _functions;
+    std::vector<system_function> _functions;
+
+    void _add(const char* name, system_function function, usize real_position, bool add_after);
 
     public:
     // Add a function into the system list with the given name and the given relative position
+    //
+    // A relative_index of -1 will push_back
     //
     // Relative positions are calculated such that negative numbers work from the end
     // of the list forwards, while positive numbes work normally like an index going forward
@@ -25,10 +29,10 @@ namespace quark::engine::system {
     // 
     // With which internal items will get shifted around accordingly to put the new
     // system at that position
-    SystemList& add(const char* name, system_function function, isize relative_position);
+    SystemList& add(const char* name, system_function function, isize relative_index);
 
     // Like normal adding, but the position is relative to the named system
-    SystemList& add(const char* name, system_function function, const char* relative_system, isize relative_position);
+    SystemList& add(const char* name, system_function function, const char* relative_system, isize relative_index);
 
     // Remove the system with the given name
     SystemList& remove(const char* name);
@@ -55,6 +59,8 @@ namespace quark::engine::system {
     //
     // Optionally: print = true, print out the systems being run
     void run(bool print = false);
+
+    SystemList();
   };
 
   namespace internal {

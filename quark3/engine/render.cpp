@@ -45,6 +45,135 @@ namespace quark::engine::render {
     .dir = vec3::unit_z * - 1.0f,
   };
   
+  
+  //TODO(sean): update this so that it can output cull data to the input camera
+  mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
+    mat4 view_projection = mat4::identity;
+  
+    f32 aspect = (f32)width / (f32)height;
+    mat4 projection, view;
+  
+    if (projection_type == PERSPECTIVE_PROJECTION) {
+      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+    } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
+      //projection = mat4::orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
+      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+    } else {
+      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+    }
+  
+    view = mat4::look_dir(camera.pos, camera.dir, vec3::unit_z);
+    view_projection = projection * view;
+  
+    // Calculate updated frustum
+    //if (!PAUSE_FRUSTUM_CULLING) {
+    if (true) {
+      mat4 projection_matrix_t = projection.transpose();//transpose(projection);
+  
+      auto normalize_plane = [](vec4 p) { return p / p.xyz.mag(); };
+  
+      vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
+      vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
+  
+      _cull_data.view = view;
+      _cull_data.p00 = projection[0][0];
+      _cull_data.p22 = projection[1][1];
+      _cull_data.frustum[0] = frustum_x.x;
+      _cull_data.frustum[1] = frustum_x.z;
+      _cull_data.frustum[2] = frustum_y.y;
+      _cull_data.frustum[3] = frustum_y.z;
+      _cull_data.lod_base = 10.0f;
+      _cull_data.lod_step = 1.5f;
+  
+      {
+        mat4 m = view_projection.transpose();
+        _cull_planes[0] = m[3] + m[0];
+        _cull_planes[1] = m[3] - m[0];
+        _cull_planes[2] = m[3] + m[1];
+        _cull_planes[3] = m[3] - m[1];
+        _cull_planes[4] = m[3] + m[2];
+        _cull_planes[5] = m[3] - m[2];
+      }
+    }
+  
+    return view_projection;
+  }
+
+  void update_cameras() {
+    SUN_CAMERA.pos = MAIN_CAMERA.pos + vec3{20.0f, 20.0f, 300.0f};
+    SUN_CAMERA.dir = (MAIN_CAMERA.pos - SUN_CAMERA.pos).norm();
+    SUN_CAMERA.znear = 10.0f;
+    SUN_CAMERA.zfar = 500.0f;
+    SUN_CAMERA.fov = 16.0f;
+    _sun_view_projection = update_matrices(SUN_CAMERA, 2048, 2048);
+    _main_view_projection = update_matrices(MAIN_CAMERA, window::dimensions().x, window::dimensions().y);
+  }
+  
+  void update_world_data() {
+    void* ptr;
+    vmaMapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc, &ptr);
+    WorldData* world_data = (WorldData*)ptr;
+  
+    u32 count = 0;
+    for (auto [e, transform, color, light] : registry::view<Transform, Color, PointLight>().each()) {
+      world_data->point_lights[count].position = transform.position;
+      world_data->point_lights[count].falloff = light.falloff;
+      world_data->point_lights[count].color = color.xyz;
+      world_data->point_lights[count].directionality = light.directionality;
+      count += 1;
+    }
+    world_data->point_light_count = count;
+  
+    count = 0;
+    for (auto [e, transform, color, light] : registry::view<Transform, Color, DirectionalLight>().each()) {
+      world_data->directional_lights[count].position = transform.position;
+      world_data->directional_lights[count].falloff = light.falloff;
+      world_data->directional_lights[count].direction = transform.rotation.forward();
+      world_data->directional_lights[count].color = color.xyz;
+      world_data->directional_lights[count].directionality = light.directionality;
+      count += 1;
+    }
+    world_data->directional_light_count = count;
+  
+    world_data->main_camera.spherical_dir = MAIN_CAMERA.spherical_dir;
+    world_data->main_camera.pos = MAIN_CAMERA.pos;
+    world_data->main_camera.znear = MAIN_CAMERA.znear;
+    world_data->main_camera.dir = MAIN_CAMERA.dir;
+    world_data->main_camera.zfar = MAIN_CAMERA.zfar;
+    world_data->main_camera.fov = MAIN_CAMERA.fov;
+  
+    world_data->sun_camera.spherical_dir = SUN_CAMERA.spherical_dir;
+    world_data->sun_camera.pos = SUN_CAMERA.pos;
+    world_data->sun_camera.znear = SUN_CAMERA.znear;
+    world_data->sun_camera.dir = SUN_CAMERA.dir;
+    world_data->sun_camera.zfar = SUN_CAMERA.zfar;
+    world_data->sun_camera.fov = SUN_CAMERA.fov;
+  
+    {
+      //auto [transform, color, light] = ecs::get_first<Transform, Color, SunLight>();
+      //world_data->sun_light.direction = transform.rot.dir();
+      //world_data->sun_light.color = color.xyz;
+      //world_data->sun_light.directionality = light.directionality;
+      world_data->sun_light.direction = SUN_CAMERA.dir;
+      world_data->sun_light.directionality = 1.0f;
+      world_data->sun_light.color = vec3(0.8f);
+    }
+  
+    world_data->TT = TT;
+    world_data->DT = DT;
+  
+    world_data->sun_view_projection = _sun_view_projection;
+    world_data->main_view_projection = _main_view_projection;
+  
+    vmaUnmapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc);
+  }
+
+  template <typename T>
+  void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
+    vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
+    vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
+  }
+
   void begin_frame() {
     // TODO Sean: dont block the thread
     vk_check(vkWaitForFences(_device, 1, &_render_fence[_frame_index], true, _OP_TIMEOUT));
@@ -69,29 +198,44 @@ namespace quark::engine::render {
     command_begin_info.pNext = 0;
   
     vk_check(vkBeginCommandBuffer(_main_cmd_buf[_frame_index], &command_begin_info));
-  
-    //CURRENT_CMD_BUF = MAIN_CMD_BUF[FRAME_INDEX];
-  
-    //// reset current items so they initially get bound
-    //CURRENT_META = {};
-    //CURRENT_PIPELINE_LAYOUT = 0;
-    //CURRENT_PIPELINE = 0;
-    //CURRENT_RENDER_PASS = 0;
-    //CURRENT_FRAMEBUFFER = 0;
-    //CURRENT_DESCRIPTOR_SET_LAYOUT = 0;
-    //CURRENT_DESCRIPTOR_SET = 0;
   }
   
-  void update_cameras() {
-    SUN_CAMERA.pos = MAIN_CAMERA.pos + vec3{20.0f, 20.0f, 300.0f};
-    SUN_CAMERA.dir = (MAIN_CAMERA.pos - SUN_CAMERA.pos).norm();
-    SUN_CAMERA.znear = 10.0f;
-    SUN_CAMERA.zfar = 500.0f;
-    SUN_CAMERA.fov = 16.0f;
-    _sun_view_projection = update_matrices(SUN_CAMERA, 2048, 2048);
-    _main_view_projection = update_matrices(MAIN_CAMERA, window::dimensions().x, window::dimensions().y);
+  void begin_shadow_rendering() {
+    VkClearValue depth_clear;
+    depth_clear.depthStencil.depth = 1.0f;
   
-    update_world_data();
+    VkClearValue clear_values[1] = {depth_clear};
+  
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = _depth_only_render_pass;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = 2048;
+    render_pass_begin_info.renderArea.extent.height = 2048;
+    render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
+    render_pass_begin_info.clearValueCount = 1;
+    render_pass_begin_info.pClearValues = clear_values;
+    render_pass_begin_info.pNext = 0;
+  
+    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+  
+  void draw_shadow(Transform transform, Model model) {
+    Mesh& mesh = mesh_data::_meshes[model.id];
+
+    DefaultPushConstant dpc;
+    dpc.MODEL_POSITION = transform.position;
+    dpc.TEXTURE_INDEX = 2;
+    dpc.MODEL_ROTATION = transform.rotation;
+    dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
+  
+    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
   
   void draw_shadow_things() {
@@ -103,13 +247,112 @@ namespace quark::engine::render {
       //}
     }
   }
+
+  void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
+
+  void begin_depth_prepass_rendering() {
+    // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
+    // window_h);
   
+    VkClearValue depth_clear;
+    depth_clear.depthStencil.depth = 1.0f;
+  
+    VkClearValue clear_values[1] = {depth_clear};
+  
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = _depth_prepass_render_pass;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
+    render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+    render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
+    render_pass_begin_info.clearValueCount = 1;
+    render_pass_begin_info.pClearValues = clear_values;
+    render_pass_begin_info.pNext = 0;
+  
+    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+
+  void draw_depth(Transform transform, Model model) {
+    Mesh& mesh = mesh_data::_meshes[model.id];
+
+    DefaultPushConstant dpc;
+    dpc.MODEL_POSITION = transform.position;
+    dpc.TEXTURE_INDEX = 2;
+    dpc.MODEL_ROTATION = transform.rotation;
+    dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
+  
+    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
+  }
+
   void draw_depth_prepass_things() {
     for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
         draw_depth(transform, model);
       }
     }
+  }
+
+  void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
+  
+  void begin_forward_rendering() {
+    // update_matrices(&camera_view_projection, window_w, window_h);
+    // update_matrices(window_w, window_h);
+  
+    VkClearValue color_clear;
+    color_clear.color.float32[0] = 0.0f; // _pure_black[0];
+    color_clear.color.float32[1] = 0.0f; // _pure_black[1];
+    color_clear.color.float32[2] = 0.0f; // _pure_black[2];
+    color_clear.color.float32[3] = 1.0f; // _pure_black[3];
+  
+    VkClearValue depth_clear;
+    depth_clear.depthStencil.depth = 1.0f;
+  
+    VkClearValue clear_values[2] = {color_clear, depth_clear};
+  
+    VkRenderPassBeginInfo render_pass_begin_info = {};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass = _default_render_pass;
+    render_pass_begin_info.renderArea.offset.x = 0;
+    render_pass_begin_info.renderArea.offset.y = 0;
+    render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
+    render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+    render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
+    render_pass_begin_info.clearValueCount = 2;
+    render_pass_begin_info.pClearValues = clear_values;
+    render_pass_begin_info.pNext = 0;
+  
+    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+  
+  void begin_lit_pass() {
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+  
+  void draw_lit(Transform transform, Model model, Texture texture) {
+    Mesh& mesh = mesh_data::_meshes[model.id];
+
+    DefaultPushConstant dpc;
+    dpc.MODEL_POSITION = transform.position;
+    dpc.TEXTURE_INDEX = texture.id;
+    dpc.MODEL_ROTATION = transform.rotation;
+    dpc.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+
+    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
   
   void draw_lit_pass_things() {
@@ -120,6 +363,28 @@ namespace quark::engine::render {
     }
   }
   
+  void end_lit_pass() {}
+  
+  void draw_color(Transform transform, Model model, Color color) {
+    Mesh& mesh = mesh_data::_meshes[model.id];
+
+    ColorPushConstant pcd;
+    pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
+    pcd.MODEL_ROTATION = transform.rotation;
+    pcd.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+    pcd.color = color;
+
+    _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
+  }
+  
+  void begin_solid_pass() {
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+  
   void draw_solid_pass_things() {
     for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::FillColor>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
@@ -128,6 +393,16 @@ namespace quark::engine::render {
     }
   }
   
+  void end_solid_pass() {}
+  
+  void begin_wireframe_pass() {
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+  }
+
   void draw_wireframe_pass_things() {
     for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::WireframeColor>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
@@ -135,6 +410,10 @@ namespace quark::engine::render {
       }
     }
   }
+
+  void end_wireframe_pass() {}
+  
+  void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -521,9 +800,17 @@ namespace quark::engine::render {
       } else {
         _transfer_queue_family = _graphics_queue_family;
       }
+
+      _render_alloc.init(100 * MB);
+    }
+
+    void init_mesh_buffer() {
+      // Init staging buffer and allocation tracker
+      _gpu_vertex_buffer = create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+      _gpu_vertex_tracker.init(100 * MB);
     }
     
-    void copy_staging_buffers_to_gpu() {
+    void copy_meshes_to_gpu() {
       AllocatedBuffer old_buffer = _gpu_vertex_buffer;
       LinearAllocationTracker old_tracker = _gpu_vertex_tracker;
     
@@ -1036,7 +1323,7 @@ namespace quark::engine::render {
     }
     
     template <auto C>
-    VkDescriptorSetLayout create_desc_layout(DescriptorLayoutInfo layout_info[C]) {
+    VkDescriptorSetLayout create_desc_layout(DescriptorLayoutInfo (&layout_info)[C]) {
       VkDescriptorSetLayoutBinding set_layout_binding[C] = {};
       for_every(i, C) {
         set_layout_binding[i].binding = i;
@@ -1058,7 +1345,7 @@ namespace quark::engine::render {
     }
     
     template <auto C>
-    VkDescriptorPool create_desc_pool(VkDescriptorPoolSize sizes[C]) {
+    VkDescriptorPool create_desc_pool(VkDescriptorPoolSize (&sizes)[C]) {
       VkDescriptorPoolCreateInfo pool_info = {};
       pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
       pool_info.flags = 0;
@@ -1199,13 +1486,11 @@ namespace quark::engine::render {
         vk_check(vkAllocateDescriptorSets(_device, &alloc_info, &desc_set));
         return desc_set;
     }
-    
-    void init_descriptors() {
-      _global_constants_layout = create_desc_layout<count_of(_global_constants_layout_info)>(_global_constants_layout_info);
-      _global_descriptor_pool = create_desc_pool<count_of(_global_descriptor_pool_sizes)>(_global_descriptor_pool_sizes);
-    }
-    
-    void init_descriptor_sets() {
+
+    void init_global_descriptors() {
+      _global_constants_layout = create_desc_layout(_global_constants_layout_info);
+      _global_descriptor_pool = create_desc_pool(_global_descriptor_pool_sizes);
+
       for_every(frame_index, _FRAME_OVERLAP) {
         auto buffer_size = sizeof(WorldData);
     
@@ -1750,345 +2035,49 @@ namespace quark::engine::render {
     }
     
     void print_performance_statistics() {
-      //if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
-      //  return;
-      //}
+    //  if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
+    //    return;
+    //  }
+    //
+      static f32 timer = 0.0;
+      static u32 frame_number = 0;
+      static f32 low = 1.0;
+      static f32 high = 0.0;
     
-      //static f32 timer = 0.0;
-      //static u32 frame_number = 0;
-      //static f32 low = 1.0;
-      //static f32 high = 0.0;
+      const u32 target = 60;
+      const f32 threshold = 1.0;
     
-      //const u32 target = 60;
-      //const f32 threshold = 1.0;
+      frame_number += 1;
+      timer += DT;
     
-      //frame_number += 1;
-      //timer += DT;
-    
-      //if (DT > high) {
-      //  high = DT;
-      //}
-      //if (DT < low) {
-      //  low = DT;
-      //}
-    
-      //if (timer > threshold) {
-      //  // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
-      //  // to work
-      //  printf("---- Performance Statistics ----\n"
-      //         "Target:  %.2fms (%.2f%%)\n"
-      //         "Average: %.2fms (%.2f%%)\n"
-      //         "High:    %.2fms (%.2f%%)\n"
-      //         "Low:     %.2fms (%.2f%%)\n"
-      //         "\n",
-      //      (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
-      //      (1.0f / (f32)frame_number) * 1000.0f,
-      //      100.0f / ((f32)frame_number / (f32)target),             // Average framerate calculation
-      //      high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
-      //      low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
-      //  );
-    
-      //  timer -= threshold;
-      //  frame_number = 0;
-      //  low = 1.0;
-      //  high = 0.0;
-      //}
-    }
-    
-    void add_to_render_batch(Transform transform, Model model) {}
-    template <typename F> void flush_render_batch(F f) {}
-    
-    //TODO(sean): update this so that it can output cull data to the input camera
-    mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
-      mat4 view_projection = mat4::identity;
-    
-      f32 aspect = (f32)width / (f32)height;
-      mat4 projection, view;
-    
-      if (projection_type == PERSPECTIVE_PROJECTION) {
-        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
-      } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
-        //projection = mat4::orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
-        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
-      } else {
-        projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+      if (DT > high) {
+        high = DT;
+      }
+      if (DT < low) {
+        low = DT;
       }
     
-      view = mat4::look_dir(camera.pos, camera.dir, vec3::unit_z);
-      view_projection = projection * view;
+      if (timer > threshold) {
+        // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
+        // to work
+        printf("---- Performance Statistics ----\n"
+               "Target:  %.2fms (%.2f%%)\n"
+               "Average: %.2fms (%.2f%%)\n"
+               "High:    %.2fms (%.2f%%)\n"
+               "Low:     %.2fms (%.2f%%)\n"
+               "\n",
+            (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
+            (1.0f / (f32)frame_number) * 1000.0f,
+            100.0f / ((f32)frame_number / (f32)target),             // Average framerate calculation
+            high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
+            low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
+        );
     
-      // Calculate updated frustum
-      //if (!PAUSE_FRUSTUM_CULLING) {
-      if (true) {
-        mat4 projection_matrix_t = projection.transpose();//transpose(projection);
-    
-        auto normalize_plane = [](vec4 p) { return p / p.xyz.mag(); };
-    
-        vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
-        vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
-    
-        _cull_data.view = view;
-        _cull_data.p00 = projection[0][0];
-        _cull_data.p22 = projection[1][1];
-        _cull_data.frustum[0] = frustum_x.x;
-        _cull_data.frustum[1] = frustum_x.z;
-        _cull_data.frustum[2] = frustum_y.y;
-        _cull_data.frustum[3] = frustum_y.z;
-        _cull_data.lod_base = 10.0f;
-        _cull_data.lod_step = 1.5f;
-    
-        {
-          mat4 m = view_projection.transpose();
-          _cull_planes[0] = m[3] + m[0];
-          _cull_planes[1] = m[3] - m[0];
-          _cull_planes[2] = m[3] + m[1];
-          _cull_planes[3] = m[3] - m[1];
-          _cull_planes[4] = m[3] + m[2];
-          _cull_planes[5] = m[3] - m[2];
-        }
+        timer -= threshold;
+        frame_number = 0;
+        low = 1.0;
+        high = 0.0;
       }
-    
-      return view_projection;
     }
-    
-    void update_world_data() {
-      void* ptr;
-      vmaMapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc, &ptr);
-      WorldData* world_data = (WorldData*)ptr;
-    
-      u32 count = 0;
-      for (auto [e, transform, color, light] : registry::view<Transform, Color, PointLight>().each()) {
-        world_data->point_lights[count].position = transform.position;
-        world_data->point_lights[count].falloff = light.falloff;
-        world_data->point_lights[count].color = color.xyz;
-        world_data->point_lights[count].directionality = light.directionality;
-        count += 1;
-      }
-      world_data->point_light_count = count;
-    
-      count = 0;
-      for (auto [e, transform, color, light] : registry::view<Transform, Color, DirectionalLight>().each()) {
-        world_data->directional_lights[count].position = transform.position;
-        world_data->directional_lights[count].falloff = light.falloff;
-        world_data->directional_lights[count].direction = transform.rotation.forward();
-        world_data->directional_lights[count].color = color.xyz;
-        world_data->directional_lights[count].directionality = light.directionality;
-        count += 1;
-      }
-      world_data->directional_light_count = count;
-    
-      world_data->main_camera.spherical_dir = MAIN_CAMERA.spherical_dir;
-      world_data->main_camera.pos = MAIN_CAMERA.pos;
-      world_data->main_camera.znear = MAIN_CAMERA.znear;
-      world_data->main_camera.dir = MAIN_CAMERA.dir;
-      world_data->main_camera.zfar = MAIN_CAMERA.zfar;
-      world_data->main_camera.fov = MAIN_CAMERA.fov;
-    
-      world_data->sun_camera.spherical_dir = SUN_CAMERA.spherical_dir;
-      world_data->sun_camera.pos = SUN_CAMERA.pos;
-      world_data->sun_camera.znear = SUN_CAMERA.znear;
-      world_data->sun_camera.dir = SUN_CAMERA.dir;
-      world_data->sun_camera.zfar = SUN_CAMERA.zfar;
-      world_data->sun_camera.fov = SUN_CAMERA.fov;
-    
-      {
-        //auto [transform, color, light] = ecs::get_first<Transform, Color, SunLight>();
-        //world_data->sun_light.direction = transform.rot.dir();
-        //world_data->sun_light.color = color.xyz;
-        //world_data->sun_light.directionality = light.directionality;
-        world_data->sun_light.direction = SUN_CAMERA.dir;
-        world_data->sun_light.directionality = 1.0f;
-        world_data->sun_light.color = vec3(0.8f);
-      }
-    
-      world_data->TT = TT;
-      world_data->DT = DT;
-    
-      world_data->sun_view_projection = _sun_view_projection;
-      world_data->main_view_projection = _main_view_projection;
-    
-      vmaUnmapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc);
-    }
-    
-    void begin_forward_rendering() {
-      // update_matrices(&camera_view_projection, window_w, window_h);
-      // update_matrices(window_w, window_h);
-    
-      VkClearValue color_clear;
-      color_clear.color.float32[0] = 0.0f; // _pure_black[0];
-      color_clear.color.float32[1] = 0.0f; // _pure_black[1];
-      color_clear.color.float32[2] = 0.0f; // _pure_black[2];
-      color_clear.color.float32[3] = 1.0f; // _pure_black[3];
-    
-      VkClearValue depth_clear;
-      depth_clear.depthStencil.depth = 1.0f;
-    
-      VkClearValue clear_values[2] = {color_clear, depth_clear};
-    
-      VkRenderPassBeginInfo render_pass_begin_info = {};
-      render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = _default_render_pass;
-      render_pass_begin_info.renderArea.offset.x = 0;
-      render_pass_begin_info.renderArea.offset.y = 0;
-      render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
-      render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
-      render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
-      render_pass_begin_info.clearValueCount = 2;
-      render_pass_begin_info.pClearValues = clear_values;
-      render_pass_begin_info.pNext = 0;
-    
-      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-    
-    void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-    
-    void begin_depth_prepass_rendering() {
-      // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
-      // window_h);
-    
-      VkClearValue depth_clear;
-      depth_clear.depthStencil.depth = 1.0f;
-    
-      VkClearValue clear_values[1] = {depth_clear};
-    
-      VkRenderPassBeginInfo render_pass_begin_info = {};
-      render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = _depth_prepass_render_pass;
-      render_pass_begin_info.renderArea.offset.x = 0;
-      render_pass_begin_info.renderArea.offset.y = 0;
-      render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
-      render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
-      render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
-      render_pass_begin_info.clearValueCount = 1;
-      render_pass_begin_info.pClearValues = clear_values;
-      render_pass_begin_info.pNext = 0;
-    
-      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-
-    template <typename T>
-    void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
-      vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
-      vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
-    }
-    
-    void draw_depth(Transform transform, Model model) {
-      Mesh& mesh = mesh_data::_meshes[model.id];
-
-      DefaultPushConstant dpc;
-      dpc.MODEL_POSITION = transform.position;
-      dpc.TEXTURE_INDEX = 2;
-      dpc.MODEL_ROTATION = transform.rotation;
-      dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
-    
-      _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-    }
-    
-    void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-    
-    void begin_shadow_rendering() {
-      VkClearValue depth_clear;
-      depth_clear.depthStencil.depth = 1.0f;
-    
-      VkClearValue clear_values[1] = {depth_clear};
-    
-      VkRenderPassBeginInfo render_pass_begin_info = {};
-      render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_begin_info.renderPass = _depth_only_render_pass;
-      render_pass_begin_info.renderArea.offset.x = 0;
-      render_pass_begin_info.renderArea.offset.y = 0;
-      render_pass_begin_info.renderArea.extent.width = 2048;
-      render_pass_begin_info.renderArea.extent.height = 2048;
-      render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
-      render_pass_begin_info.clearValueCount = 1;
-      render_pass_begin_info.pClearValues = clear_values;
-      render_pass_begin_info.pNext = 0;
-    
-      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
-      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-    
-    void draw_shadow(Transform transform, Model model) {
-      Mesh& mesh = mesh_data::_meshes[model.id];
-
-      DefaultPushConstant dpc;
-      dpc.MODEL_POSITION = transform.position;
-      dpc.TEXTURE_INDEX = 2;
-      dpc.MODEL_ROTATION = transform.rotation;
-      dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
-    
-      vkCmdPushConstants(_main_cmd_buf[_frame_index], _lit_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DefaultPushConstant), &dpc);
-      vkCmdDraw(_main_cmd_buf[_frame_index], mesh.size, 1, mesh.offset, 0);
-    }
-    
-    void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-    
-    void begin_lit_pass() {
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
-      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-    
-    void draw_lit(Transform transform, Model model, Texture texture) {
-      Mesh& mesh = mesh_data::_meshes[model.id];
-
-      DefaultPushConstant dpc;
-      dpc.MODEL_POSITION = transform.position;
-      dpc.TEXTURE_INDEX = texture.id;
-      dpc.MODEL_ROTATION = transform.rotation;
-      dpc.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
-
-      _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-    }
-    
-    void end_lit_pass() {
-    }
-    
-    void begin_solid_pass() {
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
-      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-    
-    void end_solid_pass() {}
-    
-    void begin_wireframe_pass() {
-      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
-      vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-    
-      VkDeviceSize offset = 0;
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
-    }
-    
-    void end_wireframe_pass() {}
-    
-    void draw_color(Transform transform, Model model, Color color) {
-      Mesh& mesh = mesh_data::_meshes[model.id];
-
-      ColorPushConstant pcd;
-      pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
-      pcd.MODEL_ROTATION = transform.rotation;
-      pcd.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
-      pcd.color = color;
-
-      _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
-    };
   };
 };

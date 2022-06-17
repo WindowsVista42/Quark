@@ -12,12 +12,12 @@ namespace quark::engine::asset {
     typedef void* (*LoaderFunction)(std::string*);
     typedef void (*UnloaderFunction)(void*);
     
-    engine_var std::unordered_map<std::type_index, std::string> type_to_ext;
-    engine_var std::unordered_map<std::string, std::type_index> ext_to_type;
-    engine_var std::unordered_map<std::string, std::filesystem::path> name_to_path;
-    engine_var std::unordered_map<std::type_index, void* (*)(std::string*)> type_loaders;
-    engine_var std::unordered_map<std::type_index, void (*)(void*)> type_unloaders;
-    engine_var std::unordered_map<std::type_index, std::unordered_map<std::string, void*>> assets_data;
+    engine_var std::unordered_map<std::type_index, std::string> _type_to_ext;
+    engine_var std::unordered_map<std::string, std::type_index> _ext_to_type;
+    engine_var std::unordered_map<std::string, std::filesystem::path> _name_to_path;
+    engine_var std::unordered_map<std::type_index, void* (*)(std::string*)> _type_loaders;
+    engine_var std::unordered_map<std::type_index, void (*)(void*)> _type_unloaders;
+    engine_var std::unordered_map<std::type_index, std::unordered_map<std::string, void*>> _assets_data;
     
     template <typename T>
     inline const std::type_index idx_of() {
@@ -37,16 +37,16 @@ namespace quark::engine::asset {
     const auto i = idx_of<T>();
   
     #ifdef DEBUG
-      if (assets_data.find(i) == assets_data.end()) {
+      if (_assets_data.find(i) == _assets_data.end()) {
         printf("Could not find any possible assets for the type of '%s'!\n", name);
         exit(1);
-      } else if (assets_data.at(i).find(std::string(name)) == assets_data.at(i).end()) {
+      } else if (_assets_data.at(i).find(std::string(name)) == _assets_data.at(i).end()) {
         printf("Could not find any assets named '%s'!\n", name);
         exit(1);
       }
     #endif
   
-    return *(T*)assets_data.at(i).at(std::string(name));
+    return *(T*)_assets_data.at(i).at(std::string(name));
   }
   
   template <typename T>
@@ -54,15 +54,15 @@ namespace quark::engine::asset {
     using namespace internal;
     const auto i = idx_of<T>();
   
-    if (assets_data.find(i) == assets_data.end()) {
+    if (_assets_data.find(i) == _assets_data.end()) {
       printf("Could not find any possible assets for the type of '%s'!\n", name);
       return 0;
-    } else if (assets_data.at(i).find(std::string(name)) == assets_data.at(i).end()) {
+    } else if (_assets_data.at(i).find(std::string(name)) == _assets_data.at(i).end()) {
       printf("Could not find any assets named '%s'!\n", name);
       return 0;
     }
   
-    return (T*)assets_data.at(i).at(std::string(name));
+    return (T*)_assets_data.at(i).at(std::string(name));
   }
   
   template <typename T>
@@ -70,7 +70,7 @@ namespace quark::engine::asset {
     using namespace internal;
     std::vector<std::string> items;
     auto i = idx_of<T>();
-    for (auto [name, asset] : assets_data.at(i)) {
+    for (auto [name, asset] : _assets_data.at(i)) {
       items.push_back(name);
     }
     return items;
@@ -79,34 +79,54 @@ namespace quark::engine::asset {
   template <typename T>
   usize size() {
     using namespace internal;
-    return assets_data.at(idx_of<T>()).size();
+    return _assets_data.at(idx_of<T>()).size();
   }
   
-  template <typename T, typename T2>
-  void add_type(loader_type<T> loader, unloader_type<T> unloader, const char* char_ext) {
+  template <typename T>
+  void add_loader(T* (*loader)(std::string*), void (*unloader)(T*), const char* char_ext) {
     using namespace internal;
     std::string extension(char_ext);
     const std::type_index i = idx_of<T>();
   
     #ifdef DEBUG
-      if (type_to_ext.find(i) != type_to_ext.end()) {
+      if (_type_to_ext.find(i) != _type_to_ext.end()) {
         printf("You have already added '%s' to the asset manager!\n", char_ext);
-        panic("");
+        exit(1);
       }
     #endif
   
-    type_to_ext.insert(std::make_pair(i, extension));
-    ext_to_type.insert(std::make_pair(extension, i));
-    type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
-    type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
-    assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
+    _type_to_ext.insert(std::make_pair(i, extension));
+    _ext_to_type.insert(std::make_pair(extension, i));
+    _type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
+    _type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
+    _assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
+  }
+
+  template <typename T, typename T2>
+  void add_type(T* (*loader)(std::string*), void (*unloader)(T2*), const char* char_ext) {
+    using namespace internal;
+    std::string extension(char_ext);
+    const std::type_index i = idx_of<T>();
+  
+    #ifdef DEBUG
+      if (_type_to_ext.find(i) != _type_to_ext.end()) {
+        printf("You have already added '%s' to the asset manager!\n", char_ext);
+        exit(1);
+      }
+    #endif
+  
+    _type_to_ext.insert(std::make_pair(i, extension));
+    _ext_to_type.insert(std::make_pair(extension, i));
+    _type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
+    _type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
+    _assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
   }
   
   template <typename T>
   bool is_loaded(const char* name) {
     using namespace internal;
     const auto i = idx_of<T>();
-    return assets_data.at(i).find(std::string(name)) != assets_data.at(i).end();
+    return _assets_data.at(i).find(std::string(name)) != _assets_data.at(i).end();
   }
   
   template <typename T>
@@ -116,9 +136,9 @@ namespace quark::engine::asset {
   void unload(const char* name) {
     using namespace internal;
     // TODO(sean): move to user freeing of this
-    free(assets_data.at(idx_of<T>()).at(name));
-    assets_data.at(idx_of<T>()).erase(name);
-    name_to_path.erase(name);
+    free(_assets_data.at(idx_of<T>()).at(name));
+    _assets_data.at(idx_of<T>()).erase(name);
+    _name_to_path.erase(name);
   }
   
   template <typename T>
