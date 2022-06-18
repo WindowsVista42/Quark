@@ -401,4 +401,7 @@ namespace quark::engine::render {
 
 namespace quark {
   namespace render = engine::render;
+
+  inline auto& MAIN_CAMERA = render::MAIN_CAMERA;
+  inline auto& SUN_CAMERA = render::SUN_CAMERA;
 };

@@ -584,4 +584,14 @@ namespace quark::core::math {
   f32 radians(f32 degrees) {
     return (degrees * M_PI) / 180.0f;
   }
+
+  f32 clamp(f32 x, f32 min, f32 max) {
+    if (x < min) {
+      return min;
+    }
+    if (x > max) {
+      return max;
+    }
+    return x;
+  }
 };

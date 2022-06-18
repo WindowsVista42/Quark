@@ -91,6 +91,7 @@ add_library(quark_engine SHARED
   quark3/engine/state.cpp
   quark3/engine/reflect.cpp
   quark3/engine/asset.cpp
+  quark3/engine/input.cpp
   quark3/engine/render.cpp
 )
 

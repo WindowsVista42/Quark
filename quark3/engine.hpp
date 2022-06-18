@@ -18,6 +18,7 @@
 #include "engine/component.hpp"
 
 // IO
+#include "engine/input.hpp"
 //#include "engine/audio.hpp"
 #include "engine/render.hpp"
 
@@ -26,4 +27,6 @@ namespace quark::engine {
 
   template <typename... Components>
   using Handle = entity::Handle<Components...>;
+
+  using namespace component;
 };

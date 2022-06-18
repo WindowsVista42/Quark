@@ -1,5 +1,6 @@
 #include "../quark3/lib.hpp"
 #include <filesystem>
+using namespace quark;
 
 int main() {
   quark::init();

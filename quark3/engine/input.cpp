@@ -1,10 +1,11 @@
-#define USING_QUARK_INTERNALS
-#include "quark.hpp"
+#define QUARK_ENGINE_INTERNAL
+#include "input.hpp"
+#include "../platform.hpp"
 
 //TODO(sean): figure out how to properly clamp these values so having something
 //bound to an action twice does not result in 2x the action
 
-namespace quark::input {
+namespace quark::engine::input {
 
 static std::unordered_map<std::string, std::vector<InputEnum>> name_to_inputs;
 static std::unordered_map<std::string, ActionState> name_to_action;
@@ -30,8 +31,8 @@ void mouse_callback(GLFWwindow* window, double x, double y) {
 }
 
 void init() {
-  glfwSetScrollCallback(platform::window, scroll_callback);
-  glfwSetCursorPosCallback(platform::window, mouse_callback);
+  glfwSetScrollCallback(window::internal::_window, scroll_callback);
+  glfwSetCursorPosCallback(window::internal::_window, mouse_callback);
 }
 
 void bind(const char* name, InputEnum input) {
@@ -64,7 +65,7 @@ void unbind(const char* name, InputEnum input) {
 }
 
 void update_key(ActionState* state, InputEnum input) {
-  i32 k = glfwGetKey(platform::window, input - Key::BIAS);
+  i32 k = glfwGetKey(window::internal::_window, input - Key::BIAS);
 
   if(k == GLFW_PRESS) {
     state->current = 1.0f;
@@ -76,7 +77,7 @@ void update_key(ActionState* state, InputEnum input) {
 void update_mouse(ActionState* state, InputEnum input) {
   // mouse button input
   if(input >= Mouse::Button1 && input <= Mouse::Button8) {
-    i32 k = glfwGetMouseButton(platform::window, input - Mouse::BIAS);
+    i32 k = glfwGetMouseButton(window::internal::_window, input - Mouse::BIAS);
 
     if(k == GLFW_PRESS) {
       state->current = 1.0f;

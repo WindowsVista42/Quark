@@ -317,6 +317,7 @@ namespace quark::core::math {
 
   f32 radians(f32 degrees);
   f32 degrees(f32 radians);
+  f32 clamp(f32 x, f32 min, f32 max);
 };
 
 // EXPORTS

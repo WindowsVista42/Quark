@@ -1,14 +1,16 @@
 #pragma once
-#ifndef QUARK_INPUT_HPP
-#define QUARK_INPUT_HPP
 
-#include "quark.hpp"
+#include "api.hpp"
+#include "../core.hpp"
+#include "GLFW/glfw3.h"
 
-namespace quark::input {
+namespace quark::engine::input {
+  using InputEnum = usize;
+
   namespace Key {
     static constexpr usize BIAS = 0;
     // NOT IN NUMERIC ORDER
-    enum KeyEnum {
+    enum KeyEnum : InputEnum {
       Apostrophe     = GLFW_KEY_APOSTROPHE + BIAS,
       Comma          = GLFW_KEY_COMMA + BIAS,
       Minus          = GLFW_KEY_MINUS + BIAS,
@@ -77,7 +79,7 @@ namespace quark::input {
   namespace Mouse {
     static constexpr usize BIAS = 1 << 10;
     // NOT IN NUMERIC ORDER
-    enum MouseEnum {
+    enum MouseEnum : InputEnum {
       Button1        = GLFW_MOUSE_BUTTON_1 + BIAS,
       Button2        = GLFW_MOUSE_BUTTON_2 + BIAS,
       Button3        = GLFW_MOUSE_BUTTON_3 + BIAS,
@@ -110,7 +112,7 @@ namespace quark::input {
     // but i dont think that will be the case
     static constexpr usize BIAS = 1 << 11;
     // NOT IN NUMERIC ORDER
-    enum GamepadEnum {
+    enum GamepadEnum : InputEnum {
       LeftStickUp    = 0 + BIAS,
       LeftStickDown,
       LeftStickLeft,
@@ -139,15 +141,14 @@ namespace quark::input {
     };
   };
 
-  using InputEnum = usize;
-  void bind(const char* name, InputEnum input);
-  void unbind(const char* name, InputEnum input);
+  engine_api void bind(const char* name, InputEnum input);
+  engine_api void unbind(const char* name, InputEnum input);
 
-  void init();
+  engine_api void init();
 
-  void update_all();
+  engine_api void update_all();
 
-  struct ActionState {
+  struct engine_api ActionState {
     f32 previous;
     f32 current;
 
@@ -160,14 +161,13 @@ namespace quark::input {
     f32 value();
   };
 
-  ActionState get(const char* name);
+  engine_api ActionState get(const char* name);
 };
 
 namespace quark {
-  using Key = quark::input::Key::KeyEnum;
-  using Mouse = quark::input::Mouse::MouseEnum;
-  using ActionState = quark::input::ActionState;
+  using Key = engine::input::Key::KeyEnum;
+  using Mouse = engine::input::Mouse::MouseEnum;
+  using ActionState = engine::input::ActionState;
+
+  namespace input = engine::input;
 };
-
-
-#endif

@@ -131,6 +131,4 @@ namespace quark::engine::component {
 // EXPORTS
 namespace quark {
   using namespace engine::component;
-
-  namespace component = engine::component;
 };

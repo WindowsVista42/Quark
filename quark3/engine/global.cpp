@@ -5,6 +5,7 @@
 #include "system.hpp"
 #include "render.hpp"
 #include "asset.hpp"
+#include "input.hpp"
 
 #include "../platform.hpp"
 
@@ -100,6 +101,7 @@ namespace quark::engine::global {
       system::list("update")
         .add(def(render::internal::print_performance_statistics), -1)
         .add(def(window::poll_events), -1)
+        .add(def(input::update_all), -1)
 
         .add(def(update_tag), -1)
 
