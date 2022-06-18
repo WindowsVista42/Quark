@@ -36,15 +36,14 @@ namespace quark::engine::render {
   Camera MAIN_CAMERA = {
     .spherical_dir = {0.0f, M_PI_2},
     .pos = vec3::zero,
-    .dir = vec3::unit_z,
+    .dir = vec3::unit_y,
   };
 
   Camera SUN_CAMERA = {
     .spherical_dir = {0.0f, M_PI_2},
     .pos = vec3::zero,
-    .dir = vec3::unit_z * - 1.0f,
+    .dir = vec3::unit_y * - 1.0f,
   };
-  
   
   //TODO(sean): update this so that it can output cull data to the input camera
   mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
@@ -366,12 +365,12 @@ namespace quark::engine::render {
   void end_lit_pass() {}
   
   void draw_color(Transform transform, Model model, Color color) {
-    Mesh& mesh = mesh_data::_meshes[model.id];
+    Mesh& mesh = asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
 
     ColorPushConstant pcd;
     pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
     pcd.MODEL_ROTATION = transform.rotation;
-    pcd.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+    pcd.MODEL_SCALE = vec4(vec3(1.0), 1.0f);
     pcd.color = color;
 
     _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
@@ -1491,14 +1490,14 @@ namespace quark::engine::render {
       _global_constants_layout = create_desc_layout(_global_constants_layout_info);
       _global_descriptor_pool = create_desc_pool(_global_descriptor_pool_sizes);
 
-      for_every(frame_index, _FRAME_OVERLAP) {
+      for_every(i, _FRAME_OVERLAP) {
         auto buffer_size = sizeof(WorldData);
     
         // allocate render constants buffer
-        _world_data_buf[frame_index] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        _global_constants_sets[frame_index] = create_allocated_desc_set(_global_descriptor_pool, _global_constants_layout);
+        _world_data_buf[i] = create_allocated_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        _global_constants_sets[i] = create_allocated_desc_set(_global_descriptor_pool, _global_constants_layout);
     
-        update_desc_set<count_of(_global_constants_layout_info)>(_global_constants_sets[_frame_index], _frame_index, _global_constants_layout_info, true);
+        update_desc_set(_global_constants_sets[i], _frame_index, _global_constants_layout_info, true);
       }
     }
     
@@ -2029,8 +2028,8 @@ namespace quark::engine::render {
     }
     
     void update_descriptor_sets() {
-      for_every(frame_index, _FRAME_OVERLAP) {
-        update_desc_set(_global_constants_sets[frame_index], frame_index, _global_constants_layout_info, false);
+      for_every(i, _FRAME_OVERLAP) {
+        update_desc_set(_global_constants_sets[i], _frame_index, _global_constants_layout_info, false);
       }
     }
     

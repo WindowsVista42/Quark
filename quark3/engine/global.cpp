@@ -54,6 +54,8 @@ namespace quark::engine::global {
     TT += DT;
   }
 
+  void update_tag() {}
+
   void init() {
     // Add default system lists
     {
@@ -99,17 +101,19 @@ namespace quark::engine::global {
         .add(def(render::internal::print_performance_statistics), -1)
         .add(def(window::poll_events), -1)
 
+        .add(def(update_tag), -1)
+
         .add(def(render::update_cameras), -1)
         .add(def(render::update_world_data), -1)
 
         .add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!
 
-          .add(def(render::begin_shadow_rendering), -1)
-          .add(def(render::draw_shadow_things), -1)
-          .add(def(render::end_shadow_rendering), -1)
+          //.add(def(render::begin_shadow_rendering), -1)
+          //.add(def(render::draw_shadow_things), -1)
+          //.add(def(render::end_shadow_rendering), -1)
 
           .add(def(render::begin_depth_prepass_rendering), -1)
-          .add(def(render::draw_depth_prepass_things), -1)
+          //.add(def(render::draw_depth_prepass_things), -1)
           .add(def(render::end_depth_prepass_rendering), -1)
 
           .add(def(render::begin_forward_rendering), -1) // NOTE(sean): custom effects begin here!
@@ -145,13 +149,13 @@ namespace quark::engine::global {
       .add(def(begin_frame_timer), 0)
       .add(def(end_frame_timer), -1);
 
-    system::list("init").print();
+    system::list("update").print();
 
     system::list("init").run();
     system::list("state_init").run();
 
     while(!window::should_close()) {
-      system::list("update").run();
+      system::list("update").run(false);
       state::transition_if_changed();
     }
 

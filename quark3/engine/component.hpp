@@ -73,7 +73,7 @@ namespace quark::engine::component {
   //
   // Used for rendering
   struct Model {
-    vec3 scale = vec3::zero;
+    vec3 scale = vec3::one;
     u32 id = 0;
   };
 
