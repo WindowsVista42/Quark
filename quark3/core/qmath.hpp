@@ -8,6 +8,17 @@ namespace quark::core::math {
   using simd_vec3 = float __attribute__((ext_vector_type(3)));
   using simd_vec4 = float __attribute__((ext_vector_type(5)));
 
+  struct vec2;
+  struct vec3;
+  struct vec4;
+  struct quat;
+  struct ivec2;
+  struct uvec2;
+  struct mat2;
+  struct mat3;
+  struct mat3a;
+  struct mat4;
+
   // Two component vector
   struct vec2 {
     f32 x, y;
@@ -57,6 +68,9 @@ namespace quark::core::math {
     vec2 norm_max_mag(f32 max);
 
     vec2 rotate(f32 rad);
+
+    // Treat the given vec2 as a spherical direction and convert it to a cartesian direction
+    vec3 cartesian();
 
     simd_vec2 shfl();
   };

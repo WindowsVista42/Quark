@@ -84,6 +84,14 @@ namespace quark::core::math {
     };
   }
 
+  vec3 vec2::cartesian() {
+    return vec3 {
+      -sinf(x) * sinf(y), // x+ right
+       cosf(x) * sinf(y), // y+ forward
+      -cosf(y),           // z+ up
+    };
+  }
+
   simd_vec2 vec2::shfl() {
     return simd_vec2 { x, y };
   }

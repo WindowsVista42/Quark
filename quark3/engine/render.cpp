@@ -99,6 +99,8 @@ namespace quark::engine::render {
   }
 
   void update_cameras() {
+    MAIN_CAMERA.dir = MAIN_CAMERA.spherical_dir.cartesian();
+
     SUN_CAMERA.pos = MAIN_CAMERA.pos + vec3{20.0f, 20.0f, 300.0f};
     SUN_CAMERA.dir = (MAIN_CAMERA.pos - SUN_CAMERA.pos).norm();
     SUN_CAMERA.znear = 10.0f;
@@ -238,7 +240,7 @@ namespace quark::engine::render {
   }
   
   void draw_shadow_things() {
-    for (auto [e, transform, model] : registry::view<Transform, Model, Effect::ShadowPass>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::NoShadowPass, Effect::Transparent>()).each()) {
       // NOTE(sean): frustum culling temporarily removed because it is culling
       // using the MAIN_CAMERA instead of the SUN_CAMERA
       //if (box_in_frustum(transform.pos, scl)) {
@@ -355,7 +357,7 @@ namespace quark::engine::render {
   }
   
   void draw_lit_pass_things() {
-    for (auto [e, transform, model, texture] : registry::view<Transform, Model, Texture, Effect::LitTexture>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, texture] : registry::view<Transform, Model, Texture, Effect::LitTextureFill>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
         draw_lit(transform, model, texture);
       }
@@ -385,7 +387,7 @@ namespace quark::engine::render {
   }
   
   void draw_solid_pass_things() {
-    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::FillColor>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorFill>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
         draw_color(transform, model, color);
       }
@@ -403,7 +405,7 @@ namespace quark::engine::render {
   }
 
   void draw_wireframe_pass_things() {
-    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::WireframeColor>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorLines>(exclude<Effect::Transparent>()).each()) {
       if (box_in_frustum(transform.position, model.scale)) {
         draw_color(transform, model, color);
       }

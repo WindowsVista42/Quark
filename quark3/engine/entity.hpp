@@ -107,7 +107,7 @@ namespace quark::engine::entity {
           if(!Component::has_required_components(*this)) {
             std::cout << "Attempted to add : " << typeid(Component).name() << " :" << std::endl;
             unpack(typename Component::args());
-            panic("Failed to add component to entity!");
+            panic("Failed to add component to entity, check the order you are adding components in!");
           }
         }
       #endif

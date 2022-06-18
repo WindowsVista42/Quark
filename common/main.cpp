@@ -9,22 +9,40 @@ namespace common {
       Transform {},
       Model {{1.0f, 1.0f, 1.0f}, 1},
       Color {{0.0f, 1.0f, 0.0f, 1.0f}},
-      Effect::FillColor {}
+      Effect::SolidColorLines {}
     );
+
+    //Entity::create().add(
+    //  Transform {},
+    //  Model {{1.0f, 1.0f, 1.0f}, 1},
+    //  Color {{0.0f, 1.0f, 0.0f, 1.0f}},
+    //  Effect::FillColor {}
+    //);
 
     input::bind("w", Key::W);
     input::bind("s", Key::S);
+    input::bind("z", Key::Z);
+    input::bind("down", Key::V);
+    input::bind("pause", Key::Space);
   }
 
   void update() {
-    for(auto [e, transform, model] : registry::view<Transform, Model>().each()) {
-      transform.position.x = sinf(TT * 5.0f) * 5.0f;
-      transform.position.y = cosf(TT * 5.0f) * 5.0f;
-      //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+    if(!input::get("pause").down()) {
+      static f32 T = 0.0f;
+      for(auto [e, transform, model] : registry::view<Transform, Model>().each()) {
+        transform.position.x = sinf(T * 5.0f) * 5.0f;
+        transform.position.y = cosf(T * 5.0f) * 5.0f;
+        //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+      }
+      T += DT;
     }
 
     MAIN_CAMERA.pos.y += input::get("w").value() * DT;
     MAIN_CAMERA.pos.y -= input::get("s").value() * DT;
+
+    MAIN_CAMERA.pos.z += input::get("z").value() * DT;
+
+    MAIN_CAMERA.spherical_dir.y -= input::get("down").value() * DT;
   }
 };
 
@@ -66,6 +84,8 @@ struct Texture2 {
   u32 id;
 };
 
+//ljkasdflkjasdlkjf
+
 
 // fuck it im going to encode the half_extents into the model and provide
 // functions for querying and setting the "scale"
@@ -74,5 +94,6 @@ struct Model5 {
   vec3 half_extents;
   u32 id;
 
-  vec3 calculate_scale();
+  vec3 scale();
+  void scale(vec3 scale);
 };

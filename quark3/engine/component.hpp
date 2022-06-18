@@ -115,14 +115,29 @@ namespace quark::engine::component {
       using args = entity::internal::pack<T...>;
     };
   
-    using LitTexture = Id<0, Transform, Model, Texture>;
+    using LitTextureFill   = Id<0, Transform, Model, Texture>;
 
-    using WireframeColor = Id<1, Transform, Model, Color>;
-    using FillColor      = Id<2, Transform, Model, Color>;
-    using FillTexture    = Id<3, Transform, Model, Texture>;
+    using SolidColorLines  = Id<1, Transform, Model, Color>;
+    using SolidColorFill   = Id<2, Transform, Model, Color>;
+    using SolidTextureFill = Id<3, Transform, Model, Texture>;
 
-    using ShadowPass     = Id<4, Transform, Model>;
-    using Transparent    = Id<5, Transform, Model>;
+    using NoShadowPass     = Id<4, Transform, Model>;
+
+    // TODO(sean): figure out how to do this automatically?
+    using Transparent      = Id<5, Transform, Model>;
+
+    // EffectAlbedoMode
+    //
+    // Effect::LitColorFill
+    // Effect::SolidColorLine
+    // Effect::SolidColorFill
+    //
+    // Effect::LitTextureFill
+    //
+    // Effect::<Lit | Texture | Fill | Transparent>
+    // Effect::LitTextureFill
+    // Effect::SolidColorTextureFill
+    // Effect::SolidTextureFill
   };
 
   //void init();
