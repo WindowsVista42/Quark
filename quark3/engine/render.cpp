@@ -224,17 +224,17 @@ namespace quark::engine::render {
     vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
   
   void draw_shadow(Transform transform, Model model) {
-    Mesh& mesh = mesh_data::_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = 2;
     dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
+    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
   
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
@@ -277,24 +277,24 @@ namespace quark::engine::render {
     vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
 
   void draw_depth(Transform transform, Model model) {
-    Mesh& mesh = mesh_data::_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = 2;
     dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.scale, 1.0f);
+    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
   
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
 
   void draw_depth_prepass_things() {
     for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::Transparent>()).each()) {
-      if (box_in_frustum(transform.position, model.scale)) {
+      if (box_in_frustum(transform.position, model.half_extents)) {
         draw_depth(transform, model);
       }
     }
@@ -333,7 +333,7 @@ namespace quark::engine::render {
     vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
   
   void begin_lit_pass() {
@@ -341,24 +341,24 @@ namespace quark::engine::render {
     vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
   
   void draw_lit(Transform transform, Model model, Texture texture) {
-    Mesh& mesh = mesh_data::_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = texture.id;
     dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.scale * mesh.half_extents, 1.0f);
+    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
 
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
   
   void draw_lit_pass_things() {
     for (auto [e, transform, model, texture] : registry::view<Transform, Model, Texture, Effect::LitTextureFill>(exclude<Effect::Transparent>()).each()) {
-      if (box_in_frustum(transform.position, model.scale)) {
+      if (box_in_frustum(transform.position, model.half_extents)) {
         draw_lit(transform, model, texture);
       }
     }
@@ -367,12 +367,12 @@ namespace quark::engine::render {
   void end_lit_pass() {}
   
   void draw_color(Transform transform, Model model, Color color) {
-    Mesh& mesh = asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
 
     ColorPushConstant pcd;
     pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
     pcd.MODEL_ROTATION = transform.rotation;
-    pcd.MODEL_SCALE = vec4(vec3(1.0), 1.0f);
+    pcd.MODEL_SCALE = vec4(model.half_extents, 1.0f);
     pcd.color = color;
 
     _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
@@ -383,12 +383,12 @@ namespace quark::engine::render {
     vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
   
   void draw_solid_pass_things() {
     for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorFill>(exclude<Effect::Transparent>()).each()) {
-      if (box_in_frustum(transform.position, model.scale)) {
+      if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }
     }
@@ -401,12 +401,12 @@ namespace quark::engine::render {
     vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
   
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertex_buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
   }
 
   void draw_wireframe_pass_things() {
     for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorLines>(exclude<Effect::Transparent>()).each()) {
-      if (box_in_frustum(transform.position, model.scale)) {
+      if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }
     }
@@ -496,10 +496,13 @@ namespace quark::engine::render {
     
     AllocatedBuffer _world_data_buf[_FRAME_OVERLAP] = {};
     
-    LinearAllocationTracker _gpu_vertex_tracker = {};
-    AllocatedBuffer _gpu_vertex_buffer = {};
+    usize _gpu_mesh_count = 0;
+    AllocatedMesh _gpu_meshes[1024] = {};
+    vec3 _gpu_mesh_scales[1024] = {};
+    LinearAllocationTracker _gpu_vertices_tracker = {};
+    AllocatedBuffer _gpu_vertices = {};
     
-    AllocatedImage _gpu_image_buffer_array[1024] = {};
+    AllocatedImage _gpu_images[1024] = {};
     
     // TODO(sean): maybe load these in some kind of way from a file?
     DescriptorLayoutInfo _global_constants_layout_info[] =  {
@@ -507,7 +510,7 @@ namespace quark::engine::render {
       //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
       { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         _world_data_buf, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
       { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &_sun_depth_image,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-      { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, _gpu_image_buffer_array,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
+      { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, _gpu_images,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
     };
     
     // TODO(sean): maybe load these in some kind of way from a file?
@@ -560,10 +563,6 @@ namespace quark::engine::render {
     
     LinearAllocator _render_alloc = {};
     VmaAllocator _gpu_alloc = {};
-
-    namespace mesh_data {
-      Slice<Mesh> _meshes;
-    };
     
     // FUNCTIONS
     
@@ -807,29 +806,57 @@ namespace quark::engine::render {
 
     void init_mesh_buffer() {
       // Init staging buffer and allocation tracker
-      _gpu_vertex_buffer = create_allocated_buffer(100 * MB, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      _gpu_vertex_tracker.init(100 * MB);
+      constexpr usize _BUFFER_SIZE = 100 * MB;
+      _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+      _gpu_vertices_tracker.init(_BUFFER_SIZE);
     }
     
     void copy_meshes_to_gpu() {
-      AllocatedBuffer old_buffer = _gpu_vertex_buffer;
-      LinearAllocationTracker old_tracker = _gpu_vertex_tracker;
+      // updates _gpu_vertex & _gpu_vertices_tracker to new data
+      //AllocatedBuffer old_buffer = _gpu_vertices;
+      //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
     
-      _gpu_vertex_buffer = create_allocated_buffer(
-          old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+      //_gpu_vertices = create_allocated_buffer(
+      //    old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
-      _gpu_vertex_tracker.deinit();
-      _gpu_vertex_tracker.init(old_tracker.size());
-      _gpu_vertex_tracker.alloc(old_tracker.size());
+      //_gpu_vertices_tracker.deinit();
+      //_gpu_vertices_tracker.init(old_tracker.size());
+      //_gpu_vertices_tracker.alloc(old_tracker.size());
     
+      //// buffer copy
+      //{
+      //  VkCommandBuffer cmd = begin_quick_commands();
+    
+      //  VkBufferCopy copy = {};
+      //  copy.dstOffset = 0;
+      //  copy.srcOffset = 0;
+      //  copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
+      //  vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
+    
+      //  end_quick_commands(cmd);
+      //}
+    
+      //vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
+
+      AllocatedBuffer old_buffer = _gpu_vertices;
+      //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
+    
+      _gpu_vertices = create_allocated_buffer(
+          _gpu_vertices_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    
+      //_gpu_vertices_tracker.deinit();
+      //_gpu_vertices_tracker.init(old_tracker.size());
+      //_gpu_vertices_tracker.alloc(old_tracker.size());
+    
+      // buffer copy
       {
         VkCommandBuffer cmd = begin_quick_commands();
     
         VkBufferCopy copy = {};
         copy.dstOffset = 0;
         copy.srcOffset = 0;
-        copy.size = _gpu_vertex_tracker.size() * sizeof(VertexPNT);
-        vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertex_buffer.buffer, 1, &copy);
+        copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
+        vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
     
         end_quick_commands(cmd);
       }
@@ -1626,17 +1653,27 @@ namespace quark::engine::render {
     void unload_shader(VkShaderModule* shader) { vkDestroyShaderModule(_device, *shader, 0); }
     
     // Mesh loading
-    void create_mesh(void* data, usize size, usize elemsize, Mesh* mesh) {
-      mesh->size = size;
-      mesh->offset = _gpu_vertex_tracker.alloc(size);
+    AllocatedMesh create_mesh(void* data, usize size, usize elemsize) {
+      AllocatedMesh mesh = {};
+      mesh.size = size;
+      mesh.offset = _gpu_vertices_tracker.alloc(size);
     
       void* ptr;
-      vmaMapMemory(_gpu_alloc, _gpu_vertex_buffer.alloc, &ptr);
-      memcpy((u8*)ptr + (elemsize * mesh->offset), data, elemsize * mesh->size);
-      vmaUnmapMemory(_gpu_alloc, _gpu_vertex_buffer.alloc);
+      vmaMapMemory(_gpu_alloc, _gpu_vertices.alloc, &ptr);
+      memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.size);
+      vmaUnmapMemory(_gpu_alloc, _gpu_vertices.alloc);
+
+      return mesh;
+    }
+
+    template <typename T>
+    T* make(T&& t) {
+      T* ta = (T*)malloc(sizeof(T));
+      *ta = t;
+      return ta;
     }
     
-    Mesh* load_obj_mesh(std::string* path) {
+    u32 load_obj_mesh(std::string* path) {
       // TODO(sean): load obj model using tinyobjloader
       tinyobj::attrib_t attrib;
       std::vector<tinyobj::shape_t> shapes;
@@ -1754,9 +1791,16 @@ namespace quark::engine::render {
         data[i].position /= (ext * 0.5f);
       }
     
-      Mesh* mesh = (Mesh*)_render_alloc.alloc(sizeof(Mesh));
-      create_mesh(data, size, sizeof(VertexPNT), mesh);
-      return mesh;
+      // add mesh to _gpu_meshes
+      u32 mesh_id = _gpu_mesh_count;
+      _gpu_mesh_count += 1;
+
+      AllocatedMesh* mesh = &_gpu_meshes[mesh_id];//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
+      *mesh = create_mesh(data, size, sizeof(VertexPNT));
+
+      _gpu_mesh_scales[mesh_id] = ext.norm_max_mag(2.0f);
+
+      return mesh_id;
     }
     
     // TODO(sean): do some kind of better file checking
@@ -1808,7 +1852,7 @@ namespace quark::engine::render {
     //  return mesh;
     //}
     
-    void unload_mesh(Mesh* mesh) {}
+    void unload_mesh(AllocatedMesh* mesh) {}
     
     // Texture loading
     void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
@@ -1906,7 +1950,7 @@ namespace quark::engine::render {
       Texture* texture = (Texture*)_render_alloc.alloc(sizeof(Texture));
       texture->id = _global_constants_layout_info[2].count;
     
-      _gpu_image_buffer_array[_global_constants_layout_info[2].count] = alloc_image;
+      _gpu_images[_global_constants_layout_info[2].count] = alloc_image;
       _global_constants_layout_info[2].count += 1;
       printf("%llu\n", _global_constants_layout_info[2].count);
     
@@ -1918,7 +1962,7 @@ namespace quark::engine::render {
     }
     
     void unload_texture(Texture* texture) {
-      AllocatedImage* alloc_image = &_gpu_image_buffer_array[texture->id];
+      AllocatedImage* alloc_image = &_gpu_images[texture->id];
       vkDestroyImageView(_device, alloc_image->view, 0);
       vmaDestroyImage(_gpu_alloc, alloc_image->image, alloc_image->alloc);
     
@@ -1961,7 +2005,7 @@ namespace quark::engine::render {
     void deinit_allocators() {
       _render_alloc.deinit();
       SCRATCH.deinit();
-      vmaDestroyBuffer(_gpu_alloc, _gpu_vertex_buffer.buffer, _gpu_vertex_buffer.alloc);
+      vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
       vmaDestroyAllocator(_gpu_alloc);
     }
     

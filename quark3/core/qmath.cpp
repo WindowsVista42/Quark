@@ -106,7 +106,9 @@ namespace quark::core::math {
   const vec3 vec3::unit_y = vec3 {0,1,0};
   const vec3 vec3::unit_z = vec3 {0,0,1};
   const vec3 vec3::zero   = vec3 {0,0,0};
+  const vec3 vec3::half   = vec3 {0.5, 0.5, 0.5};
   const vec3 vec3::one    = vec3 {1,1,1};
+  const vec3 vec3::two    = vec3 {2,2,2};
 
   vec3::vec3() {}
 

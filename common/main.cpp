@@ -4,20 +4,26 @@
 using namespace quark;
 
 namespace common {
-  void init() {
-    Entity::create().add(
-      Transform {},
-      Model {{1.0f, 1.0f, 1.0f}, 1},
-      Color {{0.0f, 1.0f, 0.0f, 1.0f}},
-      Effect::SolidColorLines {}
-    );
+  struct Tag {};
 
-    //Entity::create().add(
-    //  Transform {},
-    //  Model {{1.0f, 1.0f, 1.0f}, 1},
-    //  Color {{0.0f, 1.0f, 0.0f, 1.0f}},
-    //  Effect::FillColor {}
-    //);
+  void init() {
+    for_every(i, 1000) {
+      Entity::create().add(
+        Transform {},
+        Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
+        Color {0.0f, 1.0f, 0.0f, 1.0f},
+        Effect::SolidColorFill {},
+        Tag {}
+      );
+    }
+
+    for_every(i, 1000) {
+      Entity::create().add(
+        Transform {},
+        Model::from_name_scale("suzanne"),
+        Color {0.0f, 1.0f, 0.0f, 1.0f}
+      );
+    }
 
     input::bind("w", Key::W);
     input::bind("s", Key::S);
@@ -29,10 +35,14 @@ namespace common {
   void update() {
     if(!input::get("pause").down()) {
       static f32 T = 0.0f;
-      for(auto [e, transform, model] : registry::view<Transform, Model>().each()) {
-        transform.position.x = sinf(T * 5.0f) * 5.0f;
-        transform.position.y = cosf(T * 5.0f) * 5.0f;
+      f32 ctr = 0.0f;
+      for(auto [e, transform, model, color] : registry::view<Transform, Model, Color, Tag>().each()) {
+        transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
+        transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
+        ctr += 0.25f;
         //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+
+        color.x = (sinf(TT) + 1.0f) / 2.0f;
       }
       T += DT;
     }
@@ -54,46 +64,3 @@ mod_main() {
     .add(def(common::update), "update_tag", 1)
     .add(def(common::exit_on_esc), -1);
 }
-
-struct Model4 {
-  vec3 scale; // normalized or unnormalized mesh extents
-              // extents = Mesh.extents * Model.scale
-              // Aabb = Transform.position + (Mesh.extents * Model.scale)
-              //
-              // Simpler on the user end to scale things up and down??
-              //
-              // This way of doing it however lines up better with
-              // how texture.scale will work
-  u32 id; // indirection for Mesh.offset and Mesh.size
-};
-
-struct Model3 {
-  // scale as 'extents'
-  vec3 size; // the one compelling reason is on the user-end of things you know the
-              // EXACT size of an entities model...
-  u32 id; // indirection for Mesh.offset and Mesh.size
-};
-
-struct Model2 {
-  vec3 extents;
-  u32 id;
-};
-
-struct Texture2 {
-  vec3 scale;
-  u32 id;
-};
-
-//ljkasdflkjasdlkjf
-
-
-// fuck it im going to encode the half_extents into the model and provide
-// functions for querying and setting the "scale"
-
-struct Model5 {
-  vec3 half_extents;
-  u32 id;
-
-  vec3 scale();
-  void scale(vec3 scale);
-};

@@ -20,13 +20,15 @@ namespace quark::engine::global {
   LinearAllocator SCRATCH = LinearAllocator {};
 
   void init_global_alloc() {
-    SCRATCH.init(20 * MB);
+    SCRATCH.init(100 * MB);
   }
 
   void add_asset_types() {
     asset::add_type(render::internal::load_vert_shader, render::internal::unload_shader, ".vert.spv");
     asset::add_type(render::internal::load_frag_shader, render::internal::unload_shader, ".frag.spv");
-    asset::add_type(render::internal::load_obj_mesh,    render::internal::unload_mesh, ".obj");
+
+    //asset::add_type(render::internal::load_obj_mesh,    render::internal::unload_mesh, ".obj");
+    asset::add_id_loader<render::internal::AllocatedMesh>(render::internal::load_obj_mesh, ".obj");
 
     asset::add_type(render::internal::load_png_texture, render::internal::unload_texture, ".png");
   }
@@ -151,10 +153,11 @@ namespace quark::engine::global {
       .add(def(begin_frame_timer), 0)
       .add(def(end_frame_timer), -1);
 
-    system::list("update").print();
-
+    auto t0 = std::chrono::high_resolution_clock::now();
     system::list("init").run();
     system::list("state_init").run();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::cout << "init time: " << std::chrono::duration<f64>(t1 - t0).count() << " s" << std:: endl;
 
     while(!window::should_close()) {
       system::list("update").run(false);

@@ -9,6 +9,9 @@ namespace quark::engine::asset {
     std::unordered_map<std::type_index, void* (*)(std::string*)> _type_loaders = {};
     std::unordered_map<std::type_index, void (*)(void*)> _type_unloaders = {};
     std::unordered_map<std::type_index, std::unordered_map<std::string, void*>> _assets_data = {};
+
+    std::unordered_map<std::type_index, u32 (*)(std::string*)> _id_loaders = {};
+    std::unordered_map<std::type_index, std::unordered_map<std::string, u32>> _asset_ids = {};
   };
 
   void load(const std::filesystem::path& path) {
@@ -25,10 +28,17 @@ namespace quark::engine::asset {
   
       std::type_index i = _ext_to_type.at(extension);
       std::string s = path.u8string();
-  
-      void* data = (*_type_loaders.at(i))(&s);
-  
-      _assets_data.at(i).insert(std::make_pair(filename, data));
+
+      if(_type_loaders.find(i) != _type_loaders.end()) {
+        void* data = (*_type_loaders.at(i))(&s);
+        _assets_data.at(i).insert(std::make_pair(filename, data));
+      }
+
+      else if(_id_loaders.find(i) != _id_loaders.end()) {
+        printf("used id loader!\n");
+        u32 id = (*_id_loaders.at(i))(&s);
+        _asset_ids.at(i).insert(std::make_pair(filename, id));
+      }
   
       printf("Loaded: %s%s\n", filename.c_str(), extension.c_str());
     }

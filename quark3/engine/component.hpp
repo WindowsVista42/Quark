@@ -60,37 +60,51 @@ namespace quark::engine::component {
     vec3 half_extents = vec3::zero;
   };
 
-  // Raw mesh data
-  // 
-  // This is allocated and stored internally and is assumed to be static
-  struct Mesh {
-    u32 size = 0;
-    u32 offset = 0;
-    vec3 half_extents = vec3::zero;
-  };
+  using UserMeshData = std::vector<VertexPNT>;
 
-  // Mesh scale + Mesh id
+  // Mesh half_extents + Mesh id
   //
   // Used for rendering
-  struct Model {
-    vec3 scale = vec3::one;
-    u32 id = 0;
-  };
-
-  // Raw image data
   //
-  // This is allocated and stored internally and is assumed to be static
-  struct Image {
-    uvec2 dimensions = uvec2::zero;
-    u64 vk_format = VK_FORMAT_UNDEFINED;
+  // These types are not "simple" dod structures
+  // so they have a bunch of member methods to make
+  // some common actions easier
+  struct engine_api Model {
+    vec3 half_extents = vec3::half;
+    u32 id = 0; // 0th item is our "default" -- probably a suzanne
+
+    vec3 calculate_scale();
+    void calculate_scale(vec3 scale);
+
+    static Model from_name_scale(const char* mesh_name, vec3 scale = vec3::one);
+    static Model from_name_half_extents(const char* mesh_name, vec3 half_extents = vec3::one);
+
+    std::string mesh();
+    void mesh(const char* mesh_name);
+
+    u32 _mesh_size();
+    u32 _mesh_offset();
+    vec3 _mesh_scale();
   };
 
   // Image scale + Image id
   // 
   // Used for rendering
-  struct Texture {
+  //
+  // These types are not "simple" dod structures
+  // so they have a bunch of member methods to make
+  // some common actions easier
+  struct engine_api Texture {
     vec3 scale;
-    u32 id;
+    u32 id = 0; // 0th item is our "default" -- probably a debug image
+
+    static Texture from_image_scale(const char* image_name, vec3 scale = vec3::one);
+
+    std::string image();
+    void image(const char* image_name);
+
+    uvec2 _dimensions();
+    u64 _vk_format();
   };
 
   // Raw audio data
@@ -105,7 +119,11 @@ namespace quark::engine::component {
   };
 
   // RGBA color represented values between 0.0 and 1.0
-  struct Color : vec4 {};
+  struct Color : vec4 {
+    using vec4::vec4;
+    Color(vec4 v) { *this = *(vec4*)&v; }
+    //vec4 operator() { return *(vec4*)*this; }
+  };
 
   namespace Effect {
     template <u32 yd, typename... T>

@@ -18,6 +18,9 @@ namespace quark::engine::asset {
     engine_var std::unordered_map<std::type_index, void* (*)(std::string*)> _type_loaders;
     engine_var std::unordered_map<std::type_index, void (*)(void*)> _type_unloaders;
     engine_var std::unordered_map<std::type_index, std::unordered_map<std::string, void*>> _assets_data;
+
+    engine_var std::unordered_map<std::type_index, u32 (*)(std::string*)> _id_loaders;
+    engine_var std::unordered_map<std::type_index, std::unordered_map<std::string, u32>> _asset_ids;
     
     template <typename T>
     inline const std::type_index idx_of() {
@@ -47,6 +50,16 @@ namespace quark::engine::asset {
     #endif
   
     return *(T*)_assets_data.at(i).at(std::string(name));
+  }
+
+  template <typename T>
+  u32 get_id(const char* name) {
+    using namespace internal;
+    const auto i = idx_of<T>();
+
+    //TODO(sean): debug messages
+
+    return _asset_ids.at(i).at(std::string(name));
   }
   
   template <typename T>
@@ -100,6 +113,29 @@ namespace quark::engine::asset {
     _type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
     _type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
     _assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
+  }
+
+  template <typename T>
+  void add_id_loader(u32 (*loader)(std::string*), const char* char_ext) {
+    using namespace internal;
+    std::string extension(char_ext);
+    const std::type_index i = idx_of<T>();
+
+    #ifdef DEBUG
+      if (_type_to_ext.find(i) != _type_to_ext.end()) {
+        printf("You have already added '%s' to the asset manager!\n", char_ext);
+        exit(1);
+      }
+    #endif
+  
+    _type_to_ext.insert(std::make_pair(i, extension));
+    _ext_to_type.insert(std::make_pair(extension, i));
+    _id_loaders.insert(std::make_pair(i, loader));
+    _asset_ids.insert(std::make_pair(i, std::unordered_map<std::string, u32>()));
+
+    //_type_loaders.insert(std::make_pair(i, (LoaderFunction)loader));
+    //_type_unloaders.insert(std::make_pair(i, (UnloaderFunction)unloader));
+    //_assets_data.insert(std::make_pair(i, std::unordered_map<std::string, void*>()));
   }
 
   template <typename T, typename T2>

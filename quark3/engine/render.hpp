@@ -9,6 +9,10 @@
 
 namespace quark::engine::render {
   // TYPES
+
+  struct MeshAsset {
+    u32 id;
+  };
   
   struct engine_api Camera {
     vec2 spherical_dir;
@@ -81,6 +85,11 @@ namespace quark::engine::render {
       VkImageView view;
       VkFormat format;
       uvec2 dimensions;
+    };
+
+    struct AllocatedMesh {
+      u32 size = 0;
+      u32 offset = 0;
     };
 
     struct PointLightData {
@@ -263,10 +272,16 @@ namespace quark::engine::render {
     
     engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP];
     
-    engine_var LinearAllocationTracker _gpu_vertex_tracker;
-    engine_var AllocatedBuffer _gpu_vertex_buffer;
+    // mesh data
+    engine_var usize _gpu_mesh_count;
+    engine_var AllocatedMesh _gpu_meshes[1024]; // hot data
+    engine_var vec3 _gpu_mesh_scales[1024]; // cold data
+    engine_var LinearAllocationTracker _gpu_vertices_tracker;
+    // this buffer starts out as being a 
+    engine_var AllocatedBuffer _gpu_vertices;
     
-    engine_var AllocatedImage _gpu_image_buffer_array[1024];
+    // image data
+    engine_var AllocatedImage _gpu_images[1024];
     
     engine_var DescriptorLayoutInfo _global_cosntants_layout_info[];
     engine_var VkDescriptorPoolSize _global_descriptor_pool_sizes[];
@@ -316,7 +331,6 @@ namespace quark::engine::render {
     engine_var VmaAllocator _gpu_alloc;
 
     namespace mesh_data {
-      engine_var Slice<Mesh> _meshes;
     };
 
     // FUNCTIONS
@@ -362,11 +376,11 @@ namespace quark::engine::render {
     engine_api void unload_shader(VkShaderModule* shader);
 
     // Mesh loading
-    engine_api void create_mesh(void* data, usize size, usize memsize, Mesh* mesh);
-    engine_api Mesh* load_obj_mesh(std::string* path);
+    engine_api AllocatedMesh create_mesh(void* data, usize size, usize memsize);
+    engine_api u32 load_obj_mesh(std::string* path);
     // TODO(sean): do some kind of better file checking
-    engine_api Mesh* load_vbo_mesh(std::string* path);
-    engine_api void unload_mesh(Mesh* mesh);
+    engine_api u32 load_vbo_mesh(std::string* path);
+    engine_api void unload_mesh(AllocatedMesh* mesh);
 
     // Texture loading
     engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);

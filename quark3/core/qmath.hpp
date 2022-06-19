@@ -100,7 +100,9 @@ namespace quark::core::math {
     static const vec3 unit_y;
     static const vec3 unit_z;
     static const vec3 zero;
+    static const vec3 half;
     static const vec3 one;
+    static const vec3 two;
 
     vec3();
     vec3(f32 a);
