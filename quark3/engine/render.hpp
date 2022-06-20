@@ -7,6 +7,8 @@
 
 #include <vk_mem_alloc.h>
 
+//lkjlkjlkjlkj
+
 namespace quark::engine::render {
   // TYPES
 
@@ -270,8 +272,6 @@ namespace quark::engine::render {
     
     engine_var VkSampler _default_sampler;
     
-    engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP];
-    
     // mesh data
     engine_var usize _gpu_mesh_count;
     engine_var AllocatedMesh _gpu_meshes[1024]; // hot data
@@ -282,7 +282,9 @@ namespace quark::engine::render {
     
     // image data
     engine_var AllocatedImage _gpu_images[1024];
-    
+
+    engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP];
+
     engine_var DescriptorLayoutInfo _global_cosntants_layout_info[];
     engine_var VkDescriptorPoolSize _global_descriptor_pool_sizes[];
     engine_var VkDescriptorPool _global_descriptor_pool;
@@ -296,25 +298,25 @@ namespace quark::engine::render {
     engine_var VkPipeline _solid_pipeline;
     engine_var VkPipeline _wireframe_pipeline;
     engine_var VkRenderPass _default_render_pass;
-       
+
     engine_var RenderEffect _depth_prepass_effect;
     engine_var RenderEffect _shadowmap_effect;
     engine_var RenderEffect _lit_shadow_effect;
     engine_var RenderEffect _solid_effect;
     engine_var RenderEffect _wireframe_effect;
-    
+
     engine_var VkPipelineLayout _depth_only_pipeline_layout;
     engine_var VkPipeline _depth_only_pipeline;
     engine_var VkRenderPass _depth_only_render_pass;
-    
+
     engine_var VkPipelineLayout _depth_prepass_pipeline_layout;
     engine_var VkPipeline _depth_prepass_pipeline;
     engine_var VkRenderPass _depth_prepass_render_pass;
-    
+
     engine_var VkFramebuffer* _global_framebuffers;
     engine_var VkFramebuffer* _depth_prepass_framebuffers;
     engine_var VkFramebuffer* _sun_shadow_framebuffers;
-    
+
     engine_var usize _frame_count;
     engine_var u32 _frame_index;
     engine_var u32 _swapchain_image_index;
@@ -329,9 +331,6 @@ namespace quark::engine::render {
     
     engine_var LinearAllocator _render_alloc;
     engine_var VmaAllocator _gpu_alloc;
-
-    namespace mesh_data {
-    };
 
     // FUNCTIONS
 

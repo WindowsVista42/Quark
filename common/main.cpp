@@ -7,21 +7,22 @@ namespace common {
   struct Tag {};
 
   void init() {
-    for_every(i, 1000) {
+    for_every(i, 10) {
       Entity::create().add(
         Transform {},
         Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
         Color {0.0f, 1.0f, 0.0f, 1.0f},
-        Effect::SolidColorFill {},
+        Effect::SolidColorLines {},
         Tag {}
       );
     }
 
-    for_every(i, 1000) {
+    for_every(i, 10) {
       Entity::create().add(
-        Transform {},
+        Transform {.position = {(f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f}},
         Model::from_name_scale("suzanne"),
-        Color {0.0f, 1.0f, 0.0f, 1.0f}
+        Color {1.0f, 0.0f, 0.0f, 1.0f},
+        Effect::SolidColorLines {}
       );
     }
 

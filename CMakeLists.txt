@@ -22,14 +22,22 @@ set(BUILD_ENET OFF CACHE BOOL "" FORCE)
 set(BUILD_CLSOCKET OFF CACHE BOOL "" FORCE)
 set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 
+set(ALSOFT_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_CONFIG OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_HRTF_DATA OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
+
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
   #set(FORCE_SHARED_CRT ON)
-  set(CMAKE_C_FLAGS_DEBUG "-O1 -Wall -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
   set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -static")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -Wall -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static")
 endif(WIN32)
@@ -44,8 +52,6 @@ if(UNIX)
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static")
 endif(UNIX)
 
-#target_compile_options(glfw PRIVATE "-DBUILD_SHARED_LIBS=ON")
-
 # DEPENDENCIES
 find_package(Vulkan REQUIRED)
 set(BUILD_SHARED_LIBS ON)
@@ -59,13 +65,15 @@ add_subdirectory(lib/meshoptimizer)
 add_subdirectory(lib/openal-soft)
 add_subdirectory(lib/bullet3)
 
+target_compile_options(OpenAL PRIVATE -Wno-attributes -Wno-error -Wno-unused -Wno-all -Wno-shadow -Wno-conversion -Wno-cast-align -Wno-pedantic -Wno-inline -Wno-deprecated-declarations -Wno-sign-conversion -Wno-old-style-cast -Wno-language-extension-token -Wno-deprecated-declarations)
+target_compile_options(VulkanMemoryAllocator PRIVATE -Wno-nullability-completeness)
+
 # INCLUDES
 include_directories(PUBLIC ${Vulkan_INCLUDE_DIRS})
 include_directories(PUBLIC lib/VulkanMemoryAllocator/include)
 include_directories(PUBLIC lib/glfw/include)
 include_directories(PUBLIC lib/tinyobjloader)
 include_directories(PUBLIC lib/vk-bootstrap/src)
-include_directories(PUBLIC quark/)
 include_directories(PUBLIC lib/stb)
 include_directories(PUBLIC lib/qoi)
 include_directories(PUBLIC lib/entt/src)
@@ -74,12 +82,27 @@ include_directories(PUBLIC lib/bullet3/src)
 add_library(quark_core
   quark3/core/qmath.cpp
 )
+#target_include_directories(quark_core SYSTEM PRIVATE
+#  lib/bullet3/src
+#)
+#target_precompile_headers(quark_core PUBLIC
+#  <cstdint>
+#  <cstdio>
+#  <iostream>
+#  <math.h>
+#  <btBulletDynamicsCommon.h>
+#)
 
 add_library(quark_platform SHARED
   quark3/platform/allocator.cpp
   quark3/platform/window.cpp
   quark3/platform/shared.cpp
 )
+#target_include_directories(quark_platform SYSTEM PRIVATE
+#  lib/glfw/include
+#)
+#target_precompile_headers(quark_platform PUBLIC
+#)
 
 # QUARK ENGINE LIBRARY
 add_library(quark_engine SHARED
@@ -94,10 +117,18 @@ add_library(quark_engine SHARED
   quark3/engine/input.cpp
   quark3/engine/render.cpp
 )
-
-# PRECOMPILED HEADERS FOR QUARK
-target_precompile_headers(quark_engine
-  PUBLIC
+#target_include_directories(quark_engine SYSTEM PRIVATE
+#  ${Vulkan_INCLUDE_DIRS}
+#  lib/VulkanMemoryAllocator/include
+#  lib/glfw/include
+#  lib/tinyobjloader
+#  lib/vk-bootstrap/src
+#  lib/stb
+#  lib/qoi
+#  lib/entt/src
+#  lib/bullet3/src
+#)
+target_precompile_headers(quark_engine PUBLIC
   <cstdint>
   <cstdio>
   <iostream>

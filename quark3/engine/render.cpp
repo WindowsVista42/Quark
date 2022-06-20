@@ -13,6 +13,8 @@
 #define VMA_IMPLEMENTATION
 #include "render.hpp"
 
+//lkjlkjlkjlkj
+
 #define vk_check(x)                                                                                                                                  \
   do {                                                                                                                                               \
     VkResult err = x;                                                                                                                                \
@@ -1047,28 +1049,231 @@ namespace quark::engine::render {
         vk_check(vkCreateSemaphore(_device, &semaphore_info, 0, &_render_semaphore[i]));
       }
     }
+
+    //struct PipelineLayoutInfo {
+    //};
+
+    struct PushConstantInfo {
+      u32 offset = 0;
+      u32 size;
+      u32 flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    };
+
+    struct PipelineLayoutInfo {
+      std::vector<PushConstantInfo> push_constants;
+      std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+    };
+
+    VkPipelineLayout create_pipeline_layout(const PipelineLayoutInfo* info) {
+      std::vector<VkPushConstantRange> push_ranges;
+
+      for (auto& pushc : info->push_constants) {
+        push_ranges.push_back(VkPushConstantRange {
+          .stageFlags = pushc.flags,
+          .offset = pushc.offset,
+          .size = pushc.size,
+        });
+      }
+
+      VkPipelineLayoutCreateInfo create_info = {};
+      create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      create_info.flags = 0;
+      create_info.setLayoutCount = info->descriptor_set_layouts.size();
+      create_info.pSetLayouts = info->descriptor_set_layouts.data();
+      create_info.pushConstantRangeCount = push_ranges.size();
+      create_info.pPushConstantRanges = push_ranges.data();
+      create_info.pNext = 0;
+
+      VkPipelineLayout pipeline_layout;
+      vk_check(vkCreatePipelineLayout(_device, &create_info, 0, &pipeline_layout));
+      return pipeline_layout;
+    }
+
+    struct EffectData {
+      u32 pipeline_layout_id; // lets you retrieve the relevant VkPipelineLayout and PipelineLayoutInfo
+    };
+
+    using PipelineLayoutId = isize;
+    using PipelineId = isize;
+
+    using VertexShaderId = isize;
+    using FragmentShaderId = isize;
+
+    using VertexLayoutId = isize;
+    using RasterizationId = isize;
+    using ColorBlendId = isize;
+
+    // Unique pipeline layouts, these are often SHARED
+    usize pipeline_layout_count = 0;
+    VkPipelineLayout pipeline_layouts[64] = {};
+    PipelineLayoutInfo pipeline_layout_infos[64] = {};
+    std::unordered_map<std::string, u32> name_to_pipeline_id;
+
+    void add_pipeline_layout(std::string name, PipelineLayoutInfo info) {
+      name_to_pipeline_id.insert(std::make_pair(name, pipeline_layout_count));
+      pipeline_layout_infos[pipeline_layout_count] = info;
+      pipeline_layouts[pipeline_layout_count] = create_pipeline_layout(&info);
+
+      pipeline_layout_count += 1;
+    }
+
+    VkPipelineLayout get_pipeline_layout(std::string name) {
+      return pipeline_layouts[name_to_pipeline_id.at(name)];
+    }
+
+    VkPipelineLayout get_pipeline_layout(u32 id) {
+      return pipeline_layouts[id];
+    }
+
+    u32 get_pipeline_layout_id(std::string name) {
+      return name_to_pipeline_id.at(name);
+    }
+
+    struct VertexLayoutInfo {
+      std::vector<VkVertexInputBindingDescription> bindings;
+      std::vector<VkVertexInputAttributeDescription> attributes;
+    };
+
+    struct InputAssemblyInfo {
+    };
+
+    enum struct FrontFace {
+      Clockwise = VK_FRONT_FACE_CLOCKWISE,
+      CounterClockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+    };
+
+    enum struct CullMode {
+      None = VK_CULL_MODE_NONE,
+      Front = VK_CULL_MODE_FRONT_BIT,
+      Back = VK_CULL_MODE_BACK_BIT,
+    };
+
+    enum struct PolygonMode {
+      Fill = VK_POLYGON_MODE_FILL,
+      Line = VK_POLYGON_MODE_LINE,
+      Point = VK_POLYGON_MODE_POINT,
+    };
+
+    struct RasterizationInfo {
+      PolygonMode polygon_mode;
+      CullMode cull_mode;
+      FrontFace front_face;
+      f32 line_width = 1.0f;
+    };
+
+    struct PipelineInfo {
+      VertexShaderId vertex_shader_id;
+      // If specified as -1 then no fragment shader is assumed
+      FragmentShaderId fragment_shader_id;
+
+      VertexLayoutId vertex_layout_id;
+      RasterizationId rasterization_info_id;
+      // multisample state is auto derived
+      ColorBlendId color_blend_id;
+    };
+
+    void test_func() {
+      VertexLayoutInfo vertex_layout_info = {};
+      vertex_layout_info.bindings = {
+        // binding, stride
+        { 0, sizeof(VertexPNT) },
+      };
+      vertex_layout_info.attributes = {
+        // location, binding, format, offset
+        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT, position) },
+        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT,   normal) },
+        { 2, 0,    VK_FORMAT_R32G32_SFLOAT, offsetof(VertexPNT,  texture) },
+      };
+
+      RasterizationInfo rasterization_info = {};
+      rasterization_info.cull_mode = CullMode::Back;
+      rasterization_info.polygon_mode = PolygonMode::Fill;
+      rasterization_info.front_face = FrontFace::CounterClockwise;
+      rasterization_info.line_width = 1.0f;
+    }
+
+    template <typename T>
+    class VulkanObjectCache {
+    };
+
+    template <typename T>
+    class ArtifactCache {
+      std::vector<T> id_to_t;
+      std::unordered_map<std::string, u32> name_to_id;
+
+    public:
+      T& get(std::string name) {
+        return id_to_t[name_to_id.at(name)];
+      }
+      T& get(i32 id) {
+        return id_to_t[id];
+      }
+      u32 id(std::string name) {
+        return name_to_id.at(name);
+      }
+      void add(std::string name, T t) {
+        name_to_id.insert(std::make_pair(name, id_to_t.size()));
+        id_to_t.push_back(t);
+      }
+    };
+
+    ArtifactCache<VkPipelineVertexInputStateCreateInfo> vertex_input_cache;
+    ArtifactCache<VkPipelineInputAssemblyStateCreateInfo> input_assembly_cache;
+
+    ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
     
     void init_pipelines() {
-      VkPushConstantRange push_constant = {};
-      push_constant.offset = 0;
-      push_constant.size = sizeof(DefaultPushConstant);
-      push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-      VkPipelineLayoutCreateInfo pipeline_layout_info = {};
-      pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      pipeline_layout_info.flags = 0;
-      pipeline_layout_info.setLayoutCount = 1;
-      pipeline_layout_info.pSetLayouts = &_global_constants_layout;
-      pipeline_layout_info.pushConstantRangeCount = 1;
-      pipeline_layout_info.pPushConstantRanges = &push_constant;
-      pipeline_layout_info.pNext = 0;
-    
-      // Basic pipeline layout
-      //VkPipelineLayout layout;
-      vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_lit_pipeline_layout));
+      // PIPELINE LAYOUTS
+
+      PipelineLayoutInfo default_pipeline_layout_info = {
+        .push_constants = { PushConstantInfo { .size = sizeof(DefaultPushConstant) } },
+        .descriptor_set_layouts = { _global_constants_layout },
+      };
+
+      add_pipeline_layout("default", default_pipeline_layout_info);
+      _lit_pipeline_layout = get_pipeline_layout("default");
+      _depth_only_pipeline_layout = get_pipeline_layout("default");
+      _depth_prepass_pipeline_layout = get_pipeline_layout("default");
+
+      //EffectData lit_effect = {
+      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
+      //  .pipeline_id = get_pipeline_id("lit"),
+      //};
+
+      //EffectData depth_only_effect = {
+      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
+      //  .pipeline_id = get_pipeline_id("depth_only"),
+      //};
+
+      //EffectData depth_prepass_effect = {
+      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
+      //  .pipeline_id = get_pipeline_id("depth_prepass"),
+      //};
+
+      //_lit_pipeline_layout = create_pipeline_layout(&default_pipeline_layout_info);
+      // TODO(sean): get RID of these EXTRA ones OMGOMGOMGOMGOMGOMGOMGOMG
+      //_depth_only_pipeline_layout = _lit_pipeline_layout;//create_pipeline_layout(&default_pipeline_layout_info);
+      //_depth_prepass_pipeline_layout = _lit_pipeline_layout;//create_pipeline_layout(&default_pipeline_layout_info);
+
+      PipelineLayoutInfo color_pipeline_layout_info = {
+        .push_constants = { PushConstantInfo { .size = sizeof(ColorPushConstant) } },
+        .descriptor_set_layouts = { _global_constants_layout },
+      };
+      add_pipeline_layout("color", color_pipeline_layout_info);
+      _color_pipeline_layout = get_pipeline_layout("color");
+
+      //_color_pipeline_layout = create_pipeline_layout(&color_pipeline_layout_info);
+
+      // PIPELINES
+
+
+      //PipelineInfo pipeline_infoff = {
+      //  .vertex_shader_id = get_vertex_shader_id("lit_shadow"),
+      //  .fragment_shader_id = get_fragment_shader_id("lit_shadow"),
+      //};
     
       VkPipelineShaderStageCreateInfo shader_stages[2] = {};
-    
+
       shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
       shader_stages[0].module = asset::get<VkVertexShader>("lit_shadow");
@@ -1080,7 +1285,10 @@ namespace quark::engine::render {
       shader_stages[1].module = asset::get<VkFragmentShader>("lit_shadow");
       shader_stages[1].pName = "main";
       shader_stages[1].pNext = 0;
+
+      /////////////////////////////////////////////
     
+      //
       VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
       vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
       vertex_input_info.vertexBindingDescriptionCount = 1;
@@ -1089,6 +1297,8 @@ namespace quark::engine::render {
       vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
       vertex_input_info.pNext = 0;
     
+      //
+      // everything is implicitly triangle list
       VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
       input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
       input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -1096,6 +1306,7 @@ namespace quark::engine::render {
       input_assembly_info.primitiveRestartEnable = VK_FALSE;
       input_assembly_info.pNext = 0;
     
+      //
       VkPipelineRasterizationStateCreateInfo rasterization_info = {};
       rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
       rasterization_info.depthBiasEnable = VK_FALSE;
@@ -1109,6 +1320,9 @@ namespace quark::engine::render {
       rasterization_info.depthBiasSlopeFactor = 0.0f;
       rasterization_info.pNext = 0;
     
+      // 
+      // flag for use_multisample?
+      // or auto derive from output attachment
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
       multisample_info.sampleShadingEnable = VK_FALSE;
@@ -1167,7 +1381,7 @@ namespace quark::engine::render {
       depth_stencil_info.minDepthBounds = 0.0f;
       depth_stencil_info.maxDepthBounds = 1.0f;
       depth_stencil_info.stencilTestEnable = VK_FALSE;
-    
+
       VkGraphicsPipelineCreateInfo pipeline_info = {};
       pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
       pipeline_info.stageCount = 2;
@@ -1197,8 +1411,8 @@ namespace quark::engine::render {
       // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
     
       // Debug pipeline layout
-      push_constant.size = sizeof(ColorPushConstant);
-      vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_color_pipeline_layout));
+      //push_constant.size = sizeof(ColorPushConstant);
+      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_color_pipeline_layout));
     
       // Color pipeline
       shader_stages[0].module = asset::get<VkVertexShader>("color");
@@ -1212,14 +1426,14 @@ namespace quark::engine::render {
       rasterization_info.cullMode = VK_CULL_MODE_NONE;
       rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
       rasterization_info.lineWidth = 2.0f;
-      depth_stencil_info.depthTestEnable = VK_FALSE;
+      //depth_stencil_info.depthTestEnable = VK_FALSE;
+      depth_stencil_info.depthTestEnable = VK_TRUE;
     
       vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
     
-      push_constant.size = sizeof(DefaultPushConstant);
+      //push_constant.size = sizeof(DefaultPushConstant);
       pipeline_info.layout = _lit_pipeline_layout;
     
-      depth_stencil_info.depthTestEnable = VK_TRUE;
     
       // Sun pipeline layout
       //pipeline_layout_info.setLayoutCount = 0;
@@ -1227,9 +1441,14 @@ namespace quark::engine::render {
     
       //push_constant.size = sizeof(DefaultPushConstant);
       //push_constant.size = sizeof(mat4);
+
+      //pipeline_layout_info = {};
+      //pipeline_layout_info.push_constants = {{.size = sizeof(ColorPushConstant)}};
+      //pipeline_layout_info.descriptor_set_layouts = { _global_constants_layout };
+      //_color_pipeline_layout = create_pipeline_layout(&pipeline_layout_info);
     
-      vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_only_pipeline_layout));
-      vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_prepass_pipeline_layout));
+      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_only_pipeline_layout));
+      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_prepass_pipeline_layout));
     
       rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
     
