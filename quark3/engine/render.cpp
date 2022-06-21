@@ -915,7 +915,7 @@ namespace quark::engine::render {
     
     void init_render_passes() {
       // main render pass
-      VkAttachmentDescription color_attachment = {};
+      VkAttachmentDescription color_attachment = {}; // AD
       color_attachment.format = _swapchain_format;
       color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
       color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -925,7 +925,7 @@ namespace quark::engine::render {
       color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
       color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     
-      VkAttachmentDescription depth_attachment = {};
+      VkAttachmentDescription depth_attachment = {}; // AD
       depth_attachment.format = _global_depth_image.format;
       depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
       depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -935,39 +935,54 @@ namespace quark::engine::render {
       depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
       depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
     
-      VkAttachmentReference color_attachment_ref = {};
+      VkAttachmentReference color_attachment_ref = {}; // AR
       color_attachment_ref.attachment = 0;
       color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     
-      VkAttachmentReference depth_attachment_ref = {};
+      VkAttachmentReference depth_attachment_ref = {}; // AR
       depth_attachment_ref.attachment = 1;
       depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     
-      VkSubpassDescription subpass_desc = {};
+      VkSubpassDescription subpass_desc = {}; // SD
       subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
       subpass_desc.colorAttachmentCount = 1;
       subpass_desc.pColorAttachments = &color_attachment_ref;
       subpass_desc.pDepthStencilAttachment = &depth_attachment_ref;
-    
-      VkAttachmentDescription attachments[2] = {color_attachment, depth_attachment};
-    
-      VkRenderPassCreateInfo render_pass_info = {};
+
+      VkAttachmentDescription attachments[2] = {color_attachment, depth_attachment}; // AD[]
+
+      VkRenderPassCreateInfo render_pass_info = {}; // RPI
       render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
       render_pass_info.attachmentCount = 2;
       render_pass_info.pAttachments = attachments;
       render_pass_info.subpassCount = 1;
       render_pass_info.pSubpasses = &subpass_desc;
-    
+
       vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &_default_render_pass));
-    
+
+      enum struct ImageUsage {
+      };
+
+      struct GraphicsRenderPass {
+        std::vector<isize> image_outputs;
+        std::vector<ImageUsage> image_usages;
+      };
+
+      GraphicsRenderPass _forward_rendering_pass;
+
+      // _default_render_pass
+      // uses: _swapchain_images, _global_depth_images
+      // _swapchain_images -- clear and write -- outputs to screen
+      // _global_depth_image -- load and store -- just loads and stores
+
       // depth prepass render pass
       depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
       depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
       depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // start as dont-care
       depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // transition to depth attachment (depth-prepass)
-    
+
       VkAttachmentDescription depth_only_attachments[1] = {depth_attachment};
-    
+
       render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
       render_pass_info.attachmentCount = 1;
       render_pass_info.pAttachments = depth_only_attachments;
@@ -1234,26 +1249,6 @@ namespace quark::engine::render {
       _depth_only_pipeline_layout = get_pipeline_layout("default");
       _depth_prepass_pipeline_layout = get_pipeline_layout("default");
 
-      //EffectData lit_effect = {
-      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
-      //  .pipeline_id = get_pipeline_id("lit"),
-      //};
-
-      //EffectData depth_only_effect = {
-      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
-      //  .pipeline_id = get_pipeline_id("depth_only"),
-      //};
-
-      //EffectData depth_prepass_effect = {
-      //  .pipeline_layout_id = get_pipeline_layout_id("default"),
-      //  .pipeline_id = get_pipeline_id("depth_prepass"),
-      //};
-
-      //_lit_pipeline_layout = create_pipeline_layout(&default_pipeline_layout_info);
-      // TODO(sean): get RID of these EXTRA ones OMGOMGOMGOMGOMGOMGOMGOMG
-      //_depth_only_pipeline_layout = _lit_pipeline_layout;//create_pipeline_layout(&default_pipeline_layout_info);
-      //_depth_prepass_pipeline_layout = _lit_pipeline_layout;//create_pipeline_layout(&default_pipeline_layout_info);
-
       PipelineLayoutInfo color_pipeline_layout_info = {
         .push_constants = { PushConstantInfo { .size = sizeof(ColorPushConstant) } },
         .descriptor_set_layouts = { _global_constants_layout },
@@ -1261,34 +1256,35 @@ namespace quark::engine::render {
       add_pipeline_layout("color", color_pipeline_layout_info);
       _color_pipeline_layout = get_pipeline_layout("color");
 
-      //_color_pipeline_layout = create_pipeline_layout(&color_pipeline_layout_info);
 
-      // PIPELINES
-
-
-      //PipelineInfo pipeline_infoff = {
-      //  .vertex_shader_id = get_vertex_shader_id("lit_shadow"),
-      //  .fragment_shader_id = get_fragment_shader_id("lit_shadow"),
-      //};
-    
       VkPipelineShaderStageCreateInfo shader_stages[2] = {};
 
-      shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-      shader_stages[0].module = asset::get<VkVertexShader>("lit_shadow");
-      shader_stages[0].pName = "main";
-      shader_stages[0].pNext = 0;
-    
-      shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-      shader_stages[1].module = asset::get<VkFragmentShader>("lit_shadow");
-      shader_stages[1].pName = "main";
-      shader_stages[1].pNext = 0;
+      VertexShaderInfo vertex_shader_info = {}; // remove, get shader from the asset manager when creating
+      vertex_shader_info.module = asset::get<VkVertexShader>("lit_shadow");
+      vertex_shader_info.add_to_cache("lit_shadow");
+
+      vertex_shader_info = {};
+      vertex_shader_info.module = asset::get<VkVertexShader>("color");
+      vertex_shader_info.add_to_cache("color");
+
+      auto vertex_shader_info_vk = VertexShaderInfo::cache.get("lit_shadow").into_vk();
+      shader_stages[0] = vertex_shader_info_vk;
+
+      FragmentShaderInfo fragment_shader_info = {}; // remove, get shader from the asset manager when creating
+      fragment_shader_info.module = asset::get<VkFragmentShader>("lit_shadow");
+      fragment_shader_info.add_to_cache("lit_shadow");
+
+      fragment_shader_info = {};
+      fragment_shader_info.module = asset::get<VkFragmentShader>("color");
+      fragment_shader_info.add_to_cache("color");
+
+      auto fragment_shader_info_vk = FragmentShaderInfo::cache.get("lit_shadow").into_vk();
+      shader_stages[1] = fragment_shader_info_vk;
 
       /////////////////////////////////////////////
     
       //
-      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
+      VkPipelineVertexInputStateCreateInfo vertex_input_info = {}; // this never changes
       vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
       vertex_input_info.vertexBindingDescriptionCount = 1;
       vertex_input_info.pVertexBindingDescriptions = VertexPNT::input_description.bindings;
@@ -1296,84 +1292,88 @@ namespace quark::engine::render {
       vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
       vertex_input_info.pNext = 0;
     
-      InputAssemblyInfo input_assembly_info  = {};
+      InputAssemblyInfo input_assembly_info  = {}; // remove, this never changes
       input_assembly_info.topology = PrimitiveTopology::TriangleList;
       input_assembly_info.add_to_cache("default");
-      //VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
-      //input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      //input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      //input_assembly_info.flags = 0;
-      //input_assembly_info.primitiveRestartEnable = VK_FALSE;
-      //input_assembly_info.pNext = 0;
-    
-      //
+
       RasterizationInfo rasterization_info = {};
       rasterization_info.cull_mode = CullMode::Back;
       rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.front_face = FrontFace::CounterClockwise;
+      rasterization_info.front_face = FrontFace::CounterClockwise; // remove, this never changes
       rasterization_info.line_width = 1.0f;
       rasterization_info.add_to_cache("default");
 
       rasterization_info.cull_mode = CullMode::None;
       rasterization_info.polygon_mode = PolygonMode::Line;
-      rasterization_info.front_face = FrontFace::CounterClockwise;
+      rasterization_info.front_face = FrontFace::CounterClockwise; // remove, this never changes
       rasterization_info.line_width = 2.0f;
       rasterization_info.add_to_cache("wireframe");
     
       // 
       // flag for use_multisample?
       // or auto derive from output attachment
-      MultisampleInfo multisample_info = {};
+      MultisampleInfo multisample_info = {}; // changes, depends on render pass output
       multisample_info.sample_count = SampleCount::One;
       multisample_info.add_to_cache("default");
-    
-      BlendAttachmentInfo blend_attachment_info = {};
+
+      RenderRegionInfo render_region_info = {}; // changes, might depend on render pass output
+      render_region_info.offset = {0, 0};
+      render_region_info.extents = {window::dimensions().x, window::dimensions().y};
+      render_region_info.add_to_cache("default");
+
+      auto viewport_vk = RenderRegionInfo::cache.get("default").into_vk_viewport();
+      auto scissor_vk = RenderRegionInfo::cache.get("default").into_vk_scissor();
+      auto viewport_info_vk = RenderRegionInfo::cache.get("default").into_vk(&viewport_vk, &scissor_vk);
+
+      BlendInfo blend_attachment_info = {}; // changes
       blend_attachment_info.blend_enable = BoolValue::False;
-      blend_attachment_info.color_write_mask = ColorComponent::All;
+      blend_attachment_info.color_write_mask = ColorComponent::All; // i can see some cool use for this so it stays
       blend_attachment_info.add_to_cache("default");
-    
-      VkViewport viewport = {};
-      viewport.x = 0.0f;
-      viewport.y = 0.0f;
-      viewport.width = (f32)window::dimensions().x;
-      viewport.height = (f32)window::dimensions().y;
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
-    
-      VkRect2D scissor = {};
-      scissor.offset = {0, 0};
-      scissor.extent = {(u32)window::dimensions().x, (u32)window::dimensions().y};
-    
-      VkPipelineViewportStateCreateInfo viewport_info = {};
-      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewport_info.viewportCount = 1;
-      viewport_info.pViewports = &viewport;
-      viewport_info.scissorCount = 1;
-      viewport_info.pScissors = &scissor;
-      viewport_info.pNext = 0;
-    
-      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
-      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      color_blend_info.logicOpEnable = VK_FALSE;
-      color_blend_info.logicOp = VK_LOGIC_OP_COPY;
-      color_blend_info.attachmentCount = 1;
-      color_blend_info.pAttachments = BlendAttachmentInfo::cache.get("default").into_vk();//&color_blend_attachment;
-      color_blend_info.pNext = 0;
-    
-      VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {};
-      depth_stencil_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-      depth_stencil_info.pNext = 0;
-      depth_stencil_info.depthTestEnable = VK_TRUE;
-      depth_stencil_info.depthWriteEnable = VK_TRUE;
-      depth_stencil_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-      depth_stencil_info.depthBoundsTestEnable = VK_FALSE;
-      depth_stencil_info.minDepthBounds = 0.0f;
-      depth_stencil_info.maxDepthBounds = 1.0f;
-      depth_stencil_info.stencilTestEnable = VK_FALSE;
+
+      auto blend_attachment_info_vk = BlendInfo::cache.get("default").into_attachment_vk();
+      auto color_blend_info_vk = BlendInfo::cache.get("default").into_vk(&blend_attachment_info_vk);
+
+      DepthStencilInfo depth_stencil_info = {}; // changes
+      depth_stencil_info.enable_depth_testing = BoolValue::True;
+      depth_stencil_info.enable_depth_writing = BoolValue::True;
+      depth_stencil_info.add_to_cache("default");
+
+      auto depth_stencil_info_vk = DepthStencilInfo::cache.get("default").into_vk();
 
       auto input_assembly_info_vk = InputAssemblyInfo::cache.get("default").into_vk();
       auto rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
       auto multisample_info_vk = MultisampleInfo::cache.get("default").into_vk();
+
+      //GraphicsPipelineInfo graphics_pipeline_info = {
+      //  //.pipeline_layout = "default",
+      //  //.render_pass = "forward_pass",
+      //  .vertex_shader_id = "lit_shadow",
+      //  .fragment_shader_id = "lit_shadow",
+      //  //.input_assembly_info_id = "default",
+      //  //.rasterization_info_id = "default",
+      //  //.multisample_info_id = "default",
+      //  //.render_region_info_id = "default",
+      //  //.blend_info_id = "default",
+      //  //.depth_stencil_info_id = "default",
+      //};
+
+      _lit_pipeline = (GraphicsPipelineInfo {
+        .vertex_shader = "lit_shadow",
+        .fragment_shader = "lit_shadow",
+      }).create_vk(_lit_pipeline_layout, _default_render_pass);
+
+      _solid_pipeline = (GraphicsPipelineInfo {
+        .vertex_shader = "color",
+        .fragment_shader = "color",
+      }).create_vk(_color_pipeline_layout, _default_render_pass);
+
+      _wireframe_pipeline = (GraphicsPipelineInfo {
+        .vertex_shader = "color",
+        .fragment_shader = "color",
+        .rasterization_info_id = "wireframe",
+      }).create_vk(_color_pipeline_layout, _default_render_pass);
+
+      //_solid_pipeline = graphics_pipeline_info.create_vk(_color_pipeline_layout, _default_render_pass);
 
       VkGraphicsPipelineCreateInfo pipeline_info = {};
       pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -1381,11 +1381,11 @@ namespace quark::engine::render {
       pipeline_info.pStages = shader_stages;
       pipeline_info.pVertexInputState = &vertex_input_info;
       pipeline_info.pInputAssemblyState = &input_assembly_info_vk; //
-      pipeline_info.pViewportState = &viewport_info;
+      pipeline_info.pViewportState = &viewport_info_vk;
       pipeline_info.pRasterizationState = &rasterization_info_vk; //
       pipeline_info.pMultisampleState = &multisample_info_vk; //
-      pipeline_info.pColorBlendState = &color_blend_info;
-      pipeline_info.pDepthStencilState = &depth_stencil_info;
+      pipeline_info.pColorBlendState = &color_blend_info_vk;
+      pipeline_info.pDepthStencilState = &depth_stencil_info_vk;
       pipeline_info.layout = _lit_pipeline_layout;
       pipeline_info.renderPass = _default_render_pass;
       pipeline_info.subpass = 0;
@@ -1393,7 +1393,7 @@ namespace quark::engine::render {
       pipeline_info.pNext = 0;
     
       // Basic pipeline
-      vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_lit_pipeline));
+      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_lit_pipeline));
     
       //color_blend_attachment.blendEnable = VK_FALSE;
       // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -1418,17 +1418,17 @@ namespace quark::engine::render {
 
       pipeline_info.layout = _color_pipeline_layout;
     
-      vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_solid_pipeline));
+      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_solid_pipeline));
 
       rasterization_info_vk = RasterizationInfo::cache.get("wireframe").into_vk();
       //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("wireframe").into_vk();
       //rasterization_info.cullMode = VK_CULL_MODE_NONE;
       //rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
       //rasterization_info.lineWidth = 2.0f;
+
       //depth_stencil_info.depthTestEnable = VK_FALSE;
-      depth_stencil_info.depthTestEnable = VK_TRUE;
     
-      vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
+      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
       rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
       //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("default").into_vk();
     
@@ -1454,6 +1454,8 @@ namespace quark::engine::render {
       rasterization_info.cull_mode = CullMode::Back;
       //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
     
+      //depth_stencil_info.depthWriteEnable = VK_TRUE;
+
       pipeline_info.stageCount = 1;
       shader_stages[0].module = asset::get<VkVertexShader>("depth_view");
       shader_stages[1].module = 0;
@@ -1476,10 +1478,18 @@ namespace quark::engine::render {
     
       //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
       rasterization_info.cull_mode = CullMode::Back;//VK_CULL_MODE_BACK_BIT;
-    
-      viewport.width = 2048.0f;
-      viewport.height = 2048.0f;
-      scissor.extent = {2048, 2048};
+
+      render_region_info = {};
+      render_region_info.offset = {0, 0};
+      render_region_info.extents = {2048, 2048};
+      render_region_info.add_to_cache("shadow_map");
+
+      viewport_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_viewport();
+      scissor_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_scissor();
+
+      //viewport.width = 2048.0f;
+      //viewport.height = 2048.0f;
+      //scissor.extent = {2048, 2048};
     
       pipeline_info.layout = _depth_only_pipeline_layout;
       pipeline_info.renderPass = _depth_only_render_pass;
