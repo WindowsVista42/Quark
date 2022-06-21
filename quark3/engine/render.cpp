@@ -13,6 +13,8 @@
 #define VMA_IMPLEMENTATION
 #include "render.hpp"
 
+#include "effect.hpp"
+
 //lkjlkjlkjlkj
 
 #define vk_check(x)                                                                                                                                  \
@@ -1134,32 +1136,29 @@ namespace quark::engine::render {
       std::vector<VkVertexInputAttributeDescription> attributes;
     };
 
-    struct InputAssemblyInfo {
-    };
+    //enum struct FrontFace {
+    //  Clockwise = VK_FRONT_FACE_CLOCKWISE,
+    //  CounterClockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+    //};
 
-    enum struct FrontFace {
-      Clockwise = VK_FRONT_FACE_CLOCKWISE,
-      CounterClockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-    };
+    //enum struct CullMode {
+    //  None = VK_CULL_MODE_NONE,
+    //  Front = VK_CULL_MODE_FRONT_BIT,
+    //  Back = VK_CULL_MODE_BACK_BIT,
+    //};
 
-    enum struct CullMode {
-      None = VK_CULL_MODE_NONE,
-      Front = VK_CULL_MODE_FRONT_BIT,
-      Back = VK_CULL_MODE_BACK_BIT,
-    };
+    //enum struct PolygonMode {
+    //  Fill = VK_POLYGON_MODE_FILL,
+    //  Line = VK_POLYGON_MODE_LINE,
+    //  Point = VK_POLYGON_MODE_POINT,
+    //};
 
-    enum struct PolygonMode {
-      Fill = VK_POLYGON_MODE_FILL,
-      Line = VK_POLYGON_MODE_LINE,
-      Point = VK_POLYGON_MODE_POINT,
-    };
-
-    struct RasterizationInfo {
-      PolygonMode polygon_mode;
-      CullMode cull_mode;
-      FrontFace front_face;
-      f32 line_width = 1.0f;
-    };
+    //struct RasterizationInfo {
+    //  PolygonMode polygon_mode;
+    //  CullMode cull_mode;
+    //  FrontFace front_face;
+    //  f32 line_width = 1.0f;
+    //};
 
     struct PipelineInfo {
       VertexShaderId vertex_shader_id;
@@ -1297,51 +1296,41 @@ namespace quark::engine::render {
       vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
       vertex_input_info.pNext = 0;
     
-      //
-      // everything is implicitly triangle list
-      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
-      input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      input_assembly_info.flags = 0;
-      input_assembly_info.primitiveRestartEnable = VK_FALSE;
-      input_assembly_info.pNext = 0;
+      InputAssemblyInfo input_assembly_info  = {};
+      input_assembly_info.topology = PrimitiveTopology::TriangleList;
+      input_assembly_info.add_to_cache("default");
+      //VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
+      //input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      //input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      //input_assembly_info.flags = 0;
+      //input_assembly_info.primitiveRestartEnable = VK_FALSE;
+      //input_assembly_info.pNext = 0;
     
       //
-      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
-      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      rasterization_info.depthBiasEnable = VK_FALSE;
-      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.lineWidth = 1.0f;
-      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rasterization_info.depthBiasConstantFactor = 0.0f;
-      rasterization_info.depthBiasClamp = 0.0f;
-      rasterization_info.depthBiasSlopeFactor = 0.0f;
-      rasterization_info.pNext = 0;
+      RasterizationInfo rasterization_info = {};
+      rasterization_info.cull_mode = CullMode::Back;
+      rasterization_info.polygon_mode = PolygonMode::Fill;
+      rasterization_info.front_face = FrontFace::CounterClockwise;
+      rasterization_info.line_width = 1.0f;
+      rasterization_info.add_to_cache("default");
+
+      rasterization_info.cull_mode = CullMode::None;
+      rasterization_info.polygon_mode = PolygonMode::Line;
+      rasterization_info.front_face = FrontFace::CounterClockwise;
+      rasterization_info.line_width = 2.0f;
+      rasterization_info.add_to_cache("wireframe");
     
       // 
       // flag for use_multisample?
       // or auto derive from output attachment
-      VkPipelineMultisampleStateCreateInfo multisample_info = {};
-      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.sampleShadingEnable = VK_FALSE;
-      multisample_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-      multisample_info.minSampleShading = 1.0f;
-      multisample_info.pSampleMask = 0;
-      multisample_info.alphaToCoverageEnable = VK_FALSE;
-      multisample_info.alphaToOneEnable = VK_FALSE;
-      multisample_info.pNext = 0;
+      MultisampleInfo multisample_info = {};
+      multisample_info.sample_count = SampleCount::One;
+      multisample_info.add_to_cache("default");
     
-      VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-      color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      color_blend_attachment.blendEnable = VK_FALSE;
-      color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-      color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-      color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-      color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-      color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+      BlendAttachmentInfo blend_attachment_info = {};
+      blend_attachment_info.blend_enable = BoolValue::False;
+      blend_attachment_info.color_write_mask = ColorComponent::All;
+      blend_attachment_info.add_to_cache("default");
     
       VkViewport viewport = {};
       viewport.x = 0.0f;
@@ -1368,7 +1357,7 @@ namespace quark::engine::render {
       color_blend_info.logicOpEnable = VK_FALSE;
       color_blend_info.logicOp = VK_LOGIC_OP_COPY;
       color_blend_info.attachmentCount = 1;
-      color_blend_info.pAttachments = &color_blend_attachment;
+      color_blend_info.pAttachments = BlendAttachmentInfo::cache.get("default").into_vk();//&color_blend_attachment;
       color_blend_info.pNext = 0;
     
       VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {};
@@ -1382,15 +1371,19 @@ namespace quark::engine::render {
       depth_stencil_info.maxDepthBounds = 1.0f;
       depth_stencil_info.stencilTestEnable = VK_FALSE;
 
+      auto input_assembly_info_vk = InputAssemblyInfo::cache.get("default").into_vk();
+      auto rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
+      auto multisample_info_vk = MultisampleInfo::cache.get("default").into_vk();
+
       VkGraphicsPipelineCreateInfo pipeline_info = {};
       pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
       pipeline_info.stageCount = 2;
       pipeline_info.pStages = shader_stages;
       pipeline_info.pVertexInputState = &vertex_input_info;
-      pipeline_info.pInputAssemblyState = &input_assembly_info;
+      pipeline_info.pInputAssemblyState = &input_assembly_info_vk; //
       pipeline_info.pViewportState = &viewport_info;
-      pipeline_info.pRasterizationState = &rasterization_info;
-      pipeline_info.pMultisampleState = &multisample_info;
+      pipeline_info.pRasterizationState = &rasterization_info_vk; //
+      pipeline_info.pMultisampleState = &multisample_info_vk; //
       pipeline_info.pColorBlendState = &color_blend_info;
       pipeline_info.pDepthStencilState = &depth_stencil_info;
       pipeline_info.layout = _lit_pipeline_layout;
@@ -1402,7 +1395,7 @@ namespace quark::engine::render {
       // Basic pipeline
       vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_lit_pipeline));
     
-      color_blend_attachment.blendEnable = VK_FALSE;
+      //color_blend_attachment.blendEnable = VK_FALSE;
       // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
       // color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
       // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
@@ -1417,19 +1410,27 @@ namespace quark::engine::render {
       // Color pipeline
       shader_stages[0].module = asset::get<VkVertexShader>("color");
       shader_stages[1].module = asset::get<VkFragmentShader>("color");
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.lineWidth = 1.0f;
+      //rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      //rasterization_info.lineWidth = 1.0f;
+
+      rasterization_info.polygon_mode = PolygonMode::Fill;
+      rasterization_info.line_width = 1.0f;
+
       pipeline_info.layout = _color_pipeline_layout;
     
       vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_solid_pipeline));
-    
-      rasterization_info.cullMode = VK_CULL_MODE_NONE;
-      rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
-      rasterization_info.lineWidth = 2.0f;
+
+      rasterization_info_vk = RasterizationInfo::cache.get("wireframe").into_vk();
+      //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("wireframe").into_vk();
+      //rasterization_info.cullMode = VK_CULL_MODE_NONE;
+      //rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
+      //rasterization_info.lineWidth = 2.0f;
       //depth_stencil_info.depthTestEnable = VK_FALSE;
       depth_stencil_info.depthTestEnable = VK_TRUE;
     
       vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
+      rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
+      //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("default").into_vk();
     
       //push_constant.size = sizeof(DefaultPushConstant);
       pipeline_info.layout = _lit_pipeline_layout;
@@ -1450,7 +1451,8 @@ namespace quark::engine::render {
       //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_only_pipeline_layout));
       //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_prepass_pipeline_layout));
     
-      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      rasterization_info.cull_mode = CullMode::Back;
+      //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
     
       pipeline_info.stageCount = 1;
       shader_stages[0].module = asset::get<VkVertexShader>("depth_view");
@@ -1461,8 +1463,10 @@ namespace quark::engine::render {
     
       // scissor.offset = {0, 0};
     
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.lineWidth = 1.0f;
+      rasterization_info.polygon_mode = PolygonMode::Fill;
+      rasterization_info.line_width = 1.0f;
+      //rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      //rasterization_info.lineWidth = 1.0f;
       pipeline_info.layout = _depth_prepass_pipeline_layout;
       pipeline_info.renderPass = _depth_prepass_render_pass;
     
@@ -1470,7 +1474,8 @@ namespace quark::engine::render {
     
       shader_stages[0].module = asset::get<VkVertexShader>("depth_only");
     
-      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      rasterization_info.cull_mode = CullMode::Back;//VK_CULL_MODE_BACK_BIT;
     
       viewport.width = 2048.0f;
       viewport.height = 2048.0f;

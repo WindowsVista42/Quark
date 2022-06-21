@@ -12,7 +12,7 @@ namespace common {
         Transform {},
         Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
         Color {0.0f, 1.0f, 0.0f, 1.0f},
-        Effect::SolidColorLines {},
+        Effect::SolidColorFill {},
         Tag {}
       );
     }

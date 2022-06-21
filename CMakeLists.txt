@@ -116,6 +116,7 @@ add_library(quark_engine SHARED
   quark3/engine/asset.cpp
   quark3/engine/input.cpp
   quark3/engine/render.cpp
+  quark3/engine/effect.cpp
 )
 #target_include_directories(quark_engine SYSTEM PRIVATE
 #  ${Vulkan_INCLUDE_DIRS}
