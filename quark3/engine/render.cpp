@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
 #include "../core.hpp"
@@ -338,6 +339,8 @@ namespace quark::engine::render {
   
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+
+    printf("swapchain image index: %d\n", _swapchain_image_index);
   }
   
   void begin_lit_pass() {
@@ -421,6 +424,12 @@ namespace quark::engine::render {
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
+    // copy forward pass image to swapchain
+    // this allows for ACTUALLY rendering at whatever fucking resolution i want
+    //vkCmdBlitImage(
+    //    _main_cmd_buf[_frame_index], _forward_pass_image[_frame_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    //    _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
     VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -711,7 +720,7 @@ namespace quark::engine::render {
     AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
       AllocatedImage image = {};
       image.format = format;
-      image.dimensions = {width, height};
+      image.dimensions = {(i32)width, (i32)height};
     
       // Depth image creation
       VkExtent3D img_ext = {
@@ -736,6 +745,17 @@ namespace quark::engine::render {
     }
     
     void init_vulkan() {
+      auto start = std::chrono::high_resolution_clock::now();
+      auto end = std::chrono::high_resolution_clock::now();
+      auto timer_start = [&]() {
+        start = std::chrono::high_resolution_clock::now();
+      };
+      auto timer_end = [&](const char* words) {
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << words << " took: " << std::chrono::duration<f32>(end - start).count() << " s\n";
+      };
+
+
       u32 glfw_extension_count;
       const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
     
@@ -771,7 +791,9 @@ namespace quark::engine::render {
       vkb::PhysicalDevice vkb_physical_device = selector.select().value();
     
       vkb::DeviceBuilder device_builder{vkb_physical_device};
+      timer_start();
       vkb::Device vkb_device = device_builder.build().value();
+      timer_end("window surface");
     
       _device = vkb_device.device;
       _physical_device = vkb_device.physical_device;
@@ -914,95 +936,66 @@ namespace quark::engine::render {
     }
     
     void init_render_passes() {
-      // main render pass
-      VkAttachmentDescription color_attachment = {}; // AD
-      color_attachment.format = _swapchain_format;
-      color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-      color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    
-      VkAttachmentDescription depth_attachment = {}; // AD
-      depth_attachment.format = _global_depth_image.format;
-      depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-      depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-      depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-      depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      depth_attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
-      depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // dont change layout we dont care
-    
-      VkAttachmentReference color_attachment_ref = {}; // AR
-      color_attachment_ref.attachment = 0;
-      color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    
-      VkAttachmentReference depth_attachment_ref = {}; // AR
-      depth_attachment_ref.attachment = 1;
-      depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    
-      VkSubpassDescription subpass_desc = {}; // SD
-      subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpass_desc.colorAttachmentCount = 1;
-      subpass_desc.pColorAttachments = &color_attachment_ref;
-      subpass_desc.pDepthStencilAttachment = &depth_attachment_ref;
+      RenderTargetInfo target_info;
 
-      VkAttachmentDescription attachments[2] = {color_attachment, depth_attachment}; // AD[]
+      target_info = {};
+      target_info.format = _swapchain_format;
+      target_info.dimensions = window::dimensions();
+      for_every(i, _FRAME_OVERLAP) {
+        target_info.images[i] = _swapchain_images[i];
+        target_info.views[i] = _swapchain_image_views[i];
+      }
+      target_info.add_to_cache("swapchain");
 
-      VkRenderPassCreateInfo render_pass_info = {}; // RPI
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      render_pass_info.attachmentCount = 2;
-      render_pass_info.pAttachments = attachments;
-      render_pass_info.subpassCount = 1;
-      render_pass_info.pSubpasses = &subpass_desc;
+      target_info = {};
+      target_info.format = _global_depth_image.format;
+      target_info.dimensions = window::dimensions();
+      for_every(i, _FRAME_OVERLAP) {
+        target_info.images[i] = _global_depth_image.image;
+        target_info.views[i] = _global_depth_image.view;
+      }
+      target_info.add_to_cache("forward_pass_depth");
 
-      vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &_default_render_pass));
+      target_info = {};
+      target_info.format = _sun_depth_image.format;
+      target_info.dimensions = _sun_depth_image.dimensions;
+      for_every(i, _FRAME_OVERLAP) {
+        target_info.images[i] = _sun_depth_image.image;
+        target_info.views[i] = _sun_depth_image.view;
+      }
+      target_info.add_to_cache("sun_depth");
 
-      enum struct ImageUsage {
+      RenderPassInfo pass_info = {};
+
+      pass_info = {
+        .color_render_target_infos = { "swapchain" },
+        .color_render_target_usage_types = { UsageType::ClearStore },
+
+        .depth_render_target_info = "forward_pass_depth",
+        .depth_render_target_usage_type = UsageType::LoadStore,
       };
+      pass_info.add_to_cache("forward_pass");
+      _default_render_pass = pass_info.create_vk("forward_pass");
 
-      struct GraphicsRenderPass {
-        std::vector<isize> image_outputs;
-        std::vector<ImageUsage> image_usages;
+      pass_info = {
+        .color_render_target_infos = {},
+        .color_render_target_usage_types = {},
+
+        .depth_render_target_info = "forward_pass_depth",
+        .depth_render_target_usage_type = UsageType::ClearStore,
       };
+      pass_info.add_to_cache("forward_pass_depth_prepass");
+      _depth_prepass_render_pass = pass_info.create_vk("forward_pass_depth_prepass");
 
-      GraphicsRenderPass _forward_rendering_pass;
+      pass_info = {
+        .color_render_target_infos = {},
+        .color_render_target_usage_types = {},
 
-      // _default_render_pass
-      // uses: _swapchain_images, _global_depth_images
-      // _swapchain_images -- clear and write -- outputs to screen
-      // _global_depth_image -- load and store -- just loads and stores
-
-      // depth prepass render pass
-      depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // start as dont-care
-      depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // transition to depth attachment (depth-prepass)
-
-      VkAttachmentDescription depth_only_attachments[1] = {depth_attachment};
-
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      render_pass_info.attachmentCount = 1;
-      render_pass_info.pAttachments = depth_only_attachments;
-      render_pass_info.subpassCount = 1;
-    
-      depth_attachment.format = VK_FORMAT_D32_SFLOAT;
-      depth_attachment_ref.attachment = 0;
-    
-      subpass_desc.colorAttachmentCount = 0;
-      subpass_desc.pColorAttachments = 0;
-    
-      render_pass_info.pSubpasses = &subpass_desc;
-    
-      vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &_depth_prepass_render_pass));
-    
-      depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // start as dont-care
-      depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; // transition to shader read
-                                                                                      //
-      depth_only_attachments[0] = depth_attachment;
-      vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &_depth_only_render_pass));
+        .depth_render_target_info = "sun_depth",
+        .depth_render_target_usage_type = UsageType::ClearStoreRead,
+      };
+      pass_info.add_to_cache("sun_pass");
+      _depth_only_render_pass = pass_info.create_vk("sun_pass");
     }
     
     void init_framebuffers() {
@@ -1071,9 +1064,7 @@ namespace quark::engine::render {
     //};
 
     struct PushConstantInfo {
-      u32 offset = 0;
       u32 size;
-      u32 flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     };
 
     struct PipelineLayoutInfo {
@@ -1086,8 +1077,8 @@ namespace quark::engine::render {
 
       for (auto& pushc : info->push_constants) {
         push_ranges.push_back(VkPushConstantRange {
-          .stageFlags = pushc.flags,
-          .offset = pushc.offset,
+          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+          .offset = 0,
           .size = pushc.size,
         });
       }
@@ -1105,20 +1096,6 @@ namespace quark::engine::render {
       vk_check(vkCreatePipelineLayout(_device, &create_info, 0, &pipeline_layout));
       return pipeline_layout;
     }
-
-    struct EffectData {
-      u32 pipeline_layout_id; // lets you retrieve the relevant VkPipelineLayout and PipelineLayoutInfo
-    };
-
-    using PipelineLayoutId = isize;
-    using PipelineId = isize;
-
-    using VertexShaderId = isize;
-    using FragmentShaderId = isize;
-
-    using VertexLayoutId = isize;
-    using RasterizationId = isize;
-    using ColorBlendId = isize;
 
     // Unique pipeline layouts, these are often SHARED
     usize pipeline_layout_count = 0;
@@ -1175,41 +1152,6 @@ namespace quark::engine::render {
     //  f32 line_width = 1.0f;
     //};
 
-    struct PipelineInfo {
-      VertexShaderId vertex_shader_id;
-      // If specified as -1 then no fragment shader is assumed
-      FragmentShaderId fragment_shader_id;
-
-      VertexLayoutId vertex_layout_id;
-      RasterizationId rasterization_info_id;
-      // multisample state is auto derived
-      ColorBlendId color_blend_id;
-    };
-
-    void test_func() {
-      VertexLayoutInfo vertex_layout_info = {};
-      vertex_layout_info.bindings = {
-        // binding, stride
-        { 0, sizeof(VertexPNT) },
-      };
-      vertex_layout_info.attributes = {
-        // location, binding, format, offset
-        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT, position) },
-        { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexPNT,   normal) },
-        { 2, 0,    VK_FORMAT_R32G32_SFLOAT, offsetof(VertexPNT,  texture) },
-      };
-
-      RasterizationInfo rasterization_info = {};
-      rasterization_info.cull_mode = CullMode::Back;
-      rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.front_face = FrontFace::CounterClockwise;
-      rasterization_info.line_width = 1.0f;
-    }
-
-    template <typename T>
-    class VulkanObjectCache {
-    };
-
     template <typename T>
     class ArtifactCache {
       std::vector<T> id_to_t;
@@ -1231,8 +1173,8 @@ namespace quark::engine::render {
       }
     };
 
-    ArtifactCache<VkPipelineVertexInputStateCreateInfo> vertex_input_cache;
-    ArtifactCache<VkPipelineInputAssemblyStateCreateInfo> input_assembly_cache;
+    struct BindGroupInfo {
+    };
 
     ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
     

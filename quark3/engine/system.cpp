@@ -103,8 +103,10 @@ namespace quark::engine::system {
       if (print) {
         printf("%s\n", _names[i].c_str());
       }
-
+      auto start = std::chrono::high_resolution_clock::now();
       _functions[i]();
+      auto end = std::chrono::high_resolution_clock::now();
+      std::cout << _names[i] << " took: " << std::chrono::duration<f32>(end - start).count() << " s\n";
     }
   }
 

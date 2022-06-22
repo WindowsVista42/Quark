@@ -86,7 +86,7 @@ namespace quark::engine::render {
       VkImage image;
       VkImageView view;
       VkFormat format;
-      uvec2 dimensions;
+      ivec2 dimensions;
     };
 
     struct AllocatedMesh {
@@ -234,7 +234,7 @@ namespace quark::engine::render {
     // VARIABLES
 
     static constexpr usize _OP_TIMEOUT = 1000000000; // one second
-    static constexpr usize _FRAME_OVERLAP = 1;
+    static constexpr usize _FRAME_OVERLAP = 2;
     
     //engine_var i32 WINDOW_W; // Current window width
     //engine_var i32 WINDOW_H; // Current window height
