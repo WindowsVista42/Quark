@@ -59,34 +59,41 @@ namespace quark::engine::effect {
     };
   };
 
-  template <> Cache<ImageResource> ResourceCache<ImageResource>::cache_one = {};
-  template <> Cache<ImageResource[_FRAME_OVERLAP]> ResourceCache<ImageResource>::cache_one_per_frame = {};
-  template <> Cache<std::vector<ImageResource>> ResourceCache<ImageResource>::cache_array = {};
-  template <> Cache<std::vector<ImageResource>[_FRAME_OVERLAP]> ResourceCache<ImageResource>::cache_array_per_frame = {};
+  ItemCache<RenderTargetInfo> RenderTargetInfo::cache = {};
+  ItemCache<RenderPassInfo> RenderPassInfo::cache = {};
+  ItemCache<VkRenderPass> RenderPassInfo::cache_vk = {};
 
-  template <> Cache<BufferResource> ResourceCache<BufferResource>::cache_one = {};
-  template <> Cache<BufferResource[_FRAME_OVERLAP]> ResourceCache<BufferResource>::cache_one_per_frame = {};
-  template <> Cache<std::vector<BufferResource>> ResourceCache<BufferResource>::cache_array = {};
-  template <> Cache<std::vector<BufferResource>[_FRAME_OVERLAP]> ResourceCache<BufferResource>::cache_array_per_frame = {};
+  ItemCache<ImageResourceInfo> ImageResourceInfo::cache_one = {};
+  ItemCache<std::vector<ImageResourceInfo>> ImageResourceInfo::cache_array = {};
+  ItemCache<std::array<ImageResourceInfo, _FRAME_OVERLAP>> ImageResourceInfo::cache_one_per_frame = {};
+  ItemCache<ImageResource> ImageResource::cache_one = {};
+  ItemCache<std::vector<ImageResource>> ImageResource::cache_array = {};
+  ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> ImageResource::cache_one_per_frame = {};
 
-  template <> Cache<SamplerResource> ResourceCache<SamplerResource>::cache_one = {};
-  //template <> Cache<SamplerResource[_FRAME_OVERLAP]> ResourceCache<SamplerResource>::cache_one_per_frame = {};
-  template <> Cache<std::vector<SamplerResource>> ResourceCache<SamplerResource>::cache_array = {};
-  //template <> Cache<std::vector<SamplerResource>[_FRAME_OVERLAP]> ResourceCache<SamplerResource>::cache_array_per_frame = {};
+  ItemCache<BufferResourceInfo> BufferResourceInfo::cache_one = {};
+  ItemCache<std::vector<BufferResourceInfo>> BufferResourceInfo::cache_array = {};
+  ItemCache<std::array<BufferResourceInfo, _FRAME_OVERLAP>> BufferResourceInfo::cache_one_per_frame = {};
+  ItemCache<BufferResource> BufferResource::cache_one = {};
+  ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
+  ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
-  Cache<RenderTargetInfo> RenderTargetInfo::cache = {};
-  Cache<RenderPassInfo> RenderPassInfo::cache = {};
-  Cache<VkRenderPass> RenderPassInfo::cache_vk = {};
+  ItemCache<SamplerResourceInfo> SamplerResourceInfo::cache_one = {};
+  ItemCache<std::vector<SamplerResourceInfo>> SamplerResourceInfo::cache_array = {};
+  ItemCache<SamplerResource> SamplerResource::cache_one = {};
+  ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array = {};
 
-  Cache<VertexShaderInfo> VertexShaderInfo::cache = {};
-  Cache<FragmentShaderInfo> FragmentShaderInfo::cache = {};
-  Cache<InputAssemblyInfo> InputAssemblyInfo::cache = {};
-  Cache<RasterizationInfo> RasterizationInfo::cache = {};
-  Cache<MultisampleInfo> MultisampleInfo::cache = {};
-  Cache<BlendInfo> BlendInfo::cache = {};
-  Cache<RenderRegionInfo> RenderRegionInfo::cache = {};
-  Cache<DepthStencilInfo> DepthStencilInfo::cache = {};
-  Cache<GraphicsPipelineInfo> GraphicsPipelineInfo::cache = {};
+  ItemCache<BindGroupEntry> BindGroupEntry::cache = {};
+  ItemCache<BindGroupInfo> BindGroupInfo::cache = {};
 
-  Cache<VkPipeline> GraphicsPipelineInfo::cache_vk = {};
+  ItemCache<VertexShaderInfo> VertexShaderInfo::cache = {};
+  ItemCache<FragmentShaderInfo> FragmentShaderInfo::cache = {};
+  ItemCache<InputAssemblyInfo> InputAssemblyInfo::cache = {};
+  ItemCache<RasterizationInfo> RasterizationInfo::cache = {};
+  ItemCache<MultisampleInfo> MultisampleInfo::cache = {};
+  ItemCache<BlendInfo> BlendInfo::cache = {};
+  ItemCache<RenderRegionInfo> RenderRegionInfo::cache = {};
+  ItemCache<DepthStencilInfo> DepthStencilInfo::cache = {};
+  ItemCache<GraphicsPipelineInfo> GraphicsPipelineInfo::cache = {};
+
+  ItemCache<VkPipeline> GraphicsPipelineInfo::cache_vk = {};
 };

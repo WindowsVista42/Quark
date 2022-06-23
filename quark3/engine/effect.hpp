@@ -4,9 +4,13 @@
 #include "render.hpp"
 #include "registry.hpp"
 #include "asset.hpp"
+#include <vulkan/vulkan_core.h>
 
 namespace quark::engine::effect {
   inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;
+
+  struct SamplerResourceInfo;
+  struct SamplerResource;
 
   #define vk_check(x)                                                                                                                                  \
     do {                                                                                                                                               \
@@ -18,26 +22,16 @@ namespace quark::engine::effect {
     } while (0)
 
   template <typename T>
-  class engine_api Cache {
-    std::vector<T> id_to_t = std::vector<T>(64);
-    std::unordered_map<std::string, u32> name_to_id;
+  class engine_api ItemCache {
+    std::unordered_map<std::string, T> data;
 
   public:
     inline T& get(std::string name) {
-      return id_to_t[name_to_id.at(name)];
-    }
-
-    inline T& get(i32 id) {
-      return id_to_t[id];
-    }
-
-    inline u32 get_id(std::string name) {
-      return name_to_id.at(name);
+      return data.at(name);
     }
 
     inline void add(std::string name, T t) {
-      name_to_id.insert(std::make_pair(name, id_to_t.size()));
-      id_to_t.push_back(t);
+      data.insert(std::make_pair(name, t));
     }
   };
 
@@ -63,28 +57,26 @@ namespace quark::engine::effect {
   struct engine_api RenderTargetInfo {
     VkFormat format;
     ivec2 dimensions;
+    std::string resource;
 
-    std::string image_resource;
-    //VkImage images[_FRAME_OVERLAP];
-    //VkImageView views[_FRAME_OVERLAP];
-    VkFramebuffer framebuffers[_FRAME_OVERLAP];
-
-    static Cache<RenderTargetInfo> cache;
+    static ItemCache<RenderTargetInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
     }
   };
 
-  struct RenderPassInfo {
-    std::vector<std::string> color_render_target_infos;
-    std::vector<UsageType> color_render_target_usage_types;
+  struct RenderTargetInfo {
+    //std::vector<std::string> color_render_target_infos;
+    std::vector<std::string> target_image_resources; // one_per_frame ImageResource/ImageResourceInfo
+    std::vector<UsageType> target_usage_types;//color_render_target_usage_types;
 
-    std::string depth_render_target_info;
-    UsageType depth_render_target_usage_type;
+    //std::string depth_render_target_info;
+    //UsageType depth_render_target_usage_type;
 
-    static Cache<RenderPassInfo> cache;
-    static Cache<VkRenderPass> cache_vk;
+    static ItemCache<RenderPassInfo> cache;
+    static ItemCache<VkRenderPass> cache_vk;
+    static ItemCache<std::array<VkFramebuffer, _FRAME_OVERLAP>> cache_fb;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -198,22 +190,129 @@ namespace quark::engine::effect {
     }
   };
 
+  enum struct ImageAspect {
+    Color = VK_IMAGE_ASPECT_COLOR_BIT,
+    Depth = VK_IMAGE_ASPECT_DEPTH_BIT,
+  };
+
+  enum struct ImageFormat {
+    Rgba8Srgb = VK_FORMAT_R8G8B8A8_SRGB,
+    Bgra8Srgb = VK_FORMAT_B8G8R8A8_SRGB,
+    Rgba16Float = VK_FORMAT_R16G16B16A16_SFLOAT,
+  };
+
+  struct ImageResourceInfo {
+    ImageAspect image_aspect;
+    ImageFormat image_format;
+    ivec2 dimensions;
+
+    static ItemCache<ImageResourceInfo> cache_one;
+    static ItemCache<std::vector<ImageResourceInfo>> cache_array;
+    static ItemCache<std::array<ImageResourceInfo, _FRAME_OVERLAP>> cache_one_per_frame;
+  };
+
   struct ImageResource {
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
-    VkFormat format;
-    ivec2 dimensions;
+
+    static ItemCache<ImageResource> cache_one;
+    static ItemCache<std::vector<ImageResource>> cache_array;
+    static ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> cache_one_per_frame;
   };
+
+  enum struct MemoryType {
+    Cpu = VMA_MEMORY_USAGE_CPU_COPY,
+    CpuToGpu = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    Gpu = VMA_MEMORY_USAGE_GPU_ONLY,
+    GpuToCpu = VMA_MEMORY_USAGE_GPU_TO_CPU,
+  };
+
+  enum struct BufferType {
+    Source = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    Destination = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    Storage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    Index = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+    Vertex = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+  };
+
+  struct BufferResourceInfo {
+    BufferType buffer_type;
+    MemoryType memory_type;
+    usize size;
+
+    static ItemCache<BufferResourceInfo> cache_one;
+    static ItemCache<std::vector<BufferResourceInfo>> cache_array;
+    static ItemCache<std::array<BufferResourceInfo, _FRAME_OVERLAP>> cache_one_per_frame;
+  };
+
 
   struct BufferResource {
     VmaAllocation allocation;
     VkBuffer buffer;
-    usize size;
+
+    static ItemCache<BufferResource> cache_one;
+    static ItemCache<std::vector<BufferResource>> cache_array;
+    static ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
+  };
+
+  enum struct FilterType {
+    Nearest = VK_FILTER_NEAREST,
+    Linear = VK_FILTER_LINEAR,
+  };
+
+  enum struct WrapMode {
+    Repeat = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    MirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
   };
 
   struct SamplerResource {
     VkSampler sampler;
+
+    static ItemCache<SamplerResource> cache_one;
+    static ItemCache<std::vector<SamplerResource>> cache_array;
+  };
+
+  struct SamplerResourceInfo {
+    FilterType filter_type;
+    WrapMode wrap_mode;
+
+    static ItemCache<SamplerResourceInfo> cache_one;
+    static ItemCache<std::vector<SamplerResourceInfo>> cache_array;
+
+    inline VkSamplerCreateInfo into_vk() {
+      return VkSamplerCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = 0,
+        .flags = 0,
+        .magFilter = (VkFilter)this->filter_type,
+        .minFilter = (VkFilter)this->filter_type,
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .addressModeU = (VkSamplerAddressMode)this->wrap_mode,
+        .addressModeV = (VkSamplerAddressMode)this->wrap_mode,
+        .addressModeW = (VkSamplerAddressMode)this->wrap_mode,
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = VK_FALSE,
+        .maxAnisotropy = 1.0f,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .minLod = 0.0f,
+        .maxLod = 0.0f,
+        .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+        .unnormalizedCoordinates = VK_FALSE,
+      };
+    }
+
+    inline SamplerResource create() {
+      auto sampler_info = this->into_vk();
+
+      VkSampler sampler;
+      vk_check(vkCreateSampler(render::internal::_device, &sampler_info, 0, &sampler));
+      SamplerResource res = { sampler };
+
+      return res;
+    }
   };
 
   enum struct ResourceType {
@@ -235,89 +334,13 @@ namespace quark::engine::effect {
     Never,
   };
 
-  template <typename T>
-  struct ResourceCache {
-    static Cache<T> cache_one;
-    static Cache<T[_FRAME_OVERLAP]> cache_one_per_frame;
-    static Cache<std::vector<T>> cache_array;
-    static Cache<std::vector<T>[_FRAME_OVERLAP]> cache_array_per_frame;
-  };
-
-  // Corresponds to ResourceCount::Array
-  //struct ImageArrayResource {
-  //  std::vector<ImageResource> images;
-
-  //  static Cache<ImageArrayResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-  //// Corresponds to ResourceCount::OnePerFrame
-  //struct MultiImageResource {
-  //  ImageResource images[_FRAME_OVERLAP];
-
-  //  static Cache<MultiImageResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-  //// Corresponds to ResourceCount::ArrayPerFrame
-  //struct MultiImageArrayResource {
-  //  std::vector<ImageResource> image_arrays[_FRAME_OVERLAP];
-
-  //  static Cache<MultiImageArrayResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-
-  // Corresponds to ResourceCount::Array
-  //struct BufferArrayResource {
-  //  std::vector<BufferResource> buffers;
-
-  //  static Cache<BufferArrayResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-  //// Corresponds to ResourceCount::OnePerFrame
-  //struct MultiBufferResource {
-  //  BufferResource buffers[_FRAME_OVERLAP];
-
-  //  static Cache<MultiBufferResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-  //// Corresponds to ResourceCount::ArrayPerFrame
-  //struct MultiBufferArrayResource {
-  //  std::vector<BufferResource> buffer_arrays[_FRAME_OVERLAP];
-
-  //  static Cache<MultiBufferArrayResource> cache;
-
-  //  inline void add_to_cache(std::string name) {
-  //    cache.add(name, *this);
-  //  }
-  //};
-
-
   struct BindGroupEntry {
     ResourceType resource_type;
     ResourceCount resource_count;
     ResourceRebind resource_rebind;
     std::string resource;
 
-    static Cache<BindGroupEntry> cache;
+    static ItemCache<BindGroupEntry> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -328,7 +351,7 @@ namespace quark::engine::effect {
     std::vector<std::string> entries;
     std::vector<std::string> supplementary; // mainly used for combined-image-samplers
 
-    static Cache<BindGroupInfo> cache;
+    static ItemCache<BindGroupInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -339,7 +362,7 @@ namespace quark::engine::effect {
     VkShaderModule module;
 
     using Id = isize;
-    static Cache<VertexShaderInfo> cache;
+    static ItemCache<VertexShaderInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -360,7 +383,7 @@ namespace quark::engine::effect {
     VkShaderModule module;
 
     using Id = isize;
-    static Cache<FragmentShaderInfo> cache;
+    static ItemCache<FragmentShaderInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -385,7 +408,7 @@ namespace quark::engine::effect {
     PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 
     using Id = isize;
-    static Cache<InputAssemblyInfo> cache;
+    static ItemCache<InputAssemblyInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -414,19 +437,13 @@ namespace quark::engine::effect {
     Both = VK_CULL_MODE_FRONT_AND_BACK,
   };
 
-  enum struct FrontFace {
-    CounterClockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-    Clockwise = VK_FRONT_FACE_CLOCKWISE,
-  };
-
   struct engine_api RasterizationInfo {
     PolygonMode polygon_mode = PolygonMode::Fill;
     CullMode cull_mode = CullMode::Back;
-    FrontFace front_face = FrontFace::CounterClockwise;
     float line_width = 1.0f;
 
     using Id = isize;
-    static Cache<RasterizationInfo> cache;
+    static ItemCache<RasterizationInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -440,7 +457,7 @@ namespace quark::engine::effect {
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = (VkPolygonMode)this->polygon_mode,
         .cullMode = (VkCullModeFlags)this->cull_mode,
-        .frontFace = (VkFrontFace)this->front_face,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0f,
         .depthBiasClamp = 0.0f,
@@ -462,7 +479,7 @@ namespace quark::engine::effect {
     SampleCount sample_count = SampleCount::One;
 
     using Id = isize;
-    static Cache<MultisampleInfo> cache;
+    static ItemCache<MultisampleInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -500,7 +517,7 @@ namespace quark::engine::effect {
     ColorComponent color_write_mask = ColorComponent::All;
 
     using Id = isize;
-    static Cache<BlendInfo> cache;
+    static ItemCache<BlendInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -538,7 +555,7 @@ namespace quark::engine::effect {
     ivec2 extents;
 
     using Id = isize;
-    static Cache<RenderRegionInfo> cache;
+    static ItemCache<RenderRegionInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -579,7 +596,7 @@ namespace quark::engine::effect {
     BoolValue enable_depth_writing;
 
     using Id = isize;
-    static Cache<DepthStencilInfo> cache;
+    static ItemCache<DepthStencilInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -614,8 +631,8 @@ namespace quark::engine::effect {
     std::string blend_info_id = "default";
     std::string depth_stencil_info_id = "default";
 
-    static Cache<GraphicsPipelineInfo> cache;
-    static Cache<VkPipeline> cache_vk;
+    static ItemCache<GraphicsPipelineInfo> cache;
+    static ItemCache<VkPipeline> cache_vk;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -696,3 +713,4 @@ namespace quark::engine::effect {
 namespace quark {
   using namespace engine::effect;
 };
+

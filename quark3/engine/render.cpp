@@ -962,9 +962,8 @@ namespace quark::engine::render {
       target_info = {};
       target_info.format = _swapchain_format;
       target_info.dimensions = window::dimensions();
+      target_info.resource = "";
       for_every(i, _FRAME_OVERLAP) {
-        target_info.images[i] = _swapchain_images[i];
-        target_info.views[i] = _swapchain_image_views[i];
         target_info.framebuffers[i] = _global_framebuffers[i];
       }
       target_info.add_to_cache("swapchain");
@@ -972,9 +971,8 @@ namespace quark::engine::render {
       target_info = {};
       target_info.format = _global_depth_image.format;
       target_info.dimensions = window::dimensions();
+      target_info.resource = "";
       for_every(i, _FRAME_OVERLAP) {
-        target_info.images[i] = _global_depth_image.image;
-        target_info.views[i] = _global_depth_image.view;
         target_info.framebuffers[i] = _depth_prepass_framebuffers[i];
       }
       target_info.add_to_cache("forward_pass_depth");
@@ -982,9 +980,8 @@ namespace quark::engine::render {
       target_info = {};
       target_info.format = _sun_depth_image.format;
       target_info.dimensions = _sun_depth_image.dimensions;
+      target_info.resource = "";
       for_every(i, _FRAME_OVERLAP) {
-        target_info.images[i] = _sun_depth_image.image;
-        target_info.views[i] = _sun_depth_image.view;
         target_info.framebuffers[i] = _sun_shadow_framebuffers[i];
       }
       target_info.add_to_cache("sun_depth");
@@ -1147,35 +1144,6 @@ namespace quark::engine::render {
       return name_to_pipeline_id.at(name);
     }
 
-    struct VertexLayoutInfo {
-      std::vector<VkVertexInputBindingDescription> bindings;
-      std::vector<VkVertexInputAttributeDescription> attributes;
-    };
-
-    //enum struct FrontFace {
-    //  Clockwise = VK_FRONT_FACE_CLOCKWISE,
-    //  CounterClockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-    //};
-
-    //enum struct CullMode {
-    //  None = VK_CULL_MODE_NONE,
-    //  Front = VK_CULL_MODE_FRONT_BIT,
-    //  Back = VK_CULL_MODE_BACK_BIT,
-    //};
-
-    //enum struct PolygonMode {
-    //  Fill = VK_POLYGON_MODE_FILL,
-    //  Line = VK_POLYGON_MODE_LINE,
-    //  Point = VK_POLYGON_MODE_POINT,
-    //};
-
-    //struct RasterizationInfo {
-    //  PolygonMode polygon_mode;
-    //  CullMode cull_mode;
-    //  FrontFace front_face;
-    //  f32 line_width = 1.0f;
-    //};
-
     template <typename T>
     class ArtifactCache {
       std::vector<T> id_to_t;
@@ -1195,9 +1163,6 @@ namespace quark::engine::render {
         name_to_id.insert(std::make_pair(name, id_to_t.size()));
         id_to_t.push_back(t);
       }
-    };
-
-    struct BindGroupInfo {
     };
 
     ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
@@ -1265,13 +1230,11 @@ namespace quark::engine::render {
       RasterizationInfo rasterization_info = {};
       rasterization_info.cull_mode = CullMode::Back;
       rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.front_face = FrontFace::CounterClockwise; // remove, this never changes
       rasterization_info.line_width = 1.0f;
       rasterization_info.add_to_cache("default");
 
       rasterization_info.cull_mode = CullMode::None;
       rasterization_info.polygon_mode = PolygonMode::Line;
-      rasterization_info.front_face = FrontFace::CounterClockwise; // remove, this never changes
       rasterization_info.line_width = 2.0f;
       rasterization_info.add_to_cache("wireframe");
     
@@ -1464,33 +1427,43 @@ namespace quark::engine::render {
     }
     
     void init_sampler() {
-      VkSamplerCreateInfo sampler_info = {};
-      sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      sampler_info.magFilter = VK_FILTER_NEAREST;
-      sampler_info.minFilter = VK_FILTER_NEAREST;
-      sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      //VkSamplerCreateInfo sampler_info = {};
+      //sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+      //sampler_info.magFilter = VK_FILTER_NEAREST;
+      //sampler_info.minFilter = VK_FILTER_NEAREST;
+      //sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      //sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      //sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     
-      VkPhysicalDeviceProperties properties = {};
-      vkGetPhysicalDeviceProperties(_physical_device, &properties);
-      //sampler_info.anisotropyEnable = VK_TRUE; //TODO(sean): make this an config value
-      //sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //TODO(sean): make this an config value
-      // disabled anisotropic filtering looks like
-      sampler_info.anisotropyEnable = VK_FALSE;
-      sampler_info.maxAnisotropy = 1.0f;
+      //VkPhysicalDeviceProperties properties = {};
+      //vkGetPhysicalDeviceProperties(_physical_device, &properties);
+      ////sampler_info.anisotropyEnable = VK_TRUE; //TODO(sean): make this an config value
+      ////sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //TODO(sean): make this an config value
+      //// disabled anisotropic filtering looks like
+      //sampler_info.anisotropyEnable = VK_FALSE;
+      //sampler_info.maxAnisotropy = 1.0f;
     
-      sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-      sampler_info.unnormalizedCoordinates = VK_FALSE;
-      sampler_info.compareEnable = VK_FALSE;
-      sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+      //sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+      //sampler_info.unnormalizedCoordinates = VK_FALSE;
+      //sampler_info.compareEnable = VK_FALSE;
+      //sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
     
-      sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      sampler_info.mipLodBias = 0.0f;
-      sampler_info.minLod = 0.0f;
-      sampler_info.maxLod = 0.0f;
+      //sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+      //sampler_info.mipLodBias = 0.0f;
+      //sampler_info.minLod = 0.0f;
+      //sampler_info.maxLod = 0.0f;
     
-      vk_check(vkCreateSampler(_device, &sampler_info, 0, &_default_sampler));
+      //vk_check(vkCreateSampler(_device, &sampler_info, 0, &_default_sampler));
+
+      SamplerResourceInfo sampler_info = {
+       .filter_type = FilterType::Linear,
+       .wrap_mode = WrapMode::Repeat,
+      };
+      SamplerResourceInfo::cache_one.add("default", sampler_info);
+      auto sampler_res = sampler_info.create();
+      SamplerResource::cache_one.add("default", sampler_res);
+
+      _default_sampler = SamplerResource::cache_one.get("default").sampler;
     }
     
     void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
