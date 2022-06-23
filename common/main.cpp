@@ -11,7 +11,7 @@ namespace common {
       Entity::create().add(
         Transform {},
         Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
-        Color {0.0f, 1.0f, 0.0f, 1.0f},
+        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
         Effect::SolidColorFill {},
         Tag {}
       );
@@ -21,16 +21,18 @@ namespace common {
       Entity::create().add(
         Transform {.position = {(f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f}},
         Model::from_name_scale("suzanne"),
-        Color {1.0f, 0.0f, 0.0f, 1.0f},
+        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
         Effect::SolidColorLines {}
       );
     }
 
     input::bind("w", Key::W);
     input::bind("s", Key::S);
-    input::bind("z", Key::Z);
-    input::bind("down", Key::V);
-    input::bind("pause", Key::Space);
+    input::bind("a", Key::A);
+    input::bind("d", Key::D);
+    input::bind("up", Key::Space);
+    input::bind("down", Key::LeftControl);
+    input::bind("pause", Key::P);
   }
 
   void update() {
@@ -48,12 +50,13 @@ namespace common {
       T += DT;
     }
 
+    MAIN_CAMERA.pos.x += input::get("d").value() * DT;
+    MAIN_CAMERA.pos.x -= input::get("a").value() * DT;
     MAIN_CAMERA.pos.y += input::get("w").value() * DT;
     MAIN_CAMERA.pos.y -= input::get("s").value() * DT;
 
-    MAIN_CAMERA.pos.z += input::get("z").value() * DT;
-
-    MAIN_CAMERA.spherical_dir.y -= input::get("down").value() * DT;
+    MAIN_CAMERA.pos.z += input::get("up").value() * DT;
+    MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
   }
 };
 

@@ -59,19 +59,19 @@ namespace quark::engine::effect {
     };
   };
 
-  InfoCache<RenderTargetInfo> RenderTargetInfo::cache = {};
-  InfoCache<RenderPassInfo> RenderPassInfo::cache = {};
-  InfoCache<VkRenderPass> RenderPassInfo::cache_vk = {};
+  Cache<RenderTargetInfo> RenderTargetInfo::cache = {};
+  Cache<RenderPassInfo> RenderPassInfo::cache = {};
+  Cache<VkRenderPass> RenderPassInfo::cache_vk = {};
 
-  InfoCache<VertexShaderInfo> VertexShaderInfo::cache = {};
-  InfoCache<FragmentShaderInfo> FragmentShaderInfo::cache = {};
-  InfoCache<InputAssemblyInfo> InputAssemblyInfo::cache = {};
-  InfoCache<RasterizationInfo> RasterizationInfo::cache = {};
-  InfoCache<MultisampleInfo> MultisampleInfo::cache = {};
-  InfoCache<BlendInfo> BlendInfo::cache = {};
-  InfoCache<RenderRegionInfo> RenderRegionInfo::cache = {};
-  InfoCache<DepthStencilInfo> DepthStencilInfo::cache = {};
-  InfoCache<GraphicsPipelineInfo> GraphicsPipelineInfo::cache = {};
+  Cache<VertexShaderInfo> VertexShaderInfo::cache = {};
+  Cache<FragmentShaderInfo> FragmentShaderInfo::cache = {};
+  Cache<InputAssemblyInfo> InputAssemblyInfo::cache = {};
+  Cache<RasterizationInfo> RasterizationInfo::cache = {};
+  Cache<MultisampleInfo> MultisampleInfo::cache = {};
+  Cache<BlendInfo> BlendInfo::cache = {};
+  Cache<RenderRegionInfo> RenderRegionInfo::cache = {};
+  Cache<DepthStencilInfo> DepthStencilInfo::cache = {};
+  Cache<GraphicsPipelineInfo> GraphicsPipelineInfo::cache = {};
 
-  InfoCache<VkPipeline> GraphicsPipelineInfo::cache_vk = {};
+  Cache<VkPipeline> GraphicsPipelineInfo::cache_vk = {};
 };

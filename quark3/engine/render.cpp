@@ -308,14 +308,11 @@ namespace quark::engine::render {
   void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void begin_forward_rendering() {
-    // update_matrices(&camera_view_projection, window_w, window_h);
-    // update_matrices(window_w, window_h);
-  
     VkClearValue color_clear;
-    color_clear.color.float32[0] = 0.0f; // _pure_black[0];
-    color_clear.color.float32[1] = 0.0f; // _pure_black[1];
-    color_clear.color.float32[2] = 0.0f; // _pure_black[2];
-    color_clear.color.float32[3] = 1.0f; // _pure_black[3];
+    color_clear.color.float32[0] = 0.0f;
+    color_clear.color.float32[1] = 0.0f;
+    color_clear.color.float32[2] = 0.0f;
+    color_clear.color.float32[3] = 1.0f;
   
     VkClearValue depth_clear;
     depth_clear.depthStencil.depth = 1.0f;
@@ -339,8 +336,6 @@ namespace quark::engine::render {
   
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-
-    printf("swapchain image index: %d\n", _swapchain_image_index);
   }
   
   void begin_lit_pass() {
@@ -517,14 +512,17 @@ namespace quark::engine::render {
     
     AllocatedImage _gpu_images[1024] = {};
     
-    // TODO(sean): maybe load these in some kind of way from a file?
-    DescriptorLayoutInfo _global_constants_layout_info[] =  {
+    DescriptorLayoutInfo _global_constants_layout_info[] = {
       //{ 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, WORLD_DATA_BUF,                     0, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
       //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
       { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         _world_data_buf, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
       { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &_sun_depth_image,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-      { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, _gpu_images,          DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
+      { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,             _gpu_images,         DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
     };
+
+    BindGroupEntry data_buffer_bg     = { ResourceType::UniformBuffer,    ResourceCount::OnePerFrame, ResourceRebind::OnResize, "world_data"};
+    BindGroupEntry sun_depth_image_bg = { ResourceType::ImageWithSampler, ResourceCount::One,         ResourceRebind::OnResize, "sun_depth_image"}; // should be OnePerFrame
+    BindGroupEntry global_textures_bg = { ResourceType::ImageWithSampler, ResourceCount::Array,       ResourceRebind::Never,    "textures"};
     
     // TODO(sean): maybe load these in some kind of way from a file?
     VkDescriptorPoolSize _global_descriptor_pool_sizes[] = {
@@ -944,6 +942,7 @@ namespace quark::engine::render {
       for_every(i, _FRAME_OVERLAP) {
         target_info.images[i] = _swapchain_images[i];
         target_info.views[i] = _swapchain_image_views[i];
+        target_info.framebuffers[i] = _global_framebuffers[i];
       }
       target_info.add_to_cache("swapchain");
 
@@ -953,6 +952,7 @@ namespace quark::engine::render {
       for_every(i, _FRAME_OVERLAP) {
         target_info.images[i] = _global_depth_image.image;
         target_info.views[i] = _global_depth_image.view;
+        target_info.framebuffers[i] = _depth_prepass_framebuffers[i];
       }
       target_info.add_to_cache("forward_pass_depth");
 
@@ -962,6 +962,7 @@ namespace quark::engine::render {
       for_every(i, _FRAME_OVERLAP) {
         target_info.images[i] = _sun_depth_image.image;
         target_info.views[i] = _sun_depth_image.view;
+        target_info.framebuffers[i] = _sun_shadow_framebuffers[i];
       }
       target_info.add_to_cache("sun_depth");
 

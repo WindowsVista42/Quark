@@ -86,8 +86,8 @@ namespace quark::engine::global {
 
         // Creating random internal resources
         .add(def(render::internal::init_swapchain), -1)
-        .add(def(render::internal::init_render_passes), -1)
         .add(def(render::internal::init_framebuffers), -1)
+        .add(def(render::internal::init_render_passes), -1)
         .add(def(render::internal::init_sync_objects), -1)
         .add(def(render::internal::init_sampler), -1)
 
