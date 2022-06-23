@@ -59,6 +59,21 @@ namespace quark::engine::effect {
     };
   };
 
+  template <> Cache<ImageResource> ResourceCache<ImageResource>::cache_one = {};
+  template <> Cache<ImageResource[_FRAME_OVERLAP]> ResourceCache<ImageResource>::cache_one_per_frame = {};
+  template <> Cache<std::vector<ImageResource>> ResourceCache<ImageResource>::cache_array = {};
+  template <> Cache<std::vector<ImageResource>[_FRAME_OVERLAP]> ResourceCache<ImageResource>::cache_array_per_frame = {};
+
+  template <> Cache<BufferResource> ResourceCache<BufferResource>::cache_one = {};
+  template <> Cache<BufferResource[_FRAME_OVERLAP]> ResourceCache<BufferResource>::cache_one_per_frame = {};
+  template <> Cache<std::vector<BufferResource>> ResourceCache<BufferResource>::cache_array = {};
+  template <> Cache<std::vector<BufferResource>[_FRAME_OVERLAP]> ResourceCache<BufferResource>::cache_array_per_frame = {};
+
+  template <> Cache<SamplerResource> ResourceCache<SamplerResource>::cache_one = {};
+  //template <> Cache<SamplerResource[_FRAME_OVERLAP]> ResourceCache<SamplerResource>::cache_one_per_frame = {};
+  template <> Cache<std::vector<SamplerResource>> ResourceCache<SamplerResource>::cache_array = {};
+  //template <> Cache<std::vector<SamplerResource>[_FRAME_OVERLAP]> ResourceCache<SamplerResource>::cache_array_per_frame = {};
+
   Cache<RenderTargetInfo> RenderTargetInfo::cache = {};
   Cache<RenderPassInfo> RenderPassInfo::cache = {};
   Cache<VkRenderPass> RenderPassInfo::cache_vk = {};

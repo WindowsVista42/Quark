@@ -520,9 +520,32 @@ namespace quark::engine::render {
       { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,             _gpu_images,         DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
     };
 
-    BindGroupEntry data_buffer_bg     = { ResourceType::UniformBuffer,    ResourceCount::OnePerFrame, ResourceRebind::OnResize, "world_data"};
-    BindGroupEntry sun_depth_image_bg = { ResourceType::ImageWithSampler, ResourceCount::One,         ResourceRebind::OnResize, "sun_depth_image"}; // should be OnePerFrame
-    BindGroupEntry global_textures_bg = { ResourceType::ImageWithSampler, ResourceCount::Array,       ResourceRebind::Never,    "textures"};
+    void make_bind_groups() {
+      (BindGroupEntry {
+        .resource_type   = ResourceType::UniformBuffer,
+        .resource_count  = ResourceCount::OnePerFrame,
+        .resource_rebind = ResourceRebind::OnResize,
+        .resource        = "globals", // uses the MultiBufferResource named "globals"
+      }).add_to_cache("globals"); // adds a BindGroupEntry named "globals"
+
+      (BindGroupEntry {
+        .resource_type   = ResourceType::ImageWithSampler,
+        .resource_count  = ResourceCount::One,
+        .resource_rebind = ResourceRebind::OnResize,
+        .resource        = "sun_depth", // uses the ImageResource named "sun_depth"
+      }).add_to_cache("sun_depth"); // adds a BindGroupEntry named "sun_depth"
+
+      (BindGroupEntry {
+        .resource_type   = ResourceType::ImageWithSampler, // the resource is an image with a sampler
+        .resource_count  = ResourceCount::Array, // the resource is an array
+        .resource_rebind = ResourceRebind::Never, // does not rebind the resource
+        .resource        = "textures", // uses the ImageArrayResource named "textures"
+      }).add_to_cache("textures"); // adds a BindGroupEntry named "textures"
+
+      (BindGroupInfo {
+        .entries = { "globals", "sun_depth", "textures" }
+      }).add_to_cache("default");
+    }
     
     // TODO(sean): maybe load these in some kind of way from a file?
     VkDescriptorPoolSize _global_descriptor_pool_sizes[] = {

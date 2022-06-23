@@ -204,84 +204,16 @@ namespace quark::engine::effect {
     VkImageView view;
     VkFormat format;
     ivec2 dimensions;
-
-    static Cache<ImageResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct ImageArrayResource {
-    std::vector<ImageResource> images;
-
-    static Cache<ImageArrayResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct MultiImageResource {
-    ImageResource images[_FRAME_OVERLAP];
-
-    static Cache<MultiImageResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct MultiImageArrayResource {
-    std::vector<ImageResource> image_arrays[_FRAME_OVERLAP];
-
-    static Cache<MultiImageArrayResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
   };
 
   struct BufferResource {
     VmaAllocation allocation;
     VkBuffer buffer;
     usize size;
-
-    static Cache<BufferResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
   };
 
-  struct MultiBufferResource {
-    BufferResource buffers[_FRAME_OVERLAP];
-
-    static Cache<MultiBufferResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct BufferArrayResource {
-    std::vector<BufferResource> buffers;
-
-    static Cache<BufferArrayResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct MultiBufferArrayResource {
-    std::vector<BufferResource> buffer_arrays[_FRAME_OVERLAP];
-
-    static Cache<MultiBufferArrayResource> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
+  struct SamplerResource {
+    VkSampler sampler;
   };
 
   enum struct ResourceType {
@@ -303,6 +235,82 @@ namespace quark::engine::effect {
     Never,
   };
 
+  template <typename T>
+  struct ResourceCache {
+    static Cache<T> cache_one;
+    static Cache<T[_FRAME_OVERLAP]> cache_one_per_frame;
+    static Cache<std::vector<T>> cache_array;
+    static Cache<std::vector<T>[_FRAME_OVERLAP]> cache_array_per_frame;
+  };
+
+  // Corresponds to ResourceCount::Array
+  //struct ImageArrayResource {
+  //  std::vector<ImageResource> images;
+
+  //  static Cache<ImageArrayResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+  //// Corresponds to ResourceCount::OnePerFrame
+  //struct MultiImageResource {
+  //  ImageResource images[_FRAME_OVERLAP];
+
+  //  static Cache<MultiImageResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+  //// Corresponds to ResourceCount::ArrayPerFrame
+  //struct MultiImageArrayResource {
+  //  std::vector<ImageResource> image_arrays[_FRAME_OVERLAP];
+
+  //  static Cache<MultiImageArrayResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+
+  // Corresponds to ResourceCount::Array
+  //struct BufferArrayResource {
+  //  std::vector<BufferResource> buffers;
+
+  //  static Cache<BufferArrayResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+  //// Corresponds to ResourceCount::OnePerFrame
+  //struct MultiBufferResource {
+  //  BufferResource buffers[_FRAME_OVERLAP];
+
+  //  static Cache<MultiBufferResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+  //// Corresponds to ResourceCount::ArrayPerFrame
+  //struct MultiBufferArrayResource {
+  //  std::vector<BufferResource> buffer_arrays[_FRAME_OVERLAP];
+
+  //  static Cache<MultiBufferArrayResource> cache;
+
+  //  inline void add_to_cache(std::string name) {
+  //    cache.add(name, *this);
+  //  }
+  //};
+
+
   struct BindGroupEntry {
     ResourceType resource_type;
     ResourceCount resource_count;
@@ -317,11 +325,12 @@ namespace quark::engine::effect {
   };
 
   struct BindGroupInfo {
-    std::vector<BindGroupEntry> entries;
+    std::vector<std::string> entries;
+    std::vector<std::string> supplementary; // mainly used for combined-image-samplers
 
     static Cache<BindGroupInfo> cache;
 
-    inline void add_to_acche(std::string name) {
+    inline void add_to_cache(std::string name) {
       cache.add(name, *this);
     }
   };
