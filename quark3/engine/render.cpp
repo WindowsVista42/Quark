@@ -957,66 +957,24 @@ namespace quark::engine::render {
     }
     
     void init_render_passes() {
-      RenderTargetInfo target_info;
+      (RenderTargetInfo {
+       .target_image_resources = { "swapchain", "forward_pass_depth" },
+       .target_usage_types = { UsageType::ClearStore, UsageType::LoadStore },
+      }).add_to_cache("forward");
 
-      target_info = {};
-      target_info.format = _swapchain_format;
-      target_info.dimensions = window::dimensions();
-      target_info.resource = "";
-      for_every(i, _FRAME_OVERLAP) {
-        target_info.framebuffers[i] = _global_framebuffers[i];
-      }
-      target_info.add_to_cache("swapchain");
+      (RenderTargetInfo {
+       .target_image_resources = { "sun_depth" },
+       .target_usage_types = { UsageType::ClearStore },
+      }).add_to_cache("sun_depth");
 
-      target_info = {};
-      target_info.format = _global_depth_image.format;
-      target_info.dimensions = window::dimensions();
-      target_info.resource = "";
-      for_every(i, _FRAME_OVERLAP) {
-        target_info.framebuffers[i] = _depth_prepass_framebuffers[i];
-      }
-      target_info.add_to_cache("forward_pass_depth");
+      (RenderTargetInfo {
+       .target_image_resources = { "forward_pass_depth" },
+       .target_usage_types = { UsageType::ClearStore },
+      }).add_to_cache("forward_pass_depth_prepass");
 
-      target_info = {};
-      target_info.format = _sun_depth_image.format;
-      target_info.dimensions = _sun_depth_image.dimensions;
-      target_info.resource = "";
-      for_every(i, _FRAME_OVERLAP) {
-        target_info.framebuffers[i] = _sun_shadow_framebuffers[i];
-      }
-      target_info.add_to_cache("sun_depth");
-
-      RenderPassInfo pass_info = {};
-
-      pass_info = {
-        .color_render_target_infos = { "swapchain" },
-        .color_render_target_usage_types = { UsageType::ClearStore },
-
-        .depth_render_target_info = "forward_pass_depth",
-        .depth_render_target_usage_type = UsageType::LoadStore,
-      };
-      pass_info.add_to_cache("forward_pass");
-      _default_render_pass = pass_info.create_vk("forward_pass");
-
-      pass_info = {
-        .color_render_target_infos = {},
-        .color_render_target_usage_types = {},
-
-        .depth_render_target_info = "forward_pass_depth",
-        .depth_render_target_usage_type = UsageType::ClearStore,
-      };
-      pass_info.add_to_cache("forward_pass_depth_prepass");
-      _depth_prepass_render_pass = pass_info.create_vk("forward_pass_depth_prepass");
-
-      pass_info = {
-        .color_render_target_infos = {},
-        .color_render_target_usage_types = {},
-
-        .depth_render_target_info = "sun_depth",
-        .depth_render_target_usage_type = UsageType::ClearStoreRead,
-      };
-      pass_info.add_to_cache("sun_pass");
-      _depth_only_render_pass = pass_info.create_vk("sun_pass");
+      RenderTargetInfo::cache["forward"].create().add_to_cache("forward");
+      RenderTargetInfo::cache["sun_depth"].create().add_to_cache("sun_depth");
+      RenderTargetInfo::cache["forward_pass_depth_prepass"].create().add_to_cache("forward_pass_depth_prepass");
     }
     
     void init_framebuffers() {

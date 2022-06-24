@@ -33,6 +33,14 @@ namespace quark::engine::effect {
     inline void add(std::string name, T t) {
       data.insert(std::make_pair(name, t));
     }
+
+    T& operator [](std::string& name) {
+      return get(name);
+    }
+
+    T& operator [](const char* name) {
+      return get(name);
+    }
   };
 
   namespace internal {
@@ -45,149 +53,6 @@ namespace quark::engine::effect {
 
     engine_var AttachmentLookup color_attachment_lookup[4];
     engine_var AttachmentLookup depth_attachment_lookup[4];
-  };
-
-  enum struct UsageType {
-    ClearStore = 0,
-    LoadStore = 1,
-    LoadDontStore = 2,
-    ClearStoreRead = 3,
-  };
-
-  struct engine_api RenderTargetInfo {
-    VkFormat format;
-    ivec2 dimensions;
-    std::string resource;
-
-    static ItemCache<RenderTargetInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-  };
-
-  struct RenderTargetInfo {
-    //std::vector<std::string> color_render_target_infos;
-    std::vector<std::string> target_image_resources; // one_per_frame ImageResource/ImageResourceInfo
-    std::vector<UsageType> target_usage_types;//color_render_target_usage_types;
-
-    //std::string depth_render_target_info;
-    //UsageType depth_render_target_usage_type;
-
-    static ItemCache<RenderPassInfo> cache;
-    static ItemCache<VkRenderPass> cache_vk;
-    static ItemCache<std::array<VkFramebuffer, _FRAME_OVERLAP>> cache_fb;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-
-    inline std::vector<VkAttachmentDescription> into_attachment_vk() {
-      usize size = color_render_target_infos.size();
-
-      std::vector<VkAttachmentDescription> attachment_descriptions;
-      for_every(i, size + 1) { // need 1 extra for depth
-        attachment_descriptions.push_back({});
-      }
-
-      for_every(i, size) {
-        RenderTargetInfo render_attachment_info = RenderTargetInfo::cache.get(this->color_render_target_infos[i]);
-
-        attachment_descriptions[i].format = render_attachment_info.format;
-        attachment_descriptions[i].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachment_descriptions[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachment_descriptions[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-        // 0 - 3 index
-        u32 lookup_index = (u32)this->color_render_target_usage_types[i];
-
-        attachment_descriptions[i].loadOp = internal::color_attachment_lookup[lookup_index].load_op;
-        attachment_descriptions[i].storeOp = internal::color_attachment_lookup[lookup_index].store_op;
-        attachment_descriptions[i].initialLayout = internal::color_attachment_lookup[lookup_index].initial_layout;
-        attachment_descriptions[i].finalLayout = internal::color_attachment_lookup[lookup_index].final_layout;
-      }
-
-      // depth
-      if(depth_render_target_info != "") {
-        RenderTargetInfo render_attachment_info = RenderTargetInfo::cache.get(this->depth_render_target_info);
-
-        attachment_descriptions[size].format = render_attachment_info.format;
-        attachment_descriptions[size].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachment_descriptions[size].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachment_descriptions[size].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-        // 0 - 3 index
-        u32 lookup_index = (u32)depth_render_target_usage_type;
-
-        attachment_descriptions[size].loadOp = internal::depth_attachment_lookup[lookup_index].load_op;
-        attachment_descriptions[size].storeOp = internal::depth_attachment_lookup[lookup_index].store_op;
-        attachment_descriptions[size].initialLayout = internal::depth_attachment_lookup[lookup_index].initial_layout;
-        attachment_descriptions[size].finalLayout = internal::depth_attachment_lookup[lookup_index].final_layout;
-      }
-
-      return attachment_descriptions;
-    }
-
-    inline std::vector<VkAttachmentReference> into_color_references_vk() {
-      usize size = color_render_target_infos.size();
-
-      std::vector<VkAttachmentReference> attachment_references;
-      for_every(i, size) {
-        attachment_references.push_back({});
-      }
-
-      for_every(i, size) {
-        RenderTargetInfo render_attachment_info = RenderTargetInfo::cache.get(this->color_render_target_infos[i]);
-
-        attachment_references[i].attachment = i;
-        attachment_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      }
-
-      return attachment_references;
-    }
-
-    inline VkAttachmentReference into_depth_reference_vk() {
-      return VkAttachmentReference {
-        .attachment = (u32)color_render_target_infos.size(), // depth is added last
-        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      };
-    }
-
-    inline VkSubpassDescription into_subpass_vk(std::vector<VkAttachmentReference>& color_attachments, VkAttachmentReference* depth_attachment_info) {
-      return VkSubpassDescription {
-        .flags = 0,
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .inputAttachmentCount = 0,
-        .pInputAttachments = 0,
-        .colorAttachmentCount = (u32)color_attachments.size(),
-        .pColorAttachments = color_attachments.data(),
-        .pResolveAttachments = 0,
-        .pDepthStencilAttachment = depth_attachment_info,
-        .preserveAttachmentCount = 0,
-        .pPreserveAttachments = 0,
-      };
-    }
-
-    inline VkRenderPass create_vk(std::string name) {
-      auto attachment_descriptions = this->into_attachment_vk();
-      auto color_references = this->into_color_references_vk();
-      auto depth_reference = this->into_depth_reference_vk();
-      auto subpass_description = this->into_subpass_vk(color_references, &depth_reference);
-
-      VkRenderPassCreateInfo render_pass_info = {};
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      render_pass_info.attachmentCount = (u32)attachment_descriptions.size();
-      render_pass_info.pAttachments = attachment_descriptions.data();
-      render_pass_info.subpassCount = 1;
-      render_pass_info.pSubpasses = &subpass_description;
-
-      VkRenderPass render_pass;
-      vk_check(vkCreateRenderPass(render::internal::_device, &render_pass_info, 0, &render_pass));
-
-      RenderPassInfo::cache_vk.add(name, render_pass);
-
-      return render_pass;
-    }
   };
 
   enum struct ImageAspect {
@@ -208,7 +73,7 @@ namespace quark::engine::effect {
 
     static ItemCache<ImageResourceInfo> cache_one;
     static ItemCache<std::vector<ImageResourceInfo>> cache_array;
-    static ItemCache<std::array<ImageResourceInfo, _FRAME_OVERLAP>> cache_one_per_frame;
+    static ItemCache<ImageResourceInfo> cache_one_per_frame;
   };
 
   struct ImageResource {
@@ -244,7 +109,7 @@ namespace quark::engine::effect {
 
     static ItemCache<BufferResourceInfo> cache_one;
     static ItemCache<std::vector<BufferResourceInfo>> cache_array;
-    static ItemCache<std::array<BufferResourceInfo, _FRAME_OVERLAP>> cache_one_per_frame;
+    static ItemCache<BufferResourceInfo> cache_one_per_frame;
   };
 
 
@@ -315,11 +180,170 @@ namespace quark::engine::effect {
     }
   };
 
+  enum struct UsageType {
+    ClearStore = 0,
+    LoadStore = 1,
+    LoadDontStore = 2,
+    ClearStoreRead = 3,
+  };
+
+  struct engine_api RenderTarget {
+    VkRenderPass render_pass;
+    std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
+
+    static ItemCache<RenderTarget> cache;
+
+    inline void add_to_cache(std::string name) {
+      cache.add(name, *this);
+    }
+  };
+
+  struct RenderTargetInfo {
+    std::vector<std::string> target_image_resources; // one_per_frame ImageResource/ImageResourceInfo
+    std::vector<UsageType> target_usage_types;
+
+    static ItemCache<RenderTargetInfo> cache;
+
+    inline void add_to_cache(std::string name) {
+      cache.add(name, *this);
+    }
+
+    inline std::vector<VkAttachmentDescription> into_attachment_vk() {
+      usize size = target_image_resources.size();
+
+      std::vector<VkAttachmentDescription> attachment_descriptions(size);
+      attachment_descriptions.resize(size);
+
+      for_every(i, size) {
+        ImageResourceInfo& image_res_info = ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]];
+        //render_attachment_info = RenderTargetInfo::cache.get();
+
+        attachment_descriptions[i].format = (VkFormat)image_res_info.image_format;// render_attachment_info.format;
+        attachment_descriptions[i].samples = VK_SAMPLE_COUNT_1_BIT;
+        attachment_descriptions[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment_descriptions[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        // 0 - 3 index
+        u32 lookup_index = (u32)this->target_usage_types[i];
+
+        auto attachment_lookup = internal::color_attachment_lookup;
+        if(image_res_info.image_aspect == ImageAspect::Depth) {
+          attachment_lookup = internal::depth_attachment_lookup;
+        }
+
+        attachment_descriptions[i].loadOp = attachment_lookup[lookup_index].load_op;
+        attachment_descriptions[i].storeOp = attachment_lookup[lookup_index].store_op;
+        attachment_descriptions[i].initialLayout = attachment_lookup[lookup_index].initial_layout;
+        attachment_descriptions[i].finalLayout = attachment_lookup[lookup_index].final_layout;
+      }
+
+      return attachment_descriptions;
+    }
+
+    inline std::vector<VkAttachmentReference> into_color_references_vk() {
+      usize size = target_image_resources.size();
+
+      std::vector<VkAttachmentReference> attachment_references(size);
+      attachment_references.resize(size);
+
+      for_every(i, size) {
+        if(ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]].image_aspect == ImageAspect::Depth) {
+          continue;
+        }
+
+        attachment_references[i].attachment = i;
+        attachment_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      }
+
+      return attachment_references;
+    }
+
+    inline VkAttachmentReference into_depth_reference_vk() {
+      for_every(i, this->target_image_resources.size()) {
+        if(ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]].image_aspect == ImageAspect::Color) {
+          continue;
+        }
+
+        return VkAttachmentReference {
+          .attachment = (u32)i,
+          .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
+      }
+
+      panic("Did you forget to add a depth image to the render target!?!?!?!?!");
+      return {};
+    }
+
+    inline VkSubpassDescription into_subpass_vk(std::vector<VkAttachmentReference>& color_attachments, VkAttachmentReference* depth_attachment_info) {
+      return VkSubpassDescription {
+        .flags = 0,
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .inputAttachmentCount = 0,
+        .pInputAttachments = 0,
+        .colorAttachmentCount = (u32)color_attachments.size(),
+        .pColorAttachments = color_attachments.data(),
+        .pResolveAttachments = 0,
+        .pDepthStencilAttachment = depth_attachment_info,
+        .preserveAttachmentCount = 0,
+        .pPreserveAttachments = 0,
+      };
+    }
+
+    inline RenderTarget create() {
+      auto attachment_descriptions = this->into_attachment_vk();
+      auto color_references = this->into_color_references_vk();
+      auto depth_reference = this->into_depth_reference_vk();
+      auto subpass_description = this->into_subpass_vk(color_references, &depth_reference);
+
+      VkRenderPassCreateInfo render_pass_info = {};
+      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+      render_pass_info.attachmentCount = (u32)attachment_descriptions.size();
+      render_pass_info.pAttachments = attachment_descriptions.data();
+      render_pass_info.subpassCount = 1;
+      render_pass_info.pSubpasses = &subpass_description;
+
+      VkRenderPass render_pass;
+      vk_check(vkCreateRenderPass(render::internal::_device, &render_pass_info, 0, &render_pass));
+
+      std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
+
+      std::vector<VkImageView> attachments(this->target_image_resources.size());
+      for_every(i, _FRAME_OVERLAP) {
+        attachments.clear();
+        for_every(j, _FRAME_OVERLAP) {
+          attachments.push_back(ImageResource::cache_one_per_frame[this->target_image_resources[0]][j].view);
+        }
+
+        VkFramebufferCreateInfo framebuffer_info = {
+          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+          .pNext = 0,
+          .flags = 0,
+          .renderPass = render_pass,
+          .attachmentCount = (u32)attachments.size(),
+          .pAttachments = attachments.data(),
+          .width = (u32)ImageResourceInfo::cache_one_per_frame[this->target_image_resources[0]].dimensions.x,
+          .height = (u32)ImageResourceInfo::cache_one_per_frame[this->target_image_resources[0]].dimensions.y,
+          .layers = 1,
+        };
+
+        vk_check(vkCreateFramebuffer(render::internal::_device, &framebuffer_info, 0, &framebuffers[i]));
+      }
+
+      //RenderPassInfo::cache_vk.add(name, render_pass);
+      RenderTarget render_target = {
+        .render_pass = render_pass,
+        .framebuffers = framebuffers,
+      };
+
+      return render_target;
+    }
+  };
+
   enum struct ResourceType {
-    UniformBuffer,
-    ImageWithSampler,
+    Buffer,
     Image,
     Sampler,
+    ImageWithSampler,
   };
 
   enum struct ResourceCount {
