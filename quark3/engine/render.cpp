@@ -1,4 +1,3 @@
-#include <vulkan/vulkan_core.h>
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
 #include "../core.hpp"
@@ -522,7 +521,7 @@ namespace quark::engine::render {
 
     void make_bind_groups() {
       (BindGroupEntry {
-        .resource_type   = ResourceType::UniformBuffer,
+        .resource_type   = ResourceType::Buffer,
         .resource_count  = ResourceCount::OnePerFrame,
         .resource_rebind = ResourceRebind::OnResize,
         .resource        = "globals", // uses the MultiBufferResource named "globals"
@@ -803,6 +802,7 @@ namespace quark::engine::render {
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;
       device_features.wideLines = VK_TRUE;
+      device_features.largePoints = VK_TRUE;
     
       vkb::PhysicalDeviceSelector selector{vkb_inst};
       selector = selector.set_minimum_version(1, 0);

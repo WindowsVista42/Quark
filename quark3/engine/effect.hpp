@@ -66,17 +66,30 @@ namespace quark::engine::effect {
     Rgba16Float = VK_FORMAT_R16G16B16A16_SFLOAT,
   };
 
-  struct ImageResourceInfo {
+  enum struct SampleCount {
+    One = VK_SAMPLE_COUNT_1_BIT,
+    Two = VK_SAMPLE_COUNT_2_BIT,
+    Four = VK_SAMPLE_COUNT_4_BIT,
+    Eight = VK_SAMPLE_COUNT_8_BIT,
+    Sixteen = VK_SAMPLE_COUNT_16_BIT,
+  };
+
+  struct engine_api ImageResourceInfo {
     ImageAspect image_aspect;
     ImageFormat image_format;
+    SampleCount sample_count;
     ivec2 dimensions;
 
     static ItemCache<ImageResourceInfo> cache_one;
     static ItemCache<std::vector<ImageResourceInfo>> cache_array;
     static ItemCache<ImageResourceInfo> cache_one_per_frame;
+
+    void create_one(std::string name);
+    void create_array(std::string name);
+    void create_one_per_frame(std::string name);
   };
 
-  struct ImageResource {
+  struct engine_api ImageResource {
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
@@ -102,7 +115,7 @@ namespace quark::engine::effect {
     Vertex = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
   };
 
-  struct BufferResourceInfo {
+  struct engine_api BufferResourceInfo {
     BufferType buffer_type;
     MemoryType memory_type;
     usize size;
@@ -110,10 +123,14 @@ namespace quark::engine::effect {
     static ItemCache<BufferResourceInfo> cache_one;
     static ItemCache<std::vector<BufferResourceInfo>> cache_array;
     static ItemCache<BufferResourceInfo> cache_one_per_frame;
+
+    void create_one(std::string name);
+    void create_array(std::string name);
+    void create_one_per_frame(std::string name);
   };
 
 
-  struct BufferResource {
+  struct engine_api BufferResource {
     VmaAllocation allocation;
     VkBuffer buffer;
 
@@ -122,7 +139,7 @@ namespace quark::engine::effect {
     static ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
   };
 
-  enum struct FilterType {
+  enum struct FilterMode {
     Nearest = VK_FILTER_NEAREST,
     Linear = VK_FILTER_LINEAR,
   };
@@ -132,15 +149,15 @@ namespace quark::engine::effect {
     MirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
   };
 
-  struct SamplerResource {
+  struct engine_api SamplerResource {
     VkSampler sampler;
 
     static ItemCache<SamplerResource> cache_one;
     static ItemCache<std::vector<SamplerResource>> cache_array;
   };
 
-  struct SamplerResourceInfo {
-    FilterType filter_type;
+  struct engine_api SamplerResourceInfo {
+    FilterMode filter_mode;
     WrapMode wrap_mode;
 
     static ItemCache<SamplerResourceInfo> cache_one;
@@ -151,8 +168,8 @@ namespace quark::engine::effect {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .pNext = 0,
         .flags = 0,
-        .magFilter = (VkFilter)this->filter_type,
-        .minFilter = (VkFilter)this->filter_type,
+        .magFilter = (VkFilter)this->filter_mode,
+        .minFilter = (VkFilter)this->filter_mode,
         .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
         .addressModeU = (VkSamplerAddressMode)this->wrap_mode,
         .addressModeV = (VkSamplerAddressMode)this->wrap_mode,
@@ -180,7 +197,7 @@ namespace quark::engine::effect {
     }
   };
 
-  enum struct UsageType {
+  enum struct UsageMode {
     ClearStore = 0,
     LoadStore = 1,
     LoadDontStore = 2,
@@ -199,8 +216,8 @@ namespace quark::engine::effect {
   };
 
   struct RenderTargetInfo {
-    std::vector<std::string> target_image_resources; // one_per_frame ImageResource/ImageResourceInfo
-    std::vector<UsageType> target_usage_types;
+    std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
+    std::vector<UsageMode> usage_modes;
 
     static ItemCache<RenderTargetInfo> cache;
 
@@ -209,13 +226,13 @@ namespace quark::engine::effect {
     }
 
     inline std::vector<VkAttachmentDescription> into_attachment_vk() {
-      usize size = target_image_resources.size();
+      usize size = image_resources.size();
 
       std::vector<VkAttachmentDescription> attachment_descriptions(size);
       attachment_descriptions.resize(size);
 
       for_every(i, size) {
-        ImageResourceInfo& image_res_info = ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]];
+        ImageResourceInfo& image_res_info = ImageResourceInfo::cache_one_per_frame[this->image_resources[i]];
         //render_attachment_info = RenderTargetInfo::cache.get();
 
         attachment_descriptions[i].format = (VkFormat)image_res_info.image_format;// render_attachment_info.format;
@@ -224,7 +241,7 @@ namespace quark::engine::effect {
         attachment_descriptions[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
         // 0 - 3 index
-        u32 lookup_index = (u32)this->target_usage_types[i];
+        u32 lookup_index = (u32)this->usage_types[i];
 
         auto attachment_lookup = internal::color_attachment_lookup;
         if(image_res_info.image_aspect == ImageAspect::Depth) {
@@ -241,13 +258,13 @@ namespace quark::engine::effect {
     }
 
     inline std::vector<VkAttachmentReference> into_color_references_vk() {
-      usize size = target_image_resources.size();
+      usize size = image_resources.size();
 
       std::vector<VkAttachmentReference> attachment_references(size);
       attachment_references.resize(size);
 
       for_every(i, size) {
-        if(ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]].image_aspect == ImageAspect::Depth) {
+        if(ImageResourceInfo::cache_one_per_frame[this->image_resources[i]].image_aspect == ImageAspect::Depth) {
           continue;
         }
 
@@ -259,8 +276,8 @@ namespace quark::engine::effect {
     }
 
     inline VkAttachmentReference into_depth_reference_vk() {
-      for_every(i, this->target_image_resources.size()) {
-        if(ImageResourceInfo::cache_one_per_frame[this->target_image_resources[i]].image_aspect == ImageAspect::Color) {
+      for_every(i, this->image_resources.size()) {
+        if(ImageResourceInfo::cache_one_per_frame[this->image_resources[i]].image_aspect == ImageAspect::Color) {
           continue;
         }
 
@@ -307,11 +324,11 @@ namespace quark::engine::effect {
 
       std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
-      std::vector<VkImageView> attachments(this->target_image_resources.size());
+      std::vector<VkImageView> attachments(this->image_resources.size());
       for_every(i, _FRAME_OVERLAP) {
         attachments.clear();
         for_every(j, _FRAME_OVERLAP) {
-          attachments.push_back(ImageResource::cache_one_per_frame[this->target_image_resources[0]][j].view);
+          attachments.push_back(ImageResource::cache_one_per_frame[this->image_resources[0]][j].view);
         }
 
         VkFramebufferCreateInfo framebuffer_info = {
@@ -321,8 +338,8 @@ namespace quark::engine::effect {
           .renderPass = render_pass,
           .attachmentCount = (u32)attachments.size(),
           .pAttachments = attachments.data(),
-          .width = (u32)ImageResourceInfo::cache_one_per_frame[this->target_image_resources[0]].dimensions.x,
-          .height = (u32)ImageResourceInfo::cache_one_per_frame[this->target_image_resources[0]].dimensions.y,
+          .width = (u32)ImageResourceInfo::cache_one_per_frame[this->image_resources[0]].dimensions.x,
+          .height = (u32)ImageResourceInfo::cache_one_per_frame[this->image_resources[0]].dimensions.y,
           .layers = 1,
         };
 
@@ -353,7 +370,7 @@ namespace quark::engine::effect {
     ArrayPerFrame,
   };
 
-  enum struct ResourceRebind {
+  enum struct ResourceRebindMode {
     OnResize,
     Never,
   };
@@ -361,7 +378,7 @@ namespace quark::engine::effect {
   struct BindGroupEntry {
     ResourceType resource_type;
     ResourceCount resource_count;
-    ResourceRebind resource_rebind;
+    ResourceRebindMode resource_rebind_mode;
     std::string resource;
 
     static ItemCache<BindGroupEntry> cache;
@@ -369,6 +386,10 @@ namespace quark::engine::effect {
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
     }
+  };
+
+  struct BindGroup {
+    // data
   };
 
   struct BindGroupInfo {
@@ -382,73 +403,20 @@ namespace quark::engine::effect {
     }
   };
 
-  struct VertexShaderInfo {
-    VkShaderModule module;
-
-    using Id = isize;
-    static ItemCache<VertexShaderInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-
-    inline VkPipelineShaderStageCreateInfo into_vk() {
-      return VkPipelineShaderStageCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .pNext = 0,
-        .stage = VK_SHADER_STAGE_VERTEX_BIT,
-        .module = this->module,//asset::get<VkVertexShader>("lit_shadow"),
-        .pName = "main",
-      };
-    }
+  struct PushConstantInfo {
+    u32 size;
   };
 
-  struct FragmentShaderInfo {
-    VkShaderModule module;
-
-    using Id = isize;
-    static ItemCache<FragmentShaderInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-
-    inline VkPipelineShaderStageCreateInfo into_vk() {
-      return VkPipelineShaderStageCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .pNext = 0,
-        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .module = this->module,//asset::get<VkVertexShader>("lit_shadow"),
-        .pName = "main",
-      };
-    }
+  struct RenderResources {
+    VkPipelineLayout layout;
   };
 
-  enum struct PrimitiveTopology {
-    TriangleList = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+  struct RenderResourcesInfo {
+    std::array<std::string, 4> bind_group_ids;
+    std::string push_constant_id;
   };
 
-  struct engine_api InputAssemblyInfo {
-    PrimitiveTopology topology = PrimitiveTopology::TriangleList;
-
-    using Id = isize;
-    static ItemCache<InputAssemblyInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-    inline VkPipelineInputAssemblyStateCreateInfo into_vk() {
-      return VkPipelineInputAssemblyStateCreateInfo {
-        .sType =  VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .pNext = 0,
-        .flags = 0,
-        .topology = (VkPrimitiveTopology)this->topology,
-        .primitiveRestartEnable = VK_FALSE,
-      };
-    }
-  };
-
-  enum struct PolygonMode {
+  enum struct FillMode {
     Fill = VK_POLYGON_MODE_FILL,
     Line = VK_POLYGON_MODE_LINE,
     Point = VK_POLYGON_MODE_POINT,
@@ -461,13 +429,20 @@ namespace quark::engine::effect {
     Both = VK_CULL_MODE_FRONT_AND_BACK,
   };
 
-  struct engine_api RasterizationInfo {
-    PolygonMode polygon_mode = PolygonMode::Fill;
+  enum struct AlphaBlendMode {
+    None = 0,
+    Basic = 1,
+  };
+
+  struct engine_api RenderModeInfo {
+    FillMode fill_mode = FillMode::Fill;
     CullMode cull_mode = CullMode::Back;
-    float line_width = 1.0f;
+    AlphaBlendMode alpha_blend_mode = AlphaBlendMode::None;
+
+    f32 draw_width = 1.0f;
 
     using Id = isize;
-    static ItemCache<RasterizationInfo> cache;
+    static ItemCache<RenderModeInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -479,184 +454,51 @@ namespace quark::engine::effect {
         .flags = 0,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
-        .polygonMode = (VkPolygonMode)this->polygon_mode,
+        .polygonMode = (VkPolygonMode)this->fill_mode,
         .cullMode = (VkCullModeFlags)this->cull_mode,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0f,
         .depthBiasClamp = 0.0f,
         .depthBiasSlopeFactor = 0.0f,
-        .lineWidth = this->line_width,
+        .lineWidth = this->draw_width,
       };
     }
   };
 
-  enum struct SampleCount {
-    One = VK_SAMPLE_COUNT_1_BIT,
-    Two = VK_SAMPLE_COUNT_2_BIT,
-    Four = VK_SAMPLE_COUNT_4_BIT,
-    Eight = VK_SAMPLE_COUNT_8_BIT,
-    Sixteen = VK_SAMPLE_COUNT_16_BIT,
-  };
+  struct engine_api RenderEffect {
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+    VkRenderPass render_pass;
 
-  struct engine_api MultisampleInfo {
-    SampleCount sample_count = SampleCount::One;
+    ivec2 dimensions;
+    std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
-    using Id = isize;
-    static ItemCache<MultisampleInfo> cache;
+    std::array<std::array<VkDescriptorSet, 4>, _FRAME_OVERLAP> descriptor_sets;
+
+    VkBuffer vertex_buffer_resource;
+    VkBuffer index_buffer_resource;
+
+    static ItemCache<RenderEffect> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
     }
-    inline VkPipelineMultisampleStateCreateInfo into_vk() {
-      return VkPipelineMultisampleStateCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .pNext = 0,
-        .flags = 0,
-        .rasterizationSamples = (VkSampleCountFlagBits)this->sample_count,
-        .sampleShadingEnable = VK_FALSE,
-        .minSampleShading = 1.0f,
-        .pSampleMask = 0,
-        .alphaToCoverageEnable = VK_FALSE,
-        .alphaToOneEnable = VK_FALSE,
-      };
-    }
   };
 
-  enum struct ColorComponent {
-    Red = VK_COLOR_COMPONENT_R_BIT,
-    Green = VK_COLOR_COMPONENT_G_BIT,
-    Blue = VK_COLOR_COMPONENT_B_BIT,
-    Alpha = VK_COLOR_COMPONENT_A_BIT,
-    All = Red | Green | Blue | Alpha,
-  };
+  struct engine_api RenderEffectInfo {
+    std::string render_target_id;
+    std::string render_resources_id;
 
-  enum struct BoolValue {
-    True = VK_TRUE,
-    False = VK_FALSE,
-  };
-
-  struct engine_api BlendInfo {
-    BoolValue blend_enable = BoolValue::False;
-    ColorComponent color_write_mask = ColorComponent::All;
-
-    using Id = isize;
-    static ItemCache<BlendInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-    inline VkPipelineColorBlendAttachmentState into_attachment_vk() {
-      return VkPipelineColorBlendAttachmentState {
-        .blendEnable = (VkBool32)this->blend_enable,
-        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        .colorBlendOp = VK_BLEND_OP_ADD,
-        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-        .alphaBlendOp = VK_BLEND_OP_ADD,
-        .colorWriteMask = (VkColorComponentFlags)this->color_write_mask,
-      };
-    }
-
-    inline VkPipelineColorBlendStateCreateInfo into_vk(VkPipelineColorBlendAttachmentState* attachment) {
-      return VkPipelineColorBlendStateCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .pNext = 0,
-        .flags = 0,
-        .logicOpEnable = VK_FALSE,
-        .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,
-        .pAttachments = attachment,
-        .blendConstants = {0.0f, 0.0f, 0.0f, 0.0f},
-      };
-
-    }
-  };
-
-  struct engine_api RenderRegionInfo {
-    ivec2 offset;
-    ivec2 extents;
-
-    using Id = isize;
-    static ItemCache<RenderRegionInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-    inline VkViewport into_vk_viewport() {
-      return VkViewport {
-        .x = 0,
-        .y = 0,
-        .width = (f32)this->extents.x,
-        .height = (f32)this->extents.y,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-      };
-    };
-
-    inline VkRect2D into_vk_scissor() {
-      return VkRect2D {
-        .offset = {0, 0},
-        .extent = {(u32)this->extents.x, (u32)this->extents.y},
-      };
-    }
-
-    inline VkPipelineViewportStateCreateInfo into_vk(VkViewport* viewport, VkRect2D* scissor) {
-      return VkPipelineViewportStateCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .pNext = 0,
-        .flags = 0,
-        .viewportCount = 1,
-        .pViewports = viewport,
-        .scissorCount = 1,
-        .pScissors = scissor,
-      };
-    }
-  };
-
-  struct engine_api DepthStencilInfo {
-    BoolValue enable_depth_testing;
-    BoolValue enable_depth_writing;
-
-    using Id = isize;
-    static ItemCache<DepthStencilInfo> cache;
-
-    inline void add_to_cache(std::string name) {
-      cache.add(name, *this);
-    }
-
-    inline VkPipelineDepthStencilStateCreateInfo into_vk() {
-      return VkPipelineDepthStencilStateCreateInfo {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .pNext = 0,
-        .flags = 0,
-        .depthTestEnable = (VkBool32)this->enable_depth_testing,
-        .depthWriteEnable = (VkBool32)this->enable_depth_writing,
-        .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-        .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable = VK_FALSE,
-        .front = {},
-        .back = {},
-        .minDepthBounds = 0.0f,
-        .maxDepthBounds = 1.0f,
-      };
-    }
-  };
-
-  struct engine_api GraphicsPipelineInfo {
-    std::string vertex_shader;
+    std::string vertex_shader_id;
     // if "", no fragment shader is used
-    std::string fragment_shader;
-    std::string input_assembly_info_id = "default";
-    std::string rasterization_info_id = "default";
-    std::string multisample_info_id = "default";
-    std::string render_region_info_id = "default";
-    std::string blend_info_id = "default";
-    std::string depth_stencil_info_id = "default";
+    std::string fragment_shader_id;
 
-    static ItemCache<GraphicsPipelineInfo> cache;
-    static ItemCache<VkPipeline> cache_vk;
+    std::string render_mode_id = "default";
+    std::string vertex_buffer_resource = "default";
+    std::string index_bufer_resource = "default";
+
+    static ItemCache<RenderEffectInfo> cache;
 
     inline void add_to_cache(std::string name) {
       cache.add(name, *this);
@@ -669,14 +511,14 @@ namespace quark::engine::effect {
       shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       shader_stages[0].pNext = 0;
       shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-      shader_stages[0].module = asset::get<render::internal::VkVertexShader>(vertex_shader.c_str());
+      shader_stages[0].module = asset::get<render::internal::VkVertexShader>(vertex_shader_id.c_str());
       shader_stages[0].pName = "main";
 
-      if(fragment_shader != "") {
+      if(fragment_shader_id != "") {
         shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shader_stages[1].pNext = 0;
         shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        shader_stages[1].module = asset::get<render::internal::VkFragmentShader>(fragment_shader.c_str());
+        shader_stages[1].module = asset::get<render::internal::VkFragmentShader>(fragment_shader_id.c_str());
         shader_stages[1].pName = "main";
 
         shader_count = 2;
@@ -691,18 +533,24 @@ namespace quark::engine::effect {
       vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
       vertex_input_info.pNext = 0;
 
-      auto input_assembly_info_vk = InputAssemblyInfo::cache.get(input_assembly_info_id).into_vk();
+      VkPipelineInputAssemblyStateCreateInfo input_assembly_info_vk = {};
+      input_assembly_info_vk.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      input_assembly_info_vk.flags = 0;
+      input_assembly_info_vk.primitiveRestartEnable = VK_FALSE;
+      input_assembly_info_vk.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      input_assembly_info_vk.pNext = 0;
 
-      auto viewport_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk_viewport();
-      auto scissor_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk_scissor();
-      auto viewport_info_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk(&viewport_vk, &scissor_vk);
+      //auto viewport_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk_viewport();
+      //auto scissor_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk_scissor();
+      //auto viewport_info_vk = RenderRegionInfo::cache.get(render_region_info_id).into_vk(&viewport_vk, &scissor_vk);
 
-      auto rasterization_info_vk = RasterizationInfo::cache.get(rasterization_info_id).into_vk();
-      auto multisample_info_vk = MultisampleInfo::cache.get(multisample_info_id).into_vk();
-      auto depth_stencil_info_vk = DepthStencilInfo::cache.get(depth_stencil_info_id).into_vk();
+      //auto rasterization_info_vk = RasterizationInfo::cache.get(rasterization_info_id).into_vk();
+      // derive from render target
+      //auto multisample_info_vk = MultisampleInfo::cache.get(multisample_info_id).into_vk();
+      //auto depth_stencil_info_vk = DepthStencilInfo::cache.get(depth_stencil_info_id).into_vk();
 
-      auto blend_attachment_info_vk = BlendInfo::cache.get(blend_info_id).into_attachment_vk();
-      auto blend_info_vk = BlendInfo::cache.get(blend_info_id).into_vk(&blend_attachment_info_vk);
+      //auto blend_attachment_info_vk = BlendInfo::cache.get(blend_info_id).into_attachment_vk();
+      //auto blend_info_vk = BlendInfo::cache.get(blend_info_id).into_vk(&blend_attachment_info_vk);
 
       VkGraphicsPipelineCreateInfo pipeline_info = VkGraphicsPipelineCreateInfo {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -710,17 +558,17 @@ namespace quark::engine::effect {
         .flags = 0,
         .stageCount = shader_count,
         .pStages = shader_stages,
-        .pVertexInputState = &vertex_input_info,
-        .pInputAssemblyState = &input_assembly_info_vk,
+        .pVertexInputState = &vertex_input_info, // does not change
+        .pInputAssemblyState = &input_assembly_info_vk, // does not change
         .pTessellationState = 0,
-        .pViewportState = &viewport_info_vk,
+        .pViewportState = &viewport_info_vk, // derived
         .pRasterizationState = &rasterization_info_vk,
-        .pMultisampleState = &multisample_info_vk,
-        .pDepthStencilState = &depth_stencil_info_vk,
+        .pMultisampleState = &multisample_info_vk, // derived
+        .pDepthStencilState = &depth_stencil_info_vk, //derive
         .pColorBlendState = &blend_info_vk,
         .pDynamicState = 0,
-        .layout = pipeline_layout,
-        .renderPass = render_pass,
+        .layout = pipeline_layout, // from bind group?
+        .renderPass = render_pass, // from render target
         .subpass = 0,
         .basePipelineHandle = 0,
         .basePipelineIndex = 0,
@@ -732,6 +580,12 @@ namespace quark::engine::effect {
       return pipeline;
     }
   };
+
+  inline void begin_render_effect(std::string name) {
+  }
+
+  inline void end_render_effect(std::string name) {
+  }
 };
 
 namespace quark {
