@@ -23,13 +23,23 @@ Compile and run
 
 ## Future Directory Structure
 ```
-build/     - Most recent make e
-content/   - Mods and main game
-examples/  - Example mods and games
-my_game/   - Working directory for current game
-quark/     - Engine/API
-scripts/   - Build Scripts
-target/    - Build target data
-wiki/      - Wiki
-./         - Current directory
+content/     - Current Game Assets
+  game/      - Put Assets for Target Game Here (if making a mod)
+  my_mod/    - Put Assets for Target Mod Here (if making a mod)
+  */         - Put Other Required Assets Here
+examples/    - Example Mods and Games
+my_game/     - Working Directory for Current Game
+publish/     - Most Recent Publish
+quark/       - Engine/API
+  core/      - Core Module
+  engine/    - Engine Module
+  physics/   - 3D Physics Module
+  platform/  - Platform Module
+scripts/     - Build Scripts
+target/      - Build Target
+  debug/     - Debug Build Files
+  release/   - Release Build Files
+third_party/ - Third Party Code and Dependencies
+wiki/        - Wiki
+./           - Current Directory
 ```
