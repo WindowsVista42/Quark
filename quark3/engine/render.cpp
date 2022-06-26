@@ -242,7 +242,7 @@ namespace quark::engine::render {
   
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
-  
+
   void draw_shadow_things() {
     for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::NoShadowPass, Effect::Transparent>()).each()) {
       // NOTE(sean): frustum culling temporarily removed because it is culling
@@ -520,30 +520,35 @@ namespace quark::engine::render {
     };
 
     void make_bind_groups() {
-      (BindGroupEntry {
-        .resource_type   = ResourceType::Buffer,
-        .resource_count  = ResourceCount::OnePerFrame,
-        .resource_rebind = ResourceRebind::OnResize,
-        .resource        = "globals", // uses the MultiBufferResource named "globals"
-      }).add_to_cache("globals"); // adds a BindGroupEntry named "globals"
+      //(BindGroupEntry {
+      //  .resource_type   = ResourceType::Buffer,
+      //  .resource_count  = ResourceCount::OnePerFrame,
+      //  .resource_rebind = ResourceRebind::OnResize,
+      //  .resource        = "globals", // uses the MultiBufferResource named "globals"
+      //}).add_to_cache("globals"); // adds a BindGroupEntry named "globals"
 
-      (BindGroupEntry {
-        .resource_type   = ResourceType::ImageWithSampler,
-        .resource_count  = ResourceCount::One,
-        .resource_rebind = ResourceRebind::OnResize,
-        .resource        = "sun_depth", // uses the ImageResource named "sun_depth"
-      }).add_to_cache("sun_depth"); // adds a BindGroupEntry named "sun_depth"
+      //(BindGroupEntry {
+      //  .resource_type   = ResourceType::ImageWithSampler,
+      //  .resource_count  = ResourceCount::One,
+      //  .resource_rebind = ResourceRebind::OnResize,
+      //  .resource        = "sun_depth", // uses the ImageResource named "sun_depth"
+      //}).add_to_cache("sun_depth"); // adds a BindGroupEntry named "sun_depth"
 
-      (BindGroupEntry {
-        .resource_type   = ResourceType::ImageWithSampler, // the resource is an image with a sampler
-        .resource_count  = ResourceCount::Array, // the resource is an array
-        .resource_rebind = ResourceRebind::Never, // does not rebind the resource
-        .resource        = "textures", // uses the ImageArrayResource named "textures"
-      }).add_to_cache("textures"); // adds a BindGroupEntry named "textures"
+      //BindGroup::Info inf {
+      //  .resources = { "" },
+      //  .image_samplers =  { "" },
+      //};
 
-      (BindGroupInfo {
-        .entries = { "globals", "sun_depth", "textures" }
-      }).add_to_cache("default");
+      //(BindGroupEntry {
+      //  .resource_type   = ResourceType::ImageWithSampler, // the resource is an image with a sampler
+      //  .resource_count  = ResourceCount::Array, // the resource is an array
+      //  .resource_rebind = ResourceRebind::Never, // does not rebind the resource
+      //  .resource        = "textures", // uses the ImageArrayResource named "textures"
+      //}).add_to_cache("textures"); // adds a BindGroupEntry named "textures"
+
+      //(BindGroupInfo {
+      //  .entries = { "globals", "sun_depth", "textures" }
+      //}).add_to_cache("default");
     }
     
     // TODO(sean): maybe load these in some kind of way from a file?
@@ -930,6 +935,26 @@ namespace quark::engine::render {
           create_allocated_image(window::dimensions().x, window::dimensions().y, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
     
       _sun_depth_image = create_allocated_image(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+      //ImageResource::Info img_info = {};
+
+      //img_info = {
+      //  .image_aspect = ImageAspect::Depth,
+      //  .image_format = ImageFormat::Float32,
+      //  .image_usage = ImageUsage::DepthTarget | ImageUsage::Sampled,
+      //  .image_sample_count = ImageSampleCount::One,
+      //  .dimensions = {2048, 2048},
+      //};
+      //ImageResource::create_one_per_frame(img_info, "sun_depth").ok();
+
+      //img_info = {
+      //  .image_aspect = ImageAspect::Depth,
+      //  .image_format = ImageFormat::Float32,
+      //  .image_usage = ImageUsage::DepthTarget,
+      //  .image_sample_count = ImageSampleCount::One,
+      //  .dimensions = window::dimensions(),
+      //};
+      //ImageResource::create_one_per_frame(img_info, "forward_pass_depth").ok();
     }
     
     void init_command_pools_and_buffers() {
@@ -957,24 +982,24 @@ namespace quark::engine::render {
     }
     
     void init_render_passes() {
-      (RenderTargetInfo {
-       .target_image_resources = { "swapchain", "forward_pass_depth" },
-       .target_usage_types = { UsageType::ClearStore, UsageType::LoadStore },
-      }).add_to_cache("forward");
+      //(RenderTargetInfo {
+      // .target_image_resources = { "swapchain", "forward_pass_depth" },
+      // .target_usage_types = { UsageType::ClearStore, UsageType::LoadStore },
+      //}).add_to_cache("forward");
 
-      (RenderTargetInfo {
-       .target_image_resources = { "sun_depth" },
-       .target_usage_types = { UsageType::ClearStore },
-      }).add_to_cache("sun_depth");
+      //(RenderTargetInfo {
+      // .target_image_resources = { "sun_depth" },
+      // .target_usage_types = { UsageType::ClearStore },
+      //}).add_to_cache("sun_depth");
 
-      (RenderTargetInfo {
-       .target_image_resources = { "forward_pass_depth" },
-       .target_usage_types = { UsageType::ClearStore },
-      }).add_to_cache("forward_pass_depth_prepass");
+      //(RenderTargetInfo {
+      // .target_image_resources = { "forward_pass_depth" },
+      // .target_usage_types = { UsageType::ClearStore },
+      //}).add_to_cache("forward_pass_depth_prepass");
 
-      RenderTargetInfo::cache["forward"].create().add_to_cache("forward");
-      RenderTargetInfo::cache["sun_depth"].create().add_to_cache("sun_depth");
-      RenderTargetInfo::cache["forward_pass_depth_prepass"].create().add_to_cache("forward_pass_depth_prepass");
+      //RenderTargetInfo::cache["forward"].create().add_to_cache("forward");
+      //RenderTargetInfo::cache["sun_depth"].create().add_to_cache("sun_depth");
+      //RenderTargetInfo::cache["forward_pass_depth_prepass"].create().add_to_cache("forward_pass_depth_prepass");
     }
     
     void init_framebuffers() {
@@ -1126,262 +1151,262 @@ namespace quark::engine::render {
     ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
     
     void init_pipelines() {
-      // PIPELINE LAYOUTS
+      //// PIPELINE LAYOUTS
 
-      PipelineLayoutInfo default_pipeline_layout_info = {
-        .push_constants = { PushConstantInfo { .size = sizeof(DefaultPushConstant) } },
-        .descriptor_set_layouts = { _global_constants_layout },
-      };
-
-      add_pipeline_layout("default", default_pipeline_layout_info);
-      _lit_pipeline_layout = get_pipeline_layout("default");
-      _depth_only_pipeline_layout = get_pipeline_layout("default");
-      _depth_prepass_pipeline_layout = get_pipeline_layout("default");
-
-      PipelineLayoutInfo color_pipeline_layout_info = {
-        .push_constants = { PushConstantInfo { .size = sizeof(ColorPushConstant) } },
-        .descriptor_set_layouts = { _global_constants_layout },
-      };
-      add_pipeline_layout("color", color_pipeline_layout_info);
-      _color_pipeline_layout = get_pipeline_layout("color");
-
-
-      VkPipelineShaderStageCreateInfo shader_stages[2] = {};
-
-      VertexShaderInfo vertex_shader_info = {}; // remove, get shader from the asset manager when creating
-      vertex_shader_info.module = asset::get<VkVertexShader>("lit_shadow");
-      vertex_shader_info.add_to_cache("lit_shadow");
-
-      vertex_shader_info = {};
-      vertex_shader_info.module = asset::get<VkVertexShader>("color");
-      vertex_shader_info.add_to_cache("color");
-
-      auto vertex_shader_info_vk = VertexShaderInfo::cache.get("lit_shadow").into_vk();
-      shader_stages[0] = vertex_shader_info_vk;
-
-      FragmentShaderInfo fragment_shader_info = {}; // remove, get shader from the asset manager when creating
-      fragment_shader_info.module = asset::get<VkFragmentShader>("lit_shadow");
-      fragment_shader_info.add_to_cache("lit_shadow");
-
-      fragment_shader_info = {};
-      fragment_shader_info.module = asset::get<VkFragmentShader>("color");
-      fragment_shader_info.add_to_cache("color");
-
-      auto fragment_shader_info_vk = FragmentShaderInfo::cache.get("lit_shadow").into_vk();
-      shader_stages[1] = fragment_shader_info_vk;
-
-      /////////////////////////////////////////////
-    
-      //
-      VkPipelineVertexInputStateCreateInfo vertex_input_info = {}; // this never changes
-      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = 1;
-      vertex_input_info.pVertexBindingDescriptions = VertexPNT::input_description.bindings;
-      vertex_input_info.vertexAttributeDescriptionCount = 3;
-      vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
-      vertex_input_info.pNext = 0;
-    
-      InputAssemblyInfo input_assembly_info  = {}; // remove, this never changes
-      input_assembly_info.topology = PrimitiveTopology::TriangleList;
-      input_assembly_info.add_to_cache("default");
-
-      RasterizationInfo rasterization_info = {};
-      rasterization_info.cull_mode = CullMode::Back;
-      rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.line_width = 1.0f;
-      rasterization_info.add_to_cache("default");
-
-      rasterization_info.cull_mode = CullMode::None;
-      rasterization_info.polygon_mode = PolygonMode::Line;
-      rasterization_info.line_width = 2.0f;
-      rasterization_info.add_to_cache("wireframe");
-    
-      // 
-      // flag for use_multisample?
-      // or auto derive from output attachment
-      MultisampleInfo multisample_info = {}; // changes, depends on render pass output
-      multisample_info.sample_count = SampleCount::One;
-      multisample_info.add_to_cache("default");
-
-      RenderRegionInfo render_region_info = {}; // changes, might depend on render pass output
-      render_region_info.offset = {0, 0};
-      render_region_info.extents = {window::dimensions().x, window::dimensions().y};
-      render_region_info.add_to_cache("default");
-
-      auto viewport_vk = RenderRegionInfo::cache.get("default").into_vk_viewport();
-      auto scissor_vk = RenderRegionInfo::cache.get("default").into_vk_scissor();
-      auto viewport_info_vk = RenderRegionInfo::cache.get("default").into_vk(&viewport_vk, &scissor_vk);
-
-      BlendInfo blend_attachment_info = {}; // changes
-      blend_attachment_info.blend_enable = BoolValue::False;
-      blend_attachment_info.color_write_mask = ColorComponent::All; // i can see some cool use for this so it stays
-      blend_attachment_info.add_to_cache("default");
-
-      auto blend_attachment_info_vk = BlendInfo::cache.get("default").into_attachment_vk();
-      auto color_blend_info_vk = BlendInfo::cache.get("default").into_vk(&blend_attachment_info_vk);
-
-      DepthStencilInfo depth_stencil_info = {}; // changes
-      depth_stencil_info.enable_depth_testing = BoolValue::True;
-      depth_stencil_info.enable_depth_writing = BoolValue::True;
-      depth_stencil_info.add_to_cache("default");
-
-      auto depth_stencil_info_vk = DepthStencilInfo::cache.get("default").into_vk();
-
-      auto input_assembly_info_vk = InputAssemblyInfo::cache.get("default").into_vk();
-      auto rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
-      auto multisample_info_vk = MultisampleInfo::cache.get("default").into_vk();
-
-      //GraphicsPipelineInfo graphics_pipeline_info = {
-      //  //.pipeline_layout = "default",
-      //  //.render_pass = "forward_pass",
-      //  .vertex_shader_id = "lit_shadow",
-      //  .fragment_shader_id = "lit_shadow",
-      //  //.input_assembly_info_id = "default",
-      //  //.rasterization_info_id = "default",
-      //  //.multisample_info_id = "default",
-      //  //.render_region_info_id = "default",
-      //  //.blend_info_id = "default",
-      //  //.depth_stencil_info_id = "default",
+      //PipelineLayoutInfo default_pipeline_layout_info = {
+      //  .push_constants = { PushConstantInfo { .size = sizeof(DefaultPushConstant) } },
+      //  .descriptor_set_layouts = { _global_constants_layout },
       //};
 
-      _lit_pipeline = (GraphicsPipelineInfo {
-        .vertex_shader = "lit_shadow",
-        .fragment_shader = "lit_shadow",
-      }).create_vk(_lit_pipeline_layout, _default_render_pass);
+      //add_pipeline_layout("default", default_pipeline_layout_info);
+      //_lit_pipeline_layout = get_pipeline_layout("default");
+      //_depth_only_pipeline_layout = get_pipeline_layout("default");
+      //_depth_prepass_pipeline_layout = get_pipeline_layout("default");
 
-      _solid_pipeline = (GraphicsPipelineInfo {
-        .vertex_shader = "color",
-        .fragment_shader = "color",
-      }).create_vk(_color_pipeline_layout, _default_render_pass);
+      //PipelineLayoutInfo color_pipeline_layout_info = {
+      //  .push_constants = { PushConstantInfo { .size = sizeof(ColorPushConstant) } },
+      //  .descriptor_set_layouts = { _global_constants_layout },
+      //};
+      //add_pipeline_layout("color", color_pipeline_layout_info);
+      //_color_pipeline_layout = get_pipeline_layout("color");
 
-      _wireframe_pipeline = (GraphicsPipelineInfo {
-        .vertex_shader = "color",
-        .fragment_shader = "color",
-        .rasterization_info_id = "wireframe",
-      }).create_vk(_color_pipeline_layout, _default_render_pass);
 
-      //_solid_pipeline = graphics_pipeline_info.create_vk(_color_pipeline_layout, _default_render_pass);
+      //VkPipelineShaderStageCreateInfo shader_stages[2] = {};
 
-      VkGraphicsPipelineCreateInfo pipeline_info = {};
-      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipeline_info.stageCount = 2;
-      pipeline_info.pStages = shader_stages;
-      pipeline_info.pVertexInputState = &vertex_input_info;
-      pipeline_info.pInputAssemblyState = &input_assembly_info_vk; //
-      pipeline_info.pViewportState = &viewport_info_vk;
-      pipeline_info.pRasterizationState = &rasterization_info_vk; //
-      pipeline_info.pMultisampleState = &multisample_info_vk; //
-      pipeline_info.pColorBlendState = &color_blend_info_vk;
-      pipeline_info.pDepthStencilState = &depth_stencil_info_vk;
-      pipeline_info.layout = _lit_pipeline_layout;
-      pipeline_info.renderPass = _default_render_pass;
-      pipeline_info.subpass = 0;
-      pipeline_info.basePipelineIndex = 0;
-      pipeline_info.pNext = 0;
-    
-      // Basic pipeline
-      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_lit_pipeline));
-    
-      //color_blend_attachment.blendEnable = VK_FALSE;
-      // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-      // color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-      // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-      // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-      // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
-    
-      // Debug pipeline layout
-      //push_constant.size = sizeof(ColorPushConstant);
-      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_color_pipeline_layout));
-    
-      // Color pipeline
-      shader_stages[0].module = asset::get<VkVertexShader>("color");
-      shader_stages[1].module = asset::get<VkFragmentShader>("color");
-      //rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      //rasterization_info.lineWidth = 1.0f;
+      //VertexShaderInfo vertex_shader_info = {}; // remove, get shader from the asset manager when creating
+      //vertex_shader_info.module = asset::get<VkVertexShader>("lit_shadow");
+      //vertex_shader_info.add_to_cache("lit_shadow");
 
-      rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.line_width = 1.0f;
+      //vertex_shader_info = {};
+      //vertex_shader_info.module = asset::get<VkVertexShader>("color");
+      //vertex_shader_info.add_to_cache("color");
 
-      pipeline_info.layout = _color_pipeline_layout;
-    
-      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_solid_pipeline));
+      //auto vertex_shader_info_vk = VertexShaderInfo::cache.get("lit_shadow").into_vk();
+      //shader_stages[0] = vertex_shader_info_vk;
 
-      rasterization_info_vk = RasterizationInfo::cache.get("wireframe").into_vk();
-      //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("wireframe").into_vk();
-      //rasterization_info.cullMode = VK_CULL_MODE_NONE;
-      //rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
-      //rasterization_info.lineWidth = 2.0f;
+      //FragmentShaderInfo fragment_shader_info = {}; // remove, get shader from the asset manager when creating
+      //fragment_shader_info.module = asset::get<VkFragmentShader>("lit_shadow");
+      //fragment_shader_info.add_to_cache("lit_shadow");
 
-      //depth_stencil_info.depthTestEnable = VK_FALSE;
-    
-      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
-      rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
-      //pipeline_info.pRasterizationState = RasterizationInfo::cache.get("default").into_vk();
-    
-      //push_constant.size = sizeof(DefaultPushConstant);
-      pipeline_info.layout = _lit_pipeline_layout;
-    
-    
-      // Sun pipeline layout
-      //pipeline_layout_info.setLayoutCount = 0;
-      //pipeline_layout_info.pSetLayouts = 0;
-    
-      //push_constant.size = sizeof(DefaultPushConstant);
-      //push_constant.size = sizeof(mat4);
+      //fragment_shader_info = {};
+      //fragment_shader_info.module = asset::get<VkFragmentShader>("color");
+      //fragment_shader_info.add_to_cache("color");
 
-      //pipeline_layout_info = {};
-      //pipeline_layout_info.push_constants = {{.size = sizeof(ColorPushConstant)}};
-      //pipeline_layout_info.descriptor_set_layouts = { _global_constants_layout };
-      //_color_pipeline_layout = create_pipeline_layout(&pipeline_layout_info);
-    
-      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_only_pipeline_layout));
-      //vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_prepass_pipeline_layout));
-    
-      rasterization_info.cull_mode = CullMode::Back;
-      //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-    
-      //depth_stencil_info.depthWriteEnable = VK_TRUE;
+      //auto fragment_shader_info_vk = FragmentShaderInfo::cache.get("lit_shadow").into_vk();
+      //shader_stages[1] = fragment_shader_info_vk;
 
-      pipeline_info.stageCount = 1;
-      shader_stages[0].module = asset::get<VkVertexShader>("depth_view");
-      shader_stages[1].module = 0;
+      ///////////////////////////////////////////////
     
-      // viewport.minDepth = 0.0f;
-      // viewport.maxDepth = 1.0f;
+      ////
+      //VkPipelineVertexInputStateCreateInfo vertex_input_info = {}; // this never changes
+      //vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+      //vertex_input_info.vertexBindingDescriptionCount = 1;
+      //vertex_input_info.pVertexBindingDescriptions = VertexPNT::input_description.bindings;
+      //vertex_input_info.vertexAttributeDescriptionCount = 3;
+      //vertex_input_info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
+      //vertex_input_info.pNext = 0;
     
-      // scissor.offset = {0, 0};
-    
-      rasterization_info.polygon_mode = PolygonMode::Fill;
-      rasterization_info.line_width = 1.0f;
-      //rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      //rasterization_info.lineWidth = 1.0f;
-      pipeline_info.layout = _depth_prepass_pipeline_layout;
-      pipeline_info.renderPass = _depth_prepass_render_pass;
-    
-      vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_depth_prepass_pipeline));
-    
-      shader_stages[0].module = asset::get<VkVertexShader>("depth_only");
-    
-      //rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterization_info.cull_mode = CullMode::Back;//VK_CULL_MODE_BACK_BIT;
+      //InputAssemblyInfo input_assembly_info  = {}; // remove, this never changes
+      //input_assembly_info.topology = PrimitiveTopology::TriangleList;
+      //input_assembly_info.add_to_cache("default");
 
-      render_region_info = {};
-      render_region_info.offset = {0, 0};
-      render_region_info.extents = {2048, 2048};
-      render_region_info.add_to_cache("shadow_map");
+      //RasterizationInfo rasterization_info = {};
+      //rasterization_info.cull_mode = CullMode::Back;
+      //rasterization_info.polygon_mode = PolygonMode::Fill;
+      //rasterization_info.line_width = 1.0f;
+      //rasterization_info.add_to_cache("default");
 
-      viewport_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_viewport();
-      scissor_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_scissor();
+      //rasterization_info.cull_mode = CullMode::None;
+      //rasterization_info.polygon_mode = PolygonMode::Line;
+      //rasterization_info.line_width = 2.0f;
+      //rasterization_info.add_to_cache("wireframe");
+    
+      //// 
+      //// flag for use_multisample?
+      //// or auto derive from output attachment
+      //MultisampleInfo multisample_info = {}; // changes, depends on render pass output
+      //multisample_info.sample_count = SampleCount::One;
+      //multisample_info.add_to_cache("default");
 
-      //viewport.width = 2048.0f;
-      //viewport.height = 2048.0f;
-      //scissor.extent = {2048, 2048};
+      //RenderRegionInfo render_region_info = {}; // changes, might depend on render pass output
+      //render_region_info.offset = {0, 0};
+      //render_region_info.extents = {window::dimensions().x, window::dimensions().y};
+      //render_region_info.add_to_cache("default");
+
+      //auto viewport_vk = RenderRegionInfo::cache.get("default").into_vk_viewport();
+      //auto scissor_vk = RenderRegionInfo::cache.get("default").into_vk_scissor();
+      //auto viewport_info_vk = RenderRegionInfo::cache.get("default").into_vk(&viewport_vk, &scissor_vk);
+
+      //BlendInfo blend_attachment_info = {}; // changes
+      //blend_attachment_info.blend_enable = BoolValue::False;
+      //blend_attachment_info.color_write_mask = ColorComponent::All; // i can see some cool use for this so it stays
+      //blend_attachment_info.add_to_cache("default");
+
+      //auto blend_attachment_info_vk = BlendInfo::cache.get("default").into_attachment_vk();
+      //auto color_blend_info_vk = BlendInfo::cache.get("default").into_vk(&blend_attachment_info_vk);
+
+      //DepthStencilInfo depth_stencil_info = {}; // changes
+      //depth_stencil_info.enable_depth_testing = BoolValue::True;
+      //depth_stencil_info.enable_depth_writing = BoolValue::True;
+      //depth_stencil_info.add_to_cache("default");
+
+      //auto depth_stencil_info_vk = DepthStencilInfo::cache.get("default").into_vk();
+
+      //auto input_assembly_info_vk = InputAssemblyInfo::cache.get("default").into_vk();
+      //auto rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
+      //auto multisample_info_vk = MultisampleInfo::cache.get("default").into_vk();
+
+      ////GraphicsPipelineInfo graphics_pipeline_info = {
+      ////  //.pipeline_layout = "default",
+      ////  //.render_pass = "forward_pass",
+      ////  .vertex_shader_id = "lit_shadow",
+      ////  .fragment_shader_id = "lit_shadow",
+      ////  //.input_assembly_info_id = "default",
+      ////  //.rasterization_info_id = "default",
+      ////  //.multisample_info_id = "default",
+      ////  //.render_region_info_id = "default",
+      ////  //.blend_info_id = "default",
+      ////  //.depth_stencil_info_id = "default",
+      ////};
+
+      //_lit_pipeline = (GraphicsPipelineInfo {
+      //  .vertex_shader = "lit_shadow",
+      //  .fragment_shader = "lit_shadow",
+      //}).create_vk(_lit_pipeline_layout, _default_render_pass);
+
+      //_solid_pipeline = (GraphicsPipelineInfo {
+      //  .vertex_shader = "color",
+      //  .fragment_shader = "color",
+      //}).create_vk(_color_pipeline_layout, _default_render_pass);
+
+      //_wireframe_pipeline = (GraphicsPipelineInfo {
+      //  .vertex_shader = "color",
+      //  .fragment_shader = "color",
+      //  .rasterization_info_id = "wireframe",
+      //}).create_vk(_color_pipeline_layout, _default_render_pass);
+
+      ////_solid_pipeline = graphics_pipeline_info.create_vk(_color_pipeline_layout, _default_render_pass);
+
+      //VkGraphicsPipelineCreateInfo pipeline_info = {};
+      //pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+      //pipeline_info.stageCount = 2;
+      //pipeline_info.pStages = shader_stages;
+      //pipeline_info.pVertexInputState = &vertex_input_info;
+      //pipeline_info.pInputAssemblyState = &input_assembly_info_vk; //
+      //pipeline_info.pViewportState = &viewport_info_vk;
+      //pipeline_info.pRasterizationState = &rasterization_info_vk; //
+      //pipeline_info.pMultisampleState = &multisample_info_vk; //
+      //pipeline_info.pColorBlendState = &color_blend_info_vk;
+      //pipeline_info.pDepthStencilState = &depth_stencil_info_vk;
+      //pipeline_info.layout = _lit_pipeline_layout;
+      //pipeline_info.renderPass = _default_render_pass;
+      //pipeline_info.subpass = 0;
+      //pipeline_info.basePipelineIndex = 0;
+      //pipeline_info.pNext = 0;
     
-      pipeline_info.layout = _depth_only_pipeline_layout;
-      pipeline_info.renderPass = _depth_only_render_pass;
+      //// Basic pipeline
+      ////vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_lit_pipeline));
     
-      vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_depth_only_pipeline));
+      ////color_blend_attachment.blendEnable = VK_FALSE;
+      //// color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      //// color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      //// color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+      //// color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      //// color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+      //// color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    
+      //// Debug pipeline layout
+      ////push_constant.size = sizeof(ColorPushConstant);
+      ////vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_color_pipeline_layout));
+    
+      //// Color pipeline
+      //shader_stages[0].module = asset::get<VkVertexShader>("color");
+      //shader_stages[1].module = asset::get<VkFragmentShader>("color");
+      ////rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      ////rasterization_info.lineWidth = 1.0f;
+
+      //rasterization_info.polygon_mode = PolygonMode::Fill;
+      //rasterization_info.line_width = 1.0f;
+
+      //pipeline_info.layout = _color_pipeline_layout;
+    
+      ////vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_solid_pipeline));
+
+      //rasterization_info_vk = RasterizationInfo::cache.get("wireframe").into_vk();
+      ////pipeline_info.pRasterizationState = RasterizationInfo::cache.get("wireframe").into_vk();
+      ////rasterization_info.cullMode = VK_CULL_MODE_NONE;
+      ////rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
+      ////rasterization_info.lineWidth = 2.0f;
+
+      ////depth_stencil_info.depthTestEnable = VK_FALSE;
+    
+      ////vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_wireframe_pipeline));
+      //rasterization_info_vk = RasterizationInfo::cache.get("default").into_vk();
+      ////pipeline_info.pRasterizationState = RasterizationInfo::cache.get("default").into_vk();
+    
+      ////push_constant.size = sizeof(DefaultPushConstant);
+      //pipeline_info.layout = _lit_pipeline_layout;
+    
+    
+      //// Sun pipeline layout
+      ////pipeline_layout_info.setLayoutCount = 0;
+      ////pipeline_layout_info.pSetLayouts = 0;
+    
+      ////push_constant.size = sizeof(DefaultPushConstant);
+      ////push_constant.size = sizeof(mat4);
+
+      ////pipeline_layout_info = {};
+      ////pipeline_layout_info.push_constants = {{.size = sizeof(ColorPushConstant)}};
+      ////pipeline_layout_info.descriptor_set_layouts = { _global_constants_layout };
+      ////_color_pipeline_layout = create_pipeline_layout(&pipeline_layout_info);
+    
+      ////vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_only_pipeline_layout));
+      ////vk_check(vkCreatePipelineLayout(_device, &pipeline_layout_info, 0, &_depth_prepass_pipeline_layout));
+    
+      //rasterization_info.cull_mode = CullMode::Back;
+      ////rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    
+      ////depth_stencil_info.depthWriteEnable = VK_TRUE;
+
+      //pipeline_info.stageCount = 1;
+      //shader_stages[0].module = asset::get<VkVertexShader>("depth_view");
+      //shader_stages[1].module = 0;
+    
+      //// viewport.minDepth = 0.0f;
+      //// viewport.maxDepth = 1.0f;
+    
+      //// scissor.offset = {0, 0};
+    
+      //rasterization_info.polygon_mode = PolygonMode::Fill;
+      //rasterization_info.line_width = 1.0f;
+      ////rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      ////rasterization_info.lineWidth = 1.0f;
+      //pipeline_info.layout = _depth_prepass_pipeline_layout;
+      //pipeline_info.renderPass = _depth_prepass_render_pass;
+    
+      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_depth_prepass_pipeline));
+    
+      //shader_stages[0].module = asset::get<VkVertexShader>("depth_only");
+    
+      ////rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      //rasterization_info.cull_mode = CullMode::Back;//VK_CULL_MODE_BACK_BIT;
+
+      //render_region_info = {};
+      //render_region_info.offset = {0, 0};
+      //render_region_info.extents = {2048, 2048};
+      //render_region_info.add_to_cache("shadow_map");
+
+      //viewport_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_viewport();
+      //scissor_vk = RenderRegionInfo::cache.get("shadow_map").into_vk_scissor();
+
+      ////viewport.width = 2048.0f;
+      ////viewport.height = 2048.0f;
+      ////scissor.extent = {2048, 2048};
+    
+      //pipeline_info.layout = _depth_only_pipeline_layout;
+      //pipeline_info.renderPass = _depth_only_render_pass;
+    
+      //vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &pipeline_info, 0, &_depth_only_pipeline));
     }
     
     void init_sampler() {
@@ -1413,15 +1438,15 @@ namespace quark::engine::render {
     
       //vk_check(vkCreateSampler(_device, &sampler_info, 0, &_default_sampler));
 
-      SamplerResourceInfo sampler_info = {
-       .filter_type = FilterType::Linear,
-       .wrap_mode = WrapMode::Repeat,
-      };
-      SamplerResourceInfo::cache_one.add("default", sampler_info);
-      auto sampler_res = sampler_info.create();
-      SamplerResource::cache_one.add("default", sampler_res);
+      //SamplerResourceInfo sampler_info = {
+      // .filter_type = FilterType::Linear,
+      // .wrap_mode = WrapMode::Repeat,
+      //};
+      //SamplerResourceInfo::cache_one.add("default", sampler_info);
+      //auto sampler_res = sampler_info.create();
+      //SamplerResource::cache_one.add("default", sampler_res);
 
-      _default_sampler = SamplerResource::cache_one.get("default").sampler;
+      //_default_sampler = SamplerResource::cache_one.get("default").sampler;
     }
     
     void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
