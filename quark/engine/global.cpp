@@ -7,7 +7,7 @@
 #include "asset.hpp"
 #include "input.hpp"
 
-#include "../platform.hpp"
+#include "../platform/module.hpp"
 
 namespace quark::engine::global {
   // Delta time between frames

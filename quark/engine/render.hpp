@@ -1,8 +1,8 @@
 #pragma once
 
 #include "api.hpp"
-#include "../core.hpp"
-#include "../platform.hpp"
+#include "../core/module.hpp"
+#include "../platform/module.hpp"
 #include "component.hpp"
 
 #include <vk_mem_alloc.h>

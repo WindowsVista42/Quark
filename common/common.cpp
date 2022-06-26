@@ -1,6 +1,6 @@
 #define COMMON_INTERNAL
 #include "common.hpp"
-#include "../quark3/lib.hpp"
+#include "../quark/module.hpp"
 using namespace quark;
 
 namespace common {

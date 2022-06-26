@@ -1,7 +1,7 @@
 #pragma once
 
 #include "api.hpp"
-#include "../core.hpp"
+#include "../core/module.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
 

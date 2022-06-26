@@ -1,7 +1,7 @@
 #pragma once
 
 #include "api.hpp"
-#include "../core.hpp"
+#include "../core/module.hpp"
 
 namespace quark::platform::allocator {
   struct platform_api LinearAllocator {

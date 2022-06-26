@@ -1,7 +1,7 @@
 #pragma once
 
 #include "api.hpp"
-#include "../core.hpp"
+#include "../core/module.hpp"
 #include "vulkan/vulkan.h"
 #include "entity.hpp"
 

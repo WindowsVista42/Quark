@@ -1,7 +1,7 @@
 #pragma once
 
 #include "api.hpp"
-#include "../core.hpp"
+#include "../core/module.hpp"
 #include <vector>
 #include <iostream>
 #include <unordered_map>

@@ -1,4 +1,4 @@
-#include "../quark3/lib.hpp"
+#include "../quark/module.hpp"
 
 #include "mod.hpp"
 using namespace quark;

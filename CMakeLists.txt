@@ -80,7 +80,7 @@ include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
 
 add_library(quark_core
-  quark3/core/qmath.cpp
+  quark/core/qmath.cpp
 )
 #target_include_directories(quark_core SYSTEM PRIVATE
 #  lib/bullet3/src
@@ -94,9 +94,9 @@ add_library(quark_core
 #)
 
 add_library(quark_platform SHARED
-  quark3/platform/allocator.cpp
-  quark3/platform/window.cpp
-  quark3/platform/shared.cpp
+  quark/platform/allocator.cpp
+  quark/platform/window.cpp
+  quark/platform/shared.cpp
 )
 #target_include_directories(quark_platform SYSTEM PRIVATE
 #  lib/glfw/include
@@ -106,17 +106,17 @@ add_library(quark_platform SHARED
 
 # QUARK ENGINE LIBRARY
 add_library(quark_engine SHARED
-  quark3/engine/global.cpp
-  quark3/engine/registry.cpp
-  quark3/engine/entity.cpp
-  quark3/engine/component.cpp
-  quark3/engine/system.cpp
-  quark3/engine/state.cpp
-  quark3/engine/reflect.cpp
-  quark3/engine/asset.cpp
-  quark3/engine/input.cpp
-  quark3/engine/render.cpp
-  quark3/engine/effect.cpp
+  quark/engine/global.cpp
+  quark/engine/registry.cpp
+  quark/engine/entity.cpp
+  quark/engine/component.cpp
+  quark/engine/system.cpp
+  quark/engine/state.cpp
+  quark/engine/reflect.cpp
+  quark/engine/asset.cpp
+  quark/engine/input.cpp
+  quark/engine/render.cpp
+  quark/engine/effect.cpp
 )
 #target_include_directories(quark_engine SYSTEM PRIVATE
 #  ${Vulkan_INCLUDE_DIRS}
@@ -176,7 +176,7 @@ target_link_libraries(quark_engine
 )
 
 add_executable(quark_loader
-  quark3/loader.cpp
+  quark/loader/main.cpp
 )
 
 target_link_libraries(quark_loader

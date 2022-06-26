@@ -7,7 +7,7 @@ add_library(${MY_MOD_NAME} SHARED
 
 target_precompile_headers(${MY_MOD_NAME}
   PUBLIC
-  ../quark3/lib.hpp
+  ../quark/module.hpp
 
 #  ../quark3/core.hpp
 #  ../quark3/core/qmath.hpp

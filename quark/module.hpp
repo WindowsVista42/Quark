@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core.hpp"
-#include "platform.hpp"
-#include "engine.hpp"
-#include "extension.hpp"
+#include "core/module.hpp"
+#include "platform/module.hpp"
+#include "engine/module.hpp"
+#include "extension/module.hpp"
 
 //using namespace quark::engine;
 //using namespace quark::platform;

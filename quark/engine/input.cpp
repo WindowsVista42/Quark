@@ -1,6 +1,6 @@
 #define QUARK_ENGINE_INTERNAL
 #include "input.hpp"
-#include "../platform.hpp"
+#include "../platform/module.hpp"
 
 //TODO(sean): figure out how to properly clamp these values so having something
 //bound to an action twice does not result in 2x the action

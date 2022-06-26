@@ -1,6 +1,6 @@
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
-#include "../core.hpp"
+#include "../core/module.hpp"
 #include "component.hpp"
 #include "registry.hpp"
 #include "asset.hpp"
