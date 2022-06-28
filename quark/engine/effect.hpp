@@ -45,11 +45,6 @@ namespace quark::engine::effect {
     }
   };
 
-  //enum struct ImageType {
-  //  Color = VK_IMAGE_ASPECT_COLOR_BIT,
-  //  Depth = VK_IMAGE_ASPECT_DEPTH_BIT,
-  //};
-
   enum struct ImageFormat {
     LinearD32   = VK_FORMAT_D32_SFLOAT,
     LinearD16   = VK_FORMAT_D16_UNORM,
@@ -182,6 +177,9 @@ namespace quark::engine::effect {
   enum struct WrapMode {
     Repeat = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     MirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    BorderClamp = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+    EdgeClamp = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
   };
 
   struct engine_api SamplerResource {
@@ -206,8 +204,8 @@ namespace quark::engine::effect {
   };
 
   enum struct UsageMode {
-    ClearStore = 0,
-    LoadStore = 1,
+    ClearStore    = 0,
+    LoadStore     = 1,
     LoadDontStore = 2,
   };
 
@@ -216,22 +214,27 @@ namespace quark::engine::effect {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<UsageMode> usage_modes;
 
+      void _basic_validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
       std::vector<VkAttachmentReference> _color_attachment_refs();
       VkAttachmentReference _depth_attachment_ref();
       VkSubpassDescription _subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref);
       VkRenderPassCreateInfo _render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc);
 
-      std::vector<VkImageView> _attachments(usize index);
-      VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments);
+      std::vector<VkImageView> _image_views(usize index);
+      VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass);
 
       RenderTarget _create();
+
+      static ItemCache<RenderTarget::Info> cache;
     };
 
     VkRenderPass render_pass;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
     static void create(RenderTarget::Info& info, std::string name);
+
+    static ItemCache<RenderTarget> cache;
   };
 
   struct engine_api ResourceGroup {

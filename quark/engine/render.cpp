@@ -1089,9 +1089,6 @@ namespace quark::engine::render {
       //_sun_shadow_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
       //for_every(index, img_count) {
       //  VkImageView attachments[1];
-      //  attachments[0] = _sun_depth_image.view;
-      //  _sun_shadow_framebuffers[index] = create_framebuffer(_depth_only_render_pass, 2048, 2048, attachments, count_of(attachments));
-      //}
 
       RenderTarget::Info info = {};
 
@@ -1102,7 +1099,7 @@ namespace quark::engine::render {
       RenderTarget::create(info, "forward_pass_depth_prepass");
 
       info = {
-        .image_resources = {"forward_pass_depth", "forward_pass_color"},
+        .image_resources = {"forward_pass_color", "forward_pass_depth"},
         .usage_modes = {UsageMode::ClearStore, UsageMode::LoadStore},
       };
       RenderTarget::create(info, "forward_pass");

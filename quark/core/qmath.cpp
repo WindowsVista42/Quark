@@ -100,6 +100,11 @@ namespace quark::core::math {
 
   const uvec2 uvec2::zero = uvec2 {0, 0};
 
+  // ivec2
+  bool ivec2::operator !=(ivec2& other) {
+    return this->x != other.x || this->y != other.y;
+  }
+
   // vec3
 
   const vec3 vec3::unit_x = vec3 {1,0,0};

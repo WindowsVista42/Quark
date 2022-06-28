@@ -83,6 +83,8 @@ namespace quark::core::math {
 
   struct ivec2 {
     i32 x, y;
+
+    bool operator !=(ivec2& other);
   };
 
   // Three component vector

@@ -11,7 +11,7 @@ namespace quark::engine::effect {
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
         .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // TODO(sean): DONT WRITE DIRECTLY TO THE SWAPCHAIN IN THE FUTURE!!!
+        .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       },
       { // UsageType::LoadStore
         .load_op = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -25,9 +25,11 @@ namespace quark::engine::effect {
         .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       },
-      { // UsageType::LoadStoreRead
+
+      // IS USED AS TEXTURE
+      { // UsageType::ClearStore
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
         .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
         .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       },
@@ -52,7 +54,9 @@ namespace quark::engine::effect {
         .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
       },
-      { // UsageType::ClearStoreRead
+
+      // IS USED AS TEXTURE
+      { // UsageType::ClearStore
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
         .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -63,27 +67,31 @@ namespace quark::engine::effect {
     std::unordered_map<std::string, ResourceType> used_names = {};
   };
 
+  // image cache
+  ItemCache<ImageResource::Info> ImageResource::Info::cache_one = {};
+  ItemCache<std::vector<ImageResource::Info>> ImageResource::Info::cache_array = {};
+  ItemCache<ImageResource::Info> ImageResource::Info::cache_one_per_frame = {};
   ItemCache<ImageResource> ImageResource::cache_one = {};
   ItemCache<std::vector<ImageResource>> ImageResource::cache_array = {};
   ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> ImageResource::cache_one_per_frame = {};
 
-  ItemCache<ImageResource::Info> ImageResource::Info::cache_one = {};
-  ItemCache<std::vector<ImageResource::Info>> ImageResource::Info::cache_array = {};
-  ItemCache<ImageResource::Info> ImageResource::Info::cache_one_per_frame = {};
-
+  // buffer cache
   ItemCache<BufferResource::Info> BufferResource::Info::cache_one = {};
   ItemCache<std::vector<BufferResource::Info>> BufferResource::Info::cache_array = {};
   ItemCache<BufferResource::Info> BufferResource::Info::cache_one_per_frame = {};
-
   ItemCache<BufferResource> BufferResource::cache_one = {};
   ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
   ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
+  // sampler cache
   ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
   ItemCache<std::vector<SamplerResource::Info>> SamplerResource::Info::cache_array = {};
-
   ItemCache<SamplerResource> SamplerResource::cache_one;
   ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array;
+
+  // render target cache
+  ItemCache<RenderTarget::Info> RenderTarget::Info::cache;
+  ItemCache<RenderTarget> RenderTarget::cache;
 
   void add_name_association(std::string name, internal::ResourceType resource_type) {
     if (internal::used_names.find(name) != internal::used_names.end()) {
@@ -383,7 +391,7 @@ namespace quark::engine::effect {
     cache_one.add(name, res);
     Info::cache_one.add(name, info);
 
-    str::print(str() + "Created sampler res!n");
+    str::print(str() + "Created sampler res!");
   }
 
   void SamplerResource::create_array(SamplerResource::Info& info, std::string name) {
@@ -404,10 +412,174 @@ namespace quark::engine::effect {
     return;
   }
 
+  str operator +(str s, ivec2 i) {
+    return s + "(x: " + i.x + ", y: " + i.y + ")";
+  }
+
+  void RenderTarget::Info::_basic_validate() {
+    // validate counts
+    if (this->image_resources.size() == 0) {
+      panic2("Size of 'RenderTarget::image_resources' list must not be zero!" + "\n"
+           + "Did you forgot to put resources?");
+    }
+
+    // validate counts
+    if (this->usage_modes.size() == 0) {
+      panic2("Size of 'RenderTarget::usage_modes' list must not be zero!" + "\n"
+           + "Did you forgot to put usage modes?");
+    }
+
+    // validate counts
+    if (this->image_resources.size() != this->usage_modes.size()) {
+      panic2("There must be at least one usage mode per image resource!" + "\n"
+           + "Did you forgot some usage modes or resources?");
+    }
+
+    for_every(i, this->image_resources.size() - 1) {
+      // validate we have 'one_per_frame' resources
+      if (!ImageResource::Info::cache_one_per_frame.has(this->image_resources[i])) {
+        panic2("Image resources need to be 'one_per_frame' type resources!" + "\n"
+             + "Did you make your image resources using 'ImageResource::create_one_per_frame()'?");
+      }
+
+      auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
+
+      // validate we have color resources
+      if (!res._is_color()) {
+        panic2("Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
+             + "Did you forgot to put a depth resource at the end?");
+      }
+    }
+
+    // validate that a depth resource is at the last pos
+    if (ImageResource::Info::cache_one_per_frame[this->image_resources[this->image_resources.size() - 1]]._is_color()) {
+      str::print(str()
+          + "Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
+          + "Did you forgot to put a depth resource at the end?");
+      panic("");
+    }
+
+    for_every(i, this->image_resources.size()) {
+      auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
+
+      if ((res.usage & ImageUsage::RenderTarget) == 0) {
+        panic2("Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
+             + "Did you forget to add this flag?");
+      }
+
+      if (((res.usage & ImageUsage::Texture) != 0) && this->usage_modes[i] != UsageMode::ClearStore) {
+        panic2("Image resources with 'ImageUsage::Texture' must use 'UsageMode::ClearStore' when used in a 'RenderTarget'");
+      }
+    }
+
+    // validate all images are the same dimensions
+    ivec2 dimensions = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].dimensions;
+    for_range(i, 1, this->image_resources.size()) {
+      ivec2 other_dim = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].dimensions;
+      if (dimensions != other_dim) {
+        panic2("All image resources in 'RenderTarget::image_resources' must be the same dimensions!" + "\n"
+             + "Mismatched dimensions: " + dimensions + " and " +  other_dim + "\n"
+             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same dimensions?");
+      }
+    }
+  }
+
+  std::vector<VkAttachmentDescription> RenderTarget::Info::_attachment_desc() {
+    usize size = this->image_resources.size();
+
+    std::vector<VkAttachmentDescription> attachment_desc;
+    attachment_desc.resize(size);
+
+    // color attachments
+    for_every(index, size - 1) {
+      auto& img_info = ImageResource::Info::cache_one_per_frame[this->image_resources[index]];
+
+      attachment_desc[index].format = (VkFormat)img_info.format;
+      attachment_desc[index].samples = (VkSampleCountFlagBits)img_info.samples;
+      attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+      u32 lookup_index = (u32)this->usage_modes[index];
+      if ((img_info.usage & ImageUsage::Texture) != 0) {
+        lookup_index = 3;
+      }
+
+      attachment_desc[index].loadOp = internal::color_attachment_lookup[lookup_index].load_op;
+      attachment_desc[index].storeOp = internal::color_attachment_lookup[lookup_index].store_op;
+
+      attachment_desc[index].initialLayout = internal::color_attachment_lookup[lookup_index].initial_layout;
+      attachment_desc[index].finalLayout = internal::color_attachment_lookup[lookup_index].final_layout;
+    }
+
+    // depth attachment
+    {
+      usize index = size - 1;
+
+      auto& img_info = ImageResource::Info::cache_one_per_frame[this->image_resources[index]];
+
+      attachment_desc[index].format = (VkFormat)img_info.format;
+      attachment_desc[index].samples = (VkSampleCountFlagBits)img_info.samples;
+      attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+      u32 lookup_index = (u32)this->usage_modes[index];
+      if ((img_info.usage & ImageUsage::Texture) != 0) {
+        lookup_index = 3;
+      }
+
+      attachment_desc[index].loadOp = internal::depth_attachment_lookup[lookup_index].load_op;
+      attachment_desc[index].storeOp = internal::depth_attachment_lookup[lookup_index].store_op;
+
+      attachment_desc[index].initialLayout = internal::depth_attachment_lookup[lookup_index].initial_layout;
+      attachment_desc[index].finalLayout = internal::depth_attachment_lookup[lookup_index].final_layout;
+    }
+
+    return attachment_desc;
+  }
+
+  std::vector<VkAttachmentReference> RenderTarget::Info::_color_attachment_refs() {
+    usize size = this->image_resources.size() - 1;
+
+    std::vector<VkAttachmentReference> attachment_refs;
+    attachment_refs.resize(size);
+
+    for_every(i, size) {
+      attachment_refs[i].attachment = i; // attachment index
+      attachment_refs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // subpass layout
+    }
+
+    return attachment_refs;
+  }
+
+  VkAttachmentReference RenderTarget::Info::_depth_attachment_ref() {
+    VkAttachmentReference attachment_ref = {};
+
+    usize i = this->image_resources.size() - 1;
+
+    attachment_ref.attachment = i; // attachment index
+    attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // subpass layout
+
+    return attachment_ref;
+  }
+
+  VkSubpassDescription RenderTarget::Info::_subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref) {
+    VkSubpassDescription desc = {};
+    desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    desc.colorAttachmentCount = color_attachment_refs.size();
+    desc.pColorAttachments = color_attachment_refs.data();
+
+    // TODO(sean): MAKE THIS CONDITIONAL ON MULTISAMPLING
+    // desc.pResolveAttachments
+
+    desc.pDepthStencilAttachment = depth_attachment_ref;
+
+    return desc;
+  }
+
   VkRenderPassCreateInfo RenderTarget::Info::_render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc) {
     VkRenderPassCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    info.attachmentCount = (u32)attachment_descs.size();
+    info.attachmentCount = attachment_descs.size();
     info.pAttachments = attachment_descs.data();
     info.subpassCount = 1;
     info.pSubpasses = subpass_desc;
@@ -415,8 +587,41 @@ namespace quark::engine::effect {
     return info;
   }
 
+  std::vector<VkImageView> RenderTarget::Info::_image_views(usize index) {
+    usize size = this->image_resources.size();
+
+    std::vector<VkImageView> image_views(size);
+    image_views.resize(size);
+
+    for_every(j, size) {
+      image_views[j] = ImageResource::cache_one_per_frame[this->image_resources[j]][index].view;
+    }
+
+    return image_views;
+  }
+
+  VkFramebufferCreateInfo RenderTarget::Info::_framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass) {
+    VkFramebufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    info.renderPass = render_pass;
+
+    ivec2 dimensions = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].dimensions;
+    info.width = dimensions.x;
+    info.height = dimensions.y;
+    info.layers = 1;
+
+    info.attachmentCount = attachments.size();
+    info.pAttachments = attachments.data();
+
+    return info;
+  }
+
   RenderTarget RenderTarget::Info::_create() {
     RenderTarget render_target = {};
+
+    //#ifdef DEBUG
+      this->_basic_validate();
+    //#endif
 
     auto attachment_descs = this->_attachment_desc();
     auto color_attachment_ref = this->_color_attachment_refs();
@@ -424,10 +629,9 @@ namespace quark::engine::effect {
     auto subpass_desc = this->_subpass_desc(color_attachment_ref, &depth_attachment_ref);
     auto render_pass_info = this->_render_pass_info(attachment_descs, &subpass_desc);
     vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &render_target.render_pass));
-
     for_every(index, _FRAME_OVERLAP) {
-      auto attachments = this->_attachments(index);
-      auto framebuffer_info = this->_framebuffer_info(attachments);
+      auto attachments = this->_image_views(index);
+      auto framebuffer_info = this->_framebuffer_info(attachments, render_target.render_pass);
 
       vk_check(vkCreateFramebuffer(_device, &framebuffer_info, 0, &render_target.framebuffers[index]));
     }
@@ -436,7 +640,14 @@ namespace quark::engine::effect {
   }
 
   void RenderTarget::create(RenderTarget::Info& info, std::string name) {
+    if(Info::cache.has(name)) {
+      panic2("Attempted to create RenderTarget with name: '" + name.c_str() + "' which already exists!");
+    }
 
+    RenderTarget res = info._create();
+    RenderTarget::Info::cache.add(name, info);
+
+    str::print(str() + "Created render target!");
   }
 
   void RenderEffect::create(RenderEffect::Info& info, std::string name) {
