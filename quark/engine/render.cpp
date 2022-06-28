@@ -15,6 +15,8 @@
 
 #include "effect.hpp"
 
+#include "str.hpp"
+
 //lkjlkjlkjlkj
 
 #define vk_check(x)                                                                                                                                  \
@@ -858,9 +860,29 @@ namespace quark::engine::render {
 
     void init_mesh_buffer() {
       // Init staging buffer and allocation tracker
-      constexpr usize _BUFFER_SIZE = 100 * MB;
-      _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      _gpu_vertices_tracker.init(_BUFFER_SIZE);
+      //constexpr usize _BUFFER_SIZE = 100 * MB;
+      //_gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+      //_gpu_vertices_tracker.init(_BUFFER_SIZE);
+
+      BufferResource::Info info = {};
+
+      info = {
+        .usage = BufferUsage::CpuSrc,
+        .size = 10 * MB,
+      };
+      BufferResource::create_one(info, "staging_buffer");
+
+      info = {
+        .usage = BufferUsage::GpuDst | BufferUsage::Vertex,
+        .size = 100 * MB,
+      };
+      BufferResource::create_one(info, "global_vertex_buffer");
+
+      info = {
+        .usage = BufferUsage::GpuDst | BufferUsage::Index,
+        .size = 100 * MB,
+      };
+      BufferResource::create_one(info, "global_index_buffer");
     }
     
     void copy_meshes_to_gpu() {
@@ -931,10 +953,36 @@ namespace quark::engine::render {
       _swapchain_image_views = vkb_swapchain.get_image_views().value();
       _swapchain_format = vkb_swapchain.image_format;
     
-      _global_depth_image =
-          create_allocated_image(window::dimensions().x, window::dimensions().y, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+      ImageResource::Info info;
+
+      info = {
+        .format = ImageFormat::SrgbRgba8,
+        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+        .samples = ImageSamples::One,
+        .dimensions = window::dimensions(),
+      };
+      ImageResource::create_one_per_frame(info, "forward_pass_color");
+
+      info = {
+        .format = ImageFormat::LinearD32,
+        .usage = ImageUsage::RenderTarget,
+        .samples = ImageSamples::One,
+        .dimensions = window::dimensions(),
+      };
+      ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
-      _sun_depth_image = create_allocated_image(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+      info = {
+        .format = ImageFormat::LinearD32,
+        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+        .samples = ImageSamples::One,
+        .dimensions = {2048, 2048},
+      };
+      ImageResource::create_one_per_frame(info, "shadow_pass_depth");
+
+      //_global_depth_image =
+      //    create_allocated_image(window::dimensions().x, window::dimensions().y, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+      //_sun_depth_image = create_allocated_image(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
 
       //ImageResource::Info img_info = {};
 
@@ -1003,47 +1051,67 @@ namespace quark::engine::render {
     }
     
     void init_framebuffers() {
-      auto create_framebuffer = [&](VkRenderPass render_pass, u32 width, u32 height, VkImageView* attachments, u32 attachment_count) {
-        VkFramebuffer framebuffer = {};
+      //auto create_framebuffer = [&](VkRenderPass render_pass, u32 width, u32 height, VkImageView* attachments, u32 attachment_count) {
+      //  VkFramebuffer framebuffer = {};
     
-        VkFramebufferCreateInfo framebuffer_info = {};
-        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebuffer_info.renderPass = render_pass;
-        framebuffer_info.width = width;
-        framebuffer_info.height = height;
-        framebuffer_info.layers = 1;
-        framebuffer_info.pNext = 0;
-        framebuffer_info.attachmentCount = attachment_count;
-        framebuffer_info.pAttachments = attachments;
+      //  VkFramebufferCreateInfo framebuffer_info = {};
+      //  framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      //  framebuffer_info.renderPass = render_pass;
+      //  framebuffer_info.width = width;
+      //  framebuffer_info.height = height;
+      //  framebuffer_info.layers = 1;
+      //  framebuffer_info.pNext = 0;
+      //  framebuffer_info.attachmentCount = attachment_count;
+      //  framebuffer_info.pAttachments = attachments;
     
-        vk_check(vkCreateFramebuffer(_device, &framebuffer_info, 0, &framebuffer));
+      //  vk_check(vkCreateFramebuffer(_device, &framebuffer_info, 0, &framebuffer));
     
-        return framebuffer;
-      };
+      //  return framebuffer;
+      //};
     
-      const u32 img_count = _swapchain_images.size();
+      //const u32 img_count = _swapchain_images.size();
     
-      _global_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
-      for_every(index, img_count) {
-        VkImageView attachments[2];
-        attachments[0] = _swapchain_image_views[index];
-        attachments[1] = _global_depth_image.view;
-        _global_framebuffers[index] = create_framebuffer(_default_render_pass, window::dimensions().x, window::dimensions().y, attachments, count_of(attachments));
-      }
+      //_global_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+      //for_every(index, img_count) {
+      //  VkImageView attachments[2];
+      //  attachments[0] = _swapchain_image_views[index];
+      //  attachments[1] = _global_depth_image.view;
+      //  _global_framebuffers[index] = create_framebuffer(_default_render_pass, window::dimensions().x, window::dimensions().y, attachments, count_of(attachments));
+      //}
     
-      _depth_prepass_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
-      for_every(index, img_count) {
-        VkImageView attachments[1];
-        attachments[0] = _global_depth_image.view;
-        _depth_prepass_framebuffers[index] = create_framebuffer(_depth_prepass_render_pass, window::dimensions().x, window::dimensions().y, attachments, count_of(attachments));
-      }
+      //_depth_prepass_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+      //for_every(index, img_count) {
+      //  VkImageView attachments[1];
+      //  attachments[0] = _global_depth_image.view;
+      //  _depth_prepass_framebuffers[index] = create_framebuffer(_depth_prepass_render_pass, window::dimensions().x, window::dimensions().y, attachments, count_of(attachments));
+      //}
     
-      _sun_shadow_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
-      for_every(index, img_count) {
-        VkImageView attachments[1];
-        attachments[0] = _sun_depth_image.view;
-        _sun_shadow_framebuffers[index] = create_framebuffer(_depth_only_render_pass, 2048, 2048, attachments, count_of(attachments));
-      }
+      //_sun_shadow_framebuffers = (VkFramebuffer*)_render_alloc.alloc(sizeof(VkFramebuffer) * img_count);
+      //for_every(index, img_count) {
+      //  VkImageView attachments[1];
+      //  attachments[0] = _sun_depth_image.view;
+      //  _sun_shadow_framebuffers[index] = create_framebuffer(_depth_only_render_pass, 2048, 2048, attachments, count_of(attachments));
+      //}
+
+      //RenderTarget::Info info = {};
+
+      //info = {
+      //  .image_resources = {"forward_pass_depth"},
+      //  .usage_modes = {UsageMode::ClearStore},
+      //};
+      //RenderTarget::create(info, "forward_pass_depth_prepass");
+
+      //info = {
+      //  .image_resources = {"forward_pass_depth", "forward_pass_color"},
+      //  .usage_modes = {UsageMode::ClearStore, UsageMode::LoadStore},
+      //};
+      //RenderTarget::create(info, "forward_pass");
+
+      //info = {
+      //  .image_resources = {"shadow_pass_depth"},
+      //  .usage_modes = {UsageMode::ClearStore},
+      //};
+      //RenderTarget::create(info, "shadow_pass");
     }
     
     void init_sync_objects() {

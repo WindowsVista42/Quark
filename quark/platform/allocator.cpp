@@ -3,6 +3,10 @@
 #include <cstdlib>
 
 namespace quark::platform::allocator {
+  LinearAllocator::LinearAllocator(usize capacity) {
+    this->init(capacity);
+  }
+
   void LinearAllocator::init(usize capacity) {
     _data = (u8*)malloc(capacity);
     _size = 0;

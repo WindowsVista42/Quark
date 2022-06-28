@@ -1,7 +1,9 @@
 #define QUARK_ENGINE_INTERNAL
 #include "effect.hpp"
+#include "str.hpp"
 
 namespace quark::engine::effect {
+  using namespace render::internal;
 
   namespace internal {
     AttachmentLookup color_attachment_lookup[4] = {
@@ -57,95 +59,289 @@ namespace quark::engine::effect {
         .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
       },
     };
+
+    std::unordered_map<std::string, ResourceType> used_names = {};
   };
 
-  namespace image_resource {
-    ItemCache<ImageResource> cache_one;
-    ItemCache<std::vector<ImageResource>> cache_array;
-    ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> cache_one_per_frame;
+  ItemCache<ImageResource> ImageResource::cache_one = {};
+  ItemCache<std::vector<ImageResource>> ImageResource::cache_array = {};
+  ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> ImageResource::cache_one_per_frame = {};
 
-    namespace info {
-      ItemCache<ImageResource::Info> cache_one;
-      ItemCache<std::vector<ImageResource::Info>> cache_array;
-      ItemCache<std::array<ImageResource::Info, _FRAME_OVERLAP>> cache_one_per_frame;
-    };
-  };
+  ItemCache<ImageResource::Info> ImageResource::Info::cache_one = {};
+  ItemCache<std::vector<ImageResource::Info>> ImageResource::Info::cache_array = {};
+  ItemCache<ImageResource::Info> ImageResource::Info::cache_one_per_frame = {};
 
-  namespace buffer_resource {
-    ItemCache<BufferResource> cache_one;
-    ItemCache<std::vector<BufferResource>> cache_array;
-    ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
+  ItemCache<BufferResource::Info> BufferResource::Info::cache_one = {};
+  ItemCache<std::vector<BufferResource::Info>> BufferResource::Info::cache_array = {};
+  ItemCache<BufferResource::Info> BufferResource::Info::cache_one_per_frame = {};
 
-    namespace info {
-      ItemCache<BufferResource::Info> cache_one;
-      ItemCache<std::vector<BufferResource::Info>> cache_array;
-      ItemCache<BufferResource::Info> cache_one_per_frame;
-    };
-  };
+  ItemCache<BufferResource> BufferResource::cache_one = {};
+  ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
+  ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
-  namespace mesh_resource {
-    std::vector<MeshResource> cache;
+  void add_unused_name(std::string name, internal::ResourceType resource_type) {
+    if (internal::used_names.find(name) != internal::used_names.end()) {
+      if (resource_type == internal::ResourceType::ImageResourceArray
+       || resource_type == internal::ResourceType::BufferResourceArray
+       || resource_type == internal::ResourceType::SamplerResourceArray) {
 
-    namespace info {
-      std::vector<MeshResource::Info> cache;
-    };
-  };
+        // no need to worry, its an array type of the same resource type
+        if (internal::used_names.at(name) == resource_type) {
+          // dont add identifier
+          return;
+        }
 
-  namespace sampler_resource {
-    ItemCache<SamplerResource> cache_one;
-    ItemCache<std::vector<SamplerResource>> cache_array;
+        // we are trying to add an array resource thats a different type
+        str::print(str() + "Attempted to create resource: '" + name.c_str() + "' which is a different resource type!");
+        panic("");
+      }
 
-    namespace info {
-      ItemCache<SamplerResource::Info> cache_one;
-      ItemCache<std::vector<SamplerResource::Info>> cache_array;
-    };
-  };
+      // identifier exists and was not valid for appending
+      str::print(str() + "Attempted to create resource: '" + name.c_str() + "' which already exists!");
+      panic("");
+      return;
+    }
 
-  namespace render_target {
-    ItemCache<RenderTarget> cache;
+    // add new identifier
+    internal::used_names.insert(std::make_pair(name, resource_type));
+    return;
+  }
 
-    namespace info {
-      ItemCache<RenderTarget::Info> cache;
-    };
-  };
+  VkExtent3D ImageResource::Info::_ext() {
+    VkExtent3D extent = {};
+    extent.width = (u32)this->dimensions.x;
+    extent.height = (u32)this->dimensions.y;
+    extent.depth = 1;
 
-  namespace resource_group {
-    ItemCache<ResourceGroup> cache;
+    return extent;
+  }
 
-    namespace info {
-      ItemCache<ResourceGroup::Info> cache;
-    };
-  };
+  u32 bit_replace_if(u32 flags, u32 remove_if, u32 replace_if) {
+    if ((flags & remove_if) != 0) {
+      flags |= replace_if;
+      flags &= ~remove_if;
+    }
+    return flags;
+  }
 
-  namespace push_constant {
-    ItemCache<PushConstant> cache;
+  bool bit_has(u32 flags, u32 check) {
+    return (flags & check) != 0;
+  }
 
-    namespace info {
-      ItemCache<PushConstant::Info> cache;
-    };
-  };
+  VkImageCreateInfo ImageResource::Info::_img_info() {
+    VkImageCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    info.pNext = 0;
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.format = (VkFormat)this->format;
+    info.extent = this->_ext();
+    info.mipLevels = 1;
+    info.arrayLayers = 1;
+    info.samples = (VkSampleCountFlagBits)this->samples;
+    info.tiling = VK_IMAGE_TILING_OPTIMAL;
 
-  namespace render_resource_bundle {
-    ItemCache<RenderResourceBundle> cache;
+    info.usage = 0;
 
-    namespace info {
-      ItemCache<RenderResourceBundle::Info> cache;
-    };
-  };
+    if(this->_is_color()) {
+      this->usage = bit_replace_if(this->usage, ImageUsage::RenderTarget, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+    } else {
+      this->usage = bit_replace_if(this->usage, ImageUsage::RenderTarget, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
 
-  namespace render_mode {
-    ItemCache<RenderMode::Info> cache;
-  };
+    info.usage |= this->usage;
 
-  namespace render_effect {
-    ItemCache<RenderEffect> cache;
+    //if ((this->usage & ImageUsage::RenderTarget) != 0) {
+    //  if (this->_is_color()) {
+    //    info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    //  } else {
+    //    info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    //  }
 
-    namespace info {
-      ItemCache<RenderEffect::Info> cache;
-    };
-  };
+    //  this->usage &= ~ImageUsage::RenderTarget;
+    //}
 
-  CreationResult RenderEffect::create(RenderEffect::Info& info, std::string name) {
+    return info;
+  }
+
+  VkImageViewCreateInfo ImageResource::Info::_view_info(VkImage image) {
+    VkImageViewCreateInfo view_info = {};
+    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_info.pNext = 0;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.image = image;
+    view_info.format = (VkFormat)this->format;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    if (this->_is_color()) {
+      view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    } else {
+      view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    }
+
+    return view_info;
+  }
+
+  bool ImageResource::Info::_is_color() {
+    return !(this->format == ImageFormat::LinearD32 || this->format == ImageFormat::LinearD16);
+  }
+
+  VmaAllocationCreateInfo ImageResource::Info::_alloc_info() {
+    VmaAllocationCreateInfo info = {};
+    info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    return info;
+  }
+
+  ImageResource ImageResource::Info::_create() {
+    auto img_info = this->_img_info();
+    auto alloc_info = this->_alloc_info();
+
+    ImageResource res = {};
+    vk_check(vmaCreateImage(_gpu_alloc, &img_info, &alloc_info, &res.image, &res.allocation, 0));
+
+    auto view_info = this->_view_info(res.image);
+    vk_check(vkCreateImageView(_device, &view_info, 0, &res.view));
+
+    return res;
+  }
+
+  void ImageResource::create_one(ImageResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::ImageResourceOne);
+
+    ImageResource res = info._create();
+
+    cache_one.add(name, res);
+    Info::cache_one.add(name, info);
+  }
+
+  void ImageResource::create_array(ImageResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::ImageResourceArray);
+
+    ImageResource res = info._create();
+
+    // append to list
+    if(Info::cache_array.has(name)) {
+      cache_array.get(name).push_back(res);
+      Info::cache_array.get(name).push_back(info);
+      return;
+    }
+
+    // create new list
+    cache_array.add(name, {res});
+    Info::cache_array.add(name, {info});
+    return;
+  }
+
+  void ImageResource::create_one_per_frame(ImageResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::ImageResourceOnePerFrame);
+
+    cache_one_per_frame.add(name, {});
+    Info::cache_one_per_frame.add(name, info);
+
+    for_every(index, _FRAME_OVERLAP) {
+      ImageResource res = info._create();
+      cache_one_per_frame.get(name)[index] = res;
+    }
+
+    str::print(str() + "Created image res!\n");
+  }
+
+  VkBufferCreateInfo BufferResource::Info::_buf_info() {
+    VkBufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    info.size = this->size;
+
+    u32 usage_copy = this->usage;
+
+    usage_copy = bit_replace_if(usage_copy, BufferUsage::CpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    usage_copy = bit_replace_if(usage_copy, BufferUsage::CpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+    info.usage = usage_copy;
+
+    return info;
+  }
+
+  VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
+    VmaAllocationCreateInfo info = {};
+    info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+    // likely a cpu -> gpu copy OR cpu -> gpu usage
+    if ((this->usage & (BufferUsage::CpuSrc | BufferUsage::Uniform)) != 0) {
+      info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+      return info;
+    }
+
+    // likely a gpu -> cpu copy
+    if ((this->usage & BufferUsage::CpuDst) != 0) {
+      info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+      return info;
+    }
+
+    // likely a gpu -> gpu copy OR internal gpu usage
+    return info;
+  }
+
+  BufferResource BufferResource::Info::_create() {
+    auto buf_info = this->_buf_info();
+    auto alloc_info = this->_alloc_info();
+
+    BufferResource res = {};
+    vk_check(vmaCreateBuffer(_gpu_alloc, &buf_info, &alloc_info, &res.buffer, &res.allocation, 0));
+
+    return res;
+  }
+
+  void BufferResource::create_one(BufferResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::BufferResourceOne);
+
+    BufferResource res = info._create();
+
+    cache_one.add(name, res);
+    Info::cache_one.add(name, info);
+
+    str::print(str() + "Created buffer res!\n");
+  }
+
+  void BufferResource::create_array(BufferResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::BufferResourceArray);
+
+    BufferResource res = info._create();
+
+    // append to list
+    if(Info::cache_array.has(name)) {
+      cache_array.get(name).push_back(res);
+      Info::cache_array.get(name).push_back(info);
+      return;
+    }
+
+    // create new list
+    cache_array.add(name, {res});
+    Info::cache_array.add(name, {info});
+    return;
+  }
+
+  void BufferResource::create_one_per_frame(BufferResource::Info& info, std::string name) {
+    add_unused_name(name, internal::ResourceType::BufferResourceOnePerFrame);
+
+    cache_one_per_frame.add(name, {});
+    Info::cache_one_per_frame.add(name, info);
+
+    for_every(index, _FRAME_OVERLAP) {
+      BufferResource res = info._create();
+      cache_one_per_frame.get(name)[index] = res;
+    }
+  }
+
+  void RenderTarget::create(RenderTarget::Info& info, std::string name) {
+  }
+
+  void RenderEffect::create(RenderEffect::Info& info, std::string name) {
     //ImageResource::create_array({}, "textures").ok();
 
     //ResourceGroup::Info infod = {
@@ -153,8 +349,6 @@ namespace quark::engine::effect {
     //};
 
     //ResourceGroup::create(infod, "default").ok();
-
-    return { CreationResult::FatalFailure };
   }
 };
 

@@ -106,6 +106,7 @@ add_library(quark_platform SHARED
 
 # QUARK ENGINE LIBRARY
 add_library(quark_engine SHARED
+  quark/engine/str.cpp
   quark/engine/global.cpp
   quark/engine/registry.cpp
   quark/engine/entity.cpp

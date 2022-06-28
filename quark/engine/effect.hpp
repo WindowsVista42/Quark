@@ -4,6 +4,7 @@
 #include "render.hpp"
 #include "registry.hpp"
 #include "asset.hpp"
+#include "unordered_set"
 #include <vulkan/vulkan_core.h>
 
 namespace quark::engine::effect {
@@ -31,6 +32,10 @@ namespace quark::engine::effect {
       data.insert(std::make_pair(name, t));
     }
 
+    inline bool has(std::string name) {
+      return data.find(name) != data.end();
+    }
+
     T& operator [](std::string& name) {
       return get(name);
     }
@@ -40,129 +45,127 @@ namespace quark::engine::effect {
     }
   };
 
-  struct engine_api CreationResult {
-    u64 value;
-
-    enum Enum {
-      Ok,
-      OutOfMemory,
-      FatalFailure,
-    };
-
-    inline static const char* lookup[] = {
-      "Ok",
-      "OutOfMemory",
-      "FatalFailure",
-    };
-
-    void ok() {
-      if(value == 0) {
-        return;
-      }
-
-      printf("Ran into error: %s\n", lookup[value]);
-      panic("");
-    }
-  };
-
-  namespace internal {
-    struct AttachmentLookup {
-      VkAttachmentLoadOp load_op;
-      VkAttachmentStoreOp store_op;
-      VkImageLayout initial_layout;
-      VkImageLayout final_layout;
-    };
-
-    engine_var AttachmentLookup color_attachment_lookup[4];
-    engine_var AttachmentLookup depth_attachment_lookup[4];
-  };
-
-  enum struct ImageAspect {
-    Color = VK_IMAGE_ASPECT_COLOR_BIT,
-    Depth = VK_IMAGE_ASPECT_DEPTH_BIT,
-  };
+  //enum struct ImageType {
+  //  Color = VK_IMAGE_ASPECT_COLOR_BIT,
+  //  Depth = VK_IMAGE_ASPECT_DEPTH_BIT,
+  //};
 
   enum struct ImageFormat {
-    RgbaSrgbFloat8 = VK_FORMAT_R8G8B8A8_SRGB,
-    BgraSrgbFloat8 = VK_FORMAT_B8G8R8A8_SRGB,
-    RgbaFloat16 = VK_FORMAT_R16G16B16A16_SFLOAT,
-    Float32 = VK_FORMAT_D32_SFLOAT,
+    LinearD32   = VK_FORMAT_D32_SFLOAT,
+    LinearD16   = VK_FORMAT_D16_UNORM,
+
+    LinearR32   = VK_FORMAT_R32_SFLOAT,
+    LinearR16   = VK_FORMAT_R16_SFLOAT,
+
+    LinearRg16  = VK_FORMAT_R16G16_SFLOAT,
+
+    LinearRgb16 = VK_FORMAT_R16G16B16_SFLOAT,
+
+    LinearRgba8 = VK_FORMAT_R8G8B8A8_UNORM,
+    LinearBgra8 = VK_FORMAT_B8G8R8A8_UNORM,
+
+    SrgbRgba8   = VK_FORMAT_R8G8B8A8_SRGB,
+    SrgbBgra8   = VK_FORMAT_B8G8R8A8_SRGB,
   };
 
   namespace ImageUsage {
     enum e : u32 {
-      Source = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      Destination = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-      Sampled = VK_IMAGE_USAGE_SAMPLED_BIT,
-      Storage = VK_IMAGE_USAGE_STORAGE_BIT,
-      ColorTarget = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-      DepthTarget = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      Src          = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      Dst          = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      Texture      = VK_IMAGE_USAGE_SAMPLED_BIT,
+      Storage      = VK_IMAGE_USAGE_STORAGE_BIT,
+      RenderTarget = 0x00001000,
     };
   };
 
-  enum struct ImageSampleCount {
-    One = VK_SAMPLE_COUNT_1_BIT,
-    Two = VK_SAMPLE_COUNT_2_BIT,
-    Four = VK_SAMPLE_COUNT_4_BIT,
-    Eight = VK_SAMPLE_COUNT_8_BIT,
+  enum struct ImageSamples {
+    One     = VK_SAMPLE_COUNT_1_BIT,
+    Two     = VK_SAMPLE_COUNT_2_BIT,
+    Four    = VK_SAMPLE_COUNT_4_BIT,
+    Eight   = VK_SAMPLE_COUNT_8_BIT,
     Sixteen = VK_SAMPLE_COUNT_16_BIT,
   };
 
   struct engine_api ImageResource {
     struct Info {
-      ImageAspect image_aspect;
-      ImageFormat image_format;
-      u32 image_usage;
-      ImageSampleCount image_sample_count;
+      ImageFormat format;
+      u32 usage;
+      ImageSamples samples;
       ivec2 dimensions;
+
+      VkExtent3D _ext();
+      VkImageCreateInfo _img_info();
+      VmaAllocationCreateInfo _alloc_info();
+      VkImageViewCreateInfo _view_info(VkImage image);
+      bool _is_color();
+      ImageResource _create();
+
+      static ItemCache<ImageResource::Info> cache_one;
+      static ItemCache<std::vector<ImageResource::Info>> cache_array;
+      static ItemCache<ImageResource::Info> cache_one_per_frame;
     };
 
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
 
-    [[nodiscard]] static CreationResult create_one(ImageResource::Info info, std::string name);
-    [[nodiscard]] static CreationResult create_array(ImageResource::Info info, std::string name);
-    [[nodiscard]] static CreationResult create_one_per_frame(ImageResource::Info info, std::string name);
+    static void create_one(ImageResource::Info& info, std::string name);
+    static void create_array(ImageResource::Info& info, std::string name);
+    static void create_one_per_frame(ImageResource::Info& info, std::string name);
+
+    static ItemCache<ImageResource> cache_one;
+    static ItemCache<std::vector<ImageResource>> cache_array;
+    static ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> cache_one_per_frame;
   };
 
-  enum struct MemoryType {
-    Cpu = VMA_MEMORY_USAGE_CPU_ONLY,
-    CpuToGpu = VMA_MEMORY_USAGE_CPU_TO_GPU,
-    Gpu = VMA_MEMORY_USAGE_GPU_ONLY,
-    GpuToCpu = VMA_MEMORY_USAGE_GPU_TO_CPU,
-  };
+  namespace BufferUsage {
+    enum e {
+      CpuSrc  = 0x00010000,
+      CpuDst  = 0x00020000,
 
-  enum struct BufferType {
-    Source = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    Destination = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-    Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    Storage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-    Index = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    Vertex = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      GpuSrc  = 0x00040000,
+      GpuDst  = 0x00080000,
+
+      Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      Storage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      Index   = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      Vertex  = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    };
   };
 
   struct engine_api BufferResource {
     struct Info {
-      BufferType buffer_type;
-      MemoryType memory_type;
+      u32 usage;
       usize size;
+
+
+      VkBufferCreateInfo _buf_info();
+      VmaAllocationCreateInfo _alloc_info();
+      BufferResource _create();
+
+      static ItemCache<BufferResource::Info> cache_one;
+      static ItemCache<std::vector<BufferResource::Info>> cache_array;
+      static ItemCache<BufferResource::Info> cache_one_per_frame;
     };
 
     VmaAllocation allocation;
     VkBuffer buffer;
 
-    [[nodiscard]] static CreationResult create_one(BufferResource::Info& info, std::string name);
-    [[nodiscard]] static CreationResult create_array(BufferResource::Info& info, std::string name);
-    [[nodiscard]] static CreationResult create_one_per_frame(BufferResource::Info& info, std::string name);
+    static void create_one(BufferResource::Info& info, std::string name);
+    static void create_array(BufferResource::Info& info, std::string name);
+    static void create_one_per_frame(BufferResource::Info& info, std::string name);
+
+    static ItemCache<BufferResource> cache_one;
+    static ItemCache<std::vector<BufferResource>> cache_array;
+    static ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
   };
 
   struct engine_api MeshResource {
     struct Info {
       vec3 extents;
       vec3 origin;
-      u64 vertex_buffer_resource;
-      u64 index_buffer_resource;
+      std::string vertex_buffer_resource;
+      std::string index_buffer_resource;
     };
 
     u32 offset;
@@ -187,16 +190,16 @@ namespace quark::engine::effect {
       void save_one(std::string name);
       void save_array(std::string name);
 
-      CreationResult create_one(std::string name);
-      CreationResult create_array(std::string name);
+      void create_one(std::string name);
+      void create_array(std::string name);
 
       VkSamplerCreateInfo _vk_sampler_info();
     };
 
     VkSampler sampler;
 
-    [[nodiscard]] static CreationResult create_one(SamplerResource::Info& info, std::string name);
-    [[nodiscard]] static CreationResult create_array(SamplerResource::Info& info, std::string name);
+    static void create_one(SamplerResource::Info& info, std::string name);
+    static void create_array(SamplerResource::Info& info, std::string name);
   };
 
   enum struct UsageMode {
@@ -221,7 +224,7 @@ namespace quark::engine::effect {
     VkRenderPass render_pass;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
-    [[nodiscard]] static CreationResult create(RenderTarget::Info& info, std::string name);
+    static void create(RenderTarget::Info& info, std::string name);
   };
 
   struct engine_api ResourceGroup {
@@ -232,7 +235,7 @@ namespace quark::engine::effect {
     VkDescriptorSetLayout layout;
     std::array<VkDescriptorSet, _FRAME_OVERLAP> sets;
 
-    [[nodiscard]] static CreationResult create(ResourceGroup::Info& info, std::string name);
+    static void create(ResourceGroup::Info& info, std::string name);
   };
 
   struct PushConstant {
@@ -249,7 +252,7 @@ namespace quark::engine::effect {
 
     VkPipelineLayout layout;
 
-    [[nodiscard]] static CreationResult create(RenderResourceBundle::Info& info, std::string name);
+    static void create(RenderResourceBundle::Info& info, std::string name);
   };
 
   enum struct FillMode {
@@ -308,7 +311,7 @@ namespace quark::engine::effect {
     VkBuffer vertex_buffer_resource;
     VkBuffer index_buffer_resource;
 
-    [[nodiscard]] static CreationResult create(RenderEffect::Info& info, std::string name);
+    static void create(RenderEffect::Info& info, std::string name);
   };
 
   inline void begin(std::string name) {
@@ -324,90 +327,33 @@ namespace quark::engine::effect {
   inline void end() {
   }
 
-  namespace image_resource {
-    engine_var ItemCache<ImageResource> cache_one;
-    engine_var ItemCache<std::vector<ImageResource>> cache_array;
-    engine_var ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> cache_one_per_frame;
-
-    namespace info {
-      engine_var ItemCache<ImageResource::Info> cache_one;
-      engine_var ItemCache<std::vector<ImageResource::Info>> cache_array;
-      engine_var ItemCache<std::array<ImageResource::Info, _FRAME_OVERLAP>> cache_one_per_frame;
+  namespace internal {
+    struct AttachmentLookup {
+      VkAttachmentLoadOp load_op;
+      VkAttachmentStoreOp store_op;
+      VkImageLayout initial_layout;
+      VkImageLayout final_layout;
     };
-  };
 
-  namespace buffer_resource {
-    engine_var ItemCache<BufferResource> cache_one;
-    engine_var ItemCache<std::vector<BufferResource>> cache_array;
-    engine_var ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
+    engine_var AttachmentLookup color_attachment_lookup[4];
+    engine_var AttachmentLookup depth_attachment_lookup[4];
 
-    namespace info {
-      engine_var ItemCache<BufferResource::Info> cache_one;
-      engine_var ItemCache<std::vector<BufferResource::Info>> cache_array;
-      engine_var ItemCache<BufferResource::Info> cache_one_per_frame;
+    enum struct ResourceType {
+      ImageResourceOne,
+      ImageResourceArray,
+      ImageResourceOnePerFrame,
+
+      BufferResourceOne,
+      BufferResourceArray,
+      BufferResourceOnePerFrame,
+
+      SamplerResourceOne,
+      SamplerResourceArray,
+
+      MeshResourceOne,
     };
-  };
 
-  namespace mesh_resource {
-    engine_var std::vector<MeshResource> cache;
-
-    namespace info {
-      engine_var std::vector<MeshResource::Info> cache;
-    };
-  };
-
-  namespace sampler_resource {
-    engine_var ItemCache<SamplerResource> cache_one;
-    engine_var ItemCache<std::vector<SamplerResource>> cache_array;
-
-    namespace info {
-      engine_var ItemCache<SamplerResource::Info> cache_one;
-      engine_var ItemCache<std::vector<SamplerResource::Info>> cache_array;
-    };
-  };
-
-  namespace render_target {
-    engine_var ItemCache<RenderTarget> cache;
-
-    namespace info {
-      engine_var ItemCache<RenderTarget::Info> cache;
-    };
-  };
-
-  namespace resource_group {
-    engine_var ItemCache<ResourceGroup> cache;
-
-    namespace info {
-      engine_var ItemCache<ResourceGroup::Info> cache;
-    };
-  };
-
-  namespace push_constant {
-    engine_var ItemCache<PushConstant> cache;
-
-    namespace info {
-      engine_var ItemCache<PushConstant::Info> cache;
-    };
-  };
-
-  namespace render_resource_bundle {
-    engine_var ItemCache<RenderResourceBundle> cache;
-
-    namespace info {
-      engine_var ItemCache<RenderResourceBundle::Info> cache;
-    };
-  };
-
-  namespace render_mode {
-    engine_var ItemCache<RenderMode::Info> cache;
-  };
-
-  namespace render_effect {
-    engine_var ItemCache<RenderEffect> cache;
-
-    namespace info {
-      engine_var ItemCache<RenderEffect::Info> cache;
-    };
+    engine_var std::unordered_map<std::string, ResourceType> used_names;
   };
 };
 

@@ -2,6 +2,8 @@
 
 // INCLUDES
 
+#include "str.hpp"
+
 // Exported engine variables
 #define USING_QUARK_ENGINE
 #include "global.hpp"
@@ -31,3 +33,5 @@ namespace quark::engine {
 
   using namespace component;
 };
+
+using str = quark::engine::str;

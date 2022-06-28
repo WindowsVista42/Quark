@@ -6,6 +6,7 @@
 #include "render.hpp"
 #include "asset.hpp"
 #include "input.hpp"
+#include "str.hpp"
 
 #include "../platform/module.hpp"
 
@@ -21,6 +22,8 @@ namespace quark::engine::global {
 
   void init_global_alloc() {
     SCRATCH.init(100 * MB);
+    str::alloc.init(10 * KB);
+    str::alloc_head = str::alloc.alloc(0);
   }
 
   void add_asset_types() {
@@ -81,8 +84,8 @@ namespace quark::engine::global {
         .add(def(render::internal::init_command_pools_and_buffers), -1) // NOTE(sean): add textures after this!
 
         .add(def(load_shaders), -1)
-        .add(def(load_meshes), -1)
-        .add(def(load_images), -1)
+        //.add(def(load_meshes), -1)
+        //.add(def(load_images), -1)
 
         // Creating random internal resources
         .add(def(render::internal::init_swapchain), -1)
@@ -154,7 +157,7 @@ namespace quark::engine::global {
       .add(def(end_frame_timer), -1);
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    system::list("init").run();
+    system::list("init").run(true);
     system::list("state_init").run();
     auto t1 = std::chrono::high_resolution_clock::now();
     std::cout << "init time: " << std::chrono::duration<f64>(t1 - t0).count() << " s" << std:: endl;

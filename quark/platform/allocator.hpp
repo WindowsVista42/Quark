@@ -11,6 +11,9 @@ namespace quark::platform::allocator {
     usize _capacity;
 
   public:
+    LinearAllocator() = default;
+    LinearAllocator(usize capacity);
+
     // Initialize the allocate linear allocator with the specified number of bytes
     void init(usize capacity);
 

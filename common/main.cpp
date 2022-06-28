@@ -1,6 +1,6 @@
 #include "../quark/module.hpp"
 
-#include "mod.hpp"
+#include "common.hpp"
 using namespace quark;
 
 namespace common {
@@ -61,6 +61,9 @@ namespace common {
 };
 
 mod_main() {
+  //str::print((str() + "Hello, the DT is: " + DT + " " + 4 + "s"));
+  //str::print(str("%f", 24.0f));
+
   system::list("state_init")
     .add(def(common::init), -1);
 
