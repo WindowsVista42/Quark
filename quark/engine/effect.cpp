@@ -79,7 +79,13 @@ namespace quark::engine::effect {
   ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
   ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
-  void add_unused_name(std::string name, internal::ResourceType resource_type) {
+  ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
+  ItemCache<std::vector<SamplerResource::Info>> SamplerResource::Info::cache_array = {};
+
+  ItemCache<SamplerResource> SamplerResource::cache_one;
+  ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array;
+
+  void add_name_association(std::string name, internal::ResourceType resource_type) {
     if (internal::used_names.find(name) != internal::used_names.end()) {
       if (resource_type == internal::ResourceType::ImageResourceArray
        || resource_type == internal::ResourceType::BufferResourceArray
@@ -210,7 +216,7 @@ namespace quark::engine::effect {
   }
 
   void ImageResource::create_one(ImageResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::ImageResourceOne);
+    add_name_association(name, internal::ResourceType::ImageResourceOne);
 
     ImageResource res = info._create();
 
@@ -219,7 +225,7 @@ namespace quark::engine::effect {
   }
 
   void ImageResource::create_array(ImageResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::ImageResourceArray);
+    add_name_association(name, internal::ResourceType::ImageResourceArray);
 
     ImageResource res = info._create();
 
@@ -237,7 +243,7 @@ namespace quark::engine::effect {
   }
 
   void ImageResource::create_one_per_frame(ImageResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::ImageResourceOnePerFrame);
+    add_name_association(name, internal::ResourceType::ImageResourceOnePerFrame);
 
     cache_one_per_frame.add(name, {});
     Info::cache_one_per_frame.add(name, info);
@@ -247,7 +253,7 @@ namespace quark::engine::effect {
       cache_one_per_frame.get(name)[index] = res;
     }
 
-    str::print(str() + "Created image res!\n");
+    str::print(str() + "Created image res!");
   }
 
   VkBufferCreateInfo BufferResource::Info::_buf_info() {
@@ -298,18 +304,18 @@ namespace quark::engine::effect {
   }
 
   void BufferResource::create_one(BufferResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::BufferResourceOne);
+    add_name_association(name, internal::ResourceType::BufferResourceOne);
 
     BufferResource res = info._create();
 
     cache_one.add(name, res);
     Info::cache_one.add(name, info);
 
-    str::print(str() + "Created buffer res!\n");
+    str::print(str() + "Created buffer res!");
   }
 
   void BufferResource::create_array(BufferResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::BufferResourceArray);
+    add_name_association(name, internal::ResourceType::BufferResourceArray);
 
     BufferResource res = info._create();
 
@@ -327,7 +333,7 @@ namespace quark::engine::effect {
   }
 
   void BufferResource::create_one_per_frame(BufferResource::Info& info, std::string name) {
-    add_unused_name(name, internal::ResourceType::BufferResourceOnePerFrame);
+    add_name_association(name, internal::ResourceType::BufferResourceOnePerFrame);
 
     cache_one_per_frame.add(name, {});
     Info::cache_one_per_frame.add(name, info);
@@ -338,7 +344,99 @@ namespace quark::engine::effect {
     }
   }
 
+  VkSamplerCreateInfo SamplerResource::Info::_sampler_info() {
+    VkSamplerCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.magFilter = (VkFilter)this->filter_mode;
+    info.minFilter = (VkFilter)this->filter_mode;
+    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    info.addressModeU = (VkSamplerAddressMode)this->wrap_mode;
+    info.addressModeV = (VkSamplerAddressMode)this->wrap_mode;
+    info.addressModeW = (VkSamplerAddressMode)this->wrap_mode;
+    info.mipLodBias = 0.0f;
+    info.anisotropyEnable = VK_FALSE;
+    info.maxAnisotropy = 1.0f;
+    info.compareEnable = VK_FALSE;
+    info.compareOp = VK_COMPARE_OP_ALWAYS;
+    info.minLod = 0.0f;
+    info.maxLod = 0.0f;
+    info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+    info.unnormalizedCoordinates = VK_FALSE;
+
+    return info;
+  }
+
+  SamplerResource SamplerResource::Info::_create() {
+    auto sampler_info = this->_sampler_info();
+
+    SamplerResource res = {};
+    vk_check(vkCreateSampler(render::internal::_device, &sampler_info, 0, &res.sampler));
+
+    return res;
+  }
+
+  void SamplerResource::create_one(SamplerResource::Info& info, std::string name) {
+    add_name_association(name, internal::ResourceType::SamplerResourceOne);
+
+    SamplerResource res = info._create();
+
+    cache_one.add(name, res);
+    Info::cache_one.add(name, info);
+
+    str::print(str() + "Created sampler res!n");
+  }
+
+  void SamplerResource::create_array(SamplerResource::Info& info, std::string name) {
+    add_name_association(name, internal::ResourceType::SamplerResourceArray);
+
+    SamplerResource res = info._create();
+
+    // append to list
+    if(Info::cache_array.has(name)) {
+      cache_array.get(name).push_back(res);
+      Info::cache_array.get(name).push_back(info);
+      return;
+    }
+
+    // create new list
+    cache_array.add(name, {res});
+    Info::cache_array.add(name, {info});
+    return;
+  }
+
+  VkRenderPassCreateInfo RenderTarget::Info::_render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc) {
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = (u32)attachment_descs.size();
+    info.pAttachments = attachment_descs.data();
+    info.subpassCount = 1;
+    info.pSubpasses = subpass_desc;
+
+    return info;
+  }
+
+  RenderTarget RenderTarget::Info::_create() {
+    RenderTarget render_target = {};
+
+    auto attachment_descs = this->_attachment_desc();
+    auto color_attachment_ref = this->_color_attachment_refs();
+    auto depth_attachment_ref = this->_depth_attachment_ref();
+    auto subpass_desc = this->_subpass_desc(color_attachment_ref, &depth_attachment_ref);
+    auto render_pass_info = this->_render_pass_info(attachment_descs, &subpass_desc);
+    vk_check(vkCreateRenderPass(_device, &render_pass_info, 0, &render_target.render_pass));
+
+    for_every(index, _FRAME_OVERLAP) {
+      auto attachments = this->_attachments(index);
+      auto framebuffer_info = this->_framebuffer_info(attachments);
+
+      vk_check(vkCreateFramebuffer(_device, &framebuffer_info, 0, &render_target.framebuffers[index]));
+    }
+
+    return render_target;
+  }
+
   void RenderTarget::create(RenderTarget::Info& info, std::string name) {
+
   }
 
   void RenderEffect::create(RenderEffect::Info& info, std::string name) {

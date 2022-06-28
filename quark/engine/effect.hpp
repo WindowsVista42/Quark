@@ -164,6 +164,8 @@ namespace quark::engine::effect {
     struct Info {
       vec3 extents;
       vec3 origin;
+      u32 offset;
+      u32 size;
       std::string vertex_buffer_resource;
       std::string index_buffer_resource;
     };
@@ -187,26 +189,26 @@ namespace quark::engine::effect {
       FilterMode filter_mode;
       WrapMode wrap_mode;
 
-      void save_one(std::string name);
-      void save_array(std::string name);
+      VkSamplerCreateInfo _sampler_info();
+      SamplerResource _create();
 
-      void create_one(std::string name);
-      void create_array(std::string name);
-
-      VkSamplerCreateInfo _vk_sampler_info();
+      static ItemCache<SamplerResource::Info> cache_one;
+      static ItemCache<std::vector<SamplerResource::Info>> cache_array;
     };
 
     VkSampler sampler;
 
     static void create_one(SamplerResource::Info& info, std::string name);
     static void create_array(SamplerResource::Info& info, std::string name);
+
+    static ItemCache<SamplerResource> cache_one;
+    static ItemCache<std::vector<SamplerResource>> cache_array;
   };
 
   enum struct UsageMode {
     ClearStore = 0,
     LoadStore = 1,
     LoadDontStore = 2,
-    ClearStoreRead = 3,
   };
 
   struct engine_api RenderTarget {
@@ -214,10 +216,15 @@ namespace quark::engine::effect {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<UsageMode> usage_modes;
 
-      std::vector<VkAttachmentDescription> _into_vk_attachment_descriptions();
-      std::vector<VkAttachmentReference> _into_color_vk_attachment_references();
-      VkAttachmentReference _into_depth_vk_attachment_reference();
-      VkSubpassDescription _into_vk_subpass_description();
+      std::vector<VkAttachmentDescription> _attachment_desc();
+      std::vector<VkAttachmentReference> _color_attachment_refs();
+      VkAttachmentReference _depth_attachment_ref();
+      VkSubpassDescription _subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref);
+      VkRenderPassCreateInfo _render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc);
+
+      std::vector<VkImageView> _attachments(usize index);
+      VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments);
+
       RenderTarget _create();
     };
 

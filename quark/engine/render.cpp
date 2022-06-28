@@ -1093,25 +1093,25 @@ namespace quark::engine::render {
       //  _sun_shadow_framebuffers[index] = create_framebuffer(_depth_only_render_pass, 2048, 2048, attachments, count_of(attachments));
       //}
 
-      //RenderTarget::Info info = {};
+      RenderTarget::Info info = {};
 
-      //info = {
-      //  .image_resources = {"forward_pass_depth"},
-      //  .usage_modes = {UsageMode::ClearStore},
-      //};
-      //RenderTarget::create(info, "forward_pass_depth_prepass");
+      info = {
+        .image_resources = {"forward_pass_depth"},
+        .usage_modes = {UsageMode::ClearStore},
+      };
+      RenderTarget::create(info, "forward_pass_depth_prepass");
 
-      //info = {
-      //  .image_resources = {"forward_pass_depth", "forward_pass_color"},
-      //  .usage_modes = {UsageMode::ClearStore, UsageMode::LoadStore},
-      //};
-      //RenderTarget::create(info, "forward_pass");
+      info = {
+        .image_resources = {"forward_pass_depth", "forward_pass_color"},
+        .usage_modes = {UsageMode::ClearStore, UsageMode::LoadStore},
+      };
+      RenderTarget::create(info, "forward_pass");
 
-      //info = {
-      //  .image_resources = {"shadow_pass_depth"},
-      //  .usage_modes = {UsageMode::ClearStore},
-      //};
-      //RenderTarget::create(info, "shadow_pass");
+      info = {
+        .image_resources = {"shadow_pass_depth"},
+        .usage_modes = {UsageMode::ClearStore},
+      };
+      RenderTarget::create(info, "shadow_pass");
     }
     
     void init_sync_objects() {
@@ -1135,88 +1135,88 @@ namespace quark::engine::render {
     //struct PipelineLayoutInfo {
     //};
 
-    struct PushConstantInfo {
-      u32 size;
-    };
+    //struct PushConstantInfo {
+    //  u32 size;
+    //};
 
-    struct PipelineLayoutInfo {
-      std::vector<PushConstantInfo> push_constants;
-      std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
-    };
+    //struct PipelineLayoutInfo {
+    //  std::vector<PushConstantInfo> push_constants;
+    //  std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+    //};
 
-    VkPipelineLayout create_pipeline_layout(const PipelineLayoutInfo* info) {
-      std::vector<VkPushConstantRange> push_ranges;
+    //VkPipelineLayout create_pipeline_layout(const PipelineLayoutInfo* info) {
+    //  std::vector<VkPushConstantRange> push_ranges;
 
-      for (auto& pushc : info->push_constants) {
-        push_ranges.push_back(VkPushConstantRange {
-          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-          .offset = 0,
-          .size = pushc.size,
-        });
-      }
+    //  for (auto& pushc : info->push_constants) {
+    //    push_ranges.push_back(VkPushConstantRange {
+    //      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+    //      .offset = 0,
+    //      .size = pushc.size,
+    //    });
+    //  }
 
-      VkPipelineLayoutCreateInfo create_info = {};
-      create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      create_info.flags = 0;
-      create_info.setLayoutCount = info->descriptor_set_layouts.size();
-      create_info.pSetLayouts = info->descriptor_set_layouts.data();
-      create_info.pushConstantRangeCount = push_ranges.size();
-      create_info.pPushConstantRanges = push_ranges.data();
-      create_info.pNext = 0;
+    //  VkPipelineLayoutCreateInfo create_info = {};
+    //  create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    //  create_info.flags = 0;
+    //  create_info.setLayoutCount = info->descriptor_set_layouts.size();
+    //  create_info.pSetLayouts = info->descriptor_set_layouts.data();
+    //  create_info.pushConstantRangeCount = push_ranges.size();
+    //  create_info.pPushConstantRanges = push_ranges.data();
+    //  create_info.pNext = 0;
 
-      VkPipelineLayout pipeline_layout;
-      vk_check(vkCreatePipelineLayout(_device, &create_info, 0, &pipeline_layout));
-      return pipeline_layout;
-    }
+    //  VkPipelineLayout pipeline_layout;
+    //  vk_check(vkCreatePipelineLayout(_device, &create_info, 0, &pipeline_layout));
+    //  return pipeline_layout;
+    //}
 
-    // Unique pipeline layouts, these are often SHARED
-    usize pipeline_layout_count = 0;
-    VkPipelineLayout pipeline_layouts[64] = {};
-    PipelineLayoutInfo pipeline_layout_infos[64] = {};
-    std::unordered_map<std::string, u32> name_to_pipeline_id;
+    //// Unique pipeline layouts, these are often SHARED
+    //usize pipeline_layout_count = 0;
+    //VkPipelineLayout pipeline_layouts[64] = {};
+    //PipelineLayoutInfo pipeline_layout_infos[64] = {};
+    //std::unordered_map<std::string, u32> name_to_pipeline_id;
 
-    void add_pipeline_layout(std::string name, PipelineLayoutInfo info) {
-      name_to_pipeline_id.insert(std::make_pair(name, pipeline_layout_count));
-      pipeline_layout_infos[pipeline_layout_count] = info;
-      pipeline_layouts[pipeline_layout_count] = create_pipeline_layout(&info);
+    //void add_pipeline_layout(std::string name, PipelineLayoutInfo info) {
+    //  name_to_pipeline_id.insert(std::make_pair(name, pipeline_layout_count));
+    //  pipeline_layout_infos[pipeline_layout_count] = info;
+    //  pipeline_layouts[pipeline_layout_count] = create_pipeline_layout(&info);
 
-      pipeline_layout_count += 1;
-    }
+    //  pipeline_layout_count += 1;
+    //}
 
-    VkPipelineLayout get_pipeline_layout(std::string name) {
-      return pipeline_layouts[name_to_pipeline_id.at(name)];
-    }
+    //VkPipelineLayout get_pipeline_layout(std::string name) {
+    //  return pipeline_layouts[name_to_pipeline_id.at(name)];
+    //}
 
-    VkPipelineLayout get_pipeline_layout(u32 id) {
-      return pipeline_layouts[id];
-    }
+    //VkPipelineLayout get_pipeline_layout(u32 id) {
+    //  return pipeline_layouts[id];
+    //}
 
-    u32 get_pipeline_layout_id(std::string name) {
-      return name_to_pipeline_id.at(name);
-    }
+    //u32 get_pipeline_layout_id(std::string name) {
+    //  return name_to_pipeline_id.at(name);
+    //}
 
-    template <typename T>
-    class ArtifactCache {
-      std::vector<T> id_to_t;
-      std::unordered_map<std::string, u32> name_to_id;
+    //template <typename T>
+    //class ArtifactCache {
+    //  std::vector<T> id_to_t;
+    //  std::unordered_map<std::string, u32> name_to_id;
 
-    public:
-      T& get(std::string name) {
-        return id_to_t[name_to_id.at(name)];
-      }
-      T& get(i32 id) {
-        return id_to_t[id];
-      }
-      u32 id(std::string name) {
-        return name_to_id.at(name);
-      }
-      void add(std::string name, T t) {
-        name_to_id.insert(std::make_pair(name, id_to_t.size()));
-        id_to_t.push_back(t);
-      }
-    };
+    //public:
+    //  T& get(std::string name) {
+    //    return id_to_t[name_to_id.at(name)];
+    //  }
+    //  T& get(i32 id) {
+    //    return id_to_t[id];
+    //  }
+    //  u32 id(std::string name) {
+    //    return name_to_id.at(name);
+    //  }
+    //  void add(std::string name, T t) {
+    //    name_to_id.insert(std::make_pair(name, id_to_t.size()));
+    //    id_to_t.push_back(t);
+    //  }
+    //};
 
-    ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
+    //ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
     
     void init_pipelines() {
       //// PIPELINE LAYOUTS
@@ -1515,6 +1515,14 @@ namespace quark::engine::render {
       //SamplerResource::cache_one.add("default", sampler_res);
 
       //_default_sampler = SamplerResource::cache_one.get("default").sampler;
+
+      SamplerResource::Info info = {};
+
+      info = {
+        .filter_mode = FilterMode::Linear,
+        .wrap_mode = WrapMode::MirroredRepeat,
+      };
+      SamplerResource::create_one(info, "default_sampler");
     }
     
     void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
