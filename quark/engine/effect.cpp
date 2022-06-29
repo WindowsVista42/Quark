@@ -104,6 +104,8 @@ namespace quark::engine::effect {
     };
 
     std::unordered_map<std::string, ResourceType> used_names = {};
+
+    RenderEffect current_re = {};
   };
 
   // image cache
@@ -975,6 +977,7 @@ namespace quark::engine::effect {
     RenderEffect render_effect = {};
     render_effect.render_pass = RenderTarget::cache[this->render_target].render_pass;
     render_effect.framebuffers = RenderTarget::cache[this->render_target].framebuffers;
+    render_effect.attachment_count = RenderTarget::Info::cache[this->render_target].image_resources.size();
     render_effect.resolution = RenderTarget::Info::cache[this->render_target]._resolution();
     render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
 
@@ -1045,6 +1048,63 @@ namespace quark::engine::effect {
     RenderEffect::cache.add(name, render_effect);
 
     str::print(str() + "Created RenderEffect!");
+  }
+
+  void begin(std::string name) {
+    RenderEffect& re = RenderEffect::cache.get(name);
+
+    if (internal::current_re.render_pass != re.render_pass) {
+      if (internal::current_re.render_pass != 0) {
+        vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+      }
+
+      std::vector<VkClearValue> clear_values;
+
+      // color
+      for_every (index, re.attachment_count - 1) {
+        VkClearValue clear_value = {};
+        clear_value.color = {1.0f, 0.0f, 0.0f, 1.0f};
+        clear_values.push_back(clear_value);
+      }
+
+      // depth
+      {
+        VkClearValue clear_value = {};
+        clear_value.depthStencil.depth = 1.0f;
+        clear_values.push_back(clear_value);
+      }
+
+      VkRenderPassBeginInfo begin_info = {};
+      begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      begin_info.renderPass = re.render_pass;
+      begin_info.renderArea.offset.x = 0;
+      begin_info.renderArea.offset.y = 0;
+      begin_info.renderArea.extent.width = re.resolution.x;
+      begin_info.renderArea.extent.height = re.resolution.y;
+      begin_info.framebuffer = re.framebuffers[_frame_index];
+      begin_info.clearValueCount = clear_values.size();
+      begin_info.pClearValues = clear_values.data();
+
+      vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    if (internal::current_re.pipeline != re.pipeline) {
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, re.pipeline);
+    }
+
+    if (internal::current_re.descriptor_sets[_frame_index] != re.descriptor_sets[_frame_index]) {
+    }
+
+    if (internal::current_re.vertex_buffer_resource != re.vertex_buffer_resource) {
+      VkDeviceSize offset = 0;
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &re.vertex_buffer_resource, &offset);
+    }
+
+    internal::current_re = re;
+  }
+
+  void end_everything() {
+    vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
   }
 };
 

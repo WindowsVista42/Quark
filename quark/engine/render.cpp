@@ -205,6 +205,8 @@ namespace quark::engine::render {
     command_begin_info.pNext = 0;
   
     vk_check(vkBeginCommandBuffer(_main_cmd_buf[_frame_index], &command_begin_info));
+
+    effect::internal::current_re = {};
   }
   
   void begin_shadow_rendering() {
@@ -420,11 +422,41 @@ namespace quark::engine::render {
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
-    // copy forward pass image to swapchain
-    // this allows for ACTUALLY rendering at whatever fucking resolution i want
-    //vkCmdBlitImage(
-    //    _main_cmd_buf[_frame_index], _forward_pass_image[_frame_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    //    _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    auto dim = window::dimensions();
+
+    //ImageResource::transfer_layout("forward_pass_color", ImageLayout::Src); // auto for blit
+    //ImageResource::transfer_layout("swapchain", ImageLayout::Dst); // auto for blit
+    //ImageResource::blit("forward_pass_color", "swapchain");
+
+    //ImageResource::transfer("swapchain", ImageLayout::Present); // auto
+
+    VkImageBlit region = {};
+    region.srcOffsets[0] = {0, 0};
+    region.srcOffsets[1] = {dim.x, dim.y};
+
+    region.dstOffsets[0] = {0, 0};
+    region.dstOffsets[1] = {dim.x, dim.y};
+
+    region.srcSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .mipLevel = 0,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    };
+
+    region.dstSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .mipLevel = 0,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    };
+
+    vkCmdBlitImage(_main_cmd_buf[_frame_index],
+        ImageResource::cache_one_per_frame.get("forward_pass_color")[_frame_index].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
+        1, &region,
+        VK_FILTER_NEAREST
+    );
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
@@ -957,7 +989,7 @@ namespace quark::engine::render {
 
       info = {
         .format = ImageFormat::SrgbRgba8,
-        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+        .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
         .samples = ImageSamples::One,
         .resolution = window::dimensions(),
       };
@@ -1018,7 +1050,7 @@ namespace quark::engine::render {
 
       info = {
         .image_resources = {"forward_pass_color", "forward_pass_depth"},
-        .usage_modes = {UsageMode::ClearStoreRead, UsageMode::LoadStoreRead},
+        .usage_modes = {UsageMode::ClearStoreRead, UsageMode::ClearStoreRead},
       };
       RenderTarget::create(info, "forward_pass");
 

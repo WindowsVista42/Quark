@@ -354,6 +354,7 @@ namespace quark::engine::effect {
     VkRenderPass render_pass;
 
     ivec2 resolution;
+    usize attachment_count;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
     std::array<std::array<VkDescriptorSet, 4>, _FRAME_OVERLAP> descriptor_sets;
@@ -366,8 +367,11 @@ namespace quark::engine::effect {
     static ItemCache<RenderEffect> cache;
   };
 
-  inline void begin(std::string name) {
-  }
+  namespace internal {
+    engine_var RenderEffect current_re;
+  };
+
+  engine_api void begin(std::string name);
 
   inline void draw(Model& model) {
   }
@@ -376,8 +380,7 @@ namespace quark::engine::effect {
   inline void draw(Model& model, PushConstant& push_constant) {
   }
 
-  inline void end() {
-  }
+  engine_api void end_everything();
 
   namespace internal {
     struct AttachmentLookup {

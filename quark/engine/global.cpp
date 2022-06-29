@@ -113,7 +113,7 @@ namespace quark::engine::global {
         //.add(def(render::update_cameras), -1)
         //.add(def(render::update_world_data), -1)
 
-        //.add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!
+        .add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!
 
         //  //.add(def(render::begin_shadow_rendering), -1)
         //  //.add(def(render::draw_shadow_things), -1)
@@ -139,7 +139,7 @@ namespace quark::engine::global {
 
         //  .add(def(render::end_forward_rendering), -1) // NOTE(sean): custom effects end here!
 
-        //.add(def(render::end_frame), -1) // NOTE(sean): rendering ends here!
+        .add(def(render::end_frame), -1) // NOTE(sean): rendering ends here!
         ;
     }
 

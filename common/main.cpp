@@ -58,6 +58,11 @@ namespace common {
     MAIN_CAMERA.pos.z += input::get("up").value() * DT;
     MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
   }
+
+  void render_things() {
+    engine::effect::begin("empty");
+    engine::effect::end_everything();
+  }
 };
 
 mod_main() {
@@ -69,5 +74,6 @@ mod_main() {
 
   system::list("update")
     .add(def(common::update), "update_tag", 1)
+    .add(def(common::render_things), "render::begin_frame", 1)
     .add(def(common::exit_on_esc), -1);
 }
