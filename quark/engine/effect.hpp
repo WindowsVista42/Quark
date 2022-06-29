@@ -11,15 +11,6 @@
 namespace quark::engine::effect {
   inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;
 
-  #define vk_check(x)                                                                                                                                  \
-    do {                                                                                                                                               \
-      VkResult err = x;                                                                                                                                \
-      if (err) {                                                                                                                                       \
-        std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
-        panic("");                                                                                                                                     \
-      }                                                                                                                                                \
-    } while (0)
-
   template <typename T>
   class engine_api ItemCache {
     std::unordered_map<std::string, T> data;

@@ -5,6 +5,15 @@
 namespace quark::engine::effect {
   using namespace render::internal;
 
+  #define vk_check(x)                                                                                                                                  \
+    do {                                                                                                                                               \
+      VkResult err = x;                                                                                                                                \
+      if (err) {                                                                                                                                       \
+        std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
+        panic("");                                                                                                                                     \
+      }                                                                                                                                                \
+    } while (0)
+
   namespace internal {
     AttachmentLookup color_attachment_lookup[6] = {
       { // UsageType::ClearStore
