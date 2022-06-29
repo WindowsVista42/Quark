@@ -6,6 +6,7 @@
 #include "asset.hpp"
 #include "unordered_set"
 #include <vulkan/vulkan_core.h>
+#include "str.hpp"
 
 namespace quark::engine::effect {
   inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;
@@ -24,16 +25,20 @@ namespace quark::engine::effect {
     std::unordered_map<std::string, T> data;
 
   public:
-    inline T& get(std::string name) {
-      return data.at(name);
-    }
-
     inline void add(std::string name, T t) {
       data.insert(std::make_pair(name, t));
     }
 
     inline bool has(std::string name) {
       return data.find(name) != data.end();
+    }
+
+    inline T& get(std::string name) {
+      if (!has(name)) {
+        panic2("Could not find: '" + name.c_str() + "'");
+      }
+
+      return data.at(name);
     }
 
     T& operator [](std::string& name) {
@@ -272,7 +277,7 @@ namespace quark::engine::effect {
 
   struct ResourceBundle {
     struct Info {
-      std::vector<std::string> resource_groups; // no more than 4
+      std::array<std::string, 4> resource_groups; // no more than 4
       std::string push_constant;
 
       VkPushConstantRange _push_constant();
@@ -329,6 +334,8 @@ namespace quark::engine::effect {
 
       static ItemCache<RenderMode::Info> cache;
     };
+
+    static void create(RenderMode::Info& info, std::string name);
   };
 
   struct engine_api RenderEffect {

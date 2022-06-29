@@ -1224,18 +1224,26 @@ namespace quark::engine::render {
 
       ResourceBundle::create(info, "empty");
 
+      RenderMode::Info rm_info = {
+        .fill_mode = FillMode::Fill,
+        .cull_mode = CullMode::Back,
+        .alpha_blend_mode = AlphaBlendMode::Off,
+        .draw_width = 1.0f,
+      };
+      RenderMode::create(rm_info, "default");
+
       RenderEffect::Info re_info = {};
 
       re_info = {
         .render_target = "forward_pass", //
         .resource_bundle = "empty", //
 
-        .vertex_shader = "empty", //
-        .fragment_shader = "empty", //
+        .vertex_shader = "depth_only", //
+        .fragment_shader = "",//"empty", //
 
         .render_mode = "default",
 
-        .vertex_buffer_resource = "default_vertex_buffer", //
+        .vertex_buffer_resource = "global_vertex_buffer", //
         .index_buffer_resource = "",
       };
       RenderEffect::create(re_info, "empty");

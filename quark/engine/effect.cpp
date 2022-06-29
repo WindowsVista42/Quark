@@ -732,8 +732,10 @@ namespace quark::engine::effect {
       panic2("Attempted to create RenderTarget with name: '" + name.c_str() + "' which already exists!");
     }
 
-    RenderTarget res = info._create();
+    auto render_target = info._create();
+
     RenderTarget::Info::cache.add(name, info);
+    RenderTarget::cache.add(name, render_target);
 
     str::print(str() + "Created render target!");
   }
@@ -855,6 +857,7 @@ namespace quark::engine::effect {
 
   VkPipelineRasterizationStateCreateInfo RenderMode::Info::_rasterization_info() {
     VkPipelineRasterizationStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     info.depthClampEnable = VK_FALSE;
     info.rasterizerDiscardEnable = VK_FALSE;
     info.polygonMode = (VkPolygonMode)this->fill_mode;
@@ -927,6 +930,16 @@ namespace quark::engine::effect {
     return info;
   }
 
+  void RenderMode::create(RenderMode::Info& info, std::string name) {
+    if (Info::cache.has(name)) {
+      panic2("Attempted to create RenderMode with name: '" + name.c_str() + "' which already exists!");
+    }
+
+    RenderMode::Info::cache.add(name, info);
+
+    str::print(str() + "Created RenderMode!");
+  }
+
   VkPipelineShaderStageCreateInfo RenderEffect::Info::_vertex_stage(const char* entry_name) {
     VkPipelineShaderStageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -956,18 +969,17 @@ namespace quark::engine::effect {
     render_effect.resolution = RenderTarget::Info::cache[this->render_target]._resolution();
     render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
 
-    for_every(index, ResourceBundle::Info::cache[this->resource_bundle].resource_groups.size()) {
-      // TODO(sean): do this cache thing
-      //ResourceGroup::cache[ResourceBundle::Info::cache[this->resource_bundle].resource_groups]
-      render_effect.descriptor_sets[index] = {};
-    }
+    //for_every(index, ResourceBundle::Info::cache[this->resource_bundle].resource_groups.size()) {
+    //  // TODO(sean): do this cache thing
+    //  //ResourceGroup::cache[ResourceBundle::Info::cache[this->resource_bundle].resource_groups]
+    //  render_effect.descriptor_sets[index] = {};
+    //}
 
     render_effect.vertex_buffer_resource = BufferResource::cache_one[this->vertex_buffer_resource].buffer;
     if(this->index_buffer_resource != "") {
       render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
     }
-
-    VkPipelineMultisampleStateCreateInfo info2 = {};
+    printf("Here!\n");
 
     auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
     auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
@@ -982,6 +994,7 @@ namespace quark::engine::effect {
     auto depth_info = render_mode_info._depth_info();
     auto color_blend_attachments = render_mode_info._color_blend_attachments(render_target_info.image_resources.size() - 1);
     auto color_blend_info = render_mode_info._color_blend_info(color_blend_attachments);
+    printf("Here!\n");
 
     const char* entry_name = "main";
 
@@ -1021,6 +1034,8 @@ namespace quark::engine::effect {
 
     RenderEffect::Info::cache.add(name, info);
     RenderEffect::cache.add(name, render_effect);
+
+    str::print(str() + "Created RenderEffect!");
   }
 };
 
