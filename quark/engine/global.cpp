@@ -94,9 +94,9 @@ namespace quark::engine::global {
         .add(def(render::internal::init_sync_objects), -1)
         .add(def(render::internal::init_sampler), -1)
 
-        .add(def(render::internal::init_global_descriptors), -1) // NOTE(sean): add textures before this!
-        .add(def(render::internal::copy_meshes_to_gpu), -1) // NOTE(sean): add meshes before this!
-        .add(def(render::internal::init_pipelines), -1) // NOTE(sean): add shaders before this!
+        //.add(def(render::internal::init_global_descriptors), -1) // NOTE(sean): add textures before this!
+        //.add(def(render::internal::copy_meshes_to_gpu), -1) // NOTE(sean): add meshes before this!
+        //.add(def(render::internal::init_pipelines), -1) // NOTE(sean): add shaders before this!
 
         //.add(def(render::internal::init_reflection), -1)
         //.add(def(), -1)
@@ -104,40 +104,40 @@ namespace quark::engine::global {
         //.add(def(render::init), -1);
 
       system::list("update")
-        .add(def(render::internal::print_performance_statistics), -1)
+        //.add(def(render::internal::print_performance_statistics), -1)
         .add(def(window::poll_events), -1)
         .add(def(input::update_all), -1)
 
         .add(def(update_tag), -1)
 
-        .add(def(render::update_cameras), -1)
-        .add(def(render::update_world_data), -1)
+        //.add(def(render::update_cameras), -1)
+        //.add(def(render::update_world_data), -1)
 
         .add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!
 
-          //.add(def(render::begin_shadow_rendering), -1)
-          //.add(def(render::draw_shadow_things), -1)
-          //.add(def(render::end_shadow_rendering), -1)
+        //  //.add(def(render::begin_shadow_rendering), -1)
+        //  //.add(def(render::draw_shadow_things), -1)
+        //  //.add(def(render::end_shadow_rendering), -1)
 
-          .add(def(render::begin_depth_prepass_rendering), -1)
-          //.add(def(render::draw_depth_prepass_things), -1)
-          .add(def(render::end_depth_prepass_rendering), -1)
+        //  .add(def(render::begin_depth_prepass_rendering), -1)
+        //  //.add(def(render::draw_depth_prepass_things), -1)
+        //  .add(def(render::end_depth_prepass_rendering), -1)
 
-          .add(def(render::begin_forward_rendering), -1) // NOTE(sean): custom effects begin here!
+        //  .add(def(render::begin_forward_rendering), -1) // NOTE(sean): custom effects begin here!
 
-            .add(def(render::begin_lit_pass), -1)
-            .add(def(render::draw_lit_pass_things), -1)
-            .add(def(render::end_lit_pass), -1)
+        //    .add(def(render::begin_lit_pass), -1)
+        //    .add(def(render::draw_lit_pass_things), -1)
+        //    .add(def(render::end_lit_pass), -1)
 
-            .add(def(render::begin_solid_pass), -1)
-            .add(def(render::draw_solid_pass_things), -1)
-            .add(def(render::end_solid_pass), -1)
+        //    .add(def(render::begin_solid_pass), -1)
+        //    .add(def(render::draw_solid_pass_things), -1)
+        //    .add(def(render::end_solid_pass), -1)
 
-            .add(def(render::begin_wireframe_pass), -1)
-            .add(def(render::draw_wireframe_pass_things), -1)
-            .add(def(render::end_wireframe_pass), -1)
+        //    .add(def(render::begin_wireframe_pass), -1)
+        //    .add(def(render::draw_wireframe_pass_things), -1)
+        //    .add(def(render::end_wireframe_pass), -1)
 
-          .add(def(render::end_forward_rendering), -1) // NOTE(sean): custom effects end here!
+        //  .add(def(render::end_forward_rendering), -1) // NOTE(sean): custom effects end here!
 
         .add(def(render::end_frame), -1) // NOTE(sean): rendering ends here!
         ;

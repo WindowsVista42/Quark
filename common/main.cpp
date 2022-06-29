@@ -10,9 +10,9 @@ namespace common {
     for_every(i, 10) {
       Entity::create().add(
         Transform {},
-        Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
+        //Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
         Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
-        Effect::SolidColorFill {},
+        //Effect::SolidColorFill {},
         Tag {}
       );
     }
@@ -20,9 +20,9 @@ namespace common {
     for_every(i, 10) {
       Entity::create().add(
         Transform {.position = {(f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f}},
-        Model::from_name_scale("suzanne"),
-        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
-        Effect::SolidColorLines {}
+        //Model::from_name_scale("suzanne"),
+        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f}
+        //Effect::SolidColorLines {}
       );
     }
 
@@ -39,7 +39,7 @@ namespace common {
     if(!input::get("pause").down()) {
       static f32 T = 0.0f;
       f32 ctr = 0.0f;
-      for(auto [e, transform, model, color] : registry::view<Transform, Model, Color, Tag>().each()) {
+      for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
         transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
         transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
         ctr += 0.25f;

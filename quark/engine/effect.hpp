@@ -86,7 +86,7 @@ namespace quark::engine::effect {
       ImageFormat format;
       u32 usage;
       ImageSamples samples;
-      ivec2 dimensions;
+      ivec2 resolution;
 
       VkExtent3D _ext();
       VkImageCreateInfo _img_info();
@@ -204,9 +204,12 @@ namespace quark::engine::effect {
   };
 
   enum struct UsageMode {
-    ClearStore    = 0,
-    LoadStore     = 1,
-    LoadDontStore = 2,
+    ClearStore        = 0,
+    LoadStore         = 1,
+    LoadDontStore     = 2,
+    ClearStoreRead    = 3,
+    LoadStoreRead     = 4,
+    LoadDontStoreRead = 5,
   };
 
   struct engine_api RenderTarget {
@@ -214,7 +217,7 @@ namespace quark::engine::effect {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<UsageMode> usage_modes;
 
-      void _basic_validate();
+      void _validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
       std::vector<VkAttachmentReference> _color_attachment_refs();
       VkAttachmentReference _depth_attachment_ref();
@@ -225,6 +228,11 @@ namespace quark::engine::effect {
       VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass);
 
       RenderTarget _create();
+
+      VkViewport _viewport();
+      VkRect2D _scissor();
+      ImageSamples _samples();
+      ivec2 _resolution();
 
       static ItemCache<RenderTarget::Info> cache;
     };
@@ -240,6 +248,10 @@ namespace quark::engine::effect {
   struct engine_api ResourceGroup {
     struct Info {
       std::vector<std::string> resources;
+
+      VkPipelineLayoutCreateInfo _layout_info();
+
+      ResourceGroup _create();
     };
 
     VkDescriptorSetLayout layout;
@@ -251,18 +263,32 @@ namespace quark::engine::effect {
   struct PushConstant {
     struct Info {
       u32 size;
+
+      static ItemCache<PushConstant::Info> cache;
     };
+
+    void create(PushConstant::Info& info, std::string name);
   };
 
-  struct RenderResourceBundle {
+  struct ResourceBundle {
     struct Info {
-      std::array<std::string, 4> resource_group;
+      std::vector<std::string> resource_groups; // no more than 4
       std::string push_constant;
+
+      VkPushConstantRange _push_constant();
+      std::vector<VkDescriptorSetLayout> _set_layouts();
+      VkPipelineLayoutCreateInfo _layout_info(std::vector<VkDescriptorSetLayout> set_layouts, VkPushConstantRange* push_constant);
+
+      ResourceBundle _create();
+
+      static ItemCache<ResourceBundle::Info> cache;
     };
 
     VkPipelineLayout layout;
 
-    static void create(RenderResourceBundle::Info& info, std::string name);
+    static void create(ResourceBundle::Info& info, std::string name);
+
+    static ItemCache<ResourceBundle> cache;
   };
 
   enum struct FillMode {
@@ -291,14 +317,24 @@ namespace quark::engine::effect {
 
       f32 draw_width = 1.0f;
 
-      VkPipelineVertexInputStateCreateInfo _vk_vertex_input_info();
+      VkPipelineVertexInputStateCreateInfo _vertex_input_info();
+      VkPipelineInputAssemblyStateCreateInfo _input_assembly_info();
+      VkPipelineViewportStateCreateInfo _viewport_info(VkViewport* viewport, VkRect2D* scissor);
+      VkPipelineRasterizationStateCreateInfo _rasterization_info();
+      VkPipelineMultisampleStateCreateInfo _multisample_info(ImageSamples samples);
+      VkPipelineDepthStencilStateCreateInfo _depth_info();
+
+      std::vector<VkPipelineColorBlendAttachmentState> _color_blend_attachments(u32 count);
+      VkPipelineColorBlendStateCreateInfo _color_blend_info(std::vector<VkPipelineColorBlendAttachmentState>& attachments);
+
+      static ItemCache<RenderMode::Info> cache;
     };
   };
 
   struct engine_api RenderEffect {
     struct Info {
       std::string render_target;
-      std::string render_resource_bundle;
+      std::string resource_bundle;
 
       std::string vertex_shader;
       // if "", no fragment shader is used
@@ -306,14 +342,20 @@ namespace quark::engine::effect {
 
       std::string render_mode = "default";
       std::string vertex_buffer_resource = "default_vertex_buffer";
-      std::string index_bufer_resource = "default_index_buffer";
+      std::string index_buffer_resource = "default_index_buffer";
+
+      VkPipelineShaderStageCreateInfo _vertex_stage(const char* entry_name);
+      VkPipelineShaderStageCreateInfo _fragment_stage(const char* entry_name);
+      RenderEffect _create();
+
+      static ItemCache<RenderEffect::Info> cache;
     };
 
     VkPipeline pipeline;
     VkPipelineLayout layout;
     VkRenderPass render_pass;
 
-    ivec2 dimensions;
+    ivec2 resolution;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
 
     std::array<std::array<VkDescriptorSet, 4>, _FRAME_OVERLAP> descriptor_sets;
@@ -322,6 +364,8 @@ namespace quark::engine::effect {
     VkBuffer index_buffer_resource;
 
     static void create(RenderEffect::Info& info, std::string name);
+
+    static ItemCache<RenderEffect> cache;
   };
 
   inline void begin(std::string name) {
@@ -330,8 +374,8 @@ namespace quark::engine::effect {
   inline void draw(Model& model) {
   }
 
-  template <typename T>
-  inline void draw(Model& model, T& t) {
+  template <typename PushConstant>
+  inline void draw(Model& model, PushConstant& push_constant) {
   }
 
   inline void end() {
@@ -345,8 +389,11 @@ namespace quark::engine::effect {
       VkImageLayout final_layout;
     };
 
-    engine_var AttachmentLookup color_attachment_lookup[4];
-    engine_var AttachmentLookup depth_attachment_lookup[4];
+    engine_var AttachmentLookup color_attachment_lookup[6];
+    engine_var AttachmentLookup depth_attachment_lookup[6];
+
+    struct BlendLookup {
+    };
 
     enum struct ResourceType {
       ImageResourceOne,

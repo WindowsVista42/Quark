@@ -178,26 +178,26 @@ namespace quark::engine::render {
       mat4 sun_view_projection;
     };
     
-    struct RenderEffectMeta {
-      u32 width;
-      u32 height;
-      u32 clear_value_count;
-      VkClearValue* clear_values;
-    };
+    //struct RenderEffectMeta {
+    //  u32 width;
+    //  u32 height;
+    //  u32 clear_value_count;
+    //  VkClearValue* clear_values;
+    //};
     
-    struct RenderEffect {
-      RenderEffectMeta meta;
-      // this does not need reference counting because i can just store the individual fields outside of this object
-      // these fields are merely a convenience for bundling rendering state together
-      VkPipelineLayout pipeline_layout;
-      VkPipeline pipeline;
-      VkRenderPass render_pass;
-    
-      VkFramebuffer* framebuffers;
-    
-      VkDescriptorSetLayout descriptor_set_layout;
-      VkDescriptorSet* descriptor_sets;
-    };
+    //struct RenderEffect {
+    //  RenderEffectMeta meta;
+    //  // this does not need reference counting because i can just store the individual fields outside of this object
+    //  // these fields are merely a convenience for bundling rendering state together
+    //  VkPipelineLayout pipeline_layout;
+    //  VkPipeline pipeline;
+    //  VkRenderPass render_pass;
+    //
+    //  VkFramebuffer* framebuffers;
+    //
+    //  VkDescriptorSetLayout descriptor_set_layout;
+    //  VkDescriptorSet* descriptor_sets;
+    //};
     
     // index in array is binding index
     struct DescriptorLayoutInfo {
@@ -299,11 +299,11 @@ namespace quark::engine::render {
     engine_var VkPipeline _wireframe_pipeline;
     engine_var VkRenderPass _default_render_pass;
 
-    engine_var RenderEffect _depth_prepass_effect;
-    engine_var RenderEffect _shadowmap_effect;
-    engine_var RenderEffect _lit_shadow_effect;
-    engine_var RenderEffect _solid_effect;
-    engine_var RenderEffect _wireframe_effect;
+    //engine_var RenderEffect _depth_prepass_effect;
+    //engine_var RenderEffect _shadowmap_effect;
+    //engine_var RenderEffect _lit_shadow_effect;
+    //engine_var RenderEffect _solid_effect;
+    //engine_var RenderEffect _wireframe_effect;
 
     engine_var VkPipelineLayout _depth_only_pipeline_layout;
     engine_var VkPipeline _depth_only_pipeline;

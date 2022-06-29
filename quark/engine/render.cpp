@@ -959,15 +959,15 @@ namespace quark::engine::render {
         .format = ImageFormat::SrgbRgba8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
         .samples = ImageSamples::One,
-        .dimensions = window::dimensions(),
+        .resolution = window::dimensions(),
       };
       ImageResource::create_one_per_frame(info, "forward_pass_color");
 
       info = {
         .format = ImageFormat::LinearD32,
-        .usage = ImageUsage::RenderTarget,
+        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
         .samples = ImageSamples::One,
-        .dimensions = window::dimensions(),
+        .resolution = window::dimensions(),
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
@@ -975,7 +975,7 @@ namespace quark::engine::render {
         .format = ImageFormat::LinearD32,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
         .samples = ImageSamples::One,
-        .dimensions = {2048, 2048},
+        .resolution = {2048, 2048},
       };
       ImageResource::create_one_per_frame(info, "shadow_pass_depth");
 
@@ -1100,13 +1100,13 @@ namespace quark::engine::render {
 
       info = {
         .image_resources = {"forward_pass_color", "forward_pass_depth"},
-        .usage_modes = {UsageMode::ClearStore, UsageMode::LoadStore},
+        .usage_modes = {UsageMode::ClearStoreRead, UsageMode::LoadStoreRead},
       };
       RenderTarget::create(info, "forward_pass");
 
       info = {
         .image_resources = {"shadow_pass_depth"},
-        .usage_modes = {UsageMode::ClearStore},
+        .usage_modes = {UsageMode::ClearStoreRead},
       };
       RenderTarget::create(info, "shadow_pass");
     }
@@ -1216,6 +1216,30 @@ namespace quark::engine::render {
     //ArtifactCache<VkPipelineLayoutCreateInfo> pipeline_layout_cache;
     
     void init_pipelines() {
+      ResourceBundle::Info info = {};
+      info = {
+        .resource_groups = {},
+        .push_constant = "",
+      };
+
+      ResourceBundle::create(info, "empty");
+
+      RenderEffect::Info re_info = {};
+
+      re_info = {
+        .render_target = "forward_pass", //
+        .resource_bundle = "empty", //
+
+        .vertex_shader = "empty", //
+        .fragment_shader = "empty", //
+
+        .render_mode = "default",
+
+        .vertex_buffer_resource = "default_vertex_buffer", //
+        .index_buffer_resource = "",
+      };
+      RenderEffect::create(re_info, "empty");
+
       //// PIPELINE LAYOUTS
 
       //PipelineLayoutInfo default_pipeline_layout_info = {

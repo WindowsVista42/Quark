@@ -6,7 +6,7 @@ namespace quark::engine::effect {
   using namespace render::internal;
 
   namespace internal {
-    AttachmentLookup color_attachment_lookup[4] = {
+    AttachmentLookup color_attachment_lookup[6] = {
       { // UsageType::ClearStore
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
@@ -26,16 +26,31 @@ namespace quark::engine::effect {
         .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       },
 
-      // IS USED AS TEXTURE
+      // IS USED AS TEXTURE AFTERWARDS
+
       { // UsageType::ClearStore
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
         .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
         .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       },
+
+      { // UsageType::LoadStoreRead
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      },
+
+      { // UsageType::LoadDontStoreRead
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      },
     };
 
-    AttachmentLookup depth_attachment_lookup[4] = {
+    AttachmentLookup depth_attachment_lookup[6] = {
       { // UsageType::ClearStore
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
@@ -55,11 +70,26 @@ namespace quark::engine::effect {
         .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
       },
 
-      // IS USED AS TEXTURE
-      { // UsageType::ClearStore
+      // IS USED AS TEXTURE AFTERWARDS
+
+      { // UsageType::ClearStoreRead
         .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .store_op = VK_ATTACHMENT_STORE_OP_STORE,
         .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      },
+
+      { // UsageType::LoadStoreRead
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      },
+
+      { // UsageType::LoadDontStoreRead
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
       },
     };
@@ -86,12 +116,22 @@ namespace quark::engine::effect {
   // sampler cache
   ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
   ItemCache<std::vector<SamplerResource::Info>> SamplerResource::Info::cache_array = {};
-  ItemCache<SamplerResource> SamplerResource::cache_one;
-  ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array;
+  ItemCache<SamplerResource> SamplerResource::cache_one = {};
+  ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array = {};
 
   // render target cache
-  ItemCache<RenderTarget::Info> RenderTarget::Info::cache;
-  ItemCache<RenderTarget> RenderTarget::cache;
+  ItemCache<RenderTarget::Info> RenderTarget::Info::cache = {};
+  ItemCache<RenderTarget> RenderTarget::cache = {};
+
+  ItemCache<PushConstant::Info> PushConstant::Info::cache = {};
+
+  ItemCache<ResourceBundle::Info> ResourceBundle::Info::cache = {};
+  ItemCache<ResourceBundle> ResourceBundle::cache = {};
+
+  ItemCache<RenderMode::Info> RenderMode::Info::cache = {};
+
+  ItemCache<RenderEffect::Info> RenderEffect::Info::cache = {};
+  ItemCache<RenderEffect> RenderEffect::cache = {};
 
   void add_name_association(std::string name, internal::ResourceType resource_type) {
     if (internal::used_names.find(name) != internal::used_names.end()) {
@@ -123,8 +163,8 @@ namespace quark::engine::effect {
 
   VkExtent3D ImageResource::Info::_ext() {
     VkExtent3D extent = {};
-    extent.width = (u32)this->dimensions.x;
-    extent.height = (u32)this->dimensions.y;
+    extent.width = (u32)this->resolution.x;
+    extent.height = (u32)this->resolution.y;
     extent.depth = 1;
 
     return extent;
@@ -416,7 +456,19 @@ namespace quark::engine::effect {
     return s + "(x: " + i.x + ", y: " + i.y + ")";
   }
 
-  void RenderTarget::Info::_basic_validate() {
+  str operator +(str s, ImageSamples i) {
+    switch(i) {
+      case(ImageSamples::One): { return s + "ImageSamples::One"; };
+      case(ImageSamples::Two): { return s + "ImageSamples::Two"; };
+      case(ImageSamples::Four): { return s + "ImageSamples::Four"; };
+      case(ImageSamples::Eight): { return s + "ImageSamples::Eight"; };
+      case(ImageSamples::Sixteen): { return s + "ImageSamples::Sixteen"; };
+    }
+
+    return s;
+  }
+
+  void RenderTarget::Info::_validate() {
     // validate counts
     if (this->image_resources.size() == 0) {
       panic2("Size of 'RenderTarget::image_resources' list must not be zero!" + "\n"
@@ -462,24 +514,34 @@ namespace quark::engine::effect {
     for_every(i, this->image_resources.size()) {
       auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
 
+      // validate all images are render targets
       if ((res.usage & ImageUsage::RenderTarget) == 0) {
         panic2("Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
              + "Did you forget to add this flag?");
       }
 
-      if (((res.usage & ImageUsage::Texture) != 0) && this->usage_modes[i] != UsageMode::ClearStore) {
-        panic2("Image resources with 'ImageUsage::Texture' must use 'UsageMode::ClearStore' when used in a 'RenderTarget'");
-      }
+      //if (((res.usage & ImageUsage::Texture) != 0) && this->usage_modes[i] != UsageMode::ClearStore) {
+      //  panic2("Image resources with 'ImageUsage::Texture' must use 'UsageMode::ClearStore' when used in a 'RenderTarget'");
+      //}
     }
 
-    // validate all images are the same dimensions
-    ivec2 dimensions = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].dimensions;
+    // validate all images are the same resolution and same sample count
+    ivec2 resolution = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
+    ImageSamples samples = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].samples;
     for_range(i, 1, this->image_resources.size()) {
-      ivec2 other_dim = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].dimensions;
-      if (dimensions != other_dim) {
-        panic2("All image resources in 'RenderTarget::image_resources' must be the same dimensions!" + "\n"
-             + "Mismatched dimensions: " + dimensions + " and " +  other_dim + "\n"
-             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same dimensions?");
+      ivec2 other_res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].resolution;
+      ImageSamples other_samp = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].samples;
+
+      if (resolution != other_res) {
+        panic2("All image resources in 'RenderTarget::image_resources' must be the same resolution!" + "\n"
+             + "Mismatched resolution: " + resolution + " and " +  other_res + "\n"
+             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?");
+      }
+
+      if (samples != other_samp) {
+        panic2("All image resources in 'RenderTarget::image_resources' must have the same ImageSamples count!" + "\n"
+             + "Mismatched sample count: " + samples + " and " +  other_samp + "\n"
+             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?");
       }
     }
   }
@@ -500,9 +562,6 @@ namespace quark::engine::effect {
       attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
       u32 lookup_index = (u32)this->usage_modes[index];
-      if ((img_info.usage & ImageUsage::Texture) != 0) {
-        lookup_index = 3;
-      }
 
       attachment_desc[index].loadOp = internal::color_attachment_lookup[lookup_index].load_op;
       attachment_desc[index].storeOp = internal::color_attachment_lookup[lookup_index].store_op;
@@ -523,9 +582,6 @@ namespace quark::engine::effect {
       attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
       u32 lookup_index = (u32)this->usage_modes[index];
-      if ((img_info.usage & ImageUsage::Texture) != 0) {
-        lookup_index = 3;
-      }
 
       attachment_desc[index].loadOp = internal::depth_attachment_lookup[lookup_index].load_op;
       attachment_desc[index].storeOp = internal::depth_attachment_lookup[lookup_index].store_op;
@@ -605,9 +661,9 @@ namespace quark::engine::effect {
     info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     info.renderPass = render_pass;
 
-    ivec2 dimensions = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].dimensions;
-    info.width = dimensions.x;
-    info.height = dimensions.y;
+    ivec2 resolution = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
+    info.width = resolution.x;
+    info.height = resolution.y;
     info.layers = 1;
 
     info.attachmentCount = attachments.size();
@@ -620,7 +676,7 @@ namespace quark::engine::effect {
     RenderTarget render_target = {};
 
     //#ifdef DEBUG
-      this->_basic_validate();
+      this->_validate();
     //#endif
 
     auto attachment_descs = this->_attachment_desc();
@@ -638,6 +694,38 @@ namespace quark::engine::effect {
 
     return render_target;
   }
+  
+  VkViewport RenderTarget::Info::_viewport() {
+    ivec2 res = this->_resolution();
+
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = res.x;
+    viewport.height = res.y;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    return viewport;
+  }
+
+  VkRect2D RenderTarget::Info::_scissor() {
+    ivec2 res = this->_resolution();
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = {(u32)res.x, (u32)res.y};
+
+    return scissor;
+  }
+
+  ImageSamples RenderTarget::Info::_samples() {
+    return ImageResource::Info::cache_one_per_frame[this->image_resources[0]].samples;
+  }
+
+  ivec2 RenderTarget::Info::_resolution() {
+    return ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
+  }
 
   void RenderTarget::create(RenderTarget::Info& info, std::string name) {
     if(Info::cache.has(name)) {
@@ -650,14 +738,289 @@ namespace quark::engine::effect {
     str::print(str() + "Created render target!");
   }
 
+  ResourceGroup ResourceGroup::Info::_create() {
+    ResourceGroup resource_group = {};
+    resource_group.sets = {};
+    resource_group.layout = 0;
+
+    return resource_group;
+  }
+
+  void ResourceGroup::create(ResourceGroup::Info& info, std::string name) {
+    panic2("Cant create 'ResourceGroup' yet!");
+  }
+
+  void PushConstant::create(PushConstant::Info& info, std::string name) {
+    if(Info::cache.has(name)) {
+      panic2("Attempted to create PushConstant with name: '" + name.c_str() + "' which already exists!");
+    }
+
+    PushConstant::Info::cache.add(name, info);
+  }
+
+  VkPipelineLayoutCreateInfo ResourceBundle::Info::_layout_info(std::vector<VkDescriptorSetLayout> set_layouts, VkPushConstantRange* push_constant) {
+    VkPipelineLayoutCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = set_layouts.size();
+    info.pSetLayouts = set_layouts.data();
+
+    if (push_constant != 0) {
+      info.pushConstantRangeCount = 1;
+      info.pPushConstantRanges = push_constant;
+    }
+
+    return info;
+  }
+
+  VkPushConstantRange ResourceBundle::Info::_push_constant() {
+    if (this->push_constant == "") {
+      return {};
+    }
+
+    VkPushConstantRange push_constant = {};
+    push_constant.offset = 0;
+    push_constant.size = PushConstant::Info::cache.get(this->push_constant).size;
+    push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    return push_constant;
+  }
+
+  std::vector<VkDescriptorSetLayout> ResourceBundle::Info::_set_layouts() {
+    return {};
+  }
+
+  ResourceBundle ResourceBundle::Info::_create() {
+    ResourceBundle resource_bundle = {};
+
+    if (this->resource_groups.size() > 4) {
+      panic2("Resource groups cannot be more than 4");
+    }
+
+    for_every(i, 4) {
+      if (this->resource_groups[i] != "") {
+        panic2("resource group not \"\"");
+      }
+    }
+
+    auto set_layouts = this->_set_layouts();
+    auto push_constant = this->_push_constant();
+    auto layout_info = this->push_constant != "" ? this->_layout_info(set_layouts, &push_constant) : this->_layout_info(set_layouts, 0);
+
+    vk_check(vkCreatePipelineLayout(_device, &layout_info, 0, &resource_bundle.layout));
+
+    return resource_bundle;
+  }
+
+  void ResourceBundle::create(ResourceBundle::Info& info, std::string name) {
+    if (Info::cache.has(name)) {
+      panic2("Attempted to create ResourceBundle with name: '" + name.c_str() + "' which already exists!");
+    }
+
+    auto resource_bundle = info._create();
+
+    ResourceBundle::Info::cache.add(name, info);
+    ResourceBundle::cache.add(name, resource_bundle);
+  }
+
+  VkPipelineVertexInputStateCreateInfo RenderMode::Info::_vertex_input_info() {
+    VkPipelineVertexInputStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    info.vertexBindingDescriptionCount = 1;
+    info.pVertexBindingDescriptions = VertexPNT::input_description.bindings;
+    info.vertexAttributeDescriptionCount = 3;
+    info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
+
+    return info;
+  }
+
+  VkPipelineInputAssemblyStateCreateInfo RenderMode::Info::_input_assembly_info() {
+    VkPipelineInputAssemblyStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    info.primitiveRestartEnable = VK_FALSE;
+
+    return info;
+  }
+
+  VkPipelineViewportStateCreateInfo RenderMode::Info::_viewport_info(VkViewport* viewport, VkRect2D* scissor) {
+    VkPipelineViewportStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    info.viewportCount = 1;
+    info.pViewports = viewport;
+    info.scissorCount = 1;
+    info.pScissors = scissor;
+
+    return info;
+  }
+
+  VkPipelineRasterizationStateCreateInfo RenderMode::Info::_rasterization_info() {
+    VkPipelineRasterizationStateCreateInfo info = {};
+    info.depthClampEnable = VK_FALSE;
+    info.rasterizerDiscardEnable = VK_FALSE;
+    info.polygonMode = (VkPolygonMode)this->fill_mode;
+    info.cullMode = (VkCullModeFlagBits)this->cull_mode;
+    info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    info.depthBiasEnable = VK_FALSE;
+    info.lineWidth = this->draw_width;
+
+    return info;
+  }
+
+  VkPipelineMultisampleStateCreateInfo RenderMode::Info::_multisample_info(ImageSamples samples) {
+    VkPipelineMultisampleStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    info.rasterizationSamples = (VkSampleCountFlagBits)samples;
+    info.sampleShadingEnable = VK_FALSE;
+    info.alphaToCoverageEnable = VK_FALSE;
+    info.alphaToOneEnable = VK_FALSE;
+    
+    return info;
+  }
+
+  VkPipelineDepthStencilStateCreateInfo RenderMode::Info::_depth_info() {
+    VkPipelineDepthStencilStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    info.depthTestEnable = VK_TRUE;
+    info.depthWriteEnable = VK_TRUE;
+    info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    info.depthBoundsTestEnable = VK_FALSE;
+    info.stencilTestEnable = VK_FALSE;
+    info.minDepthBounds = 0.0f;
+    info.maxDepthBounds = 1.0f;
+
+    return info;
+  }
+
+  std::vector<VkPipelineColorBlendAttachmentState> RenderMode::Info::_color_blend_attachments(u32 count) {
+    VkPipelineColorBlendAttachmentState info = {};
+    info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    if (this->alpha_blend_mode == AlphaBlendMode::Off) {
+      info.blendEnable = VK_FALSE;
+    } else {
+      info.blendEnable = VK_TRUE;
+      info.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      info.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      info.colorBlendOp = VK_BLEND_OP_ADD;
+      info.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+      info.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
+
+    std::vector<VkPipelineColorBlendAttachmentState> attachments;
+    attachments.resize(count);
+
+    for_every(index, count) {
+      attachments[index] = info;
+    }
+
+    return attachments;
+  }
+
+  VkPipelineColorBlendStateCreateInfo RenderMode::Info::_color_blend_info(std::vector<VkPipelineColorBlendAttachmentState>& attachments) {
+    VkPipelineColorBlendStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    info.logicOpEnable = VK_FALSE;
+    info.attachmentCount = attachments.size();
+    info.pAttachments = attachments.data();
+
+    return info;
+  }
+
+  VkPipelineShaderStageCreateInfo RenderEffect::Info::_vertex_stage(const char* entry_name) {
+    VkPipelineShaderStageCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    info.module = asset::get<VkVertexShader>(this->vertex_shader.c_str());
+    info.pName = entry_name;
+
+    return info;
+  }
+
+  VkPipelineShaderStageCreateInfo RenderEffect::Info::_fragment_stage(const char* entry_name) {
+    VkPipelineShaderStageCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    info.module = asset::get<VkFragmentShader>(this->vertex_shader.c_str());
+    info.pName = entry_name;
+
+    return info;
+  }
+
+  RenderEffect RenderEffect::Info::_create() {
+    //this->_validate();
+
+    RenderEffect render_effect = {};
+    render_effect.render_pass = RenderTarget::cache[this->render_target].render_pass;
+    render_effect.framebuffers = RenderTarget::cache[this->render_target].framebuffers;
+    render_effect.resolution = RenderTarget::Info::cache[this->render_target]._resolution();
+    render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
+
+    for_every(index, ResourceBundle::Info::cache[this->resource_bundle].resource_groups.size()) {
+      // TODO(sean): do this cache thing
+      //ResourceGroup::cache[ResourceBundle::Info::cache[this->resource_bundle].resource_groups]
+      render_effect.descriptor_sets[index] = {};
+    }
+
+    render_effect.vertex_buffer_resource = BufferResource::cache_one[this->vertex_buffer_resource].buffer;
+    if(this->index_buffer_resource != "") {
+      render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
+    }
+
+    VkPipelineMultisampleStateCreateInfo info2 = {};
+
+    auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
+    auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
+
+    auto vertex_input_info = render_mode_info._vertex_input_info();
+    auto input_assembly_info = render_mode_info._input_assembly_info();
+    auto viewport = render_target_info._viewport();
+    auto scissor = render_target_info._scissor();
+    auto viewport_info = render_mode_info._viewport_info(&viewport, &scissor);
+    auto rasterization_info = render_mode_info._rasterization_info();
+    auto multisample_info = render_mode_info._multisample_info(render_target_info._samples());
+    auto depth_info = render_mode_info._depth_info();
+    auto color_blend_attachments = render_mode_info._color_blend_attachments(render_target_info.image_resources.size() - 1);
+    auto color_blend_info = render_mode_info._color_blend_info(color_blend_attachments);
+
+    const char* entry_name = "main";
+
+    u32 shader_count = 1;
+    VkPipelineShaderStageCreateInfo shader_stages[2] = {{}, {}};
+    shader_stages[0] = this->_vertex_stage(entry_name);
+    if (fragment_shader != "") {
+      shader_stages[1] = this->_fragment_stage(entry_name);
+      shader_count += 1;
+    }
+
+    VkGraphicsPipelineCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    info.stageCount = shader_count;
+    info.pStages = shader_stages;
+    info.pVertexInputState = &vertex_input_info;
+    info.pInputAssemblyState = &input_assembly_info;
+    info.pViewportState = &viewport_info;
+    info.pRasterizationState = &rasterization_info;
+    info.pMultisampleState = &multisample_info;
+    info.pDepthStencilState = &depth_info;
+    info.pColorBlendState = &color_blend_info;
+    info.layout = render_effect.layout;
+    info.renderPass = render_effect.render_pass;
+
+    vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &info, 0, &render_effect.pipeline));
+
+    return render_effect;
+  }
+
   void RenderEffect::create(RenderEffect::Info& info, std::string name) {
-    //ImageResource::create_array({}, "textures").ok();
+    if (Info::cache.has(name)) {
+      panic2("Attempted to create RenderEffect with name: '" + name.c_str() + "' which already exists!");
+    }
 
-    //ResourceGroup::Info infod = {
-    //  .resources = { "textures", "default_sampler", "sun_depth" },
-    //};
+    auto render_effect = info._create();
 
-    //ResourceGroup::create(infod, "default").ok();
+    RenderEffect::Info::cache.add(name, info);
+    RenderEffect::cache.add(name, render_effect);
   }
 };
 
