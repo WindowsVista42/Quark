@@ -83,6 +83,7 @@ namespace quark::engine::effect {
       u32 usage;
       ImageSamples samples;
       ivec2 resolution;
+      VkImageLayout layout;
 
       VkExtent3D _ext();
       VkImageCreateInfo _img_info();
@@ -103,6 +104,8 @@ namespace quark::engine::effect {
     static void create_one(ImageResource::Info& info, std::string name);
     static void create_array(ImageResource::Info& info, std::string name);
     static void create_one_per_frame(ImageResource::Info& info, std::string name);
+
+    static void blit(std::string src, std::string dst);
 
     static ItemCache<ImageResource> cache_one;
     static ItemCache<std::vector<ImageResource>> cache_array;
@@ -206,6 +209,9 @@ namespace quark::engine::effect {
     ClearStoreRead    = 3,
     LoadStoreRead     = 4,
     LoadDontStoreRead = 5,
+    ClearStoreSrc     = 6,
+    LoadStoreSrc      = 7,
+    LoadDontStoreSrc  = 8,
   };
 
   struct engine_api RenderTarget {

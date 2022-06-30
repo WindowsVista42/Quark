@@ -429,34 +429,41 @@ namespace quark::engine::render {
     //ImageResource::blit("forward_pass_color", "swapchain");
 
     //ImageResource::transfer("swapchain", ImageLayout::Present); // auto
+    //ImageResource::copy_buffer("", "");
+    //ImageResource::copy_image("", "");
 
-    VkImageBlit region = {};
-    region.srcOffsets[0] = {0, 0};
-    region.srcOffsets[1] = {dim.x, dim.y};
+    //VkImageCopy copy = {};
+    //copy.srcSubresource
 
-    region.dstOffsets[0] = {0, 0};
-    region.dstOffsets[1] = {dim.x, dim.y};
+    //VkImageBlit region = {};
+    //region.srcOffsets[0] = {0, 0, 0};
+    //region.srcOffsets[1] = {dim.x, dim.y, 1};
 
-    region.srcSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .mipLevel = 0,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-    };
+    //region.dstOffsets[0] = {0, 0, 0};
+    //region.dstOffsets[1] = {dim.x, dim.y, 1};
 
-    region.dstSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .mipLevel = 0,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-    };
+    //region.srcSubresource = {
+    //  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    //  .mipLevel = 0,
+    //  .baseArrayLayer = 0,
+    //  .layerCount = 1,
+    //};
 
-    vkCmdBlitImage(_main_cmd_buf[_frame_index],
-        ImageResource::cache_one_per_frame.get("forward_pass_color")[_frame_index].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
-        1, &region,
-        VK_FILTER_NEAREST
-    );
+    //region.dstSubresource = {
+    //  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    //  .mipLevel = 0,
+    //  .baseArrayLayer = 0,
+    //  .layerCount = 1,
+    //};
+
+    //vkCmdBlitImage(_main_cmd_buf[_frame_index],
+    //    ImageResource::cache_one_per_frame.get("forward_pass_color")[_frame_index].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    //    _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
+    //    1, &region,
+    //    VK_FILTER_NEAREST
+    //);
+
+    ImageResource::blit("forward_pass_color", "swapchain");//"", _frame_index, "", _swapchain_frame_index);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   

@@ -315,6 +315,51 @@ namespace quark::engine::effect {
     str::print(str() + "Created image res!");
   }
 
+  void ImageResource::blit(std::string src, std::string dst) {
+      using namespace render::internal;
+
+      if (!Info::cache_one_per_frame.has(src)) {
+        panic2("Blit operations only work on one per frame resources!");
+      }
+
+      ImageResource::Info& info = Info::cache_one_per_frame.get(src);
+      ImageResource& res = cache_one_per_frame.get(src)[_frame_index];
+
+      if(dst == "swapchain") {
+        ivec2 dim = window::dimensions();
+
+        VkImageBlit region = {};
+        region.srcOffsets[0] = {0, 0, 0};
+        region.srcOffsets[1] = {info.resolution.x, info.resolution.y, 1};
+
+        region.dstOffsets[0] = {0, 0, 0};
+        region.dstOffsets[1] = {dim.x, dim.y, 1};
+
+        region.srcSubresource = {
+          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+          .mipLevel = 0,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+        };
+
+        region.dstSubresource = {
+          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+          .mipLevel = 0,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+        };
+
+        vkCmdBlitImage(_main_cmd_buf[_frame_index],
+            res.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
+            1, &region,
+            VK_FILTER_NEAREST
+        );
+      } else {
+        panic2("blit not supported!");
+      }
+    }
+
   VkBufferCreateInfo BufferResource::Info::_buf_info() {
     VkBufferCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
