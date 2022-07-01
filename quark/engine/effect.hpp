@@ -45,12 +45,13 @@ namespace quark::engine::effect {
     LinearD32   = VK_FORMAT_D32_SFLOAT,
     LinearD16   = VK_FORMAT_D16_UNORM,
 
-    LinearR32   = VK_FORMAT_R32_SFLOAT,
-    LinearR16   = VK_FORMAT_R16_SFLOAT,
+    //LinearR32   = VK_FORMAT_R32_SFLOAT,
+    //LinearR16   = VK_FORMAT_R16_SFLOAT,
 
-    LinearRg16  = VK_FORMAT_R16G16_SFLOAT,
+    //LinearRg16  = VK_FORMAT_R16G16_SFLOAT,
 
-    LinearRgb16 = VK_FORMAT_R16G16B16_SFLOAT,
+    //LinearRgb16 = VK_FORMAT_R16G16B16_SFLOAT,
+    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT,
 
     LinearRgba8 = VK_FORMAT_R8G8B8A8_UNORM,
     LinearBgra8 = VK_FORMAT_B8G8R8A8_UNORM,
@@ -60,15 +61,20 @@ namespace quark::engine::effect {
   };
 
   namespace ImageUsage {
-    enum e : u32 {
-      Src          = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      Dst          = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-      Texture      = VK_IMAGE_USAGE_SAMPLED_BIT,
-      Storage      = VK_IMAGE_USAGE_STORAGE_BIT,
-      RenderTarget = 0x00001000,
+    enum {
+      Unknown      = 0x00,
+      Src          = 0x01,
+      Dst          = 0x02,
+      Texture      = 0x04,
+      Storage      = 0x08,
+      RenderTarget = 0x10,
+      Present      = 0x40,
+      //Any          = 0xFF,
     };
-  };
 
+    using Bits = u32;
+  };
+  
   enum struct ImageSamples {
     One     = VK_SAMPLE_COUNT_1_BIT,
     Two     = VK_SAMPLE_COUNT_2_BIT,
@@ -80,9 +86,10 @@ namespace quark::engine::effect {
   struct engine_api ImageResource {
     struct Info {
       ImageFormat format;
-      ImageUsage::e usage;
-      ImageSamples samples;
+      ImageUsage::Bits usage;
       ivec2 resolution;
+      ImageSamples samples = ImageSamples::One;
+      ImageUsage::Bits initial_usage = ImageUsage::Unknown;
 
       VkExtent3D _ext();
       VkImageCreateInfo _img_info();
@@ -105,7 +112,7 @@ namespace quark::engine::effect {
     ImageFormat format;
     ImageSamples samples;
     ivec2 resolution;
-    ImageUsage::e current_usage;
+    ImageUsage::Bits current_usage;
 
     inline bool is_color() {
       return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32);
@@ -119,6 +126,7 @@ namespace quark::engine::effect {
     static void create_array(ImageResource::Info& info, std::string name);
     static void create_one_per_frame(ImageResource::Info& info, std::string name);
 
+    static void transition(std::string name, ImageUsage::Bits next_usage);
     static void blit(std::string src, std::string dst);
 
     static ItemCache<ImageResource> cache_one;
@@ -220,8 +228,8 @@ namespace quark::engine::effect {
   };
 
   enum struct LoadMode {
-    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,        // VK_IMAGE_LAYOUT_UNDEFINED            --> *
     Load     = VK_ATTACHMENT_LOAD_OP_LOAD,         // VK_IMAGE_LAYOUT_*_ATTACHMENT_OPTIMAL --> *
+    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,        // VK_IMAGE_LAYOUT_UNDEFINED            --> *
     DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,    // VK_IMAGE_LAYOUT_UNDEFIND             --> *
   };
 
@@ -230,18 +238,12 @@ namespace quark::engine::effect {
     DontStore  = VK_ATTACHMENT_STORE_OP_DONT_CARE, // * --> TransitionMode
   };
 
-  enum struct NextUsageMode {
-    RenderTarget, // * --> VK_IMAGE_LAYOUT_*_ATTACHMENT_OPTIMAL
-    Texture,      // * --> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    Src,          // * --> VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-  };
-
   struct engine_api RenderTarget {
     struct Info {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<LoadMode> load_modes;
       std::vector<StoreMode> store_modes;
-      std::vector<ImageUsage::e> next_usage_modes;
+      std::vector<ImageUsage::Bits> next_usage_modes;
 
       void _validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
@@ -385,7 +387,7 @@ namespace quark::engine::effect {
 
     ivec2 resolution;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
-    std::vector<NextUsageMode> next_usage_modes;
+    std::vector<ImageUsage::Bits> next_usage_modes;
     std::vector<std::string> image_resources;
 
     std::array<std::array<VkDescriptorSet, 4>, _FRAME_OVERLAP> descriptor_sets;
@@ -438,9 +440,6 @@ namespace quark::engine::effect {
     //engine_var VkImageLayout color_usage_to_layout[];
     //engine_var VkImageLayout depth_usage_to_layout[];
 
-    struct BlendLookup {
-    };
-
     enum struct ResourceType {
       ImageResourceOne,
       ImageResourceArray,
@@ -463,4 +462,75 @@ namespace quark::engine::effect {
 namespace quark {
   using namespace engine::effect;
 };
+
+namespace quark::engine::effect {
+  namespace ImageUsage {
+    static VkImageLayout _into_layout(ImageUsage::Bits bits, bool is_color) {
+      if (is_color) {
+        bits <<= 1;
+      }
+
+      u32 index = 31 - __builtin_clz(bits);
+      VkImageLayout lookup[] = {
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+      };
+
+      return lookup[index];
+    }
+
+    static VkImageUsageFlagBits _into_usage(ImageUsage::Bits bits, bool is_color) {
+      u32 flags = {};
+
+      auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
+        if (src & flag_read) {
+          (*dst) |= flag_write;
+        }
+      };
+
+      auto has_bit = [&](u32 src, u32 flag_read) {
+        return (src & flag_read) != 0;
+      };
+
+      write_bit(&flags, bits, ImageUsage::Unknown, 0);
+      write_bit(&flags, bits, ImageUsage::Present, 0);
+
+      write_bit(&flags, bits, ImageUsage::Src, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      write_bit(&flags, bits, ImageUsage::Dst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      write_bit(&flags, bits, ImageUsage::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
+      write_bit(&flags, bits, ImageUsage::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
+
+      if (has_bit(bits, ImageUsage::RenderTarget)) {
+        if (is_color) {
+          flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        } else {
+          flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        }
+      }
+
+      return (VkImageUsageFlagBits)flags;
+    }
+  };
+};
+
+namespace quark::engine::effect::internal {
+  static bool image_format_is_color(ImageFormat format) {
+    return !(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD16);
+  }
+
+  static VkImageAspectFlags image_format_to_aspect(ImageFormat format) {
+    if (image_format_is_color(format)) {
+      return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    
+    return VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
+};
+
 

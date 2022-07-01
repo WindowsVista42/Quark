@@ -463,7 +463,7 @@ namespace quark::engine::render {
     //    VK_FILTER_NEAREST
     //);
 
-    ImageResource::blit("forward_pass_color", "swapchain");//"", _frame_index, "", _swapchain_frame_index);
+    //ImageResource::blit("forward_pass_color", "swapchain");//"", _frame_index, "", _swapchain_frame_index);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
@@ -609,12 +609,6 @@ namespace quark::engine::render {
     VkPipeline _solid_pipeline = {};
     VkPipeline _wireframe_pipeline = {};
     VkRenderPass _default_render_pass = {};
-    
-    RenderEffect _depth_prepass_effect = {};
-    RenderEffect _shadowmap_effect = {};
-    RenderEffect _lit_shadow_effect = {};
-    RenderEffect _solid_effect = {};
-    RenderEffect _wireframe_effect = {};
     
     VkPipelineLayout _depth_only_pipeline_layout = {};
     VkPipeline _depth_only_pipeline = {};
@@ -995,9 +989,8 @@ namespace quark::engine::render {
       ImageResource::Info info;
 
       info = {
-        .format = ImageFormat::SrgbRgba8,
+        .format = ImageFormat::LinearRgba16,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .samples = ImageSamples::One,
         .resolution = window::dimensions(),
       };
       ImageResource::create_one_per_frame(info, "forward_pass_color");
@@ -1005,7 +998,6 @@ namespace quark::engine::render {
       info = {
         .format = ImageFormat::LinearD32,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .samples = ImageSamples::One,
         .resolution = window::dimensions(),
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
@@ -1013,7 +1005,6 @@ namespace quark::engine::render {
       info = {
         .format = ImageFormat::LinearD32,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .samples = ImageSamples::One,
         .resolution = {2048, 2048},
       };
       ImageResource::create_one_per_frame(info, "shadow_pass_depth");
@@ -1059,9 +1050,9 @@ namespace quark::engine::render {
 
       info = {
         .image_resources = {"forward_pass_color", "forward_pass_depth"},
-        .load_modes = {LoadMode::Clear, LoadMode::Load},
+        .load_modes = {LoadMode::Clear, LoadMode::Clear},
         .store_modes = {StoreMode::Store, StoreMode::Store},
-        .next_usage_modes = {ImageUsage::Src, ImageUsage::Src},
+        .next_usage_modes = {ImageUsage::Src, ImageUsage::RenderTarget},
       };
       RenderTarget::create(info, "forward_pass");
 

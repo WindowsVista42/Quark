@@ -17,8 +17,8 @@ namespace quark::engine::effect {
 
   namespace internal {
     VkImageLayout color_initial_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
@@ -29,8 +29,8 @@ namespace quark::engine::effect {
     };
 
     VkImageLayout depth_initial_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
@@ -44,6 +44,8 @@ namespace quark::engine::effect {
 
     RenderEffect current_re = {};
   };
+
+  using namespace internal;
 
   // image cache
   ItemCache<ImageResource::Info> ImageResource::Info::cache_one = {};
@@ -141,27 +143,8 @@ namespace quark::engine::effect {
     info.arrayLayers = 1;
     info.samples = (VkSampleCountFlagBits)this->samples;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    info.usage = 0;
-
-    if(this->_is_color()) {
-      this->usage = bit_replace_if(this->usage, ImageUsage::RenderTarget, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-    } else {
-      this->usage = bit_replace_if(this->usage, ImageUsage::RenderTarget, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    }
-
-    info.usage |= this->usage;
-
-    //if ((this->usage & ImageUsage::RenderTarget) != 0) {
-    //  if (this->_is_color()) {
-    //    info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    //  } else {
-    //    info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    //  }
-
-    //  this->usage &= ~ImageUsage::RenderTarget;
-    //}
+    info.usage = ImageUsage::_into_usage(this->usage, this->_is_color());
+    info.initialLayout = ImageUsage::_into_layout(this->initial_usage, this->_is_color());
 
     return info;
   }
@@ -253,6 +236,9 @@ namespace quark::engine::effect {
     str::print(str() + "Created image res!");
   }
 
+  void ImageResource::transition(std::string name, ImageUsage::Bits next_usage) {
+  }
+
   void ImageResource::blit(std::string src, std::string dst) {
       using namespace render::internal;
 
@@ -260,42 +246,39 @@ namespace quark::engine::effect {
         panic2("Blit operations only work on one per frame resources!");
       }
 
-      ImageResource::Info& info = Info::cache_one_per_frame.get(src);
-      ImageResource& res = cache_one_per_frame.get(src)[_frame_index];
+      ImageResource& src_res = cache_one_per_frame.get(src)[_frame_index];
+
+      VkImageBlit blit_region = {};
+      blit_region.srcOffsets[0] = {0, 0, 0};
+      blit_region.srcOffsets[1] = {src_res.resolution.x, src_res.resolution.y, 1};
+      blit_region.srcSubresource = {
+        .aspectMask = internal::image_format_to_aspect(src_res.format),
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      };
 
       if(dst == "swapchain") {
         ivec2 dim = window::dimensions();
 
-        VkImageBlit region = {};
-        region.srcOffsets[0] = {0, 0, 0};
-        region.srcOffsets[1] = {info.resolution.x, info.resolution.y, 1};
-
-        region.dstOffsets[0] = {0, 0, 0};
-        region.dstOffsets[1] = {dim.x, dim.y, 1};
-
-        region.srcSubresource = {
+        blit_region.dstOffsets[0] = {0, 0, 0};
+        blit_region.dstOffsets[1] = {dim.x, dim.y, 1};
+        blit_region.dstSubresource = {
           .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
           .mipLevel = 0,
           .baseArrayLayer = 0,
           .layerCount = 1,
         };
-
-        region.dstSubresource = {
-          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-          .mipLevel = 0,
-          .baseArrayLayer = 0,
-          .layerCount = 1,
-        };
-
-        vkCmdBlitImage(_main_cmd_buf[_frame_index],
-            res.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
-            1, &region,
-            VK_FILTER_NEAREST
-        );
       } else {
         panic2("blit not supported!");
       }
+
+      vkCmdBlitImage(_main_cmd_buf[_frame_index],
+        src_res.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit_region,
+        VK_FILTER_NEAREST
+      );
     }
 
   VkBufferCreateInfo BufferResource::Info::_buf_info() {
@@ -470,13 +453,13 @@ namespace quark::engine::effect {
     }
 
     // validate counts
-    if (this->usage_modes.size() == 0) {
+    if (this->next_usage_modes.size() == 0) {
       panic2("Size of 'RenderTarget::usage_modes' list must not be zero!" + "\n"
            + "Did you forgot to put usage modes?");
     }
 
     // validate counts
-    if (this->image_resources.size() != this->usage_modes.size()) {
+    if (this->image_resources.size() != this->next_usage_modes.size()) {
       panic2("There must be at least one usage mode per image resource!" + "\n"
            + "Did you forgot some usage modes or resources?");
     }
@@ -559,7 +542,7 @@ namespace quark::engine::effect {
       attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index];
 
       attachment_desc[index].initialLayout = internal::color_initial_layout_lookup[(usize)this->load_modes[index]];
-      attachment_desc[index].finalLayout   = internal::color_final_layout_lookup[(usize)this->next_usage_modes[index]];
+      attachment_desc[index].finalLayout   = ImageUsage::_into_layout(this->next_usage_modes[index], img_info._is_color());
     }
 
     // depth attachment
@@ -577,10 +560,13 @@ namespace quark::engine::effect {
       attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index]; //internal::depth_attachment_lookup[lookup_index].store_op;
 
       attachment_desc[index].initialLayout = internal::depth_initial_layout_lookup[(usize)this->load_modes[index]];
-      attachment_desc[index].finalLayout = internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
+      attachment_desc[index].finalLayout   = ImageUsage::_into_layout(this->next_usage_modes[index], img_info._is_color()); //internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
     }
 
     return attachment_desc;
+  }
+
+  void transition(const char* name, ImageUsage::Bits next_usage_mode) {
   }
 
   std::vector<VkAttachmentReference> RenderTarget::Info::_color_attachment_refs() {
