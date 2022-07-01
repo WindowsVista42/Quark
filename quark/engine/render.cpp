@@ -1051,19 +1051,25 @@ namespace quark::engine::render {
 
       info = {
         .image_resources = {"forward_pass_depth"},
-        .usage_modes = {UsageMode::ClearStore},
+        .load_modes = {LoadMode::Clear},
+        .store_modes = {StoreMode::Store},
+        .next_usage_modes = {ImageUsage::RenderTarget},
       };
       RenderTarget::create(info, "forward_pass_depth_prepass");
 
       info = {
         .image_resources = {"forward_pass_color", "forward_pass_depth"},
-        .usage_modes = {UsageMode::ClearStoreRead, UsageMode::ClearStoreRead},
+        .load_modes = {LoadMode::Clear, LoadMode::Load},
+        .store_modes = {StoreMode::Store, StoreMode::Store},
+        .next_usage_modes = {ImageUsage::Src, ImageUsage::Src},
       };
       RenderTarget::create(info, "forward_pass");
 
       info = {
         .image_resources = {"shadow_pass_depth"},
-        .usage_modes = {UsageMode::ClearStoreRead},
+        .load_modes = {LoadMode::Clear},
+        .store_modes = {StoreMode::Store},
+        .next_usage_modes = {ImageUsage::Texture},
       };
       RenderTarget::create(info, "shadow_pass");
     }
@@ -1697,24 +1703,24 @@ namespace quark::engine::render {
     Texture* load_png_texture(std::string* path) {
       int width, height, channels;
       stbi_uc* pixels = stbi_load(path->c_str(), &width, &height, &channels, STBI_rgb_alpha);
-    
+
       if(!pixels) {
         printf("Failed to load texture file \"%s\"\n", path->c_str());
         panic("");
       }
-    
+
       // copy texture to cpu only memory
       u64 image_size = width * height * 4;
-    
+
       AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-    
+
       void* data;
       vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
       memcpy(data, pixels, (isize)image_size);
       vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
-    
+
       stbi_image_free(pixels);
-    
+
       //TODO(sean): transfer to gpu only memory
       VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
       AllocatedImage alloc_image = create_allocated_image(

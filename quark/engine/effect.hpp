@@ -80,10 +80,9 @@ namespace quark::engine::effect {
   struct engine_api ImageResource {
     struct Info {
       ImageFormat format;
-      u32 usage;
+      ImageUsage::e usage;
       ImageSamples samples;
       ivec2 resolution;
-      VkImageLayout layout;
 
       VkExtent3D _ext();
       VkImageCreateInfo _img_info();
@@ -97,9 +96,24 @@ namespace quark::engine::effect {
       static ItemCache<ImageResource::Info> cache_one_per_frame;
     };
 
+    // Resource handles
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
+
+    // Metadata
+    ImageFormat format;
+    ImageSamples samples;
+    ivec2 resolution;
+    ImageUsage::e current_usage;
+
+    inline bool is_color() {
+      return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32);
+    }
+    // ImageFormat format; // implicitly derivable aspect
+    // VkImageLayout layout; // current image layout, would need to be overwritten by the RenderTarget upon initialization?
+    // ivec2 resolution;
+    // u32 usage;
 
     static void create_one(ImageResource::Info& info, std::string name);
     static void create_array(ImageResource::Info& info, std::string name);
@@ -132,7 +146,6 @@ namespace quark::engine::effect {
       u32 usage;
       usize size;
 
-
       VkBufferCreateInfo _buf_info();
       VmaAllocationCreateInfo _alloc_info();
       BufferResource _create();
@@ -154,30 +167,34 @@ namespace quark::engine::effect {
     static ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> cache_one_per_frame;
   };
 
-  struct engine_api MeshResource {
-    struct Info {
-      vec3 extents;
-      vec3 origin;
-      u32 offset;
-      u32 size;
-      std::string vertex_buffer_resource;
-      std::string index_buffer_resource;
-    };
+  //struct engine_api MeshResource {
+  //  struct CreateInfo {
+  //    std::vector<VertexPNT> vertices;
+  //  };
 
-    u32 offset;
-    u32 size;
-  };
+  //  struct Metadata {
+  //    vec3 extents;
+  //    vec3 origin;
+  //    u32 offset;
+  //    u32 size;
+  //    std::string vertex_buffer_resource;
+  //    std::string index_buffer_resource;
+  //  };
+
+  //  u32 offset;
+  //  u32 size;
+  //};
 
   enum struct FilterMode {
     Nearest = VK_FILTER_NEAREST,
-    Linear = VK_FILTER_LINEAR,
+    Linear  = VK_FILTER_LINEAR,
   };
 
   enum struct WrapMode {
-    Repeat = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    MirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
-    BorderClamp = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-    EdgeClamp = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    Repeat            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    MirroredRepeat    = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+    EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
     MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
   };
 
@@ -202,22 +219,29 @@ namespace quark::engine::effect {
     static ItemCache<std::vector<SamplerResource>> cache_array;
   };
 
-  enum struct UsageMode {
-    ClearStore        = 0,
-    LoadStore         = 1,
-    LoadDontStore     = 2,
-    ClearStoreRead    = 3,
-    LoadStoreRead     = 4,
-    LoadDontStoreRead = 5,
-    ClearStoreSrc     = 6,
-    LoadStoreSrc      = 7,
-    LoadDontStoreSrc  = 8,
+  enum struct LoadMode {
+    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,        // VK_IMAGE_LAYOUT_UNDEFINED            --> *
+    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,         // VK_IMAGE_LAYOUT_*_ATTACHMENT_OPTIMAL --> *
+    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,    // VK_IMAGE_LAYOUT_UNDEFIND             --> *
+  };
+
+  enum struct StoreMode {
+    Store      = VK_ATTACHMENT_STORE_OP_STORE,     // * --> TransitionMode
+    DontStore  = VK_ATTACHMENT_STORE_OP_DONT_CARE, // * --> TransitionMode
+  };
+
+  enum struct NextUsageMode {
+    RenderTarget, // * --> VK_IMAGE_LAYOUT_*_ATTACHMENT_OPTIMAL
+    Texture,      // * --> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    Src,          // * --> VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
   };
 
   struct engine_api RenderTarget {
     struct Info {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
-      std::vector<UsageMode> usage_modes;
+      std::vector<LoadMode> load_modes;
+      std::vector<StoreMode> store_modes;
+      std::vector<ImageUsage::e> next_usage_modes;
 
       void _validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
@@ -294,20 +318,20 @@ namespace quark::engine::effect {
   };
 
   enum struct FillMode {
-    Fill = VK_POLYGON_MODE_FILL,
-    Line = VK_POLYGON_MODE_LINE,
+    Fill  = VK_POLYGON_MODE_FILL,
+    Line  = VK_POLYGON_MODE_LINE,
     Point = VK_POLYGON_MODE_POINT,
   };
 
   enum struct CullMode {
-    None = VK_CULL_MODE_NONE,
+    None  = VK_CULL_MODE_NONE,
     Front = VK_CULL_MODE_FRONT_BIT,
-    Back = VK_CULL_MODE_BACK_BIT,
-    Both = VK_CULL_MODE_FRONT_AND_BACK,
+    Back  = VK_CULL_MODE_BACK_BIT,
+    Both  = VK_CULL_MODE_FRONT_AND_BACK,
   };
 
   enum struct AlphaBlendMode {
-    Off = 0,
+    Off    = 0,
     Simple = 1,
   };
 
@@ -360,8 +384,9 @@ namespace quark::engine::effect {
     VkRenderPass render_pass;
 
     ivec2 resolution;
-    usize attachment_count;
     std::array<VkFramebuffer, _FRAME_OVERLAP> framebuffers;
+    std::vector<NextUsageMode> next_usage_modes;
+    std::vector<std::string> image_resources;
 
     std::array<std::array<VkDescriptorSet, 4>, _FRAME_OVERLAP> descriptor_sets;
 
@@ -389,15 +414,29 @@ namespace quark::engine::effect {
   engine_api void end_everything();
 
   namespace internal {
-    struct AttachmentLookup {
-      VkAttachmentLoadOp load_op;
-      VkAttachmentStoreOp store_op;
+    //struct AttachmentLookup {
+    //  VkAttachmentLoadOp load_op;
+    //  VkAttachmentStoreOp store_op;
+    //  VkImageLayout initial_layout;
+    //  VkImageLayout final_layout;
+    //};
+
+    struct LayoutLookup {
       VkImageLayout initial_layout;
       VkImageLayout final_layout;
     };
 
-    engine_var AttachmentLookup color_attachment_lookup[6];
-    engine_var AttachmentLookup depth_attachment_lookup[6];
+    engine_var VkImageLayout color_initial_layout_lookup[3];
+    engine_var VkImageLayout color_final_layout_lookup[3];
+
+    engine_var VkImageLayout depth_initial_layout_lookup[3];
+    engine_var VkImageLayout depth_final_layout_lookup[3];
+
+    //engine_var LayoutLookup color_layout_lookup[2];
+    //engine_var LayoutLookup depth_layout_lookup[2];
+
+    //engine_var VkImageLayout color_usage_to_layout[];
+    //engine_var VkImageLayout depth_usage_to_layout[];
 
     struct BlendLookup {
     };

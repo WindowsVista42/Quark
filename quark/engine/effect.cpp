@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define QUARK_ENGINE_INTERNAL
 #include "effect.hpp"
 #include "str.hpp"
@@ -15,92 +16,28 @@ namespace quark::engine::effect {
     } while (0)
 
   namespace internal {
-    AttachmentLookup color_attachment_lookup[6] = {
-      { // UsageType::ClearStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      },
-      { // UsageType::LoadStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_LOAD,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      },
-      { // UsageType::LoadDontStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      },
-
-      // IS USED AS TEXTURE AFTERWARDS
-
-      { // UsageType::ClearStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      },
-
-      { // UsageType::LoadStoreRead
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      },
-
-      { // UsageType::LoadDontStoreRead
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      },
+    VkImageLayout color_initial_layout_lookup[3] = {
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_UNDEFINED,
     };
 
-    AttachmentLookup depth_attachment_lookup[6] = {
-      { // UsageType::ClearStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      },
-      { // UsageType::LoadStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_LOAD,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      },
-      { // UsageType::LoadDontStore
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      },
+    VkImageLayout color_final_layout_lookup[3] = {
+      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    };
 
-      // IS USED AS TEXTURE AFTERWARDS
+    VkImageLayout depth_initial_layout_lookup[3] = {
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+    };
 
-      { // UsageType::ClearStoreRead
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-      },
-
-      { // UsageType::LoadStoreRead
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-      },
-
-      { // UsageType::LoadDontStoreRead
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-      },
+    VkImageLayout depth_final_layout_lookup[3] = {
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
     };
 
     std::unordered_map<std::string, ResourceType> used_names = {};
@@ -204,6 +141,7 @@ namespace quark::engine::effect {
     info.arrayLayers = 1;
     info.samples = (VkSampleCountFlagBits)this->samples;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     info.usage = 0;
 
@@ -617,13 +555,11 @@ namespace quark::engine::effect {
       attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
       attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-      u32 lookup_index = (u32)this->usage_modes[index];
+      attachment_desc[index].loadOp = (VkAttachmentLoadOp)this->load_modes[index];
+      attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index];
 
-      attachment_desc[index].loadOp = internal::color_attachment_lookup[lookup_index].load_op;
-      attachment_desc[index].storeOp = internal::color_attachment_lookup[lookup_index].store_op;
-
-      attachment_desc[index].initialLayout = internal::color_attachment_lookup[lookup_index].initial_layout;
-      attachment_desc[index].finalLayout = internal::color_attachment_lookup[lookup_index].final_layout;
+      attachment_desc[index].initialLayout = internal::color_initial_layout_lookup[(usize)this->load_modes[index]];
+      attachment_desc[index].finalLayout   = internal::color_final_layout_lookup[(usize)this->next_usage_modes[index]];
     }
 
     // depth attachment
@@ -637,13 +573,11 @@ namespace quark::engine::effect {
       attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
       attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-      u32 lookup_index = (u32)this->usage_modes[index];
+      attachment_desc[index].loadOp = (VkAttachmentLoadOp)this->load_modes[index]; //internal::depth_attachment_lookup[lookup_index].load_op;
+      attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index]; //internal::depth_attachment_lookup[lookup_index].store_op;
 
-      attachment_desc[index].loadOp = internal::depth_attachment_lookup[lookup_index].load_op;
-      attachment_desc[index].storeOp = internal::depth_attachment_lookup[lookup_index].store_op;
-
-      attachment_desc[index].initialLayout = internal::depth_attachment_lookup[lookup_index].initial_layout;
-      attachment_desc[index].finalLayout = internal::depth_attachment_lookup[lookup_index].final_layout;
+      attachment_desc[index].initialLayout = internal::depth_initial_layout_lookup[(usize)this->load_modes[index]];
+      attachment_desc[index].finalLayout = internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
     }
 
     return attachment_desc;
@@ -1019,11 +953,17 @@ namespace quark::engine::effect {
   RenderEffect RenderEffect::Info::_create() {
     //this->_validate();
 
+    auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
+    auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
+    auto& render_target = RenderTarget::cache.get(this->render_target);
+
     RenderEffect render_effect = {};
-    render_effect.render_pass = RenderTarget::cache[this->render_target].render_pass;
-    render_effect.framebuffers = RenderTarget::cache[this->render_target].framebuffers;
-    render_effect.attachment_count = RenderTarget::Info::cache[this->render_target].image_resources.size();
-    render_effect.resolution = RenderTarget::Info::cache[this->render_target]._resolution();
+    render_effect.render_pass = render_target.render_pass;
+    render_effect.framebuffers = render_target.framebuffers;
+    render_effect.image_resources = render_target_info.image_resources;
+    render_effect.next_usage_modes = render_target_info.next_usage_modes;
+    render_effect.resolution = render_target_info._resolution();
+
     render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
 
     //for_every(index, ResourceBundle::Info::cache[this->resource_bundle].resource_groups.size()) {
@@ -1037,9 +977,6 @@ namespace quark::engine::effect {
       render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
     }
     printf("Here!\n");
-
-    auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
-    auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
 
     auto vertex_input_info = render_mode_info._vertex_input_info();
     auto input_assembly_info = render_mode_info._input_assembly_info();
@@ -1100,13 +1037,24 @@ namespace quark::engine::effect {
 
     if (internal::current_re.render_pass != re.render_pass) {
       if (internal::current_re.render_pass != 0) {
+        // end render pass
         vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+
+        // update layouts of images
+        for_every(i, internal::current_re.image_resources.size()) {
+          auto& img = ImageResource::cache_one_per_frame.get(re.image_resources[i])[_frame_index];
+          //if(img.is_color()) {
+          //  img.layout = internal::color_usage_to_layout[re.usage_modes[i]];
+          //} else {
+          //  img.layout = internal::depth_usage_to_layout[re.usage_modes[i]];
+          //}
+        }
       }
 
       std::vector<VkClearValue> clear_values;
 
       // color
-      for_every (index, re.attachment_count - 1) {
+      for_every (index, re.image_resources.size() - 1) {
         VkClearValue clear_value = {};
         clear_value.color = {1.0f, 0.0f, 0.0f, 1.0f};
         clear_values.push_back(clear_value);
@@ -1130,7 +1078,13 @@ namespace quark::engine::effect {
       begin_info.clearValueCount = clear_values.size();
       begin_info.pClearValues = clear_values.data();
 
+      // init render pass
       vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+      // set layouts of images
+      //for_every(i, re.image_resources.size()) {
+      //  ImageResource::cache_one_per_frame.get(re.image_resources[i])[_frame_index].layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      //}
     }
 
     if (internal::current_re.pipeline != re.pipeline) {
@@ -1150,6 +1104,8 @@ namespace quark::engine::effect {
 
   void end_everything() {
     vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+
+    // set all image layouts for render targets to VK_IMAGE_LAYOUT_UNDEFINED
   }
 };
 
