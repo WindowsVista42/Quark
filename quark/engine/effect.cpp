@@ -1133,6 +1133,8 @@ namespace quark::engine::effect {
     str::print(str() + "Created RenderEffect!");
   }
 
+  static std::unordered_set<std::string> initialized_images = {};
+
   void begin(std::string name) {
     RenderEffect& re = RenderEffect::cache.get(name);
 
@@ -1145,8 +1147,13 @@ namespace quark::engine::effect {
         for_every(i, internal::current_re.image_resources.size()) {
           auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
           img.current_usage = current_re.next_usage_modes[i];
+
+          if (initialized_images.find(current_re.image_resources[i]) != initialized_images.end()) {
+            initialized_images.insert(current_re.image_resources[i]);
+          }
         }
       } else {
+        initialized_images = {};
       }
 
       std::vector<VkClearValue> clear_values;
@@ -1180,9 +1187,15 @@ namespace quark::engine::effect {
       vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
       // set layouts of images
-      //for_every(i, re.image_resources.size()) {
-      //  ImageResource::cache_one_per_frame.get(re.image_resources[i])[_frame_index].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      //}
+      for_every(i, re.image_resources.size()) {
+        if (internal::current_re.render_pass != 0) {
+          if (initialized_images.find(current_re.image_resources[i]) == initialized_images.end()) {
+            ImageResource::get(re.image_resources[i], -1).current_usage = ImageUsage::Unknown;
+          }
+        } else {
+          ImageResource::get(re.image_resources[i], -1).current_usage = ImageUsage::Unknown;
+        }
+      }
     }
 
     if (internal::current_re.pipeline != re.pipeline) {
@@ -1208,9 +1221,7 @@ namespace quark::engine::effect {
       img.current_usage = current_re.next_usage_modes[i];
     }
 
-    for_every(index, _swapchain_images.size()) {
-      ImageResource::cache_array.get("swapchain")[index].current_usage = ImageUsage::Unknown;
-    }
+    ImageResource::get("swapchain", _swapchain_image_index).current_usage = ImageUsage::Unknown;
 
     // set all image layouts for render targets to VK_IMAGE_LAYOUT_UNDEFINED
   }
