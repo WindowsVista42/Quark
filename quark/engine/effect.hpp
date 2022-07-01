@@ -42,38 +42,27 @@ namespace quark::engine::effect {
   };
 
   enum struct ImageFormat {
-    LinearD32   = VK_FORMAT_D32_SFLOAT,
-    LinearD16   = VK_FORMAT_D16_UNORM,
+    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
 
-    //LinearR32   = VK_FORMAT_R32_SFLOAT,
-    //LinearR16   = VK_FORMAT_R16_SFLOAT,
+    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
 
-    //LinearRg16  = VK_FORMAT_R16G16_SFLOAT,
+    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
+    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
 
-    //LinearRgb16 = VK_FORMAT_R16G16B16_SFLOAT,
-    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT,
-
-    LinearRgba8 = VK_FORMAT_R8G8B8A8_UNORM,
-    LinearBgra8 = VK_FORMAT_B8G8R8A8_UNORM,
-
-    SrgbRgba8   = VK_FORMAT_R8G8B8A8_SRGB,
-    SrgbBgra8   = VK_FORMAT_B8G8R8A8_SRGB,
+    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
+    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
   };
 
-  namespace ImageUsage {
-    enum {
-      Unknown      = 0x00,
-      Src          = 0x01,
-      Dst          = 0x02,
-      Texture      = 0x04,
-      Storage      = 0x08,
-      RenderTarget = 0x10,
-      Present      = 0x40,
-      //Any          = 0xFF,
-    };
-
-    using Bits = u32;
-  };
+  namespace ImageUsage { enum {
+    Unknown      = 0x00,
+    Src          = 0x01,
+    Dst          = 0x02,
+    Texture      = 0x04,
+    Storage      = 0x08,
+    RenderTarget = 0x10, // implicit depth stored
+    Present      = 0x40,
+  }; using Bits = u32; };
   
   enum struct ImageSamples {
     One     = VK_SAMPLE_COUNT_1_BIT,
@@ -83,13 +72,67 @@ namespace quark::engine::effect {
     Sixteen = VK_SAMPLE_COUNT_16_BIT,
   };
 
+  namespace BufferUsage { enum {
+    CpuSrc  = 0x01,
+    CpuDst  = 0x02,
+
+    GpuSrc  = 0x04,
+    GpuDst  = 0x08,
+
+    Uniform = 0x10,
+    Storage = 0x20,
+    Index   = 0x40,
+    Vertex  = 0x80,
+  }; using Bits = u32; };
+
+  enum struct FilterMode {
+    Nearest = VK_FILTER_NEAREST,
+    Linear  = VK_FILTER_LINEAR,
+  };
+
+  enum struct WrapMode {
+    Repeat            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    MirroredRepeat    = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+    EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
+  };
+
+  enum struct LoadMode {
+    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,
+    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+  };
+
+  enum struct StoreMode {
+    Store     = VK_ATTACHMENT_STORE_OP_STORE,
+    DontStore = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+  };
+
+  enum struct FillMode {
+    Fill  = VK_POLYGON_MODE_FILL,
+    Line  = VK_POLYGON_MODE_LINE,
+    Point = VK_POLYGON_MODE_POINT,
+  };
+
+  enum struct CullMode {
+    None  = VK_CULL_MODE_NONE,
+    Front = VK_CULL_MODE_FRONT_BIT,
+    Back  = VK_CULL_MODE_BACK_BIT,
+    Both  = VK_CULL_MODE_FRONT_AND_BACK,
+  };
+
+  enum struct AlphaBlendMode {
+    Off    = 0x0,
+    Simple = 0x1,
+  };
+
   struct engine_api ImageResource {
     struct Info {
       ImageFormat format;
       ImageUsage::Bits usage;
       ivec2 resolution;
       ImageSamples samples = ImageSamples::One;
-      ImageUsage::Bits initial_usage = ImageUsage::Unknown;
 
       VkExtent3D _ext();
       VkImageCreateInfo _img_info();
@@ -110,43 +153,29 @@ namespace quark::engine::effect {
 
     // Metadata
     ImageFormat format;
-    ImageSamples samples;
     ivec2 resolution;
+    ImageSamples samples;
     ImageUsage::Bits current_usage;
 
     inline bool is_color() {
       return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32);
     }
-    // ImageFormat format; // implicitly derivable aspect
-    // VkImageLayout layout; // current image layout, would need to be overwritten by the RenderTarget upon initialization?
-    // ivec2 resolution;
-    // u32 usage;
 
     static void create_one(ImageResource::Info& info, std::string name);
     static void create_array(ImageResource::Info& info, std::string name);
     static void create_one_per_frame(ImageResource::Info& info, std::string name);
 
-    static void transition(std::string name, ImageUsage::Bits next_usage);
-    static void blit(std::string src, std::string dst);
+    static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
+
+    static void transition(std::string name, u32 index, ImageUsage::Bits next_usage);
+    //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
+    static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
+
+    static ImageResource& get(std::string name, u32 index = 0);
 
     static ItemCache<ImageResource> cache_one;
     static ItemCache<std::vector<ImageResource>> cache_array;
     static ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> cache_one_per_frame;
-  };
-
-  namespace BufferUsage {
-    enum e {
-      CpuSrc  = 0x00010000,
-      CpuDst  = 0x00020000,
-
-      GpuSrc  = 0x00040000,
-      GpuDst  = 0x00080000,
-
-      Uniform = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-      Storage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      Index   = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-      Vertex  = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    };
   };
 
   struct engine_api BufferResource {
@@ -193,19 +222,6 @@ namespace quark::engine::effect {
   //  u32 size;
   //};
 
-  enum struct FilterMode {
-    Nearest = VK_FILTER_NEAREST,
-    Linear  = VK_FILTER_LINEAR,
-  };
-
-  enum struct WrapMode {
-    Repeat            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    MirroredRepeat    = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
-    BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-    EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
-  };
-
   struct engine_api SamplerResource {
     struct Info {
       FilterMode filter_mode;
@@ -225,17 +241,6 @@ namespace quark::engine::effect {
 
     static ItemCache<SamplerResource> cache_one;
     static ItemCache<std::vector<SamplerResource>> cache_array;
-  };
-
-  enum struct LoadMode {
-    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,         // VK_IMAGE_LAYOUT_*_ATTACHMENT_OPTIMAL --> *
-    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,        // VK_IMAGE_LAYOUT_UNDEFINED            --> *
-    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,    // VK_IMAGE_LAYOUT_UNDEFIND             --> *
-  };
-
-  enum struct StoreMode {
-    Store      = VK_ATTACHMENT_STORE_OP_STORE,     // * --> TransitionMode
-    DontStore  = VK_ATTACHMENT_STORE_OP_DONT_CARE, // * --> TransitionMode
   };
 
   struct engine_api RenderTarget {
@@ -317,24 +322,6 @@ namespace quark::engine::effect {
     static void create(ResourceBundle::Info& info, std::string name);
 
     static ItemCache<ResourceBundle> cache;
-  };
-
-  enum struct FillMode {
-    Fill  = VK_POLYGON_MODE_FILL,
-    Line  = VK_POLYGON_MODE_LINE,
-    Point = VK_POLYGON_MODE_POINT,
-  };
-
-  enum struct CullMode {
-    None  = VK_CULL_MODE_NONE,
-    Front = VK_CULL_MODE_FRONT_BIT,
-    Back  = VK_CULL_MODE_BACK_BIT,
-    Both  = VK_CULL_MODE_FRONT_AND_BACK,
-  };
-
-  enum struct AlphaBlendMode {
-    Off    = 0,
-    Simple = 1,
   };
 
   struct engine_api RenderMode {
@@ -464,13 +451,14 @@ namespace quark {
 };
 
 namespace quark::engine::effect {
-  namespace ImageUsage {
-    static VkImageLayout _into_layout(ImageUsage::Bits bits, bool is_color) {
+  namespace internal {
+    static VkImageLayout image_usage_vk_layout(ImageUsage::Bits bits, bool is_color) {
       if (is_color) {
         bits <<= 1;
       }
 
-      u32 index = 31 - __builtin_clz(bits);
+      //u32 index = 31 - __builtin_clz(bits);
+      u32 index = __builtin_ctz(bits);
       VkImageLayout lookup[] = {
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -485,7 +473,7 @@ namespace quark::engine::effect {
       return lookup[index];
     }
 
-    static VkImageUsageFlagBits _into_usage(ImageUsage::Bits bits, bool is_color) {
+    static VkImageUsageFlagBits image_usage_vk_usage(ImageUsage::Bits bits, bool is_color) {
       u32 flags = {};
 
       auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
@@ -516,6 +504,53 @@ namespace quark::engine::effect {
 
       return (VkImageUsageFlagBits)flags;
     }
+
+    static VkBufferUsageFlagBits buffer_usage_vk_usage(BufferUsage::Bits bits) {
+      u32 flags = {};
+
+      auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
+        if (src & flag_read) {
+          (*dst) |= flag_write;
+        }
+      };
+      
+      write_bit(&flags, bits, BufferUsage::CpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      write_bit(&flags, bits, BufferUsage::CpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      write_bit(&flags, bits, BufferUsage::GpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      write_bit(&flags, bits, BufferUsage::GpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+      write_bit(&flags, bits, BufferUsage::Uniform, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+      write_bit(&flags, bits, BufferUsage::Storage, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+      write_bit(&flags, bits, BufferUsage::Index, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+      write_bit(&flags, bits, BufferUsage::Vertex, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+      return (VkBufferUsageFlagBits)flags;
+    }
+
+    static VmaMemoryUsage buffer_usage_vma_usage(BufferUsage::Bits bits) {
+      // likely a cpu -> gpu copy OR cpu -> gpu usage
+      if ((bits & (BufferUsage::CpuSrc | BufferUsage::Uniform)) != 0) {
+        return VMA_MEMORY_USAGE_CPU_TO_GPU;
+      }
+
+      // likely a gpu -> cpu copy
+      if ((bits & BufferUsage::CpuDst) != 0) {
+        return VMA_MEMORY_USAGE_GPU_TO_CPU;
+      }
+
+      // likely a gpu -> gpu copy OR internal gpu usage
+      return VMA_MEMORY_USAGE_GPU_ONLY;
+
+
+    }
+
+    struct BlitInfo {
+      VkOffset3D bottom_left;
+      VkOffset3D top_right;
+      VkImageSubresourceLayers subresource;
+    };
+
+    BlitInfo image_resource_blit_info(ImageResource& res);
   };
 };
 
@@ -524,7 +559,7 @@ namespace quark::engine::effect::internal {
     return !(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD16);
   }
 
-  static VkImageAspectFlags image_format_to_aspect(ImageFormat format) {
+  static VkImageAspectFlags image_format_vk_aspect(ImageFormat format) {
     if (image_format_is_color(format)) {
       return VK_IMAGE_ASPECT_COLOR_BIT;
     }

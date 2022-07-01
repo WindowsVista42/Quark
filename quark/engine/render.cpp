@@ -422,48 +422,8 @@ namespace quark::engine::render {
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
-    auto dim = window::dimensions();
-
-    //ImageResource::transfer_layout("forward_pass_color", ImageLayout::Src); // auto for blit
-    //ImageResource::transfer_layout("swapchain", ImageLayout::Dst); // auto for blit
-    //ImageResource::blit("forward_pass_color", "swapchain");
-
-    //ImageResource::transfer("swapchain", ImageLayout::Present); // auto
-    //ImageResource::copy_buffer("", "");
-    //ImageResource::copy_image("", "");
-
-    //VkImageCopy copy = {};
-    //copy.srcSubresource
-
-    //VkImageBlit region = {};
-    //region.srcOffsets[0] = {0, 0, 0};
-    //region.srcOffsets[1] = {dim.x, dim.y, 1};
-
-    //region.dstOffsets[0] = {0, 0, 0};
-    //region.dstOffsets[1] = {dim.x, dim.y, 1};
-
-    //region.srcSubresource = {
-    //  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    //  .mipLevel = 0,
-    //  .baseArrayLayer = 0,
-    //  .layerCount = 1,
-    //};
-
-    //region.dstSubresource = {
-    //  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    //  .mipLevel = 0,
-    //  .baseArrayLayer = 0,
-    //  .layerCount = 1,
-    //};
-
-    //vkCmdBlitImage(_main_cmd_buf[_frame_index],
-    //    ImageResource::cache_one_per_frame.get("forward_pass_color")[_frame_index].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    //    _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_UNDEFINED,
-    //    1, &region,
-    //    VK_FILTER_NEAREST
-    //);
-
-    //ImageResource::blit("forward_pass_color", "swapchain");//"", _frame_index, "", _swapchain_frame_index);
+    ImageResource::blit("forward_pass_color", -1, "swapchain", _swapchain_image_index, FilterMode::Linear);
+    ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
@@ -978,6 +938,7 @@ namespace quark::engine::render {
       swapchain_builder = swapchain_builder.use_default_format_selection();
       swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(window::dimensions().x, window::dimensions().y);
+      swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     
       vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
     
@@ -1008,6 +969,27 @@ namespace quark::engine::render {
         .resolution = {2048, 2048},
       };
       ImageResource::create_one_per_frame(info, "shadow_pass_depth");
+
+      for_every(index, _swapchain_images.size()) {
+        ImageResource::Info s_info = {
+          .format = ImageFormat::LinearBgra8,
+          .usage = ImageUsage::Present,
+          .resolution = window::dimensions(),
+          .samples = ImageSamples::One,
+        };
+
+        ImageResource res = {
+          .allocation = 0,
+          .image = _swapchain_images[index],
+          .view = _swapchain_image_views[index],
+          .format = s_info.format,
+          .resolution = s_info.resolution,
+          .samples = s_info.samples,
+          .current_usage = ImageUsage::Unknown,
+        };
+
+        ImageResource::create_array_from_existing(s_info, res, "swapchain");
+      }
     }
     
     void init_command_pools_and_buffers() {

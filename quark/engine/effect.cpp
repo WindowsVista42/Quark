@@ -143,8 +143,8 @@ namespace quark::engine::effect {
     info.arrayLayers = 1;
     info.samples = (VkSampleCountFlagBits)this->samples;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    info.usage = ImageUsage::_into_usage(this->usage, this->_is_color());
-    info.initialLayout = ImageUsage::_into_layout(this->initial_usage, this->_is_color());
+    info.usage = internal::image_usage_vk_usage(this->usage, this->_is_color());
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     return info;
   }
@@ -192,6 +192,11 @@ namespace quark::engine::effect {
     auto view_info = this->_view_info(res.image);
     vk_check(vkCreateImageView(_device, &view_info, 0, &res.view));
 
+    res.format = this->format;
+    res.resolution = this->resolution;
+    res.samples = this->samples;
+    res.current_usage = VK_IMAGE_LAYOUT_UNDEFINED;
+
     return res;
   }
 
@@ -236,50 +241,173 @@ namespace quark::engine::effect {
     str::print(str() + "Created image res!");
   }
 
-  void ImageResource::transition(std::string name, ImageUsage::Bits next_usage) {
+  void ImageResource::create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name) {
+    add_name_association(name, internal::ResourceType::ImageResourceArray);
+
+    // append to list
+    if(Info::cache_array.has(name)) {
+      cache_array.get(name).push_back(res);
+      Info::cache_array.get(name).push_back(info);
+      return;
+    }
+
+    // create new list
+    cache_array.add(name, {res});
+    Info::cache_array.add(name, {info});
+    return;
   }
 
-  void ImageResource::blit(std::string src, std::string dst) {
-      using namespace render::internal;
+  void ImageResource::transition(std::string name, u32 index, ImageUsage::Bits next_usage) {
+    ImageResource& res = ImageResource::get(name, index);
 
-      if (!Info::cache_one_per_frame.has(src)) {
-        panic2("Blit operations only work on one per frame resources!");
-      }
+    auto old_layout = internal::image_usage_vk_layout(res.current_usage, res.is_color());
+    auto new_layout = internal::image_usage_vk_layout(next_usage, res.is_color());
 
-      ImageResource& src_res = cache_one_per_frame.get(src)[_frame_index];
+    u32 old_index = old_layout;
+    u32 new_index = new_layout;
 
-      VkImageBlit blit_region = {};
-      blit_region.srcOffsets[0] = {0, 0, 0};
-      blit_region.srcOffsets[1] = {src_res.resolution.x, src_res.resolution.y, 1};
-      blit_region.srcSubresource = {
-        .aspectMask = internal::image_format_to_aspect(src_res.format),
-        .mipLevel = 0,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
+    if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+      new_index = 8;
+    }
+
+    if (new_index > 8) {
+      panic2("unsupported image layout transition!");
+    }
+
+    VkAccessFlagBits access_lookup[9] = {
+      (VkAccessFlagBits)0,          // ImageUsage::Undefined
+      (VkAccessFlagBits)0,          // give up
+      (VkAccessFlagBits)0,          // ImageUsage::RenderTarget (COLOR)
+      (VkAccessFlagBits)0,          // ImageUsage::RenderTarget (DEPTH)
+      (VkAccessFlagBits)0,          // give up
+      VK_ACCESS_SHADER_READ_BIT,    // ImageUsage::Texture
+      VK_ACCESS_TRANSFER_READ_BIT,  // ImageUsage::Src
+      VK_ACCESS_TRANSFER_WRITE_BIT, // ImageUsage::Dst
+      VK_ACCESS_MEMORY_READ_BIT,    // ImageUsage::Present
+    };
+
+    VkPipelineStageFlagBits stage_lookup[9] = {
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,    // ImageUsage::Undefined
+      (VkPipelineStageFlagBits)0,           // give up
+      (VkPipelineStageFlagBits)0,           // ImageUsage::RenderTarget (COLOR)
+      (VkPipelineStageFlagBits)0,           // ImageUsage::RenderTarget (DEPTH)
+      (VkPipelineStageFlagBits)0,           // give up
+      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  // ImageUsage::Texture
+      VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Src
+      VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Dst
+      VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Present
+    };
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+
+    auto a = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    barrier.image = res.image;
+
+    barrier.subresourceRange = {
+      .aspectMask = internal::image_format_vk_aspect(res.format),
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    };
+
+    barrier.srcAccessMask = access_lookup[old_index];
+    barrier.dstAccessMask = access_lookup[new_index];
+
+    vkCmdPipelineBarrier(_main_cmd_buf[_frame_index],
+        stage_lookup[old_index], stage_lookup[new_index],
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier
+    );
+
+    res.current_usage = next_usage;
+  }
+
+  ImageResource& ImageResource::get(std::string name, u32 index) {
+    auto res_type = internal::used_names.at(name);
+
+    switch(res_type) {
+      case(internal::ResourceType::ImageResourceOne): {
+        return ImageResource::cache_one.get(name);
+      }; break;
+      case(internal::ResourceType::ImageResourceArray): {
+        return ImageResource::cache_array.get(name)[index];
+      }; break;
+      case(internal::ResourceType::ImageResourceOnePerFrame): {
+        if (index == -1) {
+          return ImageResource::cache_one_per_frame.get(name)[_frame_index];
+        } else {
+          return ImageResource::cache_one_per_frame.get(name)[index];
+        }
+      }; break;
+      default: {
+        panic2("Provided resource for blit operation was not an image resource!");
       };
+    };
+  }
 
-      if(dst == "swapchain") {
-        ivec2 dim = window::dimensions();
-
-        blit_region.dstOffsets[0] = {0, 0, 0};
-        blit_region.dstOffsets[1] = {dim.x, dim.y, 1};
-        blit_region.dstSubresource = {
-          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+  namespace internal {
+    BlitInfo image_resource_blit_info(ImageResource& res) {
+      return BlitInfo {
+        .bottom_left = {0, 0, 0},
+        .top_right = {res.resolution.x, res.resolution.y, 1},
+        .subresource = {
+          .aspectMask = image_format_vk_aspect(res.format),
           .mipLevel = 0,
           .baseArrayLayer = 0,
           .layerCount = 1,
-        };
-      } else {
-        panic2("blit not supported!");
-      }
-
-      vkCmdBlitImage(_main_cmd_buf[_frame_index],
-        src_res.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        _swapchain_images[_swapchain_image_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &blit_region,
-        VK_FILTER_NEAREST
-      );
+        },
+      };
     }
+  };
+
+  void ImageResource::blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode) {
+    using namespace render::internal;
+
+    ImageResource& src_res = ImageResource::get(src_name, src_index);
+    ImageResource& dst_res = ImageResource::get(dst_name, dst_index);
+
+    VkImageBlit blit_region = {};
+    auto src_blit_info = internal::image_resource_blit_info(src_res);
+    auto dst_blit_info = internal::image_resource_blit_info(dst_res);
+
+    blit_region.srcOffsets[0] = src_blit_info.bottom_left;
+    blit_region.srcOffsets[1] = src_blit_info.top_right;
+    blit_region.srcSubresource = src_blit_info.subresource;
+
+    blit_region.dstOffsets[0] = dst_blit_info.bottom_left;
+    blit_region.dstOffsets[1] = dst_blit_info.top_right;
+    blit_region.dstSubresource = dst_blit_info.subresource;
+
+    if (src_res.current_usage != ImageUsage::Src) {
+      //str::print(str() + "Transitioning layout for src: " + src_res.current_usage);
+      ImageResource::transition(src_name, src_index, ImageUsage::Src);
+      //str::print(str() + "Transitioning layout for src: " + src_res.current_usage);
+    }
+
+    if (dst_res.current_usage != ImageUsage::Dst) {
+      //str::print(str() + "Transitioning layout for dst: " + dst_res.current_usage);
+      ImageResource::transition(dst_name, dst_index, ImageUsage::Dst);
+      //str::print(str() + "Transitioning layout for dst: " + dst_res.current_usage);
+    }
+
+    vkCmdBlitImage(_main_cmd_buf[_frame_index],
+      src_res.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      dst_res.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      1, &blit_region,
+      (VkFilter)filter_mode
+    );
+  }
 
   VkBufferCreateInfo BufferResource::Info::_buf_info() {
     VkBufferCreateInfo info = {};
@@ -293,28 +421,14 @@ namespace quark::engine::effect {
     usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
     usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-    info.usage = usage_copy;
+    info.usage = internal::buffer_usage_vk_usage(this->usage);//usage_copy;
 
     return info;
   }
 
   VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
     VmaAllocationCreateInfo info = {};
-    info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-    // likely a cpu -> gpu copy OR cpu -> gpu usage
-    if ((this->usage & (BufferUsage::CpuSrc | BufferUsage::Uniform)) != 0) {
-      info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-      return info;
-    }
-
-    // likely a gpu -> cpu copy
-    if ((this->usage & BufferUsage::CpuDst) != 0) {
-      info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
-      return info;
-    }
-
-    // likely a gpu -> gpu copy OR internal gpu usage
+    info.usage = internal::buffer_usage_vma_usage(this->usage);
     return info;
   }
 
@@ -542,7 +656,7 @@ namespace quark::engine::effect {
       attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index];
 
       attachment_desc[index].initialLayout = internal::color_initial_layout_lookup[(usize)this->load_modes[index]];
-      attachment_desc[index].finalLayout   = ImageUsage::_into_layout(this->next_usage_modes[index], img_info._is_color());
+      attachment_desc[index].finalLayout   = internal::image_usage_vk_layout(this->next_usage_modes[index], img_info._is_color());
     }
 
     // depth attachment
@@ -560,7 +674,7 @@ namespace quark::engine::effect {
       attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index]; //internal::depth_attachment_lookup[lookup_index].store_op;
 
       attachment_desc[index].initialLayout = internal::depth_initial_layout_lookup[(usize)this->load_modes[index]];
-      attachment_desc[index].finalLayout   = ImageUsage::_into_layout(this->next_usage_modes[index], img_info._is_color()); //internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
+      attachment_desc[index].finalLayout   = internal::image_usage_vk_layout(this->next_usage_modes[index], img_info._is_color()); //internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
     }
 
     return attachment_desc;
@@ -948,6 +1062,7 @@ namespace quark::engine::effect {
     render_effect.framebuffers = render_target.framebuffers;
     render_effect.image_resources = render_target_info.image_resources;
     render_effect.next_usage_modes = render_target_info.next_usage_modes;
+
     render_effect.resolution = render_target_info._resolution();
 
     render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
@@ -1028,13 +1143,10 @@ namespace quark::engine::effect {
 
         // update layouts of images
         for_every(i, internal::current_re.image_resources.size()) {
-          auto& img = ImageResource::cache_one_per_frame.get(re.image_resources[i])[_frame_index];
-          //if(img.is_color()) {
-          //  img.layout = internal::color_usage_to_layout[re.usage_modes[i]];
-          //} else {
-          //  img.layout = internal::depth_usage_to_layout[re.usage_modes[i]];
-          //}
+          auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
+          img.current_usage = current_re.next_usage_modes[i];
         }
+      } else {
       }
 
       std::vector<VkClearValue> clear_values;
@@ -1090,6 +1202,15 @@ namespace quark::engine::effect {
 
   void end_everything() {
     vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+
+    for_every(i, internal::current_re.image_resources.size()) {
+      auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
+      img.current_usage = current_re.next_usage_modes[i];
+    }
+
+    for_every(index, _swapchain_images.size()) {
+      ImageResource::cache_array.get("swapchain")[index].current_usage = ImageUsage::Unknown;
+    }
 
     // set all image layouts for render targets to VK_IMAGE_LAYOUT_UNDEFINED
   }
