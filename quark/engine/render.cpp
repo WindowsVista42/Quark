@@ -935,7 +935,7 @@ namespace quark::engine::render {
       // Swapchain creation
       vkb::SwapchainBuilder swapchain_builder{_physical_device, _device, _surface};
     
-      swapchain_builder = swapchain_builder.use_default_format_selection();
+      swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
       swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(window::dimensions().x, window::dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
@@ -952,14 +952,14 @@ namespace quark::engine::render {
       info = {
         .format = ImageFormat::LinearRgba16,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .resolution = window::dimensions() / 4,
+        .resolution = window::dimensions() / 2,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_color");
 
       info = {
         .format = ImageFormat::LinearD24S8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .resolution = window::dimensions() / 4,
+        .resolution = window::dimensions() / 2,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
@@ -973,7 +973,7 @@ namespace quark::engine::render {
       for_every(index, _swapchain_images.size()) {
         ImageResource::Info s_info = {
           .format = ImageFormat::LinearBgra8,
-          .usage = ImageUsage::Present,
+          .usage = ImageUsage::Present | ImageUsage::Dst,
           .resolution = window::dimensions(),
           .samples = ImageSamples::One,
         };

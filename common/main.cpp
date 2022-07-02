@@ -11,7 +11,9 @@ namespace common {
       Entity::create().add(
         Transform {},
         //Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
-        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
+        //Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
+        //Color {2.5f, 1.5f, 1.5f, 1.0f},
+        Color {2.0f, 0.0f, 0.0f, 1.0f},
         //Effect::SolidColorFill {},
         Tag {}
       );
@@ -21,7 +23,8 @@ namespace common {
       Entity::create().add(
         Transform {.position = {(f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f}},
         //Model::from_name_scale("suzanne"),
-        Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f}
+        //Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f}
+        Color {0.5f, 0.5f, 0.5f, 1.0f}
         //Effect::SolidColorLines {}
       );
     }
@@ -41,20 +44,27 @@ namespace common {
       static f32 T = 0.0f;
       f32 ctr = 0.0f;
       for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
-        transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
-        transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
-        ctr += 0.25f;
+        //transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
+        //transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
+        //ctr += 0.25f;
         //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
 
-        color.x = (sinf(TT) + 1.0f) / 2.0f;
+        color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        color.y = 0.0f;
+        color.z = 0.0f;
       }
       T += DT;
     }
 
-    MAIN_CAMERA.pos.x += input::get("d").value() * DT;
-    MAIN_CAMERA.pos.x -= input::get("a").value() * DT;
-    MAIN_CAMERA.pos.y += input::get("w").value() * DT;
-    MAIN_CAMERA.pos.y -= input::get("s").value() * DT;
+    vec2 move_dir = {0.0f, 0.0f};
+
+    move_dir.x += input::get("d").value();
+    move_dir.x -= input::get("a").value();
+    move_dir.y += input::get("w").value();
+    move_dir.y -= input::get("s").value();
+    move_dir.norm_max_mag(1.0f);
+
+    MAIN_CAMERA.pos.xy += move_dir * DT;
 
     MAIN_CAMERA.pos.z += input::get("up").value() * DT;
     MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
@@ -63,14 +73,25 @@ namespace common {
   }
 
   void render_things() {
-    engine::effect::begin("color_line");
-    engine::effect::begin("color_fill");
-    Model model = Model::from_name_scale("suzanne", {4.0f, 1.0f, 1.0f});
+    Model model = Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f});
 
     struct PushC {
       mat4 mat;
       vec4 color;
     };
+
+    engine::effect::begin("color_line");
+
+    //for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
+    //  PushC c = {};
+    //  c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id] * 1.1f);
+    //  c.color = vec4 {1.0f, 1.0f, 1.0f, 1.0f};
+
+    //  engine::effect::draw(model, c);
+    //}
+
+
+    engine::effect::begin("color_fill");
 
     for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
       PushC c = {};
@@ -79,6 +100,7 @@ namespace common {
 
       engine::effect::draw(model, c);
     }
+
     engine::effect::end_everything();
   }
 };
