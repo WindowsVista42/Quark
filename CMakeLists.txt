@@ -33,11 +33,11 @@ set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
   #set(FORCE_SHARED_CRT ON)
-  set(CMAKE_C_FLAGS_DEBUG "-O1 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O0 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
   set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -static")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O1 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O0 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static")
 endif(WIN32)
@@ -51,6 +51,8 @@ if(UNIX)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -fsanitize=address -static")
   set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static")
 endif(UNIX)
+
+# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # DEPENDENCIES
 find_package(Vulkan REQUIRED)

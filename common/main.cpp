@@ -30,6 +30,7 @@ namespace common {
     input::bind("s", Key::S);
     input::bind("a", Key::A);
     input::bind("d", Key::D);
+    input::bind("v", Key::V);
     input::bind("up", Key::Space);
     input::bind("down", Key::LeftControl);
     input::bind("pause", Key::P);
@@ -57,10 +58,27 @@ namespace common {
 
     MAIN_CAMERA.pos.z += input::get("up").value() * DT;
     MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
+
+    MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
   }
 
   void render_things() {
-    engine::effect::begin("empty");
+    engine::effect::begin("color_line");
+    engine::effect::begin("color_fill");
+    Model model = Model::from_name_scale("suzanne", {4.0f, 1.0f, 1.0f});
+
+    struct PushC {
+      mat4 mat;
+      vec4 color;
+    };
+
+    for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
+      PushC c = {};
+      c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id]);
+      c.color = color;
+
+      engine::effect::draw(model, c);
+    }
     engine::effect::end_everything();
   }
 };

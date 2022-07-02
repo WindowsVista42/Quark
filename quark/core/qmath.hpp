@@ -85,6 +85,8 @@ namespace quark::core::math {
     i32 x, y;
 
     bool operator !=(ivec2& other);
+    ivec2 operator *(i32 value);
+    ivec2 operator /(i32 value);
   };
 
   // Three component vector
@@ -330,7 +332,10 @@ namespace quark::core::math {
     static mat4 look_dir(vec3 position, vec3 direction, vec3 up);
     static mat4 look_at(vec3 position, vec3 target, vec3 up);
     static mat4 axis_angle(vec3 axis, f32 angle);
+    static mat4 translate(vec3 position);
     static mat4 rotate(quat rotation);
+    static mat4 scale(vec3 scale);
+    static mat4 transform(vec3 position, quat rotation, vec3 scale);
   };
 
   f32 radians(f32 degrees);

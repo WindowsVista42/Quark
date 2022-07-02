@@ -422,7 +422,7 @@ namespace quark::engine::render {
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
-    ImageResource::blit("forward_pass_color", -1, "swapchain", _swapchain_image_index, FilterMode::Linear);
+    ImageResource::blit("forward_pass_color", -1, "swapchain", _swapchain_image_index, FilterMode::Nearest);
     ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -853,9 +853,9 @@ namespace quark::engine::render {
 
     void init_mesh_buffer() {
       // Init staging buffer and allocation tracker
-      //constexpr usize _BUFFER_SIZE = 100 * MB;
-      //_gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      //_gpu_vertices_tracker.init(_BUFFER_SIZE);
+      constexpr usize _BUFFER_SIZE = 100 * MB;
+      _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+      _gpu_vertices_tracker.init(_BUFFER_SIZE);
 
       BufferResource::Info info = {};
 
@@ -880,11 +880,36 @@ namespace quark::engine::render {
     
     void copy_meshes_to_gpu() {
       // updates _gpu_vertex & _gpu_vertices_tracker to new data
+      AllocatedBuffer old_buffer = _gpu_vertices;
+      LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
+    
+      _gpu_vertices = create_allocated_buffer(
+          old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    
+      _gpu_vertices_tracker.deinit();
+      _gpu_vertices_tracker.init(old_tracker.size());
+      _gpu_vertices_tracker.alloc(old_tracker.size());
+    
+      // buffer copy
+      {
+        VkCommandBuffer cmd = begin_quick_commands();
+    
+        VkBufferCopy copy = {};
+        copy.dstOffset = 0;
+        copy.srcOffset = 0;
+        copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
+        vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
+    
+        end_quick_commands(cmd);
+      }
+    
+      vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
+
       //AllocatedBuffer old_buffer = _gpu_vertices;
       //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
     
       //_gpu_vertices = create_allocated_buffer(
-      //    old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+      //    _gpu_vertices_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
       //_gpu_vertices_tracker.deinit();
       //_gpu_vertices_tracker.init(old_tracker.size());
@@ -904,31 +929,6 @@ namespace quark::engine::render {
       //}
     
       //vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
-
-      AllocatedBuffer old_buffer = _gpu_vertices;
-      //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
-    
-      _gpu_vertices = create_allocated_buffer(
-          _gpu_vertices_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    
-      //_gpu_vertices_tracker.deinit();
-      //_gpu_vertices_tracker.init(old_tracker.size());
-      //_gpu_vertices_tracker.alloc(old_tracker.size());
-    
-      // buffer copy
-      {
-        VkCommandBuffer cmd = begin_quick_commands();
-    
-        VkBufferCopy copy = {};
-        copy.dstOffset = 0;
-        copy.srcOffset = 0;
-        copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
-        vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
-    
-        end_quick_commands(cmd);
-      }
-    
-      vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
     }
     
     void init_swapchain() {
@@ -952,14 +952,14 @@ namespace quark::engine::render {
       info = {
         .format = ImageFormat::LinearRgba16,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .resolution = window::dimensions(),
+        .resolution = window::dimensions() / 4,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_color");
 
       info = {
         .format = ImageFormat::LinearD32,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .resolution = window::dimensions(),
+        .resolution = window::dimensions() / 4,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
@@ -1066,37 +1066,56 @@ namespace quark::engine::render {
     }
    
     void init_pipelines() {
+      PushConstant::Info pc_info = {};
+      pc_info = {
+        .size = 80,
+      };
+      PushConstant::create(pc_info, "color");
+
       ResourceBundle::Info info = {};
       info = {
         .resource_groups = {},
-        .push_constant = "",
+        .push_constant = "color",
       };
 
-      ResourceBundle::create(info, "empty");
+      ResourceBundle::create(info, "color");
 
-      RenderMode::Info rm_info = {
+      RenderMode::Info rm_info = {};
+
+      rm_info= {
         .fill_mode = FillMode::Fill,
         .cull_mode = CullMode::Back,
         .alpha_blend_mode = AlphaBlendMode::Off,
         .draw_width = 1.0f,
       };
-      RenderMode::create(rm_info, "default");
+      RenderMode::create(rm_info, "default_fill");
+
+      rm_info = {
+        .fill_mode = FillMode::Line,
+        .cull_mode = CullMode::None,
+        .alpha_blend_mode = AlphaBlendMode::Off,
+        .draw_width = 1.0f,
+      };
+      RenderMode::create(rm_info, "default_line");
 
       RenderEffect::Info re_info = {};
 
       re_info = {
         .render_target = "forward_pass", //
-        .resource_bundle = "empty", //
+        .resource_bundle = "color", //
 
-        .vertex_shader = "depth_only", //
-        .fragment_shader = "",//"empty", //
+        .vertex_shader = "color", //
+        .fragment_shader = "color", //"empty", //
 
-        .render_mode = "default",
+        .render_mode = "default_fill",
 
         .vertex_buffer_resource = "global_vertex_buffer", //
         .index_buffer_resource = "",
       };
-      RenderEffect::create(re_info, "empty");
+      RenderEffect::create(re_info, "color_fill");
+
+      re_info.render_mode = "default_line";
+      RenderEffect::create(re_info, "color_line");
     }
     
     void init_sampler() {

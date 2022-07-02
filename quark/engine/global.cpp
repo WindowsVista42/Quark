@@ -84,7 +84,7 @@ namespace quark::engine::global {
         .add(def(render::internal::init_command_pools_and_buffers), -1) // NOTE(sean): add textures after this!
 
         .add(def(load_shaders), -1)
-        //.add(def(load_meshes), -1)
+        .add(def(load_meshes), -1)
         //.add(def(load_images), -1)
 
         // Creating random internal resources
@@ -95,7 +95,7 @@ namespace quark::engine::global {
         .add(def(render::internal::init_sampler), -1)
 
         //.add(def(render::internal::init_global_descriptors), -1) // NOTE(sean): add textures before this!
-        //.add(def(render::internal::copy_meshes_to_gpu), -1) // NOTE(sean): add meshes before this!
+        .add(def(render::internal::copy_meshes_to_gpu), -1) // NOTE(sean): add meshes before this!
         .add(def(render::internal::init_pipelines), -1) // NOTE(sean): add shaders before this!
 
         //.add(def(render::internal::init_reflection), -1)
@@ -110,7 +110,7 @@ namespace quark::engine::global {
 
         .add(def(update_tag), -1)
 
-        //.add(def(render::update_cameras), -1)
+        .add(def(render::update_cameras), -1)
         //.add(def(render::update_world_data), -1)
 
         .add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!

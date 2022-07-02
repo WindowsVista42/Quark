@@ -300,7 +300,7 @@ namespace quark::engine::effect {
       static ItemCache<PushConstant::Info> cache;
     };
 
-    void create(PushConstant::Info& info, std::string name);
+    static void create(PushConstant::Info& info, std::string name);
   };
 
   struct ResourceBundle {
@@ -398,6 +398,12 @@ namespace quark::engine::effect {
 
   template <typename PushConstant>
   inline void draw(Model& model, PushConstant& push_constant) {
+    using namespace render::internal;
+
+    vkCmdPushConstants(_main_cmd_buf[_frame_index],
+      internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+      0, sizeof(PushConstant), &push_constant);
+    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[model.id].size, 1, _gpu_meshes[model.id].offset, 0);
   }
 
   engine_api void end_everything();

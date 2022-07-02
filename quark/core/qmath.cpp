@@ -105,6 +105,14 @@ namespace quark::core::math {
     return this->x != other.x || this->y != other.y;
   }
 
+  ivec2 ivec2::operator *(i32 value) {
+    return {this->x * value, this->y * value};
+  }
+
+  ivec2 ivec2::operator /(i32 value) {
+    return {this->x / value, this->y / value};
+  }
+
   // vec3
 
   const vec3 vec3::unit_x = vec3 {1,0,0};
@@ -561,6 +569,16 @@ namespace quark::core::math {
     };
   }
 
+  mat4 mat4::translate(vec3 position) {
+    mat4 m = mat4::identity;
+
+    m[3][0] = position.x;
+    m[3][1] = position.y;
+    m[3][2] = position.z;
+
+    return m;
+  }
+
   mat4 mat4::rotate(quat rotation) {
     // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
 
@@ -594,6 +612,23 @@ namespace quark::core::math {
     m[3][3] = 1;
 
     return m;
+  }
+
+  mat4 mat4::scale(vec3 scale) {
+    mat4 m = mat4::identity;
+
+    m[0][0] = scale.x;
+    m[1][1] = scale.y;
+    m[2][2] = scale.z;
+
+    return m;
+  }
+
+  mat4 mat4::transform(vec3 position, quat rotation, vec3 scale) {
+    mat4 m_translation = mat4::translate(position);
+    mat4 m_rotation = mat4::rotate(rotation);
+    mat4 m_scale = mat4::scale(scale);
+    return m_translation * m_rotation * m_scale;
   }
 
   f32 radians(f32 degrees) {
