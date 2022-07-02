@@ -104,7 +104,7 @@ namespace quark::engine::global {
         //.add(def(render::init), -1);
 
       system::list("update")
-        //.add(def(render::internal::print_performance_statistics), -1)
+        .add(def(render::internal::print_performance_statistics), -1)
         .add(def(window::poll_events), -1)
         .add(def(input::update_all), -1)
 

@@ -1161,7 +1161,7 @@ namespace quark::engine::effect {
       // color
       for_every (index, re.image_resources.size() - 1) {
         VkClearValue clear_value = {};
-        clear_value.color = {1.0f, 0.0f, 0.0f, 1.0f};
+        clear_value.color = {1.0f, 0.0f, 1.0f, 1.0f};
         clear_values.push_back(clear_value);
       }
 
