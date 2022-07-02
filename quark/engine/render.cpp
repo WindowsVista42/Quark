@@ -957,14 +957,14 @@ namespace quark::engine::render {
       ImageResource::create_one_per_frame(info, "forward_pass_color");
 
       info = {
-        .format = ImageFormat::LinearD32,
+        .format = ImageFormat::LinearD24S8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
         .resolution = window::dimensions() / 4,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
       info = {
-        .format = ImageFormat::LinearD32,
+        .format = ImageFormat::LinearD24S8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
         .resolution = {2048, 2048},
       };

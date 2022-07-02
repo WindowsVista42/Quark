@@ -43,6 +43,7 @@ namespace quark::engine::effect {
 
   enum struct ImageFormat {
     LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT,
     LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
 
     LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
@@ -158,7 +159,7 @@ namespace quark::engine::effect {
     ImageUsage::Bits current_usage;
 
     inline bool is_color() {
-      return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32);
+      return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
     }
 
     static void create_one(ImageResource::Info& info, std::string name);
@@ -562,7 +563,7 @@ namespace quark::engine::effect {
 
 namespace quark::engine::effect::internal {
   static bool image_format_is_color(ImageFormat format) {
-    return !(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD16);
+    return !(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD16 || format == ImageFormat::LinearD24S8);
   }
 
   static VkImageAspectFlags image_format_vk_aspect(ImageFormat format) {

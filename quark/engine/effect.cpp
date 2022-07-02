@@ -171,7 +171,7 @@ namespace quark::engine::effect {
   }
 
   bool ImageResource::Info::_is_color() {
-    return !(this->format == ImageFormat::LinearD32 || this->format == ImageFormat::LinearD16);
+    return !(this->format == ImageFormat::LinearD32 || this->format == ImageFormat::LinearD16 || this->format == ImageFormat::LinearD24S8);
   }
 
   VmaAllocationCreateInfo ImageResource::Info::_alloc_info() {
