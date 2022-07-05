@@ -15,14 +15,17 @@
 #include <thread>
 #include <chrono>
 
-std::atomic_uintptr_t num = 0;
+#include <iostream>
+using usize = std::uintptr_t;
+usize num = 0;
 
 void do_thing() {
   //return;
   //std::this_thread::sleep_for(std::chrono::nanoseconds(rand() % 800));
-  //for(long long i = 0; i < 100; i++) {
-    num.fetch_add(1);
+  //for(long long i = 0; i < 1; i++) {
+    //num += rand() % 10;
   //}
+  num += 1;
   //printf("wow it works!\n");
 }
 
@@ -70,155 +73,155 @@ void do_thing() {
 //   }
 // };
 
-using usize = std::uintptr_t;
-using atomic_usize = std::atomic_uintptr_t;
+// using usize = std::uintptr_t;
+// using atomic_usize = std::atomic_uintptr_t;
 
-struct WorkQueue {
-  using proc = void (*)();
-
-  atomic_usize list_head;
-  atomic_usize list_tail;
-
-  static constexpr usize list_length = 64;
-  proc list[list_length];
-
-  inline proc pop() {
-    //usize index = list_head.load();
-    usize index = list_head.fetch_add(1);
-    //printf("pop: %llu\n", index);
-    return list[index % list_length];
-  }
-
-  inline void push(proc p) {
-    //printf("push: %llu\n", index);
-    usize index = list_tail.load();
-    list[index % list_length] = p;
-    list_tail.fetch_add(1);
-  }
-};
-
-struct Worker2 {
-  CONDITION_VARIABLE* waker;
-  CRITICAL_SECTION* mutex;
-  HANDLE handle;
-
-  atomic_usize* init_count;
-  atomic_usize* running_count;
-  WorkQueue* work_queue;
-
-  static DWORD WINAPI work_loop(PVOID data) {
-    Worker2* self = (Worker2*)data;
-    self->init_count->fetch_sub(1);
-
-    while(true) { 
-      while (self->work_queue->list_head.load() >= self->work_queue->list_tail.load()) {
-        SleepConditionVariableCS(self->waker, self->mutex, INFINITE);
-      }
-      auto proc = self->work_queue->pop();
-      LeaveCriticalSection(self->mutex);
-      proc();
-
-      //if (self->work_queue->list_head.load() >= self->work_queue->list_tail.load()) {
-      //  continue;
-      //}
-      //self->running_count->fetch_add(1);
-
-
-      //if (proc != 0) {
-      //  //self->running_count->fetch_sub(1);
-      //}
-    }
-
-    return 0;
-  }
-};
-
-struct WorkerPool2 {
-  Worker2 workers[4];
-  CONDITION_VARIABLE worker_waker;
-  CRITICAL_SECTION worker_mutex;
-
-  atomic_usize init_count;
-  atomic_usize running_count;
-
-  WorkQueue work_queue;
-
-  void add_work(void (*p)()) {
-    work_queue.push(p);
-    //WakeConditionVariable(&this->worker_waker);
-  }
-
-  void init() {
-    InitializeConditionVariable(&this->worker_waker);
-    InitializeCriticalSection(&this->worker_mutex);
-
-    //InitializeConditionVariable(&this->pool_waker);
-    //InitializeCriticalSection(&this->pool_mutex);
-
-    this->init_count = 4;
-    this->running_count = 0;
-    this->work_queue.list_head = 0;
-    this->work_queue.list_tail = 0;
-    
-    for(int i = 0; i < 64; i += 1) {
-      this->work_queue.list[i] = 0;
-    }
-
-    for (int i = 0; i < 4; i += 1) {
-      DWORD id;
-      workers[i].waker = &this->worker_waker;
-      workers[i].mutex = &this->worker_mutex;
-      workers[i].init_count = &this->init_count;
-      workers[i].running_count = &this->running_count;
-      workers[i].work_queue = &this->work_queue;
-      workers[i].handle = CreateThread(0, 1024 * 1024, Worker2::work_loop, &workers[i], 0, &id);
-    }
-
-    // spin lock till threads init lol
-    while(init_count.load() > 0) {
-      printf("wait\n");
-    }
-    printf("All threads initialized!\n");
-
-    //EnterCriticalSection(&this->worker_mutex);
-    //LeaveCriticalSection(&this->worker_mutex);
-  }
-
-  void join() {
-
-    //while(this->running_count.load() != 4) {}
-    //while(this->running_count.load() != 4) {}
-    //while(this->work_queue.list_head.load() != this->work_queue.list_tail.load()) {
-    //  //printf("wait!\n");
-    //  WakeConditionVariable(&this->worker_waker);
-    //}
-
-    //WakeAllConditionVariable(&this->worker_waker);
-    //WakeAllConditionVariable(&this->worker_waker);
-
-    while(this->work_queue.list_head < this->work_queue.list_tail) {// || this->running_count.load() != 0) {
-      WakeConditionVariable(&this->worker_waker);
-    }
-    //std::this_thread::sleep_for(std::chrono::nanoseconds(200));
-
-      //for (int i = 0; i < 100; i += 1) {
-      //  do_thing();
-      //}
-
-    //do_thing();
-    this->running_count = 0;
-    this->work_queue.list_head = 0;
-    this->work_queue.list_tail = 0;
-    
-    for(int i = 0; i < 64; i += 1) {
-      this->work_queue.list[i] = 0;
-    }
-
-    //for (int i = 0; i < 40000; i += 1) {
-    //  do_thing();
-    //}
-  }
-};
+// struct WorkQueue {
+//   using proc = void (*)();
+// 
+//   atomic_usize list_head;
+//   atomic_usize list_tail;
+// 
+//   static constexpr usize list_length = 64;
+//   proc list[list_length];
+// 
+//   inline proc pop() {
+//     //usize index = list_head.load();
+//     usize index = list_head.fetch_add(1);
+//     //printf("pop: %llu\n", index);
+//     return list[index % list_length];
+//   }
+// 
+//   inline void push(proc p) {
+//     //printf("push: %llu\n", index);
+//     usize index = list_tail.load();
+//     list[index % list_length] = p;
+//     list_tail.fetch_add(1);
+//   }
+// };
+// 
+// struct Worker2 {
+//   CONDITION_VARIABLE* waker;
+//   CRITICAL_SECTION* mutex;
+//   HANDLE handle;
+// 
+//   atomic_usize* init_count;
+//   atomic_usize* running_count;
+//   WorkQueue* work_queue;
+// 
+//   static DWORD WINAPI work_loop(PVOID data) {
+//     Worker2* self = (Worker2*)data;
+//     self->init_count->fetch_sub(1);
+// 
+//     while(true) { 
+//       while (self->work_queue->list_head.load() >= self->work_queue->list_tail.load()) {
+//         SleepConditionVariableCS(self->waker, self->mutex, INFINITE);
+//       }
+//       auto proc = self->work_queue->pop();
+//       LeaveCriticalSection(self->mutex);
+//       proc();
+// 
+//       //if (self->work_queue->list_head.load() >= self->work_queue->list_tail.load()) {
+//       //  continue;
+//       //}
+//       //self->running_count->fetch_add(1);
+// 
+// 
+//       //if (proc != 0) {
+//       //  //self->running_count->fetch_sub(1);
+//       //}
+//     }
+// 
+//     return 0;
+//   }
+// };
+// 
+// struct WorkerPool2 {
+//   Worker2 workers[4];
+//   CONDITION_VARIABLE worker_waker;
+//   CRITICAL_SECTION worker_mutex;
+// 
+//   atomic_usize init_count;
+//   atomic_usize running_count;
+// 
+//   WorkQueue work_queue;
+// 
+//   void add_work(void (*p)()) {
+//     work_queue.push(p);
+//     //WakeConditionVariable(&this->worker_waker);
+//   }
+// 
+//   void init() {
+//     InitializeConditionVariable(&this->worker_waker);
+//     InitializeCriticalSection(&this->worker_mutex);
+// 
+//     //InitializeConditionVariable(&this->pool_waker);
+//     //InitializeCriticalSection(&this->pool_mutex);
+// 
+//     this->init_count = 4;
+//     this->running_count = 0;
+//     this->work_queue.list_head = 0;
+//     this->work_queue.list_tail = 0;
+//     
+//     for(int i = 0; i < 64; i += 1) {
+//       this->work_queue.list[i] = 0;
+//     }
+// 
+//     for (int i = 0; i < 4; i += 1) {
+//       DWORD id;
+//       workers[i].waker = &this->worker_waker;
+//       workers[i].mutex = &this->worker_mutex;
+//       workers[i].init_count = &this->init_count;
+//       workers[i].running_count = &this->running_count;
+//       workers[i].work_queue = &this->work_queue;
+//       workers[i].handle = CreateThread(0, 1024 * 1024, Worker2::work_loop, &workers[i], 0, &id);
+//     }
+// 
+//     // spin lock till threads init lol
+//     while(init_count.load() > 0) {
+//       printf("wait\n");
+//     }
+//     printf("All threads initialized!\n");
+// 
+//     //EnterCriticalSection(&this->worker_mutex);
+//     //LeaveCriticalSection(&this->worker_mutex);
+//   }
+// 
+//   void join() {
+// 
+//     //while(this->running_count.load() != 4) {}
+//     //while(this->running_count.load() != 4) {}
+//     //while(this->work_queue.list_head.load() != this->work_queue.list_tail.load()) {
+//     //  //printf("wait!\n");
+//     //  WakeConditionVariable(&this->worker_waker);
+//     //}
+// 
+//     //WakeAllConditionVariable(&this->worker_waker);
+//     //WakeAllConditionVariable(&this->worker_waker);
+// 
+//     while(this->work_queue.list_head < this->work_queue.list_tail) {// || this->running_count.load() != 0) {
+//       WakeConditionVariable(&this->worker_waker);
+//     }
+//     //std::this_thread::sleep_for(std::chrono::nanoseconds(200));
+// 
+//       //for (int i = 0; i < 100; i += 1) {
+//       //  do_thing();
+//       //}
+// 
+//     //do_thing();
+//     this->running_count = 0;
+//     this->work_queue.list_head = 0;
+//     this->work_queue.list_tail = 0;
+//     
+//     for(int i = 0; i < 64; i += 1) {
+//       this->work_queue.list[i] = 0;
+//     }
+// 
+//     //for (int i = 0; i < 40000; i += 1) {
+//     //  do_thing();
+//     //}
+//   }
+// };
 
 // struct WorkerPool {
 //   Worker workers[4];
@@ -289,29 +292,178 @@ struct WorkerPool2 {
 //   }
 // };
 
-static WorkerPool2 pool;
+// static WorkerPool2 pool;
 
-static DWORD WINAPI incrementally_print_nums(PVOID data) {
-  while(true) {
-    printf("num: %lld\n", num.load());
-    printf("pool.running_count: %lld\n", pool.running_count.load());
-    printf("pool.work_queue.list_head: %lld\n", pool.work_queue.list_head.load());
-    printf("pool.work_queue.list_tail: %lld\n", pool.work_queue.list_tail.load());
-    for (int i = 0; i < 4; i += 1) {
-      printf("addrs: %llu\n", pool.work_queue.list[i]);
+//static DWORD WINAPI incrementally_print_nums(PVOID data) {
+//  while(true) {
+//    printf("num: %lld\n", num.load());
+//    printf("pool.running_count: %lld\n", pool.running_count.load());
+//    printf("pool.work_queue.list_head: %lld\n", pool.work_queue.list_head.load());
+//    printf("pool.work_queue.list_tail: %lld\n", pool.work_queue.list_tail.load());
+//    for (int i = 0; i < 4; i += 1) {
+//      printf("addrs: %llu\n", pool.work_queue.list[i]);
+//    }
+//    Sleep(100);
+//  }
+//}
+
+//struct mutex {
+//  mutex create();
+//
+//#if defined(_WIN32) || defined(_WIN64)
+//  CRITICAL_SECTION mutex;
+//
+//  static mutex create() {
+//  }
+//#endif
+//};
+
+//void lock_mutex()
+
+using usize = uintptr_t;
+
+struct WorkerData {
+  CRITICAL_SECTION work_mutex;
+  CONDITION_VARIABLE work_cond;
+  bool stop;
+
+  usize work_head;
+  usize work_tail;
+  void (*work[64])();
+
+  usize working_count;
+};
+
+static DWORD WINAPI worker_work_loop(PVOID data) {
+  WorkerData* self = (WorkerData*)data;
+
+  while (true) {
+    EnterCriticalSection(&self->work_mutex);
+
+    while (self->work_head == self->work_tail && !self->stop) {
+      SleepConditionVariableCS(&self->work_cond, &self->work_mutex, INFINITE);
     }
-    Sleep(100);
+
+    if (self->stop) {
+      break;
+    }
+
+    // grab our work
+    auto work = self->work[self->work_head];
+    self->work_head += 1;
+    self->working_count += 1;
+    LeaveCriticalSection(&self->work_mutex);
+
+    work(); // do the work
+
+    EnterCriticalSection(&self->work_mutex);
+    self->working_count -= 1;
+    if (!self->stop && self->working_count == 0 && self->work_head == self->work_tail) {
+      WakeAllConditionVariable(&self->work_cond);
+      //self->work_cond.notify_all(); // tell pool that we are done
+    }
+    LeaveCriticalSection(&self->work_mutex);
   }
+
+  //self->work_cond.notify_one();
+  LeaveCriticalSection(&self->work_mutex);
+  return 0;
 }
 
+struct WorkerPool3 {
+  HANDLE threads[4];
+  WorkerData data;
+
+  void init() {
+    this->data.stop = false;
+    this->data.work_head = 0;
+    this->data.work_tail = 0;
+    this->data.working_count = 0;
+
+    for(int i = 0; i < 64; i += 1) {
+      this->data.work[i] = 0;
+    }
+
+    InitializeCriticalSection(&this->data.work_mutex);
+    InitializeConditionVariable(&this->data.work_cond);
+
+    EnterCriticalSection(&this->data.work_mutex);
+    for(int i = 0; i < 4; i += 1) {
+      this->threads[i] = CreateThread(0, 0, worker_work_loop, &this->data, 0, 0);
+    }
+    LeaveCriticalSection(&this->data.work_mutex);
+  }
+
+  void add_work(void (*p)()) {
+    EnterCriticalSection(&this->data.work_mutex);
+
+    this->data.work[this->data.work_tail] = p;
+    this->data.work_tail += 1;
+
+    LeaveCriticalSection(&this->data.work_mutex);
+  }
+
+  void add_work_begin_now(void (*p)()) {
+    EnterCriticalSection(&this->data.work_mutex);
+
+    this->data.work[this->data.work_tail] = p;
+    this->data.work_tail += 1;
+
+    WakeConditionVariable(&this->data.work_cond);
+    LeaveCriticalSection(&this->data.work_mutex);
+  }
+
+  void join() {
+    EnterCriticalSection(&this->data.work_mutex);
+    WakeAllConditionVariable(&this->data.work_cond);
+
+    while (true) {
+      if (this->data.working_count != 0 || this->data.work_head != this->data.work_tail) {
+        SleepConditionVariableCS(&this->data.work_cond, &this->data.work_mutex, INFINITE);
+      } else {
+        break;
+      }
+    }
+
+    this->data.stop = false;
+    this->data.work_head = 0;
+    this->data.work_tail = 0;
+    this->data.working_count = 0;
+
+    for(int i = 0; i < 64; i += 1) {
+      this->data.work[i] = 0;
+    }
+
+    LeaveCriticalSection(&this->data.work_mutex);
+  }
+};
+
+WorkerPool3 pool;
+
 int main() {
+  //ThreadPool pool(4);
+  //std::vector<std::future<void>> futs;
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+  //futs.push_back(pool.Push(do_thing, void()));
+
+  //pool.Stop();
+
+  // DWORD id;
+  // HANDLE h = CreateThread(0, 0, incrementally_print_nums, 0, 0, &id);
+
   pool.init();
 
-  DWORD id;
-  HANDLE h = CreateThread(0, 0, incrementally_print_nums, 0, 0, &id);
-
   auto t0 = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < 10; i += 1) {
+  for(int i = 0; i < 1000000; i += 1) {
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
@@ -321,11 +473,15 @@ int main() {
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.join();
+
+    //if (i % 100000 == 0) {
+    //  printf("working!\n");
+    //}
   }
   auto t1 = std::chrono::high_resolution_clock::now();
   std::cout << std::chrono::duration<double>(t1 - t0).count() << "s\n";
 
-  printf("Exited!\n");
+  printf("Exited num: %llu!\n", num);
 
   //WorkerPool pool;
   //pool.init();
