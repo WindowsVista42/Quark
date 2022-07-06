@@ -443,12 +443,13 @@ using usize = uintptr_t;
 struct WorkerData {
   bool stop;
 
+  // simple fifo queue
   semaphore work_sem;
-  atomic_usize work_head;
-  atomic_usize work_tail;
+  usize work_head;
+  usize work_tail;
   void (*work[64])();
 
-  atomic_usize working_count;
+  usize working_count;
 };
 
 static DWORD WINAPI worker_work_loop(PVOID data) {
@@ -456,13 +457,13 @@ static DWORD WINAPI worker_work_loop(PVOID data) {
 
   while (true) {
     self->work_sem.lock();
-    //EnterCriticalSection(&self->work_mutex);
 
+    // sleep until we might have work
     while (self->work_head == self->work_tail && !self->stop) {
       self->work_sem.sleep();
-      //SleepConditionVariableCS(&self->work_cond, &self->work_mutex, INFINITE);
     }
 
+    // quit if told to stop
     if (self->stop) {
       break;
     }
@@ -472,30 +473,21 @@ static DWORD WINAPI worker_work_loop(PVOID data) {
     self->work_head += 1;
     self->working_count += 1;
     self->work_sem.unlock();
-    //self->working_count.fetch_add(1);
-
-    //LeaveCriticalSection(&self->work_mutex);
 
     work(); // do the work
 
+    // update status
     self->work_sem.lock();
-    //EnterCriticalSection(&self->work_mutex);
     self->working_count -= 1;
-    // put a thing in here to wake any thread waiting on us?
-    // atomically update status?
-    //
+
     if (!self->stop && self->working_count == 0 && self->work_head == self->work_tail) {
-      self->work_sem.wake_all();
-      //WakeAllConditionVariable(&self->work_cond);
-      //self->work_cond.notify_all(); // tell pool that we are done
+      self->work_sem.wake_all(); // signal that we have all of the work done
     }
     self->work_sem.unlock();
-    //LeaveCriticalSection(&self->work_mutex);
   }
 
-  //self->work_cond.notify_one();
+  // release any locks
   self->work_sem.unlock();
-  //LeaveCriticalSection(&self->work_mutex);
   return 0;
 }
 
@@ -506,6 +498,7 @@ struct WorkerPool3 {
 
   void init(usize thread_ct) {
     this->data.stop = false;
+
     this->data.work_head = 0;
     this->data.work_tail = 0;
     this->data.working_count = 0;
@@ -515,62 +508,53 @@ struct WorkerPool3 {
     }
 
     this->data.work_sem = semaphore::create();
-    //InitializeCriticalSection(&this->data.work_mutex);
-    //InitializeConditionVariable(&this->data.work_cond);
 
     this->thread_ct = thread_ct;
     this->threads = (HANDLE*)malloc(sizeof(HANDLE) * this->thread_ct);
-    printf("Initialized %llu threads!\n", this->thread_ct);
 
-    //EnterCriticalSection(&this->data.work_mutex);
     this->data.work_sem.lock();
     for(int i = 0; i < this->thread_ct; i += 1) {
       this->threads[i] = CreateThread(0, 0, worker_work_loop, &this->data, 0, 0);
     }
-    //LeaveCriticalSection(&this->data.work_mutex);
     this->data.work_sem.unlock();
   }
 
   void add_work(void (*p)()) {
-    //EnterCriticalSection(&this->data.work_mutex);
-    //this->data.work_sem.lock();
+    // we might try to add work while a thread is running
+    // so we go ahead and lock just in case
+    this->data.work_sem.lock();
 
     this->data.work[this->data.work_tail] = p;
     this->data.work_tail += 1;
 
-    //this->data.work_sem.unlock();
-    //LeaveCriticalSection(&this->data.work_mutex);
+    this->data.work_sem.unlock();
   }
 
   void add_work_begin_now(void (*p)()) {
-    //EnterCriticalSection(&this->data.work_mutex);
-    //this->data.work_sem.lock();
+    // we might try to add work while a thread is running
+    // so we go ahead and lock just in case
+    this->data.work_sem.lock();
 
     this->data.work[this->data.work_tail] = p;
     this->data.work_tail += 1;
 
-    //WakeConditionVariable(&this->data.work_cond);
     this->data.work_sem.wake_one();
-    //this->data.work_sem.unlock();
-    //LeaveCriticalSection(&this->data.work_mutex);
+    this->data.work_sem.unlock();
   }
 
   void join() {
-    this->data.work_sem.lock();
     this->data.work_sem.wake_all();
-    //EnterCriticalSection(&this->data.work_mutex);
-    //WakeAllConditionVariable(&this->data.work_cond);
+    this->data.work_sem.lock();
 
     while (true) {
       if (this->data.working_count != 0 || this->data.work_head != this->data.work_tail) {
         this->data.work_sem.sleep();
-        //SleepConditionVariableCS(&this->data.work_cond, &this->data.work_mutex, INFINITE);
       } else {
         break;
       }
     }
 
-    this->data.stop = false;
+    // reset data
     this->data.work_head = 0;
     this->data.work_tail = 0;
     this->data.working_count = 0;
@@ -580,7 +564,6 @@ struct WorkerPool3 {
     }
 
     this->data.work_sem.unlock();
-    //LeaveCriticalSection(&this->data.work_mutex);
   }
 };
 
@@ -619,13 +602,13 @@ int main() {
 
   auto t0 = std::chrono::high_resolution_clock::now();
   for(int i = 0; i < 1000000000; i += 1) {
+    pool.add_work_begin_now(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
-    pool.add_work(do_thing);
-    pool.add_work(do_thing);
+    pool.add_work_begin_now(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
     pool.add_work(do_thing);
