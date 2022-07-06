@@ -15,9 +15,9 @@ atomic_usize num(0);
 atomic_usize inc(0);
 
 void do_thing() {
-  return;
+  //return;
   //if (inc.fetch_add(1) % 2 == 0) {
-    //num.fetch_add(1);
+    num.fetch_add(1);
   //} else {
   //  num.fetch_sub(1);
   //}
@@ -308,33 +308,27 @@ static atomic_usize working_count;
 static semaphore begin_sem;
 static semaphore done_sem;
 
-static std::atomic_bool begin_lock(false);
+static bool begin_lock = false;
 static std::atomic_bool done_lock(false);
-static std::atomic_bool exit_threads(false);
+
+static bool exit_threads = false;
+
 atomic_usize wait_count(0);
 
 usize a = 0;
 
 DWORD WINAPI worker_main2(PVOID data) {
-  usize id = *(usize*)data;
+  usize id = (usize)data;
+  printf("id: %llu\n", id);
 
   while(true) {
-    //wait_count.fetch_add(1, std::memory_order_relaxed);
-    //begin_sem.lock();
-    //while(!begin_lock.load()) {
-    //  wait_count.fetch_or(1 << id);
-    //  begin_sem.sleep();
-    //}
-    //begin_sem.unlock();
-    //wait_count.fetch_sub(1, std::memory_order_relaxed);
-    //wait_count.fetch_and(~(1 << id));
     wait_count.fetch_add(1, std::memory_order_relaxed);
     begin_sem.lock();
     begin_sem.sleep();
     begin_sem.unlock();
     wait_count.fetch_sub(1, std::memory_order_relaxed);
 
-    if(exit_threads.load(std::memory_order_relaxed)) {
+    if(exit_threads) {
       printf("Thread Exiting!\n");
       break;
     }
@@ -365,13 +359,14 @@ DWORD WINAPI print(PVOID data) {
     printf("size: %llu\n", work_queue.size_approx());
     printf("num: %llu\n", num.load());
     printf("working: %llu\n", working_count.load());
+    printf("wait_count: %llu\n", wait_count.load());
     Sleep(100);
   }
 }
 
 int main() {
-  //DWORD id2;
-  //HANDLE h = CreateThread(0, 0, incrementally_print_nums, 0, 0, &id2);
+  DWORD id2;
+  HANDLE h = CreateThread(0, 0, print, 0, 0, &id2);
 
   // .init()
   begin_sem = semaphore::create();
@@ -383,8 +378,7 @@ int main() {
 
   for(int i = 0; i < 16; i += 1) {
     DWORD id;
-    ids.push_back(i);
-    threads.push_back(CreateThread(0, 0, worker_main2, ids.data() + i, 0, &id));
+    threads.push_back(CreateThread(0, 0, worker_main2, (PVOID)(usize)i, 0, &id));
   }
 
   auto t0 = std::chrono::high_resolution_clock::now();
@@ -395,24 +389,25 @@ int main() {
     }
 
     // .join()
-    //while(wait_count.load(std::memory_order_relaxed) != 0b1111111111111111) {}
     while(wait_count.load(std::memory_order_relaxed) != 16) {}
-    //begin_lock.store(true);
-    begin_sem.wake_all();
+    while(wait_count.load(std::memory_order_relaxed) == 16) {
+      begin_sem.wake_all();
+    }
     done_lock.store(false);
     while(work_queue.size_approx() != 0 || working_count.load() != 0) {
+      //begin_sem.wake_all();
       done_sem.lock();
       done_sem.sleep();
       done_sem.unlock();
     }
     done_lock.store(true);
-    //begin_lock.store(false);
   }
   auto t1 = std::chrono::high_resolution_clock::now();
   std::cout << std::chrono::duration<double>(t1 - t0).count() << "s\n";
 
   while(wait_count.load(std::memory_order_relaxed) != 16) {}
-  exit_threads.store(true);
+  exit_threads = true;
+  begin_lock = true;
   begin_sem.wake_all();
 
   WaitForMultipleObjects(threads.size(), threads.data(), TRUE, INFINITE);
