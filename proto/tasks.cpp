@@ -372,6 +372,53 @@ DWORD WINAPI print(PVOID data) {
   }
 }
 
+using atomic_bool = std::atomic_bool;
+semaphore test_work_sem;
+semaphore test_done_sem;
+atomic_usize test_work_count(0);
+atomic_usize test_wait_count(0);
+atomic_bool test_done_lock(false);
+
+#include "work-stealing-queue/wsq.hpp"
+WorkStealingQueue<void (*)()> test_work_queue = WorkStealingQueue<void (*)()>(1024);
+
+DWORD WINAPI test_main(PVOID data) {
+  printf("test main!\n");
+
+  while(true) {
+    test_work_sem.lock();
+    test_wait_count.fetch_add(1);
+
+    while(test_work_queue.empty()) {
+      test_work_sem.sleep();
+    }
+
+    test_work_sem.unlock();
+    test_wait_count.fetch_sub(1);
+
+    auto work = test_work_queue.steal();
+    if(work.has_value()) {
+      test_work_count.fetch_add(1);
+
+      work.value()();
+
+      work = test_work_queue.steal();
+      while(work.has_value()) {
+        work.value()();
+        work = test_work_queue.steal();
+      }
+
+      test_work_count.fetch_sub(1);
+    }
+
+    if(test_work_queue.empty() && working_count.load() == 0) {
+      while(!test_done_lock.load()) {
+        test_done_sem.wake_all();
+      }
+    }
+  }
+}
+
 int main() {
   usize THREAD_COUNT = (std::thread::hardware_concurrency()) * 0.8;
   printf("THREAD_COUNT: %llu\n", THREAD_COUNT);
@@ -389,15 +436,22 @@ int main() {
   std::vector<HANDLE> threads;
   std::vector<usize> ids;
 
+  std::vector<HANDLE> test_threads;
+
+  test_work_sem = semaphore::create();
+  test_done_sem = semaphore::create();
+
   for(int i = 0; i < THREAD_COUNT; i += 1) {
     DWORD id;
     threads.push_back(CreateThread(0, 0, worker_main2, (PVOID)(usize)i, 0, &id));
+    test_threads.push_back(CreateThread(0, 0, test_main, 0, 0, &id));
   }
 
   std::vector<void (*)()> all_work;
   all_work.reserve(100000000);
 
   while(wait_count.load(std::memory_order_relaxed) != THREAD_COUNT) {}
+  while(test_wait_count.load(std::memory_order_relaxed) != THREAD_COUNT) {}
 
   std::vector<double> times;
   times.reserve(100000000);
@@ -420,7 +474,118 @@ int main() {
     // exit_threads: 0
 
     auto t00 = std::chrono::high_resolution_clock::now();
-    for(usize i = 0; i < 2000000; i += 1) {
+    for(usize i = 0; i < 200000000; i += 1) {
+      auto t0 = std::chrono::high_resolution_clock::now();
+      //for(int i = 0; i < 10; i += 1) {
+        // .add_work()
+        for(int i = 0; i < WORK_COUNT; i += 1) {
+          test_work_queue.push(do_thing);
+        }
+
+        while(test_wait_count.load() != THREAD_COUNT) {}
+        test_done_lock.store(false);
+
+        auto sz = test_work_queue.size();
+        if(sz < THREAD_COUNT) {
+          for(int i = 0; i < sz; i += 1) {
+            test_work_sem.wake_one();
+          }
+        } else {
+          test_work_sem.wake_all();
+        }
+
+        test_done_sem.lock();
+        while(!test_work_queue.empty() && test_work_count.load() != 0) {
+          test_done_sem.sleep();
+        }
+        test_done_sem.unlock();
+        test_done_lock.store(true);
+      //}
+      auto t1 = std::chrono::high_resolution_clock::now();
+      times.push_back(std::chrono::duration<double>(t1 - t0).count());
+    }
+    auto t01 = std::chrono::high_resolution_clock::now();
+
+    std::cout << std::chrono::duration<double>(t01 - t00).count() << "s\n";
+    printf("exited main loop!\n");
+
+    int abn_num = 0;
+
+    for(auto& time: times) {
+      if(time > largest_time) {
+        largest_time = time;
+        if(largest_time > 0.0005) {
+          printf("Abnormal time at: %d, %lf s\n", x, time);
+          abn_num += 1;
+        }
+      }
+      if(time < smallest_time) {
+        smallest_time = time;
+      }
+      avg_time += time;
+      x += 1;
+    }
+
+    avg_time /= (double)times.size();
+
+    std::sort(times.begin(), times.end(), std::greater<double>{});
+
+    double p1_high_avg_time = 0.0;
+    int p1 = (int)(times.size() * 0.01);
+    for(int i = 0; i < p1; i +=1) {
+      p1_high_avg_time += times[i];
+    }
+
+    p1_high_avg_time /= (double)p1;
+
+    double p01_high_avg_time = 0.0;
+    int p01 = (int)(times.size() * 0.001);
+    for(int i = 0; i < p01; i +=1) {
+      p01_high_avg_time += times[i];
+    }
+
+    p01_high_avg_time /= (double)p01;
+
+    double std_dev = 0.0;
+    int subc = 0;
+
+    for(int i = 0; i < times.size(); i += 1) {
+      if(times[i] > 0.0005) {
+        subc += 1;
+      } else {
+        std_dev += (times[i] - avg_time) * (times[i] - avg_time);
+      }
+    }
+
+    std_dev /= (double)(times.size() - subc);
+    std_dev = sqrt(std_dev);
+
+    printf("largest_time: %lf\n", largest_time);
+    printf("smallest_time: %lf\n", smallest_time);
+    printf("avg_time: %lf\n", avg_time);
+    printf("p1_high_avg_time: %lf\n", p1_high_avg_time);
+    printf("p01_high_avg_time: %lf\n", p01_high_avg_time);
+    printf("std_dev: %lf\n", std_dev);
+    printf("number abnormal: %d\n", abn_num);
+    printf("\n");
+
+    times.clear();
+  }
+
+  for(int z = 0; z < 1; z += 1) {
+    largest_time = 0.0;
+    avg_time = 0.0;
+    smallest_time = 0.0;
+    x = 0;
+
+    // working: 0
+    // wait_count: 15
+    // done_lock: 0
+    // done lock never got set?
+    // exit_threads: 0
+
+    auto t00 = std::chrono::high_resolution_clock::now();
+    for(usize i = 0; i < 20000; i += 1) {
       auto t0 = std::chrono::high_resolution_clock::now();
       //for(int i = 0; i < 10; i += 1) {
         // .add_work()

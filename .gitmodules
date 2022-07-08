@@ -31,3 +31,6 @@
 [submodule "proto/concurrentqueue"]
 	path = proto/concurrentqueue
 	url = https://github.com/cameron314/concurrentqueue
+[submodule "proto/work-stealing-queue"]
+	path = proto/work-stealing-queue
+	url = https://github.com/taskflow/work-stealing-queue
