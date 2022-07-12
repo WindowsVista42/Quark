@@ -383,9 +383,11 @@ namespace quark::engine::effect {
     VkBuffer vertex_buffer_resource;
     VkBuffer index_buffer_resource;
 
-    static void create(RenderEffect::Info& info, std::string name);
+    static void create(std::string name);
+    static void create_all();
 
     static ItemCache<RenderEffect> cache;
+    static std::mutex _mutex;
   };
 
   namespace internal {

@@ -379,7 +379,7 @@ namespace quark::core::math {
     return quat;
   }
 
-  auto quat::axis_angle() {
+  auto quat::axis_angle() const {
     struct Ret { vec3 axis; f32 angle; };
     Ret ret;
     ret.axis = xyz / sqrtf(1.0f - (w * w));
@@ -387,19 +387,19 @@ namespace quark::core::math {
     return ret;
   }
 
-  vec3 quat::forward() {
+  vec3 quat::forward() const {
     return this->rotate(vec3::unit_y);
   }
 
-  vec3 quat::right() {
+  vec3 quat::right() const {
     return this->rotate(vec3::unit_x);
   }
 
-  vec3 quat::up() {
+  vec3 quat::up() const {
     return this->rotate(vec3::unit_z);
   }
 
-  vec3 quat::rotate(vec3 point) {
+  vec3 quat::rotate(vec3 point) const {
     vec3 u = xyz;
     f32 s = w;
     return point + ((u.cross(point) * s) + u.cross(u.cross(point))) * 2.0f;

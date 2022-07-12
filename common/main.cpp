@@ -6,6 +6,35 @@ using namespace quark;
 namespace common {
   struct Tag {};
 
+  namespace resource {
+    LinearAllocator res_alloc;
+    std::unordered_map<type_hash, void*> mmm = {};
+
+    template<typename T>
+    T& _get() {
+      return *(T*)mmm.at(get_type_hash<T>());
+    }
+
+    template<typename A, typename B>
+    decltype(auto) _get() {
+      return std::tie(_get<A>(), _get<B>());
+    }
+
+    template<typename... T>
+    decltype(auto) get() {
+      return _get<T...>();
+    }
+
+    template<typename T>
+    void add(T t) {
+      void* ptr = res_alloc.alloc(sizeof(T));
+      *(T*)ptr = t;
+      mmm.insert(std::make_pair(get_type_hash<T>(), ptr));
+    }
+  };
+
+  struct MainCamera : render::Camera {};
+
   void init() {
     for_every(i, 10) {
       Entity::create().add(
@@ -37,39 +66,51 @@ namespace common {
     input::bind("up", Key::Space);
     input::bind("down", Key::LeftControl);
     input::bind("pause", Key::P);
+
+    resource::res_alloc.init(1024 * 16);
+    resource::add(MainCamera {});
+    resource::add(f32 {1.0});
   }
 
   void update() {
-    if(!input::get("pause").down()) {
-      static f32 T = 0.0f;
-      f32 ctr = 0.0f;
-      for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
-        //transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
-        //transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
-        //ctr += 0.25f;
-        //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+    threadpool::push([]() {
+      if(!input::get("pause").down()) {
+        static f32 T = 0.0f;
+        f32 ctr = 0.0f;
+        for(auto [e, color, transform] : registry::view<Color, const Transform, const Tag>().each()) {
+          //transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
+          //transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
+          //ctr += 0.25f;
+          //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
 
-        color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-        color.y = 0.0f;
-        color.z = 0.0f;
+          color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+          color.y = 0.0f;
+          color.z = 0.0f;
+        }
+        T += DT;
       }
-      T += DT;
-    }
+    });
 
-    vec2 move_dir = {0.0f, 0.0f};
+    threadpool::push([]() {
+      vec2 move_dir = {0.0f, 0.0f};
 
-    move_dir.x += input::get("d").value();
-    move_dir.x -= input::get("a").value();
-    move_dir.y += input::get("w").value();
-    move_dir.y -= input::get("s").value();
-    move_dir.norm_max_mag(1.0f);
+      move_dir.x += input::get("d").value();
+      move_dir.x -= input::get("a").value();
+      move_dir.y += input::get("w").value();
+      move_dir.y -= input::get("s").value();
+      move_dir.norm_max_mag(1.0f);
 
-    MAIN_CAMERA.pos.xy += move_dir * DT;
+      MAIN_CAMERA.pos.xy += move_dir * DT;
 
-    MAIN_CAMERA.pos.z += input::get("up").value() * DT;
-    MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
+      MAIN_CAMERA.pos.z += input::get("up").value() * DT;
+      MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
 
-    MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
+      MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
+    });
+
+    auto [main_camera, value] = resource::get<MainCamera, f32>();
+
+    threadpool::join();
   }
 
   void render_things() {
@@ -106,9 +147,6 @@ namespace common {
 };
 
 mod_main() {
-  //str::print((str() + "Hello, the DT is: " + DT + " " + 4 + "s"));
-  //str::print(str("%f", 24.0f));
-
   system::list("state_init")
     .add(def(common::init), -1);
 

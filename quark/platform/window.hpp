@@ -2,7 +2,7 @@
 
 #include "api.hpp"
 #include "../core/module.hpp"
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 // INTERFACE
 namespace quark::platform::window {

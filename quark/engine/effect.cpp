@@ -83,6 +83,8 @@ namespace quark::engine::effect {
   ItemCache<RenderEffect::Info> RenderEffect::Info::cache = {};
   ItemCache<RenderEffect> RenderEffect::cache = {};
 
+  std::mutex RenderEffect::_mutex = {};
+
   void add_name_association(std::string name, internal::ResourceType resource_type) {
     if (internal::used_names.find(name) != internal::used_names.end()) {
       if (resource_type == internal::ResourceType::ImageResourceArray
@@ -1077,7 +1079,6 @@ namespace quark::engine::effect {
     if(this->index_buffer_resource != "") {
       render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
     }
-    printf("Here!\n");
 
     auto vertex_input_info = render_mode_info._vertex_input_info();
     auto input_assembly_info = render_mode_info._input_assembly_info();
@@ -1089,7 +1090,6 @@ namespace quark::engine::effect {
     auto depth_info = render_mode_info._depth_info();
     auto color_blend_attachments = render_mode_info._color_blend_attachments(render_target_info.image_resources.size() - 1);
     auto color_blend_info = render_mode_info._color_blend_info(color_blend_attachments);
-    printf("Here!\n");
 
     const char* entry_name = "main";
 
@@ -1120,17 +1120,18 @@ namespace quark::engine::effect {
     return render_effect;
   }
 
-  void RenderEffect::create(RenderEffect::Info& info, std::string name) {
-    if (Info::cache.has(name)) {
-      panic2("Attempted to create RenderEffect with name: '" + name.c_str() + "' which already exists!");
-    }
+  void RenderEffect::create(std::string name) {
+    auto info = Info::cache.get(name);
 
     auto render_effect = info._create();
 
-    RenderEffect::Info::cache.add(name, info);
+    RenderEffect::_mutex.lock();
+
     RenderEffect::cache.add(name, render_effect);
 
     str::print(str() + "Created RenderEffect!");
+
+    RenderEffect::_mutex.unlock();
   }
 
   static std::unordered_set<std::string> initialized_images = {};

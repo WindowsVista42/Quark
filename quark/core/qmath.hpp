@@ -240,13 +240,13 @@ namespace quark::core::math {
     operator const btQuaternion() const;
 
     // convert a quaternion to euler angles
-    auto axis_angle();
+    auto axis_angle() const;
 
-    vec3 forward();
-    vec3 right();
-    vec3 up();
+    vec3 forward() const;
+    vec3 right() const;
+    vec3 up() const;
 
-    vec3 rotate(vec3 point);
+    vec3 rotate(vec3 point) const;
 
     static quat axis_angle(vec3 axis, f32 angle);
     static const quat identity;

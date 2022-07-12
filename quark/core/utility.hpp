@@ -6,6 +6,10 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+
 namespace quark::core::utility {
   using f32 = float;
   using f64 = double;
@@ -21,6 +25,32 @@ namespace quark::core::utility {
   using u32 = uint32_t;
   using u64 = uint64_t;
   using usize = uintptr_t;
+
+  using atomic_bool = std::atomic_bool;
+  using atomic_char = std::atomic_char;
+
+  using atomic_i8 = std::atomic_int8_t;
+  using atomic_i16 = std::atomic_int8_t;
+  using atomic_i32 = std::atomic_int8_t;
+  using atomic_i64 = std::atomic_int8_t;
+  using atomic_isize = std::atomic_int8_t;
+
+  using atomic_u8 = std::atomic_uint8_t;
+  using atomic_u16 = std::atomic_uint8_t;
+  using atomic_u32 = std::atomic_uint8_t;
+  using atomic_u64 = std::atomic_uint8_t;
+  using atomic_usize = std::atomic_uint8_t;
+
+  using type_info = std::type_info;
+  using type_hash = std::size_t;
+
+  template <typename T>
+  type_hash get_type_hash() {
+    return typeid(T).hash_code();
+  }
+
+  using mutex = std::mutex;
+  using cvar = std::condition_variable;
   
   static constexpr usize KB = 1024lu;
   static constexpr usize MB = 1024lu * 1024lu;

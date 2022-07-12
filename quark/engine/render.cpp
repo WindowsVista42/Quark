@@ -122,7 +122,7 @@ namespace quark::engine::render {
     WorldData* world_data = (WorldData*)ptr;
   
     u32 count = 0;
-    for (auto [e, transform, color, light] : registry::view<Transform, Color, PointLight>().each()) {
+    for (auto [e, transform, color, light] : registry::view<const Transform, const Color, const PointLight>().each()) {
       world_data->point_lights[count].position = transform.position;
       world_data->point_lights[count].falloff = light.falloff;
       world_data->point_lights[count].color = color.xyz;
@@ -132,7 +132,7 @@ namespace quark::engine::render {
     world_data->point_light_count = count;
   
     count = 0;
-    for (auto [e, transform, color, light] : registry::view<Transform, Color, DirectionalLight>().each()) {
+    for (auto [e, transform, color, light] : registry::view<const Transform, const Color, const DirectionalLight>().each()) {
       world_data->directional_lights[count].position = transform.position;
       world_data->directional_lights[count].falloff = light.falloff;
       world_data->directional_lights[count].direction = transform.rotation.forward();
@@ -248,7 +248,7 @@ namespace quark::engine::render {
   }
 
   void draw_shadow_things() {
-    for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::NoShadowPass, Effect::Transparent>()).each()) {
+    for (auto [e, transform, model] : registry::view<const Transform, const Model, Exclude<Effect::NoShadowPass, Effect::Transparent>>().each()) {
       // NOTE(sean): frustum culling temporarily removed because it is culling
       // using the MAIN_CAMERA instead of the SUN_CAMERA
       //if (box_in_frustum(transform.pos, scl)) {
@@ -301,7 +301,7 @@ namespace quark::engine::render {
   }
 
   void draw_depth_prepass_things() {
-    for (auto [e, transform, model] : registry::view<Transform, Model>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model] : registry::view<const Transform, const Model, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_depth(transform, model);
       }
@@ -362,7 +362,8 @@ namespace quark::engine::render {
   }
   
   void draw_lit_pass_things() {
-    for (auto [e, transform, model, texture] : registry::view<Transform, Model, Texture, Effect::LitTextureFill>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, texture] :
+    registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_lit(transform, model, texture);
       }
@@ -392,7 +393,8 @@ namespace quark::engine::render {
   }
   
   void draw_solid_pass_things() {
-    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorFill>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, color] :
+    registry::view<const Transform, const Model, const Color, const Effect::SolidColorFill, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }
@@ -410,7 +412,8 @@ namespace quark::engine::render {
   }
 
   void draw_wireframe_pass_things() {
-    for (auto [e, transform, model, color] : registry::view<Transform, Model, Color, Effect::SolidColorLines>(exclude<Effect::Transparent>()).each()) {
+    for (auto [e, transform, model, color] :
+    registry::view<const Transform, const Model, const Color, const Effect::SolidColorLines, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }
@@ -1028,6 +1031,7 @@ namespace quark::engine::render {
         .store_modes = {StoreMode::Store},
         .next_usage_modes = {ImageUsage::RenderTarget},
       };
+
       RenderTarget::create(info, "forward_pass_depth_prepass");
 
       info = {
@@ -1063,6 +1067,14 @@ namespace quark::engine::render {
         vk_check(vkCreateSemaphore(_device, &semaphore_info, 0, &_present_semaphore[i]));
         vk_check(vkCreateSemaphore(_device, &semaphore_info, 0, &_render_semaphore[i]));
       }
+    }
+
+    void ma() {
+      RenderEffect::create("color_fill");
+    }
+
+    void mb() {
+      RenderEffect::create("color_line");
     }
    
     void init_pipelines() {
@@ -1112,10 +1124,18 @@ namespace quark::engine::render {
         .vertex_buffer_resource = "global_vertex_buffer", //
         .index_buffer_resource = "",
       };
-      RenderEffect::create(re_info, "color_fill");
+      RenderEffect::Info::cache.add("color_fill", re_info);
 
       re_info.render_mode = "default_line";
-      RenderEffect::create(re_info, "color_line");
+      RenderEffect::Info::cache.add("color_line", re_info);
+
+      auto t0 = std::chrono::high_resolution_clock::now();
+      threadpool::internal::_thread_pool.push([]() {RenderEffect::create("color_fill"); });
+      threadpool::internal::_thread_pool.push([]() {RenderEffect::create("color_line"); });
+      threadpool::internal::_thread_pool.join();
+      auto t1 = std::chrono::high_resolution_clock::now();
+
+      std::cout << "Total Effect time: " << std::chrono::duration<double>(t1 - t0).count() << "\n";
     }
     
     void init_sampler() {

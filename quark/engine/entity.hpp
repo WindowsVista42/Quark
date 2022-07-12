@@ -83,7 +83,6 @@ namespace quark::engine::entity {
     }
   
   public:
-  
     // Create a new entity
     static Entity create() {
       using namespace registry::internal;
@@ -186,7 +185,9 @@ namespace quark::engine::entity {
     }
 
     // Get the internal entt::entity value of the entity
-    operator entt::entity();
+    operator entt::entity() {
+      return _value;
+    }
   };
 
   // Handle to an entity with components T...
@@ -197,6 +198,10 @@ namespace quark::engine::entity {
   public:
     // Create a handle with the given components and given entity
     static Handle<Components...> create(Entity entity) {
+      Handle<Components...> { entity };
+    }
+
+    static Handle<Components...> create(entt::entity entity) {
       Handle<Components...> { entity };
     }
 

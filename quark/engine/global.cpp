@@ -76,6 +76,7 @@ namespace quark::engine::global {
     // Add our default engine systems
     {
       system::list("init")
+        .add(def(threadpool::internal::init), -1)
         .add(def(init_global_alloc), -1)
         .add(def(add_asset_types), -1)
         .add(def(window::init), -1)
