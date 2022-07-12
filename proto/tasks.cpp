@@ -7,6 +7,9 @@
 #include <vector>
 #include "concurrentqueue/concurrentqueue.h"
 
+#include <mutex>
+#include <condition_variable>
+
 #include <iostream>
 using usize = std::uintptr_t;
 using atomic_usize = std::atomic_uintptr_t;
@@ -372,6 +375,23 @@ DWORD WINAPI print(PVOID data) {
   }
 }
 
+#include <Windows.h>
+
+class ThreadPool {
+  mutex _work_start_mutex;
+  cvar _work_start_cvar;
+
+  mutex _work_done_mutex;
+  cvar _work_done_cvar;
+
+  std::atomic_int64_t _working_count;
+  std::atomic_int64_t _waiting_count;
+  std::atomic_bool _done_spin_lock;
+
+  public:
+  ThreadPool(int64_t thread_count = std::thread::hardware_concurrency());
+};
+
 using atomic_bool = std::atomic_bool;
 semaphore test_work_sem;
 semaphore test_done_sem;
@@ -424,6 +444,7 @@ int main() {
   printf("THREAD_COUNT: %llu\n", THREAD_COUNT);
 
   usize WORK_COUNT = 4;
+  usize RUN_COUNT = 2000000;
 
   DWORD id2;
   HANDLE h = CreateThread(0, 0, print, 0, 0, &id2);
@@ -461,6 +482,11 @@ int main() {
   double smallest_time = 0.0;
   int x = 0;
 
+  std::vector<void (*)()> test_work;
+  for(int i = 0; i < WORK_COUNT; i += 1) {
+    test_work.push_back(do_thing);
+  }
+
   for(int z = 0; z < 1; z += 1) {
     largest_time = 0.0;
     avg_time = 0.0;
@@ -474,7 +500,7 @@ int main() {
     // exit_threads: 0
 
     auto t00 = std::chrono::high_resolution_clock::now();
-    for(usize i = 0; i < 200000000; i += 1) {
+    for(usize i = 0; i < RUN_COUNT; i += 1) {
       auto t0 = std::chrono::high_resolution_clock::now();
       //for(int i = 0; i < 10; i += 1) {
         // .add_work()
@@ -482,7 +508,6 @@ int main() {
           test_work_queue.push(do_thing);
         }
 
-        while(test_wait_count.load() != THREAD_COUNT) {}
         test_done_lock.store(false);
 
         auto sz = test_work_queue.size();
@@ -500,6 +525,8 @@ int main() {
         }
         test_done_sem.unlock();
         test_done_lock.store(true);
+        while(test_wait_count.load() != THREAD_COUNT) {}
+
       //}
       auto t1 = std::chrono::high_resolution_clock::now();
       times.push_back(std::chrono::duration<double>(t1 - t0).count());
@@ -585,7 +612,7 @@ int main() {
     // exit_threads: 0
 
     auto t00 = std::chrono::high_resolution_clock::now();
-    for(usize i = 0; i < 20000; i += 1) {
+    for(usize i = 0; i < RUN_COUNT; i += 1) {
       auto t0 = std::chrono::high_resolution_clock::now();
       //for(int i = 0; i < 10; i += 1) {
         // .add_work()
@@ -709,7 +736,7 @@ int main() {
     smallest_time = 0.0;
     x = 0;
 
-    for(int i = 0; i < 200000; i += 1) {
+    for(int i = 0; i < RUN_COUNT; i += 1) {
       auto t0 = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < WORK_COUNT; i += 1) {
           pool.add_work(do_thing);
