@@ -80,6 +80,7 @@ include_directories(PUBLIC lib/stb)
 include_directories(PUBLIC lib/qoi)
 include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
+include_directories(PUBLIC lib/ThreadPool)
 
 add_library(quark_core
   quark/core/qmath.cpp
@@ -99,6 +100,7 @@ add_library(quark_platform SHARED
   quark/platform/allocator.cpp
   quark/platform/window.cpp
   quark/platform/shared.cpp
+  quark/platform/threadpool.cpp
 )
 #target_include_directories(quark_platform SYSTEM PRIVATE
 #  lib/glfw/include

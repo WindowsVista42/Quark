@@ -28,9 +28,9 @@
 [submodule "lib/bullet3"]
 	path = lib/bullet3
 	url = https://github.com/bulletphysics/bullet3
-[submodule "proto/concurrentqueue"]
-	path = proto/concurrentqueue
-	url = https://github.com/cameron314/concurrentqueue
 [submodule "proto/work-stealing-queue"]
 	path = proto/work-stealing-queue
 	url = https://github.com/taskflow/work-stealing-queue
+[submodule "lib\\ThreadPool"]
+	path = lib\\ThreadPool
+	url = https://github.com/WindowsVista42/ThreadPool
