@@ -31,6 +31,14 @@ namespace common {
       *(T*)ptr = t;
       mmm.insert(std::make_pair(get_type_hash<T>(), ptr));
     }
+
+    template <typename... T>
+    struct view {
+      template <typename A>
+      A& get() {
+        return *(A*)mmm.at(get_type_hash<A>());
+      }
+    };
   };
 
   struct MainCamera : render::Camera {};
@@ -70,6 +78,27 @@ namespace common {
     resource::res_alloc.init(1024 * 16);
     resource::add(MainCamera {});
     resource::add(f32 {1.0});
+  }
+
+  template <auto Size>
+  struct fill {
+    char arr[Size];
+  };
+
+  void update2(registry::view<Color, const Transform, const Tag> view, resource::view<MainCamera> main_camera) {
+    view = {}; main_camera = {};
+
+    for(auto [e, c, t] : view.each()) {
+    }
+
+    printf("in update 2\n");
+  }
+
+  template <typename... T>
+  void add_sys(void (*sys)(T...)) {
+    __builtin_alloca(128);
+    ((void (*)())sys)();
+    printf("after update 2\n");
   }
 
   void update() {
@@ -154,4 +183,7 @@ mod_main() {
     .add(def(common::update), "update_tag", 1)
     .add(def(common::render_things), "render::begin_frame", 1)
     .add(def(common::exit_on_esc), -1);
+
+  printf("\n\n\n\n");
+  common::add_sys(common::update2);
 }
