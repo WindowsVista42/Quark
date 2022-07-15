@@ -89,6 +89,7 @@ namespace common {
     view = {}; main_camera = {};
 
     for(auto [e, c, t] : view.each()) {
+      printf("in view!\n");
     }
 
     printf("in update 2\n");
@@ -100,6 +101,8 @@ namespace common {
     ((void (*)())sys)();
     printf("after update 2\n");
   }
+
+  struct Dt { f32 _value; };
 
   void update() {
     threadpool::push([]() {
@@ -137,10 +140,127 @@ namespace common {
       MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
     });
 
-    auto [main_camera, value] = resource::get<MainCamera, f32>();
+    //auto [main_camera, value]   = resource::get<MainCamera, f32>();
+    //auto [main_camera2, value2] = *Resource<MainCamera, const Dt>();
 
     threadpool::join();
   }
+
+  // Transform, const Color, const Tag0
+  // Transform, const Color, const Tag1
+  // performance specifier -- Tag0 and Tag1 mutually exclusive
+  //
+  // Entity {
+  //  Transform, Color, Tag0, Tag1
+  // }
+  // Entity {
+  //  Transform, Color, Tag1
+  // }
+
+  // 0, 1, 2, 3
+  // a(0, 2)
+  // b(1, 3)
+  // c(0, 1)
+  // d(2)
+  // e(3)
+  // f(2, 3)
+  // g(0, 1)
+  // h(1, 2)
+  //
+  // 0 --> a, c, g
+  // 1 --> b, c, g, h
+  // 2 --> a, d, f, h
+  // 3 --> b, e, f
+  //
+  // a(1, 2)
+  // b(1, 3)
+  // c(0, 1)
+  // d(2)
+  // e(3)
+  // f(2, 3)
+  // g(0, 1)
+  // h(1, 2)
+  //
+  // 0 --> c, g
+  // 1 --> a, b, c, g, h
+  // 2 --> a, d, f, h
+  // 3 --> b, e, f
+  //
+  // dependency table
+  // a --> 
+  // b --> a
+  // c --> b
+  // d --> a
+  // e --> b
+  // f --> d, e
+  // g --> c
+  // h --> f, g
+  //
+  // notification table
+  // a --> b, d
+  // b --> c, e
+  // c --> g
+  // d --> f
+  // e --> f
+  // f --> h
+  // g --> h
+  // h -->
+  //
+  // use a counter, when it goes zero we can start the function
+  //
+  // a
+  // b, d
+  // d, c, e
+  // c, e, ...
+  // ...
+  //
+  // function resource dependencies with const access
+  // 0, 1, 2, 3
+  // a(c0, c2)
+  // b(1, c3)
+  // c(c0, 1)
+  // d(c2)
+  // e(c3)
+  // f(2, c3)
+  // g(0, c1)
+  // h(c1, 2)
+  //
+  // resource dependency table
+  // 0 --> ac, g
+  // 1 --> b, c, gh
+  // 2 --> ad, f, h
+  // 3 --> bef
+  //
+  // dependency table
+  // a -->
+  // b -->
+  // c --> b
+  // d -->
+  // e -->
+  // f --> a, d
+  // g --> a, c
+  // h --> c, f
+  //
+  // notification table
+  // a --> g, f
+  // b --> c
+  // c --> g, h
+  // d --> f
+  // e -->
+  // f --> h
+  // g -->
+  // h -->
+  //
+  // start
+  // a, b, d, e
+  // b, d, e
+  // d, e, c
+  // e, c, f
+  // c, f
+  // f, g
+  // g, h
+  // h
+  // end
 
   void render_things() {
     Model model = Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f});
