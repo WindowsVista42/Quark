@@ -3,6 +3,8 @@
 #include "common.hpp"
 using namespace quark;
 
+#include <queue>
+
 namespace common {
   struct Tag {};
 
@@ -262,6 +264,199 @@ namespace common {
   // h
   // end
 
+  void create_thing_test() {
+    struct FunctionUsage {
+      char resource_id;
+      bool const_access;
+    };
+
+    constexpr FunctionUsage usage_arr[][2] = {
+      {{0, true},  {2, true}},
+      {{1, false}, {3, true}},
+      {{0, true},  {1, false}},
+      {{2, true},  {-1}},
+      {{3, true},  {-1}},
+      {{2, false}, {3, true}},
+      {{0, false}, {1, true}},
+      {{1, true},  {2, false}},
+
+      //{{1, false},  {2, false}},
+      //{{1, false}, {3, false}},
+      //{{0, false},  {1, false}},
+      //{{2, false},  {-1}},
+      //{{3, false},  {-1}},
+      //{{2, false}, {3, false}},
+      //{{0, false}, {1, false}},
+      //{{1, false},  {2, false}},
+    };
+
+    std::array<std::vector<std::vector<int>>, 4> res_dep_table;
+
+    for_every(i, count_of(usage_arr)) {
+      for_every(j, 2) {
+        auto& val = usage_arr[i][j];
+        if(val.resource_id == -1) {
+          continue;
+        }
+
+        if(res_dep_table[val.resource_id].size() == 0) {
+          res_dep_table[val.resource_id].push_back({});
+          res_dep_table[val.resource_id].back().push_back(i);
+          if(!val.const_access) {
+            res_dep_table[val.resource_id].push_back({});
+          }
+          continue;
+        }
+
+        if(val.const_access) {
+          res_dep_table[val.resource_id].back().push_back(i);
+        } else {
+          if(!res_dep_table[val.resource_id].back().empty()) {
+            res_dep_table[val.resource_id].push_back({});
+          }
+          res_dep_table[val.resource_id].back().push_back(i);
+          res_dep_table[val.resource_id].push_back({});
+        }
+      }
+    }
+    
+    for_every(i, 4) {
+      if(res_dep_table[i].back().empty()) {
+        res_dep_table[i].pop_back();
+      }
+    }
+
+    printf("\n");
+    for_every(i, 4) {
+      printf("%llu --> ", i);
+      for_every(j, res_dep_table[i].size()) {
+        for_every(k, res_dep_table[i][j].size()) {
+          printf("%c", res_dep_table[i][j][k] + 'a');
+        }
+        printf(",");
+      }
+      printf("\n");
+    }
+
+    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_dep_table;
+    for_every(i, count_of(usage_arr)) {
+      fun_dep_table[i] = {};
+    }
+
+    for_every(i, 4) {
+      for_range(j, 1, res_dep_table[i].size()) { // skip the first entry
+        // for every element in [j], add every element in [j-1] to its fun_dep_table
+        for_every(k, res_dep_table[i][j].size()) {
+          auto idx = res_dep_table[i][j][k];
+
+          for_every(l, res_dep_table[i][j-1].size()) {
+            fun_dep_table[idx].insert(res_dep_table[i][j-1][l]);
+          }
+        }
+      }
+    }
+
+    std::array<std::vector<int>, count_of(usage_arr)> fun_dep_table_dense;
+    for_every(i, fun_dep_table_dense.size()) {
+      fun_dep_table_dense[i] = {};
+      for(auto it = fun_dep_table[i].begin(); it != fun_dep_table[i].end(); it++) {
+        fun_dep_table_dense[i].push_back(*it);
+      }
+    }
+
+    printf("\n");
+    for_every(i, fun_dep_table_dense.size()) {
+      printf("%c --> ", (char)i + 'a');
+      for_every(j, fun_dep_table_dense[i].size()) {
+        printf("%c,", fun_dep_table_dense[i][j] + 'a');
+      }
+      printf("\n");
+    }
+
+    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_notif_table;
+    for_every(i, count_of(usage_arr)) {
+      fun_notif_table[i] = {};
+    }
+
+    for_every(i, 4) {
+      for_range(j, 0, res_dep_table[i].size() - 1) { // skip the last entry
+        // for every element in [j], add every element in [j+1] to its fun_notif_table
+        for_every(k, res_dep_table[i][j].size()) {
+          auto idx = res_dep_table[i][j][k];
+
+          for_every(l, res_dep_table[i][j+1].size()) {
+            fun_notif_table[idx].insert(res_dep_table[i][j+1][l]);
+          }
+        }
+      }
+    }
+
+    std::array<std::vector<int>, count_of(usage_arr)> fun_notif_table_dense;
+    for_every(i, fun_notif_table_dense.size()) {
+      fun_notif_table_dense[i] = {};
+      for(auto it = fun_notif_table[i].begin(); it != fun_notif_table[i].end(); it++) {
+        fun_notif_table_dense[i].push_back(*it);
+      }
+    }
+
+    printf("\n");
+    for_every(i, fun_notif_table_dense.size()) {
+      printf("%c --> ", (char)i + 'a');
+      for_every(j, fun_notif_table_dense[i].size()) {
+        printf("%c,", fun_notif_table_dense[i][j] + 'a');
+      }
+      printf("\n");
+    }
+
+    std::vector<int> start_arr;
+    for_every(i, fun_dep_table_dense.size()) {
+      if(fun_dep_table_dense[i].empty()) {
+        start_arr.push_back(i);
+      }
+    }
+
+    printf("\n");
+    for_every(i, start_arr.size()) {
+      printf("%c,", start_arr[i] + 'a');
+    }
+    printf("\n");
+
+    std::array<int, count_of(usage_arr)> start_counters;
+    for_every(i, start_counters.size()) {
+      start_counters[i] = fun_dep_table_dense[i].size();
+    }
+
+    printf("\n");
+    for_every(i, start_counters.size()) {
+      printf("%d,", start_counters[i]);
+    }
+    printf("\n");
+
+    usize start = 0;
+    std::vector<int> run_arr = start_arr;
+    std::array<int, count_of(usage_arr)> run_counters = start_counters;
+
+    printf("\n");
+    while(start != run_arr.size()) {
+      for_range(i, start, run_arr.size()) {
+        printf("%c,", run_arr[i] + 'a');
+      }
+      printf("\n");
+
+      auto idx = run_arr[start];
+      for_every(i, fun_notif_table_dense[idx].size()) {
+        run_counters[fun_notif_table_dense[idx][i]] -= 1;
+        if(run_counters[fun_notif_table_dense[idx][i]] == 0) {
+          run_arr.push_back(fun_notif_table_dense[idx][i]);
+        }
+      }
+
+      start += 1;
+    }
+
+    printf("\n");
+  }
+
   void render_things() {
     Model model = Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f});
 
@@ -297,7 +492,8 @@ namespace common {
 
 mod_main() {
   system::list("state_init")
-    .add(def(common::init), -1);
+    .add(def(common::init), -1)
+    .add(def(common::create_thing_test), -1);
 
   system::list("update")
     .add(def(common::update), "update_tag", 1)
