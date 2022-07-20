@@ -45,6 +45,38 @@ namespace common {
 
   struct MainCamera : render::Camera {};
 
+  template <typename... T>
+  struct Lock {
+    std::tuple<T...> entity(Entity e);
+    Entity entity(T... ts);
+
+    std::tuple<T...> resource();
+    void resource(T... ts);
+
+    decltype(auto) view();
+  };
+
+  void init2(Lock<Transform, Color, Tag> builder, Lock<Transform, const Model> getter, Lock<MainCamera> main_camera) {
+    Entity e = Entity::create();
+
+    builder.entity({}, {}, {});
+    getter.entity(e);
+    main_camera.resource();
+  }
+
+  struct Timer {};
+
+  struct SomeThing {
+    Entity timer;
+  };
+
+  void init(Lock<Transform, const Model, const SomeThing> player_lock, Lock<const Timer> timer_lock) {
+    Entity player_e = Entity::create();
+
+    auto [transform, model, some_thing] = player_lock.entity(player_e);
+    auto [timer] = timer_lock.entity(some_thing.timer);
+  }
+
   void init() {
     for_every(i, 10) {
       Entity::create().add(
