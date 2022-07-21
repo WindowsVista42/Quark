@@ -45,6 +45,7 @@ wiki/        - Wiki
 ```
 
 ## Planned Module Structure
+```
 core
 - math
 - utility
@@ -76,3 +77,4 @@ engine_ext
 physics
 - physics
 - navmesh
+```
