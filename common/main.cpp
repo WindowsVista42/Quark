@@ -3,183 +3,101 @@
 #include "common.hpp"
 using namespace quark;
 
-#include <queue>
-
 namespace common {
   struct Tag {};
-
-  namespace resource {
-    LinearAllocator res_alloc;
-    std::unordered_map<type_hash, void*> mmm = {};
-
-    template<typename T>
-    T& _get() {
-      return *(T*)mmm.at(get_type_hash<T>());
+  
+  template <typename T>
+  struct Resource {
+    static T* value;
+  
+    auto& get() {
+      auto& val = *Resource<std::remove_const_t<T>>::value;
+      return (T&)val;
     }
 
-    template<typename A, typename B>
-    decltype(auto) _get() {
-      return std::tie(_get<A>(), _get<B>());
+    T* operator ->() {
+      return (T*)Resource<std::remove_const_t<T>>::value;
     }
-
-    template<typename... T>
-    decltype(auto) get() {
-      return _get<T...>();
+  };
+  
+  template <> render::Camera* Resource<render::Camera>::value = &MAIN_CAMERA;
+  
+  template <typename... T> struct View {
+    View& create(T... t) {
+      Entity::create().add(t...);
+      return *this;
     }
-
-    template<typename T>
-    void add(T t) {
-      void* ptr = res_alloc.alloc(sizeof(T));
-      *(T*)ptr = t;
-      mmm.insert(std::make_pair(get_type_hash<T>(), ptr));
+  
+    decltype(auto) each() {
+      return registry::view<T...>().each();
     }
-
-    template <typename... T>
-    struct view {
-      template <typename A>
-      A& get() {
-        return *(A*)mmm.at(get_type_hash<A>());
+  };
+  
+  struct Input {
+    Input& map(const char* name, usize input) {
+      input::bind(name, input);
+      return *this;
+    }
+  
+    input::ActionState get(const char* name) const { return input::get(name); }
+  };
+  
+  static Input global_input = {};
+  template <> Input* Resource<Input>::value = &global_input;
+  
+  void init(View<Transform, Color, Tag> view0, View<Transform, Color> view1, Resource<Input> input) {
+    for_every(i, 10) { view0.create(Transform{}, Color{}, Tag{}); }
+  
+    for_every(i, 10) { view1.create(Transform{}, Color{}); }
+  
+    input->
+       map("w", Key::W)
+      .map("s", Key::S)
+      .map("a", Key::A)
+      .map("d", Key::D)
+      .map("v", Key::V)
+      .map("up", Key::Space)
+      .map("down", Key::LeftControl)
+      .map("pause", Key::P);
+  }
+  
+  void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
+    auto& input = input_res.get();
+  
+    if(!input.get("pause").down()) {
+      static f32 T = 0.0f;
+      f32 ctr = 0.0f;
+      for (auto [e, color, transform] : view.each()) {
+        // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
+        // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
+        // ctr += 0.25f;
+        // printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+  
+        color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        color.y = 0.0f;
+        color.z = 0.0f;
       }
-    };
-  };
-
-  struct MainCamera : render::Camera {};
-
-  template <typename... T>
-  struct Lock {
-    std::tuple<T...> entity(Entity e);
-    Entity entity(T... ts);
-
-    std::tuple<T...> resource();
-    void resource(T... ts);
-
-    decltype(auto) view();
-  };
-
-  void init2(Lock<Transform, Color, Tag> builder, Lock<Transform, const Model> getter, Lock<MainCamera> main_camera) {
-    Entity e = Entity::create();
-
-    builder.entity({}, {}, {});
-    getter.entity(e);
-    main_camera.resource();
-  }
-
-  struct Timer {};
-
-  struct SomeThing {
-    Entity timer;
-  };
-
-  void init(Lock<Transform, const Model, const SomeThing> player_lock, Lock<const Timer> timer_lock) {
-    Entity player_e = Entity::create();
-
-    auto [transform, model, some_thing] = player_lock.entity(player_e);
-    auto [timer] = timer_lock.entity(some_thing.timer);
-  }
-
-  void init() {
-    for_every(i, 10) {
-      Entity::create().add(
-        Transform {},
-        //Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f}),
-        //Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f},
-        //Color {2.5f, 1.5f, 1.5f, 1.0f},
-        Color {2.0f, 0.0f, 0.0f, 1.0f},
-        //Effect::SolidColorFill {},
-        Tag {}
-      );
+      T += DT;
     }
-
-    for_every(i, 10) {
-      Entity::create().add(
-        Transform {.position = {(f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f, (f32)(rand() % 1000) / 500.0f}},
-        //Model::from_name_scale("suzanne"),
-        //Color {(f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, (f32)(rand() % 1000) / 1000.0f, 1.0f}
-        Color {0.5f, 0.5f, 0.5f, 1.0f}
-        //Effect::SolidColorLines {}
-      );
-    }
-
-    input::bind("w", Key::W);
-    input::bind("s", Key::S);
-    input::bind("a", Key::A);
-    input::bind("d", Key::D);
-    input::bind("v", Key::V);
-    input::bind("up", Key::Space);
-    input::bind("down", Key::LeftControl);
-    input::bind("pause", Key::P);
-
-    resource::res_alloc.init(1024 * 16);
-    resource::add(MainCamera {});
-    resource::add(f32 {1.0});
   }
-
-  template <auto Size>
-  struct fill {
-    char arr[Size];
-  };
-
-  void update2(registry::view<Color, const Transform, const Tag> view, resource::view<MainCamera> main_camera) {
-    view = {}; main_camera = {};
-
-    for(auto [e, c, t] : view.each()) {
-      printf("in view!\n");
-    }
-
-    printf("in update 2\n");
+  
+  void update1(Resource<Input> input, Resource<render::Camera> main_camera) {
+    vec2 move_dir = {0.0f, 0.0f};
+  
+    move_dir.x += input->get("d").value();
+    move_dir.x -= input->get("a").value();
+    move_dir.y += input->get("w").value();
+    move_dir.y -= input->get("s").value();
+    move_dir.norm_max_mag(1.0f);
+  
+    main_camera->pos.xy += move_dir * DT;
+  
+    main_camera->pos.z += input::get("up").value() * DT;
+    main_camera->pos.z -= input::get("down").value() * DT;
+  
+    main_camera->spherical_dir.y -= input::get("v").value() * DT;
   }
-
-  template <typename... T>
-  void add_sys(void (*sys)(T...)) {
-    __builtin_alloca(128);
-    ((void (*)())sys)();
-    printf("after update 2\n");
-  }
-
-  struct Dt { f32 _value; };
-
-  void update() {
-    threadpool::push([]() {
-      if(!input::get("pause").down()) {
-        static f32 T = 0.0f;
-        f32 ctr = 0.0f;
-        for(auto [e, color, transform] : registry::view<Color, const Transform, const Tag>().each()) {
-          //transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
-          //transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
-          //ctr += 0.25f;
-          //printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
-
-          color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-          color.y = 0.0f;
-          color.z = 0.0f;
-        }
-        T += DT;
-      }
-    });
-
-    threadpool::push([]() {
-      vec2 move_dir = {0.0f, 0.0f};
-
-      move_dir.x += input::get("d").value();
-      move_dir.x -= input::get("a").value();
-      move_dir.y += input::get("w").value();
-      move_dir.y -= input::get("s").value();
-      move_dir.norm_max_mag(1.0f);
-
-      MAIN_CAMERA.pos.xy += move_dir * DT;
-
-      MAIN_CAMERA.pos.z += input::get("up").value() * DT;
-      MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
-
-      MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
-    });
-
-    //auto [main_camera, value]   = resource::get<MainCamera, f32>();
-    //auto [main_camera2, value2] = *Resource<MainCamera, const Dt>();
-
-    threadpool::join();
-  }
-
+  
   // Transform, const Color, const Tag0
   // Transform, const Color, const Tag1
   // performance specifier -- Tag0 and Tag1 mutually exclusive
@@ -190,7 +108,7 @@ namespace common {
   // Entity {
   //  Transform, Color, Tag1
   // }
-
+  
   // 0, 1, 2, 3
   // a(0, 2)
   // b(1, 3)
@@ -221,7 +139,7 @@ namespace common {
   // 3 --> b, e, f
   //
   // dependency table
-  // a --> 
+  // a -->
   // b --> a
   // c --> b
   // d --> a
@@ -295,55 +213,49 @@ namespace common {
   // g, h
   // h
   // end
-
+  
   void create_thing_test() {
     struct FunctionUsage {
       char resource_id;
       bool const_access;
     };
-
+  
     constexpr FunctionUsage usage_arr[][2] = {
-      {{0, true},  {2, true}},
-      {{1, false}, {3, true}},
-      {{0, true},  {1, false}},
-      {{2, true},  {-1}},
-      {{3, true},  {-1}},
-      {{2, false}, {3, true}},
-      {{0, false}, {1, true}},
-      {{1, true},  {2, false}},
-
-      //{{1, false},  {2, false}},
-      //{{1, false}, {3, false}},
-      //{{0, false},  {1, false}},
-      //{{2, false},  {-1}},
-      //{{3, false},  {-1}},
-      //{{2, false}, {3, false}},
-      //{{0, false}, {1, false}},
-      //{{1, false},  {2, false}},
+        {{0, true}, {2, true}}, {{1, false}, {3, true}}, {{0, true}, {1, false}}, {{2, true}, {-1}},
+        {{3, true}, {-1}},      {{2, false}, {3, true}}, {{0, false}, {1, true}}, {{1, true}, {2, false}},
+  
+        //{{1, false},  {2, false}},
+        //{{1, false}, {3, false}},
+        //{{0, false},  {1, false}},
+        //{{2, false},  {-1}},
+        //{{3, false},  {-1}},
+        //{{2, false}, {3, false}},
+        //{{0, false}, {1, false}},
+        //{{1, false},  {2, false}},
     };
-
+  
     std::array<std::vector<std::vector<int>>, 4> res_dep_table;
-
+  
     for_every(i, count_of(usage_arr)) {
       for_every(j, 2) {
         auto& val = usage_arr[i][j];
-        if(val.resource_id == -1) {
+        if (val.resource_id == -1) {
           continue;
         }
-
-        if(res_dep_table[val.resource_id].size() == 0) {
+  
+        if (res_dep_table[val.resource_id].size() == 0) {
           res_dep_table[val.resource_id].push_back({});
           res_dep_table[val.resource_id].back().push_back(i);
-          if(!val.const_access) {
+          if (!val.const_access) {
             res_dep_table[val.resource_id].push_back({});
           }
           continue;
         }
-
-        if(val.const_access) {
+  
+        if (val.const_access) {
           res_dep_table[val.resource_id].back().push_back(i);
         } else {
-          if(!res_dep_table[val.resource_id].back().empty()) {
+          if (!res_dep_table[val.resource_id].back().empty()) {
             res_dep_table[val.resource_id].push_back({});
           }
           res_dep_table[val.resource_id].back().push_back(i);
@@ -351,187 +263,164 @@ namespace common {
         }
       }
     }
-    
+  
     for_every(i, 4) {
-      if(res_dep_table[i].back().empty()) {
+      if (res_dep_table[i].back().empty()) {
         res_dep_table[i].pop_back();
       }
     }
-
+  
     printf("\n");
     for_every(i, 4) {
       printf("%llu --> ", i);
       for_every(j, res_dep_table[i].size()) {
-        for_every(k, res_dep_table[i][j].size()) {
-          printf("%c", res_dep_table[i][j][k] + 'a');
-        }
+        for_every(k, res_dep_table[i][j].size()) { printf("%c", res_dep_table[i][j][k] + 'a'); }
         printf(",");
       }
       printf("\n");
     }
-
+  
     std::array<std::unordered_set<int>, count_of(usage_arr)> fun_dep_table;
-    for_every(i, count_of(usage_arr)) {
-      fun_dep_table[i] = {};
-    }
-
+    for_every(i, count_of(usage_arr)) { fun_dep_table[i] = {}; }
+  
     for_every(i, 4) {
       for_range(j, 1, res_dep_table[i].size()) { // skip the first entry
         // for every element in [j], add every element in [j-1] to its fun_dep_table
         for_every(k, res_dep_table[i][j].size()) {
           auto idx = res_dep_table[i][j][k];
-
-          for_every(l, res_dep_table[i][j-1].size()) {
-            fun_dep_table[idx].insert(res_dep_table[i][j-1][l]);
-          }
+  
+          for_every(l, res_dep_table[i][j - 1].size()) { fun_dep_table[idx].insert(res_dep_table[i][j - 1][l]); }
         }
       }
     }
-
+  
     std::array<std::vector<int>, count_of(usage_arr)> fun_dep_table_dense;
     for_every(i, fun_dep_table_dense.size()) {
       fun_dep_table_dense[i] = {};
-      for(auto it = fun_dep_table[i].begin(); it != fun_dep_table[i].end(); it++) {
+      for (auto it = fun_dep_table[i].begin(); it != fun_dep_table[i].end(); it++) {
         fun_dep_table_dense[i].push_back(*it);
       }
     }
-
+  
     printf("\n");
     for_every(i, fun_dep_table_dense.size()) {
       printf("%c --> ", (char)i + 'a');
-      for_every(j, fun_dep_table_dense[i].size()) {
-        printf("%c,", fun_dep_table_dense[i][j] + 'a');
-      }
+      for_every(j, fun_dep_table_dense[i].size()) { printf("%c,", fun_dep_table_dense[i][j] + 'a'); }
       printf("\n");
     }
-
+  
     std::array<std::unordered_set<int>, count_of(usage_arr)> fun_notif_table;
-    for_every(i, count_of(usage_arr)) {
-      fun_notif_table[i] = {};
-    }
-
+    for_every(i, count_of(usage_arr)) { fun_notif_table[i] = {}; }
+  
     for_every(i, 4) {
       for_range(j, 0, res_dep_table[i].size() - 1) { // skip the last entry
         // for every element in [j], add every element in [j+1] to its fun_notif_table
         for_every(k, res_dep_table[i][j].size()) {
           auto idx = res_dep_table[i][j][k];
-
-          for_every(l, res_dep_table[i][j+1].size()) {
-            fun_notif_table[idx].insert(res_dep_table[i][j+1][l]);
-          }
+  
+          for_every(l, res_dep_table[i][j + 1].size()) { fun_notif_table[idx].insert(res_dep_table[i][j + 1][l]); }
         }
       }
     }
-
+  
     std::array<std::vector<int>, count_of(usage_arr)> fun_notif_table_dense;
     for_every(i, fun_notif_table_dense.size()) {
       fun_notif_table_dense[i] = {};
-      for(auto it = fun_notif_table[i].begin(); it != fun_notif_table[i].end(); it++) {
+      for (auto it = fun_notif_table[i].begin(); it != fun_notif_table[i].end(); it++) {
         fun_notif_table_dense[i].push_back(*it);
       }
     }
-
+  
     printf("\n");
     for_every(i, fun_notif_table_dense.size()) {
       printf("%c --> ", (char)i + 'a');
-      for_every(j, fun_notif_table_dense[i].size()) {
-        printf("%c,", fun_notif_table_dense[i][j] + 'a');
-      }
+      for_every(j, fun_notif_table_dense[i].size()) { printf("%c,", fun_notif_table_dense[i][j] + 'a'); }
       printf("\n");
     }
-
+  
     std::vector<int> start_arr;
     for_every(i, fun_dep_table_dense.size()) {
-      if(fun_dep_table_dense[i].empty()) {
+      if (fun_dep_table_dense[i].empty()) {
         start_arr.push_back(i);
       }
     }
-
+  
     printf("\n");
-    for_every(i, start_arr.size()) {
-      printf("%c,", start_arr[i] + 'a');
-    }
+    for_every(i, start_arr.size()) { printf("%c,", start_arr[i] + 'a'); }
     printf("\n");
-
+  
     std::array<int, count_of(usage_arr)> start_counters;
-    for_every(i, start_counters.size()) {
-      start_counters[i] = fun_dep_table_dense[i].size();
-    }
-
+    for_every(i, start_counters.size()) { start_counters[i] = fun_dep_table_dense[i].size(); }
+  
     printf("\n");
-    for_every(i, start_counters.size()) {
-      printf("%d,", start_counters[i]);
-    }
+    for_every(i, start_counters.size()) { printf("%d,", start_counters[i]); }
     printf("\n");
-
+  
     usize start = 0;
     std::vector<int> run_arr = start_arr;
     std::array<int, count_of(usage_arr)> run_counters = start_counters;
-
+  
     printf("\n");
-    while(start != run_arr.size()) {
-      for_range(i, start, run_arr.size()) {
-        printf("%c,", run_arr[i] + 'a');
-      }
+    while (start != run_arr.size()) {
+      for_range(i, start, run_arr.size()) { printf("%c,", run_arr[i] + 'a'); }
       printf("\n");
-
+  
       auto idx = run_arr[start];
       for_every(i, fun_notif_table_dense[idx].size()) {
         run_counters[fun_notif_table_dense[idx][i]] -= 1;
-        if(run_counters[fun_notif_table_dense[idx][i]] == 0) {
+        if (run_counters[fun_notif_table_dense[idx][i]] == 0) {
           run_arr.push_back(fun_notif_table_dense[idx][i]);
         }
       }
-
+  
       start += 1;
     }
-
+  
     printf("\n");
   }
-
+  
   void render_things() {
     Model model = Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f});
-
+  
     struct PushC {
       mat4 mat;
       vec4 color;
     };
-
+  
     engine::effect::begin("color_line");
-
-    //for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
-    //  PushC c = {};
-    //  c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id] * 1.1f);
-    //  c.color = vec4 {1.0f, 1.0f, 1.0f, 1.0f};
-
+  
+    // for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
+    //   PushC c = {};
+    //   c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation,
+    //   engine::render::internal::_gpu_mesh_scales[model.id] * 1.1f); c.color = vec4 {1.0f, 1.0f, 1.0f, 1.0f};
+  
     //  engine::effect::draw(model, c);
     //}
-
-
+  
     engine::effect::begin("color_fill");
-
-    for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
+  
+    for (auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
       PushC c = {};
-      c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id]);
+      c.mat =
+          engine::render::internal::_main_view_projection *
+          mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id]);
       c.color = color;
-
+  
       engine::effect::draw(model, c);
     }
-
+  
     engine::effect::end_everything();
   }
-};
+}; // namespace common
 
 mod_main() {
   system::list("state_init")
-    .add(def(common::init), -1)
+    .add(def((void (*)())common::init), -1)
     .add(def(common::create_thing_test), -1);
 
   system::list("update")
-    .add(def(common::update), "update_tag", 1)
-    .add(def(common::render_things), "render::begin_frame", 1)
-    .add(def(common::exit_on_esc), -1);
-
-  printf("\n\n\n\n");
-  common::add_sys(common::update2);
+      .add(def((void (*)())common::update0), "update_tag", 1)
+      .add(def((void (*)())common::update1), "(void (*)())common::update0", 1)
+      .add(def(common::render_things), "render::begin_frame", 1)
+      .add(def(common::exit_on_esc), -1);
 }
