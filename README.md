@@ -43,3 +43,36 @@ third_party/ - Third Party Code and Dependencies
 wiki/        - Wiki
 ./           - Current Directory
 ```
+
+## Planned Module Structure
+core
+- math
+- utility
+
+platform
+- window
+- allocator
+- library
+- threadpool
+
+engine
+- entity
+- component
+- registry
+- resource
+- system
+- reflect
+- input
+- global
+- event
+- asset
+
+engine_ext
+- render
+- audio
+- animate
+- text
+
+physics
+- physics
+- navmesh
