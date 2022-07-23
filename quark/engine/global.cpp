@@ -164,7 +164,7 @@ namespace quark::engine::global {
     std::cout << "init time: " << std::chrono::duration<f64>(t1 - t0).count() << " s" << std:: endl;
 
     while(!window::should_close()) {
-      system::list("update").run(true);
+      system::list("update").run(false);
       state::transition_if_changed();
     }
 

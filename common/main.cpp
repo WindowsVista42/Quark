@@ -4,6 +4,13 @@
 using namespace quark;
 
 namespace common {
+  struct Iden {
+    static u32 global_value;
+    u32 value;
+  };
+
+  u32 Iden::global_value = 0;
+
   struct Tag {};
   
   template <typename T>
@@ -31,6 +38,13 @@ namespace common {
     decltype(auto) each() {
       return registry::view<T...>().each();
     }
+
+    //template <typename F = void (*)(T...)>
+    //void iter_par(usize batch_size, F f) {
+    //  auto each = this->each();
+    //  for(auto each_c = each; each_c < each.end();) {
+    //  }
+    //}
   };
   
   struct Input {
@@ -45,10 +59,15 @@ namespace common {
   static Input global_input = {};
   template <> Input* Resource<Input>::value = &global_input;
   
-  void init(View<Transform, Color, Tag> view0, View<Transform, Color> view1, Resource<Input> input) {
-    for_every(i, 10) { view0.create(Transform{}, Color{}, Tag{}); }
+  void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1, Resource<Input> input) {
+    for_every(i, 10) {
+      view0.create(Transform{}, Color{}, Tag{}, Iden {Iden::global_value});
+      Iden::global_value += 1;
+    }
   
-    for_every(i, 10) { view1.create(Transform{}, Color{}); }
+    for_every(i, 10) {
+      view1.create(Transform{}, Color{});
+    }
   
     input->
        map("w", Key::W)
@@ -59,6 +78,28 @@ namespace common {
       .map("up", Key::Space)
       .map("down", Key::LeftControl)
       .map("pause", Key::P);
+
+    auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+    auto b0 = each.begin();
+    auto b1 = b0;
+    std::advance(b1, 5);
+    if constexpr (std::_Is_random_iter_v<typeof(b1)>) {
+      printf("is random iter!\n");
+    }
+    auto e = each.end();
+
+    for(auto b = b1; b != e; b++) {
+      auto [e, t, c, i] = *b;
+      printf("%d\n", i.value);
+    }
+
+    for(auto b = each.begin(); b != b1; b++) {
+      auto [e, t, c, i] = *b;
+      printf("%d\n", i.value);
+    }
+
+    //view0.iter_par(32, []() {
+    //});
   }
   
   void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
@@ -420,7 +461,7 @@ mod_main() {
 
   system::list("update")
       .add(def((void (*)())common::update0), "update_tag", 1)
-      .add(def((void (*)())common::update1), "(void (*)())common::update0", 1)
+      //.add(def((void (*)())common::update1), "(void (*)())common::update0", 1)
       .add(def(common::render_things), "render::begin_frame", 1)
       .add(def(common::exit_on_esc), -1);
 }
