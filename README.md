@@ -78,3 +78,5 @@ physics
 - physics
 - navmesh
 ```
+
+Maybe also add some kind of open world thing whenever I have the core engine stuff working.
