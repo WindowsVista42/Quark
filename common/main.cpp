@@ -3,13 +3,64 @@
 #include "common.hpp"
 using namespace quark;
 
-namespace common {
-  struct Iden {
-    static u32 global_value;
-    u32 value;
+#include <entt/entity/view.hpp>
+
+struct EntityIterator {
+  using iterator_t = typeof(registry::internal::_registry.view<int>().each().begin());
+  iterator_t begin;
+  iterator_t end;
+  struct Copyable {
+    u8 bytes[64];
   };
 
-  u32 Iden::global_value = 0;
+  template <typename... T>
+  static EntityIterator::Copyable create(
+    typeof(registry::internal::_registry.view<T...>().each().begin()) start,
+    typeof(registry::internal::_registry.view<T...>().each().begin()) end
+  ) {
+    auto a = EntityIterator {
+      *(typeof(registry::internal::_registry.view<int>().each().begin())*)&start,
+      *(typeof(registry::internal::_registry.view<int>().each().begin())*)&end
+    };
+    return *(EntityIterator::Copyable*)&a;
+  }
+};
+struct Iden {
+  static u32 global_value;
+  u32 value;
+};
+
+u32 Iden::global_value = 0;
+
+void func(entt::entity e0, entt::entity& e, Transform& t, Color& c, Iden& i) {
+  printf("%d\n", i.value);
+}
+
+static std::unordered_map<usize, WorkStealingQueue<EntityIterator::Copyable>> iters;
+
+template <auto F, usize B, typename... T>
+void loop_work() {
+  auto val = iters.at((usize)F).steal().value();
+  auto iter = *(EntityIterator*)&val;
+  auto begin = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&iter.begin;
+  auto end = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&iter.end;
+
+  for(auto it = begin; it != end; it++) {
+    auto [e0, e, t, c, i] = *it;
+    printf("%u\n", i.value);
+    //std::apply(F, *it);
+  }
+}
+
+// job types
+// - do some function, spsc
+// - do some part of a loop, spmc
+// - async io????
+//   - yes this exists and i should support it
+//   - but this should exist separate from the jobs system
+//   - and then for the job system make some way to do this nicely
+
+namespace common {
 
   struct Tag {};
   
@@ -58,6 +109,7 @@ namespace common {
   
   static Input global_input = {};
   template <> Input* Resource<Input>::value = &global_input;
+
   
   void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1, Resource<Input> input) {
     for_every(i, 10) {
@@ -83,19 +135,54 @@ namespace common {
     auto b0 = each.begin();
     auto b1 = b0;
     std::advance(b1, 5);
-    if constexpr (std::_Is_random_iter_v<typeof(b1)>) {
-      printf("is random iter!\n");
-    }
     auto e = each.end();
 
+    auto first = each.begin();
+    auto middle = first;
+    std::advance(middle, 5);
+    auto last = each.end();
+
+    printf("int view: %llu\n", sizeof(typeof(registry::internal::_registry.view<int>().each().begin())));
+    printf("TCI view: %llu\n", sizeof(typeof(registry::internal::_registry.view<Transform, Color, Iden>().each().begin())));
+
+    //iters.emplace(
+    //  std::piecewise_construct,
+    //  std::forward_as_tuple((usize)func),
+    //  std::forward_as_tuple(WorkStealingQueue<EntityIterator::Copyable>())
+    //);
+
+    //iters.try_emplace((usize)func, WorkStealingQueue<EntityIterator::Copyable>());
+
+    for(auto it = middle; it != last; it++) {
+      auto [e, t, c, i] = *it;
+      func({}, e, t, c, i);
+    }
+
+    for(auto it = first; it != middle; it++) {
+      auto [e, t, c, i] = *it;
+      func({}, e, t, c, i);
+    }
+
+    printf("iter size: %llu\n", sizeof(EntityIterator));
+
+    //TODO(sean): make the WorkStealingQueue<> the thing that gets its type changed
+    // instead of the view<>
+    //iters.insert(std::make_pair<usize, WorkStealingQueue<EntityIterator::Copyable>>((usize)func, WorkStealingQueue<EntityIterator::Copyable>()));// WorkStealingQueue<EntityIterator::Copyable>()));
+    //iters.emplace((usize)func, Mirro<EntityIterator::Copyable>());
+    iters.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple((usize)func),
+      std::forward_as_tuple()
+    );
+    iters.at((usize)func).push(EntityIterator::create<Transform, Color, Iden> (first, middle));
+    iters.at((usize)func).push(EntityIterator::create<Transform, Color, Iden> (middle, last));
+    loop_work<func, 5, entt::entity, Transform, Color, Iden>();
+    loop_work<func, 5, entt::entity, Transform, Color, Iden>();
+
     for(auto b = b1; b != e; b++) {
-      auto [e, t, c, i] = *b;
-      printf("%d\n", i.value);
     }
 
     for(auto b = each.begin(); b != b1; b++) {
-      auto [e, t, c, i] = *b;
-      printf("%d\n", i.value);
     }
 
     //view0.iter_par(32, []() {
