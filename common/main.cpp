@@ -6,6 +6,144 @@ using namespace quark;
 #include <entt/entity/view.hpp>
 #include <string.h>
 
+//struct WorkerData {
+//  bool stop;
+//
+//  // simple fifo queue
+//  std::mutex work_mutex;
+//  std::condition_variable work_cvar;
+//  usize work_head;
+//  usize work_tail;
+//  static constexpr usize work_count = 128;
+//  void (*work[work_count])();
+//
+//  usize working_count;
+//};
+//
+//static DWORD WINAPI worker_work_loop(PVOID data) {
+//  WorkerData* self = (WorkerData*)data;
+//
+//  std::unique_lock<std::mutex> mtx = std::unique_lock<std::mutex>(self->work_mutex, std::defer_lock);
+//
+//  while (true) {
+//    mtx.lock();
+//
+//    // sleep until we might have work
+//    while (self->work_head == self->work_tail && !self->stop) {
+//      self->work_cvar.wait(mtx);
+//    }
+//
+//    // quit if told to stop
+//    if (self->stop) {
+//      break;
+//    }
+//
+//    // grab our work
+//    auto work = self->work[self->work_head];
+//    self->work_head += 1;
+//    self->working_count += 1;
+//    mtx.unlock();
+//
+//    work(); // do the work
+//
+//    // update status
+//    mtx.lock();
+//    self->working_count -= 1;
+//
+//    if (!self->stop && self->working_count == 0 && self->work_head == self->work_tail) {
+//      self->work_cvar.notify_all(); // signal that we have all of the work done
+//    }
+//    mtx.unlock();
+//  }
+//
+//  // release any locks
+//  mtx.unlock();
+//  return 0;
+//}
+//
+//struct WorkerPool3 {
+//  usize thread_ct;
+//  HANDLE* threads;
+//  WorkerData data;
+//
+//  void init(usize thread_ct) {
+//    this->data.stop = false;
+//
+//    this->data.work_head = 0;
+//    this->data.work_tail = 0;
+//    this->data.working_count = 0;
+//
+//    for(int i = 0; i < WorkerData::work_count; i += 1) {
+//      this->data.work[i] = 0;
+//    }
+//
+//    //this->data.mutex = semaphore::create();
+//
+//    this->thread_ct = thread_ct;
+//    this->threads = (HANDLE*)malloc(sizeof(HANDLE) * this->thread_ct);
+//
+//    std::unique_lock<std::mutex> mtx = std::unique_lock<std::mutex>(this->data.work_mutex, std::defer_lock);
+//
+//    mtx.lock();
+//    for(int i = 0; i < this->thread_ct; i += 1) {
+//      this->threads[i] = CreateThread(0, 0, worker_work_loop, &this->data, 0, 0);
+//    }
+//    mtx.unlock();
+//  }
+//
+//  void add_work(void (*p)()) {
+//    // we might try to add work while a thread is running
+//    // so we go ahead and lock just in case
+//    std::unique_lock<std::mutex> mtx = std::unique_lock<std::mutex>(this->data.work_mutex, std::defer_lock);
+//    mtx.lock();
+//
+//    this->data.work[this->data.work_tail] = p;
+//    this->data.work_tail += 1;
+//
+//    mtx.unlock();
+//  }
+//
+//  void add_work_begin_now(void (*p)()) {
+//    // we might try to add work while a thread is running
+//    // so we go ahead and lock just in case
+//    std::unique_lock<std::mutex> mtx = std::unique_lock<std::mutex>(this->data.work_mutex, std::defer_lock);
+//    mtx.lock();
+//
+//    this->data.work[this->data.work_tail] = p;
+//    this->data.work_tail += 1;
+//
+//    this->data.work_cvar.notify_one();
+//    mtx.unlock();
+//  }
+//
+//  void join() {
+//    this->data.work_cvar.notify_all();
+//    std::unique_lock<std::mutex> mtx = std::unique_lock<std::mutex>(this->data.work_mutex, std::defer_lock);
+//    mtx.lock();
+//
+//    while (true) {
+//      if (this->data.working_count != 0 || this->data.work_head != this->data.work_tail) {
+//        this->data.work_cvar.wait(mtx);
+//      } else {
+//        break;
+//      }
+//    }
+//
+//    // reset data
+//    this->data.work_head = 0;
+//    this->data.work_tail = 0;
+//    this->data.working_count = 0;
+//
+//    for(int i = 0; i < WorkerData::work_count; i += 1) {
+//      this->data.work[i] = 0;
+//    }
+//
+//    mtx.unlock();
+//  }
+//};
+//
+//WorkerPool3 pool;
+
 template <typename... T>
 struct EntityIterator {
   using iterator_t = typeof(registry::internal::_registry.view<T...>().each().begin());
@@ -134,6 +272,8 @@ namespace common {
       .map("up", Key::Space)
       .map("down", Key::LeftControl)
       .map("pause", Key::P);
+    
+    //pool.init(4);
 
     //auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
     //auto b0 = each.begin();
@@ -238,8 +378,41 @@ namespace common {
   }
 
   //WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> wsq_tci = WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>();
+  //usize tci_head = 0;
+  //usize tci_tail = 0;
+  //EntityIterator<Transform, Color, Iden> tci_dat[32];
+  //std::mutex tci_m;
+
+  //void wrk() {
+  //  tci_m.lock();
+  //  auto val0 = tci_dat[tci_head];
+  //  tci_head += 1;
+  //  //auto val = wsq_tci.steal().value();
+  //  //auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
+  //  tci_m.unlock();
+  //  for(auto it = val0.begin; it != val0.end; it++) {
+  //    std::apply(func, *it);
+  //  }
+  //}
+
+  template <auto F, typename... T>
+  struct Yeah {
+    static WorkStealingQueue<typename EntityIterator<T...>::Copyable> q;
+  };
+
+  template<> WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> Yeah<func, Transform, Color, Iden>::q = WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>();
+
   WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> wsq_tci;
-  
+  template <auto F, typename... T>
+  void wrk2() {
+    for(auto val0 = Yeah<F, T...>::q.steal(); val0.has_value(); val0 = Yeah<F, T...>::q.steal()) {
+      auto val = *(EntityIterator<Transform, Color, Iden>*)&(val0.value());
+      for(auto it = val.begin; it != val.end; it++) {
+        std::apply(F, *it);
+      }
+    }
+  }
+
   void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
     auto& input = input_res.get();
   
@@ -266,24 +439,52 @@ namespace common {
       std::advance(middle, 5);
       auto last = each.end();
 
-      wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
-      wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+      //tci_m.lock();
+      //tci_dat[tci_tail] = EntityIterator<Transform, Color, Iden> {first, middle};
+      //tci_tail += 1;
+      //tci_dat[tci_tail] = EntityIterator<Transform, Color, Iden> {middle, last};
+      //tci_tail += 1;
+      //tci_m.unlock();
+      //wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+      //wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
 
-      threadpool::push([]() {
-        auto val = wsq_tci.steal().value();
-        auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
-        for(auto it = val0.begin; it != val0.end; it++) {
-          std::apply(func, *it);
-        }
-      });
+      //pool.add_work(wrk2);
+      //pool.add_work(wrk2);
+      //pool.join();
+      //wrk();
+      //wrk();
 
-      threadpool::push([]() {
-        auto val = wsq_tci.steal().value();
-        auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
-        for(auto it = val0.begin; it != val0.end; it++) {
-          std::apply(func, *it);
-        }
-      });
+      threadpool::push(wrk2<func, Transform, Color, Iden>);
+      threadpool::push(wrk2<func, Transform, Color, Iden>);
+      threadpool::join();
+
+      //tci_m.lock();
+      //tci_tail = 0;
+      //tci_head = 0;
+      //tci_m.unlock();
+
+      //pool.add_work_begin_now();
+      //pool.add_work_begin_now();
+      //pool.join();
+      //pool.add_work([]() {
+      ////threadpool::push([]() {
+      //  auto val = wsq_tci.steal().value();
+      //  auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
+      //  for(auto it = val0.begin; it != val0.end; it++) {
+      //    std::apply(func, *it);
+      //  }
+      //});
+
+      //pool.add_work([]() {
+      ////threadpool::push([]() {
+      //  auto val = wsq_tci.steal().value();
+      //  auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
+      //  for(auto it = val0.begin; it != val0.end; it++) {
+      //    std::apply(func, *it);
+      //  }
+      //});
+
+      //pool.join();
     }
 
     //for_every(i, 1000) {
@@ -481,7 +682,7 @@ namespace common {
   // g, h
   // h
   // end
-  
+ 
   void create_thing_test() {
     struct FunctionUsage {
       char resource_id;
