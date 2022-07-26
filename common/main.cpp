@@ -4,23 +4,25 @@
 using namespace quark;
 
 #include <entt/entity/view.hpp>
+#include <string.h>
 
+template <typename... T>
 struct EntityIterator {
-  using iterator_t = typeof(registry::internal::_registry.view<int>().each().begin());
+  using iterator_t = typeof(registry::internal::_registry.view<T...>().each().begin());
   iterator_t begin;
   iterator_t end;
+
   struct Copyable {
-    u8 bytes[64];
+    u8 bytes[sizeof(EntityIterator<T...>)];
   };
 
-  template <typename... T>
   static EntityIterator::Copyable create(
     typeof(registry::internal::_registry.view<T...>().each().begin()) start,
-    typeof(registry::internal::_registry.view<T...>().each().begin()) end
+    typeof(registry::internal::_registry.view<T...>().each().end()) end
   ) {
-    auto a = EntityIterator {
-      *(typeof(registry::internal::_registry.view<int>().each().begin())*)&start,
-      *(typeof(registry::internal::_registry.view<int>().each().begin())*)&end
+    auto a = EntityIterator<T...> {
+      .begin = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&start,
+      .end = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&end
     };
     return *(EntityIterator::Copyable*)&a;
   }
@@ -32,23 +34,26 @@ struct Iden {
 
 u32 Iden::global_value = 0;
 
-void func(entt::entity e0, entt::entity& e, Transform& t, Color& c, Iden& i) {
-  printf("%d\n", i.value);
+void func(entt::entity e, Transform& t, Color& c, Iden& i) {
+  //printf("%d\n", i.value);
+  i.value += 1;
 }
 
-static std::unordered_map<usize, WorkStealingQueue<EntityIterator::Copyable>> iters;
+static std::unordered_map<usize, WorkStealingQueue<EntityIterator<int>::Copyable>> iters;
 
-template <auto F, usize B, typename... T>
+template <auto F, typename... T>
 void loop_work() {
-  auto val = iters.at((usize)F).steal().value();
-  auto iter = *(EntityIterator*)&val;
-  auto begin = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&iter.begin;
-  auto end = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&iter.end;
+  //auto val = iters.at((usize)F).steal().value();
+  //auto iter = *(EntityIterator<T...>*)&val;
 
-  for(auto it = begin; it != end; it++) {
-    auto [e0, e, t, c, i] = *it;
-    printf("%u\n", i.value);
-    //std::apply(F, *it);
+  auto val = (*(WorkStealingQueue<typename EntityIterator<T...>::Copyable>*)&iters.at((usize)func)).steal().value();
+  auto val0 = (*(EntityIterator<T...>*)&val);
+
+  //auto begin = *(typeof(registry::internal::_registry.view<T...>().each().begin())*)&iter.begin;
+  //auto end = *(typeof(registry::internal::_registry.view<T...>().each().end())*)&iter.end;
+
+  for(auto it = val0.begin; it != val0.end; it++) {
+    std::apply(F, *it);
   }
 }
 
@@ -61,7 +66,6 @@ void loop_work() {
 //   - and then for the job system make some way to do this nicely
 
 namespace common {
-
   struct Tag {};
   
   template <typename T>
@@ -131,63 +135,110 @@ namespace common {
       .map("down", Key::LeftControl)
       .map("pause", Key::P);
 
-    auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
-    auto b0 = each.begin();
-    auto b1 = b0;
-    std::advance(b1, 5);
-    auto e = each.end();
+    //auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+    //auto b0 = each.begin();
+    //auto b1 = b0;
+    //std::advance(b1, 5);
+    //auto e = each.end();
 
-    auto first = each.begin();
-    auto middle = first;
-    std::advance(middle, 5);
-    auto last = each.end();
+    //auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+    //auto first = each.begin();
+    //auto middle = first;
+    //std::advance(middle, 5);
+    //auto last = each.end();
 
-    printf("int view: %llu\n", sizeof(typeof(registry::internal::_registry.view<int>().each().begin())));
-    printf("TCI view: %llu\n", sizeof(typeof(registry::internal::_registry.view<Transform, Color, Iden>().each().begin())));
+    //printf("int view: %llu\n", sizeof(typeof(registry::internal::_registry.view<int>().each().begin())));
+    //printf("TCI view: %llu\n", sizeof(typeof(registry::internal::_registry.view<Transform, Color, Iden>().each().begin())));
 
-    //iters.emplace(
-    //  std::piecewise_construct,
-    //  std::forward_as_tuple((usize)func),
-    //  std::forward_as_tuple(WorkStealingQueue<EntityIterator::Copyable>())
-    //);
+    ////iters.emplace(
+    ////  std::piecewise_construct,
+    ////  std::forward_as_tuple((usize)func),
+    ////  std::forward_as_tuple(WorkStealingQueue<EntityIterator::Copyable>())
+    ////);
 
-    //iters.try_emplace((usize)func, WorkStealingQueue<EntityIterator::Copyable>());
+    ////iters.try_emplace((usize)func, WorkStealingQueue<EntityIterator::Copyable>());
 
-    for(auto it = middle; it != last; it++) {
-      auto [e, t, c, i] = *it;
-      func({}, e, t, c, i);
-    }
+    //for(auto it = middle; it != last; it++) {
+    //  auto [e, t, c, i] = *it;
+    //  func(e, t, c, i);
+    //}
 
-    for(auto it = first; it != middle; it++) {
-      auto [e, t, c, i] = *it;
-      func({}, e, t, c, i);
-    }
+    //for(auto it = first; it != middle; it++) {
+    //  auto [e, t, c, i] = *it;
+    //  func(e, t, c, i);
+    //}
 
-    printf("iter size: %llu\n", sizeof(EntityIterator));
+    //printf("iter size: %llu\n", sizeof(EntityIterator<Transform, Color, Iden>));
 
     //TODO(sean): make the WorkStealingQueue<> the thing that gets its type changed
     // instead of the view<>
     //iters.insert(std::make_pair<usize, WorkStealingQueue<EntityIterator::Copyable>>((usize)func, WorkStealingQueue<EntityIterator::Copyable>()));// WorkStealingQueue<EntityIterator::Copyable>()));
     //iters.emplace((usize)func, Mirro<EntityIterator::Copyable>());
-    iters.emplace(
+    (*(std::unordered_map<usize, WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>>*)(&iters)).emplace(
       std::piecewise_construct,
       std::forward_as_tuple((usize)func),
       std::forward_as_tuple()
     );
-    iters.at((usize)func).push(EntityIterator::create<Transform, Color, Iden> (first, middle));
-    iters.at((usize)func).push(EntityIterator::create<Transform, Color, Iden> (middle, last));
-    loop_work<func, 5, entt::entity, Transform, Color, Iden>();
-    loop_work<func, 5, entt::entity, Transform, Color, Iden>();
 
-    for(auto b = b1; b != e; b++) {
-    }
+    //for_every(i, 1000) {
+    //  auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+    //  printf("here0\n");
+    //  auto first = each.begin();
+    //  printf("here1\n");
+    //  auto middle = first;
+    //  printf("here2\n");
+    //  auto last = each.end();
+    //  printf("here3\n");
+    //  std::advance(middle, 5);
+    //  printf("here4\n");
 
-    for(auto b = each.begin(); b != b1; b++) {
-    }
+    //  (*((WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters.at((usize)func))).push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+    //  printf("here5\n");
+    //  (*((WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters.at((usize)func))).push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+    //  printf("here6\n");
+    //  //threadpool::push([] () {
+    //    loop_work<func, Transform, Color, Iden>();
+    //  printf("here7\n");
+    //  //});
+    //  //threadpool::push([] () {
+    //    loop_work<func, Transform, Color, Iden>();
+    //  printf("here8\n");
+    //  //});
+    //  //threadpool::join();
+    //  static int a = 0;
+    //  printf("a: %d\n", a);
+    //  printf("d: %d\n", iters.at((usize)func).empty() ? 1 : 0);
+    //  a += 1;
+    //}
+
+    //auto val = (*(WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters.at((usize)func)).steal().value();
+    //auto val0 = (*(EntityIterator<Transform, Color, Iden>*)&val);
+    ////__builtin_dump_struct((EntityIterator<Transform, Color, Iden>*)&val, &printf);
+    //__builtin_dump_struct(&(*(EntityIterator<Transform, Color, Iden>*)&val).begin, &printf);
+
+    ////val = (*(WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters.at((usize)func)).steal().value();
+    ////__builtin_dump_struct((EntityIterator<Transform, Color, Iden>*)&val, &printf);
+    ////printf("here!\n");
+
+    //__builtin_dump_struct(&first, &printf);
+
+    //printf("memcmp: %d\n", memcmp(&(*(EntityIterator<Transform, Color, Iden>*)&val).begin, &first, sizeof(first)));
+
+    //for(auto it = val0.begin; it != val0.end; it++) {
+    //  auto [e, t, c, i] = *it;
+    //  func(e, t, c, i);
+    //}
+
+    //__builtin_dump_struct((EntityIterator<Transform, Color, Iden>*)&val, &printf);
+    //__builtin_dump_struct((EntityIterator<Transform, Color, Iden>*)&val, &printf);
+    //__builtin_dump_struct((EntityIterator<Transform, Color, Iden>*)&val, &printf);
 
     //view0.iter_par(32, []() {
     //});
   }
+
+  //WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> wsq_tci = WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>();
+  WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> wsq_tci;
   
   void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
     auto& input = input_res.get();
@@ -207,23 +258,112 @@ namespace common {
       }
       T += DT;
     }
-  }
-  
-  void update1(Resource<Input> input, Resource<render::Camera> main_camera) {
+
+    for_every(i, 1000) {
+      auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+      auto first = each.begin();
+      auto middle = each.begin();
+      std::advance(middle, 5);
+      auto last = each.end();
+
+      wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+      wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+
+      threadpool::push([]() {
+        auto val = wsq_tci.steal().value();
+        auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
+        for(auto it = val0.begin; it != val0.end; it++) {
+          std::apply(func, *it);
+        }
+      });
+
+      threadpool::push([]() {
+        auto val = wsq_tci.steal().value();
+        auto val0 = *(EntityIterator<Transform, Color, Iden>*)&val;
+        for(auto it = val0.begin; it != val0.end; it++) {
+          std::apply(func, *it);
+        }
+      });
+    }
+
+    //for_every(i, 1000) {
+    //  auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+    //  auto first = each.begin();
+    //  auto middle = each.begin();
+    //  std::advance(middle, 5);
+    //  auto last = each.end();
+
+    //  WorkStealingQueue<EntityIterator<int>::Copyable>& wsq_int = iters.at((usize)func);
+    //  WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>& wsq_tci = *(WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&wsq_int;
+    //  wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+    //  wsq_tci.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+    //  //__builtin_dump_struct(&wsq_tci, &printf);
+    //  ////(*(WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters[(usize)func]).push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+    //  ////printf("here6\n");
+    //  ////(*(WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>*)&iters[(usize)func]).push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+    //  ////printf("here7\n");
+    //  threadpool::push([] () {
+    //    loop_work<func, Transform, Color, Iden>();
+    //  //printf("here10\n");
+    //    return;
+    //  });
+    //  threadpool::push([] () {
+    //    loop_work<func, Transform, Color, Iden>();
+    //  //printf("here11\n");
+    //  });
+    //  threadpool::join();
+    //}
+    //static int thru = 0;
+    //printf("thru: %d\n", thru);
+    //thru += 1;
+
     vec2 move_dir = {0.0f, 0.0f};
   
-    move_dir.x += input->get("d").value();
-    move_dir.x -= input->get("a").value();
-    move_dir.y += input->get("w").value();
-    move_dir.y -= input->get("s").value();
+    move_dir.x += input::get("d").value();
+    move_dir.x -= input::get("a").value();
+    move_dir.y += input::get("w").value();
+    move_dir.y -= input::get("s").value();
     move_dir.norm_max_mag(1.0f);
   
-    main_camera->pos.xy += move_dir * DT;
+    //main_camera->pos.xy += move_dir * DT;
   
-    main_camera->pos.z += input::get("up").value() * DT;
-    main_camera->pos.z -= input::get("down").value() * DT;
+    //main_camera->pos.z += input::get("up").value() * DT;
+    //main_camera->pos.z -= input::get("down").value() * DT;
   
-    main_camera->spherical_dir.y -= input::get("v").value() * DT;
+    //main_camera->spherical_dir.y -= input::get("v").value() * DT;
+
+    MAIN_CAMERA.pos.xy += move_dir * DT;
+  
+    MAIN_CAMERA.pos.z += input::get("up").value() * DT;
+    MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
+  
+    MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
+
+  }
+  
+  void update1(/*Resource<Input> input, Resource<render::Camera> main_camera*/) {
+    vec2 move_dir = {0.0f, 0.0f};
+  
+    move_dir.x += input::get("d").value();
+    move_dir.x -= input::get("a").value();
+    move_dir.y += input::get("w").value();
+    move_dir.y -= input::get("s").value();
+    move_dir.norm_max_mag(1.0f);
+  
+    //main_camera->pos.xy += move_dir * DT;
+  
+    //main_camera->pos.z += input::get("up").value() * DT;
+    //main_camera->pos.z -= input::get("down").value() * DT;
+  
+    //main_camera->spherical_dir.y -= input::get("v").value() * DT;
+
+    MAIN_CAMERA.pos.xy += move_dir * DT;
+  
+    MAIN_CAMERA.pos.z += input::get("up").value() * DT;
+    MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
+  
+    MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
+    str::print(str() + "pos: (" + MAIN_CAMERA.pos.x + "," + MAIN_CAMERA.pos.y + "," + MAIN_CAMERA.pos.z + ")");
   }
   
   // Transform, const Color, const Tag0
@@ -548,7 +688,7 @@ mod_main() {
 
   system::list("update")
       .add(def((void (*)())common::update0), "update_tag", 1)
-      //.add(def((void (*)())common::update1), "(void (*)())common::update0", 1)
+      //.add(def(common::update1), "(void (*)())common::update0", 1)
       .add(def(common::render_things), "render::begin_frame", 1)
       .add(def(common::exit_on_esc), -1);
 }
