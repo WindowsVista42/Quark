@@ -396,22 +396,42 @@ namespace common {
   //}
 
   template <auto F, typename... T>
-  struct Yeah {
-    static WorkStealingQueue<typename EntityIterator<T...>::Copyable> q;
+  struct add_loop_work {
+    static inline usize tci_head = 0;
+    static inline usize tci_tail = 0;
+    static inline EntityIterator<T...> tci_dat[32];
+    static inline std::mutex tci_m;
+
+    void operator() () {
+      threadpool::push([] {
+        tci_m.lock();
+        while(tci_head < tci_tail) {
+          auto val = tci_dat[tci_head];
+          tci_head += 1;
+          tci_m.unlock();
+
+          for(auto it = val.begin; it != val.end; it++) {
+            std::apply(F, *it);
+          }
+          tci_m.lock();
+        }
+      });
+    }
   };
 
-  template<> WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> Yeah<func, Transform, Color, Iden>::q = WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable>();
+  //template <auto F, typename... T>
+  //void add_loop_work() {
+  //  threadpool::push([] {
+  //    static WorkStealingQueue<typename EntityIterator<T...>::Copyable> q;
 
-  WorkStealingQueue<EntityIterator<Transform, Color, Iden>::Copyable> wsq_tci;
-  template <auto F, typename... T>
-  void wrk2() {
-    for(auto val0 = Yeah<F, T...>::q.steal(); val0.has_value(); val0 = Yeah<F, T...>::q.steal()) {
-      auto val = *(EntityIterator<Transform, Color, Iden>*)&(val0.value());
-      for(auto it = val.begin; it != val.end; it++) {
-        std::apply(F, *it);
-      }
-    }
-  }
+  //    for(auto val0 = q.steal(); val0.has_value(); val0 = q.steal()) {
+  //      auto val = *(EntityIterator<Transform, Color, Iden>*)&(val0.value());
+  //      for(auto it = val.begin; it != val.end; it++) {
+  //        std::apply(F, *it);
+  //      }
+  //    }
+  //  });
+  //}
 
   void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
     auto& input = input_res.get();
@@ -454,9 +474,23 @@ namespace common {
       //wrk();
       //wrk();
 
-      threadpool::push(wrk2<func, Transform, Color, Iden>);
-      threadpool::push(wrk2<func, Transform, Color, Iden>);
+      //add_loop_work<func, Transform, Color, Iden>::q.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
+      //add_loop_work<func, Transform, Color, Iden>::q.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
+      add_loop_work<func, Transform, Color, Iden>::tci_head = 0;
+      add_loop_work<func, Transform, Color, Iden>::tci_tail = 0;
+
+      add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{first, middle};
+      add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+
+      add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{middle, last};
+      add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+
+      for_every(i, 16) {
+        add_loop_work<func, Transform, Color, Iden>();
+      }
+      //threadpool::push(wrk2<func, Transform, Color, Iden>);
       threadpool::join();
+      //pool.join();
 
       //tci_m.lock();
       //tci_tail = 0;
