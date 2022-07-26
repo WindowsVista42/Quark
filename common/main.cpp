@@ -397,24 +397,34 @@ namespace common {
 
   template <auto F, typename... T>
   struct add_loop_work {
-    static inline usize tci_head = 0;
-    static inline usize tci_tail = 0;
-    static inline EntityIterator<T...> tci_dat[32];
-    static inline std::mutex tci_m;
+    static inline usize work_head = 0;
+    static inline usize work_tail = 0;
+    static inline atomic_usize working_count = 0;
+    static inline EntityIterator<T...> work_dat[32];
+    static inline std::mutex work_m;
+
+    static inline std::mutex driver_m;
+    static inline std::condition_variable driver_c;
 
     void operator() () {
       threadpool::push([] {
-        tci_m.lock();
-        while(tci_head < tci_tail) {
-          auto val = tci_dat[tci_head];
-          tci_head += 1;
-          tci_m.unlock();
+        work_m.lock();
+        working_count.fetch_add(1);
+        while(work_head < work_tail) {
+          auto val = work_dat[work_head];
+          work_head += 1;
+          work_m.unlock();
 
           for(auto it = val.begin; it != val.end; it++) {
             std::apply(F, *it);
           }
-          tci_m.lock();
+
+          work_m.lock();
         }
+        working_count.fetch_sub(1);
+        work_m.unlock();
+
+        driver_c.notify_all();
       });
     }
   };
@@ -432,6 +442,55 @@ namespace common {
   //    }
   //  });
   //}
+
+  void f(entt::entity e, const Transform& t, const Color& c, Iden& i) {
+    i.value += 1;
+  }
+
+  template <auto F, typename... T, typename V = View<T...>>
+  void iter_par(V v) {
+    add_loop_work<F, const Transform, const Color, Iden>::work_m.lock();
+    add_loop_work<F, const Transform, const Color, Iden>::work_head = 0;
+    add_loop_work<F, const Transform, const Color, Iden>::work_tail = 0;
+
+    auto each = registry::internal::_registry.view<const Transform, const Color, Iden>().each();
+    auto true_begin = each.begin();
+    auto true_end = each.end();
+    auto locl_begin = true_begin;
+    bool ex = false;
+    constexpr usize N = 8;
+    while(!ex) {
+      auto begin = locl_begin;
+      auto end = locl_begin;
+
+      for(usize i = 0; i < N; i += 1) {
+        end++;
+        if(end == true_end) {
+          ex = true;
+        }
+      }
+
+      locl_begin = end;
+
+      add_loop_work<F, const Transform, const Color, Iden>::work_dat[add_loop_work<F, const Transform, const Color, Iden>::work_tail] = EntityIterator<const Transform, const Color, Iden>{begin, end};
+      add_loop_work<F, const Transform, const Color, Iden>::work_tail += 1;
+    }
+
+    add_loop_work<F, const Transform, const Color, Iden>::work_m.unlock();
+
+    for_every(i, 16) {
+      add_loop_work<F, const Transform, const Color, Iden>();
+    }
+
+    threadpool::start();
+
+    std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(add_loop_work<F, const Transform, const Color, Iden>::driver_m, std::defer_lock);
+    lock.lock();
+    while(add_loop_work<F, const Transform, const Color, Iden>::working_count > 0) {
+      add_loop_work<F, const Transform, const Color, Iden>::driver_c.wait(lock);
+    }
+    lock.unlock();
+  }
 
   void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
     auto& input = input_res.get();
@@ -453,11 +512,10 @@ namespace common {
     }
 
     for_every(i, 1000) {
-      auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
-      auto first = each.begin();
-      auto middle = each.begin();
-      std::advance(middle, 5);
-      auto last = each.end();
+      //auto first = each.begin();
+      //auto middle = each.begin();
+      //std::advance(middle, 5);
+      //auto last = each.end();
 
       //tci_m.lock();
       //tci_dat[tci_tail] = EntityIterator<Transform, Color, Iden> {first, middle};
@@ -476,20 +534,46 @@ namespace common {
 
       //add_loop_work<func, Transform, Color, Iden>::q.push(EntityIterator<Transform, Color, Iden>::create(first, middle));
       //add_loop_work<func, Transform, Color, Iden>::q.push(EntityIterator<Transform, Color, Iden>::create(middle, last));
-      add_loop_work<func, Transform, Color, Iden>::tci_head = 0;
-      add_loop_work<func, Transform, Color, Iden>::tci_tail = 0;
+      //add_loop_work<func, Transform, Color, Iden>::tci_m.lock();
+      //add_loop_work<func, Transform, Color, Iden>::tci_head = 0;
+      //add_loop_work<func, Transform, Color, Iden>::tci_tail = 0;
 
-      add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{first, middle};
-      add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+      View<const Transform, const Color, Iden> v0;
+      iter_par<f>(v0);
+      //view.iter_par<f>();
 
-      add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{middle, last};
-      add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+      //auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
+      //auto true_begin = each.begin();
+      //auto true_end = each.end();
+      //auto locl_begin = true_begin;
+      //bool ex = false;
+      //constexpr usize N = 8;
+      //while(!ex) {
+      //  auto begin = locl_begin;
+      //  auto end = locl_begin;
 
-      for_every(i, 16) {
-        add_loop_work<func, Transform, Color, Iden>();
-      }
-      //threadpool::push(wrk2<func, Transform, Color, Iden>);
-      threadpool::join();
+      //  for(usize i = 0; i < N; i += 1) {
+      //    end++;
+      //    if(end == true_end) {
+      //      ex = true;
+      //    }
+      //  }
+
+      //  locl_begin = end;
+
+      //  add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{begin, end};
+      //  add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+      //}
+
+      ////add_loop_work<func, Transform, Color, Iden>::tci_dat[add_loop_work<func, Transform, Color, Iden>::tci_tail] = EntityIterator<Transform, Color, Iden>{middle, last};
+      ////add_loop_work<func, Transform, Color, Iden>::tci_tail += 1;
+      //add_loop_work<func, Transform, Color, Iden>::tci_m.unlock();
+
+      //for_every(i, 16) {
+      //  add_loop_work<func, Transform, Color, Iden>();
+      //}
+      ////threadpool::push(wrk2<func, Transform, Color, Iden>);
+      //threadpool::join();
       //pool.join();
 
       //tci_m.lock();
