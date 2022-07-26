@@ -447,7 +447,7 @@ namespace common {
     i.value += 1;
   }
 
-  template <auto F, typename... T, typename V = View<T...>>
+  template <auto F, usize N, typename... T, typename V = View<T...>>
   void iter_par(V v) {
     add_loop_work<F, const Transform, const Color, Iden>::work_m.lock();
     add_loop_work<F, const Transform, const Color, Iden>::work_head = 0;
@@ -458,7 +458,6 @@ namespace common {
     auto true_end = each.end();
     auto locl_begin = true_begin;
     bool ex = false;
-    constexpr usize N = 8;
     while(!ex) {
       auto begin = locl_begin;
       auto end = locl_begin;
@@ -539,7 +538,7 @@ namespace common {
       //add_loop_work<func, Transform, Color, Iden>::tci_tail = 0;
 
       View<const Transform, const Color, Iden> v0;
-      iter_par<f>(v0);
+      iter_par<f, 5>(v0);
       //view.iter_par<f>();
 
       //auto each = registry::internal::_registry.view<Transform, Color, Iden>().each();
