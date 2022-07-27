@@ -20,6 +20,9 @@ struct def_par_fn_struct { \
 }; \
 constexpr auto& fname = def_par_fn_struct::fname
 
+#define def_res(sname) \
+  template <> sname Resource<sname>::value = {}
+
 namespace common {
   struct Iden {
     static u32 global_value;
@@ -31,20 +34,27 @@ namespace common {
   struct Tag {};
   
   template <typename T>
-  struct Resource {
-    static T* value;
-  
+  struct common_api Resource {
+    static T value;
+
+    constexpr static void set(T v) {
+      value = v;
+    }
+
     auto& get() {
-      auto& val = *Resource<std::remove_const_t<T>>::value;
-      return (T&)val;
+      return Resource<T>::value;
     }
 
     T* operator ->() {
-      return (T*)Resource<std::remove_const_t<T>>::value;
+      return &Resource<T>::value;
     }
   };
-  
-  template <> render::Camera* Resource<render::Camera>::value = &MAIN_CAMERA;
+
+  template <typename T>
+  T Resource<T>::value = {};
+
+  //template<>
+  //render::Camera* Resource<render::Camera>::value = &MAIN_CAMERA;
   
   template <typename... T>
   struct View {
@@ -161,11 +171,10 @@ namespace common {
     input::ActionState get(const char* name) const { return input::get(name); }
   };
   
-  static Input global_input = {};
-  template <> Input* Resource<Input>::value = &global_input;
-
+  //static Input global_input = {};
+  //template <> Input* Resource<Input>::value = &global_input;
   
-  void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1, Resource<Input> input) {
+  void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1) {
     for_every(i, 10) {
       view0.create(Transform{}, Color{}, Tag{}, Iden {Iden::global_value});
       Iden::global_value += 1;
@@ -175,21 +184,20 @@ namespace common {
       view1.create(Transform{}, Color{});
     }
   
-    input->
-       map("w", Key::W)
-      .map("s", Key::S)
-      .map("a", Key::A)
-      .map("d", Key::D)
-      .map("v", Key::V)
-      .map("up", Key::Space)
-      .map("down", Key::LeftControl)
-      .map("pause", Key::P);
+    input::bind("w", Key::W);
+    input::bind("s", Key::S);
+    input::bind("a", Key::A);
+    input::bind("d", Key::D);
+    input::bind("v", Key::V);
+    input::bind("up", Key::Space);
+    input::bind("down", Key::LeftControl);
+    input::bind("pause", Key::P);
   }
 
-  void update0(View<Color, const Transform, const Tag> view, Resource<const Input> input_res) {
-    auto& input = input_res.get();
+  void update0(View<Color, const Transform, const Tag> view) {
+    //auto& input = input_res.get();
   
-    if(!input.get("pause").down()) {
+    if(!input::get("pause").down()) {
       static f32 T = 0.0f;
       f32 ctr = 0.0f;
       for (auto [e, color, transform] : view.each()) {
@@ -205,17 +213,24 @@ namespace common {
       T += DT;
     }
 
-    for_every(i, 1000) {
-      View<const Transform, const Color, Iden> v0;
+    //for_every(i, 1000) {
+    //  View<const Transform, const Color, Iden> v0;
 
-      def_par_fn(f, (entt::entity e, const Transform& t, const Color& c, Iden& i) {
-        i.value += 1;
-      });
+    //  def_par_fn(f, (entt::entity e, const Transform& t, const Color& c, Iden& i) {
+    //    i.value += 1;
+    //  });
 
-      v0.par_iter<f, 5>();
-    }
+    //  v0.par_iter<f, 5>();
+    //}
 
+    //Resource<render::Camera> v;
+
+    //printf("ptr: %llu\n", (usize)Resource<render::Camera>::value);
+    //printf("ptr: %llu\n", (usize)&MAIN_CAMERA);
+    //str::print(str() + (usize)&v.get());
     {
+      Resource<render::Camera> main_camera;
+
       vec2 move_dir = {0.0f, 0.0f};
   
       move_dir.x += input::get("d").value();
@@ -224,23 +239,24 @@ namespace common {
       move_dir.y -= input::get("s").value();
       move_dir.norm_max_mag(1.0f);
 
-      MAIN_CAMERA.pos.xy += move_dir * DT;
+      main_camera->pos.xy += move_dir * DT;
   
-      MAIN_CAMERA.pos.z += input::get("up").value() * DT;
-      MAIN_CAMERA.pos.z -= input::get("down").value() * DT;
+      main_camera->pos.z += input::get("up").value() * DT;
+      main_camera->pos.z -= input::get("down").value() * DT;
   
-      MAIN_CAMERA.spherical_dir.y -= input::get("v").value() * DT;
-    }
+      main_camera->spherical_dir.y -= input::get("v").value() * DT;
 
+      MAIN_CAMERA = Resource<render::Camera>::value;
+    }
   }
   
-  void update1(Resource<const Input> input, Resource<render::Camera> main_camera) {
+  void update1(Resource<render::Camera> main_camera) {
     vec2 move_dir = {0.0f, 0.0f};
   
-    move_dir.x += input->get("d").value();
-    move_dir.x -= input->get("a").value();
-    move_dir.y += input->get("w").value();
-    move_dir.y -= input->get("s").value();
+    move_dir.x += input::get("d").value();
+    move_dir.x -= input::get("a").value();
+    move_dir.y += input::get("w").value();
+    move_dir.y -= input::get("s").value();
     move_dir.norm_max_mag(1.0f);
   
     main_camera->pos.xy += move_dir * DT;
@@ -573,6 +589,8 @@ namespace common {
 }; // namespace common
 
 mod_main() {
+  common::Resource<render::Camera>::value = MAIN_CAMERA;
+
   system::list("state_init")
     .add(def((void (*)())common::init), -1)
     .add(def(common::create_thing_test), -1);
