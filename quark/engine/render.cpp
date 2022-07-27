@@ -785,11 +785,11 @@ namespace quark::engine::render {
       builder = builder.use_default_debug_messenger();
       for_every(index, glfw_extension_count) { builder = builder.enable_extension(glfw_extensions[index]); }
     
-      builder = builder.request_validation_layers(true);
-      //#ifdef DEBUG
-      //#else
-      //  builder = builder.request_validation_layers(false);
-      //#endif
+      #ifdef DEBUG
+        builder = builder.request_validation_layers(true);
+      #else
+        builder = builder.request_validation_layers(false);
+      #endif
     
       auto inst_ret = builder.build();
     
