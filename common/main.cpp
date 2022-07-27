@@ -134,9 +134,10 @@ namespace common {
         ParIter<F>::work_tail += 1;
       }
 
+      usize work_tail_size = ParIter<F>::work_tail;
       ParIter<F>::work_m.unlock();
 
-      for_every(i, 16) {
+      for_every(i, min(threadpool::thread_count(), work_tail_size)) {
         ParIter<F>();
       }
 

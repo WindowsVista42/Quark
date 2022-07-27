@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api.hpp"
+#include "../core/module.hpp"
 #include <threadpool.hpp>
 
 namespace quark::platform::threadpool {
@@ -27,6 +28,10 @@ namespace quark::platform::threadpool {
 
   inline void join() {
     internal::_thread_pool.join();
+  }
+
+  inline isize thread_count() {
+    return internal::_thread_pool.thread_count();
   }
 };
 
