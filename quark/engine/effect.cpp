@@ -285,7 +285,7 @@ namespace quark::engine::effect {
       VK_ACCESS_SHADER_READ_BIT,    // ImageUsage::Texture
       VK_ACCESS_TRANSFER_READ_BIT,  // ImageUsage::Src
       VK_ACCESS_TRANSFER_WRITE_BIT, // ImageUsage::Dst
-      VK_ACCESS_MEMORY_READ_BIT,    // ImageUsage::Present
+      (VkAccessFlagBits)0,    // ImageUsage::Present
     };
 
     VkPipelineStageFlagBits stage_lookup[9] = {
@@ -297,7 +297,7 @@ namespace quark::engine::effect {
       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  // ImageUsage::Texture
       VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Src
       VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Dst
-      VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Present
+      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,       // ImageUsage::Present
     };
 
     VkImageMemoryBarrier barrier = {};
@@ -305,8 +305,6 @@ namespace quark::engine::effect {
 
     barrier.oldLayout = old_layout;
     barrier.newLayout = new_layout;
-
-    auto a = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1223,8 +1221,10 @@ namespace quark::engine::effect {
       img.current_usage = current_re.next_usage_modes[i];
     }
 
+    //ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Dst);
     ImageResource::get("swapchain", _swapchain_image_index).current_usage = ImageUsage::Unknown;
-
+    ImageResource::blit("forward_pass_color", -1, "swapchain", _swapchain_image_index, FilterMode::Nearest);
+    ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Present);
     // set all image layouts for render targets to VK_IMAGE_LAYOUT_UNDEFINED
   }
 };

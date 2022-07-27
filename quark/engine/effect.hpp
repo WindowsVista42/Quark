@@ -462,24 +462,38 @@ namespace quark {
 namespace quark::engine::effect {
   namespace internal {
     static VkImageLayout image_usage_vk_layout(ImageUsage::Bits bits, bool is_color) {
-      if (is_color) {
-        bits <<= 1;
-      }
+      auto one_hot_to_binary = [](u32 value) {
+        value = (value == 0) ? 1 : value << 1;
+        return __builtin_ctz(value);
+      };
 
-      //u32 index = 31 - __builtin_clz(bits);
-      u32 index = __builtin_ctz(bits);
+      bits += (bits == ImageUsage::RenderTarget && is_color) ? 1 : 0;
+      u32 index = one_hot_to_binary(bits);
+
       VkImageLayout lookup[] = {
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
       };
 
       return lookup[index];
+
+      //switch(bits) {
+      //  case(ImageUsage::Unknown):      return VK_IMAGE_LAYOUT_UNDEFINED;
+      //  case(ImageUsage::Src):          return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+      //  case(ImageUsage::Dst):          return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      //  case(ImageUsage::Texture):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      //  case(ImageUsage::Storage):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      //  case(ImageUsage::RenderTarget): return is_color ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      //                                                  : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      //  case(ImageUsage::Present):      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      //  default:                        return VK_IMAGE_LAYOUT_UNDEFINED;
+      //}
     }
 
     static VkImageUsageFlagBits image_usage_vk_usage(ImageUsage::Bits bits, bool is_color) {

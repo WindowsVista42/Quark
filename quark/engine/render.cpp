@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
 #include "../core/module.hpp"
@@ -425,12 +426,9 @@ namespace quark::engine::render {
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
-    ImageResource::blit("forward_pass_color", -1, "swapchain", _swapchain_image_index, FilterMode::Nearest);
-    ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Present);
-
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
-    VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
   
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -465,8 +463,8 @@ namespace quark::engine::render {
       panic("Failed to present swapchain image!");
     }
   
-    _frame_index = _frame_count % _FRAME_OVERLAP;
     _frame_count += 1;
+    _frame_index = _frame_count % _FRAME_OVERLAP;
   }
   
   namespace internal {
@@ -787,11 +785,11 @@ namespace quark::engine::render {
       builder = builder.use_default_debug_messenger();
       for_every(index, glfw_extension_count) { builder = builder.enable_extension(glfw_extensions[index]); }
     
-      #ifdef DEBUG
-        builder = builder.request_validation_layers(true);
-      #else
-        builder = builder.request_validation_layers(false);
-      #endif
+      builder = builder.request_validation_layers(true);
+      //#ifdef DEBUG
+      //#else
+      //  builder = builder.request_validation_layers(false);
+      //#endif
     
       auto inst_ret = builder.build();
     
