@@ -122,6 +122,7 @@ add_library(quark_engine SHARED
   quark/engine/input.cpp
   quark/engine/render.cpp
   quark/engine/effect.cpp
+  quark/engine/par_tools.cpp
 )
 #target_include_directories(quark_engine SYSTEM PRIVATE
 #  ${Vulkan_INCLUDE_DIRS}

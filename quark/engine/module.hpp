@@ -24,6 +24,7 @@
 //#include "engine/audio.hpp"
 #include "render.hpp"
 #include "effect.hpp"
+#include "par_tools.hpp"
 
 namespace quark::engine {
   using Entity = entity::Entity;

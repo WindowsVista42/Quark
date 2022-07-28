@@ -20,8 +20,8 @@ struct def_par_fn_struct { \
 }; \
 constexpr auto& fname = def_par_fn_struct::fname
 
-#define def_res(sname) \
-  template <> sname Resource<sname>::value = {}
+#define def_res(sname, svalue) \
+  common::Resource<sname>::value = svalue;
 
 namespace common {
   struct Iden {
@@ -37,12 +37,12 @@ namespace common {
   struct common_api Resource {
     static T value;
 
-    constexpr static void set(T v) {
-      value = v;
+    T& get() {
+      return Resource<T>::value;
     }
 
-    auto& get() {
-      return Resource<T>::value;
+    void set(T& new_value) {
+      return Resource<T>::value = new_value;
     }
 
     T* operator ->() {
@@ -53,12 +53,87 @@ namespace common {
   template <typename T>
   T Resource<T>::value = {};
 
-  //template<>
-  //render::Camera* Resource<render::Camera>::value = &MAIN_CAMERA;
+  //template <typename W, void (*F)(W& w)>
+  //struct engine_api ParIter {
+  //  static usize work_head;
+  //  static usize work_tail;
+  //  static atomic_usize working_count;
+  //  static W work_dat[32];
+  //  static std::mutex work_m;
+
+  //  static std::mutex driver_m;
+  //  static std::condition_variable driver_c;
+
+  //  static void thread_work() {
+  //    work_m.lock();
+  //    working_count.fetch_add(1);
+  //    while(work_head < work_tail) {
+  //      W& val = work_dat[work_head];
+  //      work_head += 1;
+  //      work_m.unlock();
+
+  //      F(val);
+
+  //      work_m.lock();
+  //    }
+  //    working_count.fetch_sub(1);
+  //    work_m.unlock();
+
+  //    driver_c.notify_all();
+  //  }
+
+  //  static void push(W&& w) {
+  //    work_dat[work_tail] = w;
+  //    work_tail += 1;
+
+  //    // TODO(sean): add err checking
+  //  }
+
+  //  static void join() {
+  //    for_every(i, min(threadpool::thread_count(), work_tail)) {
+  //      threadpool::push(thread_work);
+  //    }
+
+  //    threadpool::start();
+
+  //    std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(driver_m, std::defer_lock);
+  //    lock.lock();
+  //    while(working_count > 0) {
+  //      driver_c.wait(lock);
+  //    }
+  //    
+  //    work_head = 0;
+  //    work_tail = 0;
+  //    
+  //    lock.unlock();
+  //  }
+  //};
+
+  //template <typename W, void (*F)(W& w)>
+  //usize ParIter<W, F>::work_head = 0;
+
+  //template <typename W, void (*F)(W& w)>
+  //usize ParIter<W, F>::work_tail = 0;
+
+  //template <typename W, void (*F)(W& w)>
+  //atomic_usize ParIter<W, F>::working_count = 0;
+
+  //template <typename W, void (*F)(W& w)>
+  //W ParIter<W, F>::work_dat[32] = {};
+
+  //template <typename W, void (*F)(W& w)>
+  //std::mutex ParIter<W, F>::work_m = {};
+
+  //template <typename W, void (*F)(W& w)>
+  //std::mutex ParIter<W, F>::driver_m = {};
+
+  //template <typename W, void (*F)(W& w)>
+  //std::condition_variable ParIter<W, F>::driver_c = {};
+
+  //
   
   template <typename... T>
   struct View {
-  private:
     struct IterInfo {
       using iterator_t = typeof(registry::internal::_registry.view<T...>().each().begin());
       iterator_t begin;
@@ -66,40 +141,12 @@ namespace common {
     };
 
     template <auto F>
-    struct ParIter {
-      static inline usize work_head = 0;
-      static inline usize work_tail = 0;
-      static inline atomic_usize working_count = 0;
-      static inline IterInfo work_dat[32];
-      static inline std::mutex work_m;
-
-      static inline std::mutex driver_m;
-      static inline std::condition_variable driver_c;
-
-      void operator() () {
-        threadpool::push([] {
-          work_m.lock();
-          working_count.fetch_add(1);
-          while(work_head < work_tail) {
-            auto val = work_dat[work_head];
-            work_head += 1;
-            work_m.unlock();
-
-            for(auto it = val.begin; it != val.end; it++) {
-              std::apply(F, *it);
-            }
-
-            work_m.lock();
-          }
-          working_count.fetch_sub(1);
-          work_m.unlock();
-
-          driver_c.notify_all();
-        });
+    static void apply_view(IterInfo& iter) {
+      for(auto it = iter->begin; it != iter->end; it++) {
+        std::apply(F, *it);
       }
-    };
+    }
 
-  public:
     View& create(T... t) {
       Entity::create().add(t...);
       return *this;
@@ -118,10 +165,6 @@ namespace common {
 
     template <auto F, usize N>
     void par_iter() {
-      ParIter<F>::work_m.lock();
-      ParIter<F>::work_head = 0;
-      ParIter<F>::work_tail = 0;
-
       auto each = registry::internal::_registry.view<T...>().each();
       auto true_begin = each.begin();
       auto true_end = each.end();
@@ -140,25 +183,10 @@ namespace common {
 
         locl_begin = end;
 
-        ParIter<F>::work_dat[ParIter<F>::work_tail] = IterInfo{begin, end};
-        ParIter<F>::work_tail += 1;
+        ParIter<IterInfo, apply_view<F>>::push(IterInfo{begin, end});
       }
 
-      usize work_tail_size = ParIter<F>::work_tail;
-      ParIter<F>::work_m.unlock();
-
-      for_every(i, min(threadpool::thread_count(), work_tail_size)) {
-        ParIter<F>();
-      }
-
-      threadpool::start();
-
-      std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(ParIter<F>::driver_m, std::defer_lock);
-      lock.lock();
-      while(ParIter<F>::working_count > 0) {
-        ParIter<F>::driver_c.wait(lock);
-      }
-      lock.unlock();
+      ParIter<IterInfo, apply_view<F>>::join();
     }
   };
   
@@ -589,7 +617,7 @@ namespace common {
 }; // namespace common
 
 mod_main() {
-  common::Resource<render::Camera>::value = MAIN_CAMERA;
+  def_res(render::Camera, MAIN_CAMERA);
 
   system::list("state_init")
     .add(def((void (*)())common::init), -1)
