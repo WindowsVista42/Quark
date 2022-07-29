@@ -33,22 +33,19 @@ const mat3 _aces_input_mat = {
 };
 
 // ODT_SAT => XYZ => D60_2_D65 => sRGB
-const mat3 _aces_output_mat =
-{
+const mat3 _aces_output_mat = {
   { 1.60475, -0.53108, -0.07367},
   {-0.10208,  1.10813, -0.00605},
   {-0.00327, -0.07276,  1.07602},
 };
 
-vec3 _rrt_and_odt_fit(vec3 v)
-{
+vec3 _rrt_and_odt_fit(vec3 v) {
     vec3 a = v * (v + 0.0245786f) - 0.000090537f;
     vec3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
     return a / b;
 }
 
-vec4 aces(vec4 in_color)
-{
+vec4 aces(vec4 in_color) {
     vec3 color = in_color.xyz;
 
     color = color * _aces_input_mat;
@@ -66,6 +63,6 @@ vec4 aces(vec4 in_color)
 
 void main() {
   //COLOR = vec4(pow(aces(CUSTOM_PUSH.color.xyz), vec3(2.2)), 1.0f);
-  COLOR = aces(CUSTOM_PUSH.color);
+  COLOR = aces(vec4(sin(CUSTOM_PUSH.color.x/gl_FragCoord.z)) * CUSTOM_PUSH.color);
   //COLOR = vec4(CUSTOM_PUSH.color.xyz, 1.0f);
 }
