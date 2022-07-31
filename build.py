@@ -3,6 +3,7 @@ import shutil
 import sys
 import atexit
 from glob import glob
+import timeit
 
 OPT_LEVELS = ["debug", "release", "release_with_debug_info"]
 MODES = ["compile_run", "compile", "setup"]
@@ -11,6 +12,9 @@ mode = None
 opt_level = None
 bin_name = None
 build_dir = None
+
+start_time = None
+end_time = None
 
 def copy_file(dst_file, src_file):
   COMP_CMD = dst_file# "compile_commands.json"
@@ -54,8 +58,12 @@ if __name__ == "__main__":
 
     print("Compiling " + build_dir + os.sep + bin_name)
 
+    start_time = timeit.default_timer()
     if os.system("cmake --build " + build_dir + " --target " + bin_name) != 0 or os.system("cmake --build " + build_dir + " --target quark_loader") != 0:
       sys.exit("Failed to build!")
+  
+    end_time = timeit.default_timer()
+    print("Elapsed time: ", end_time - start_time)
 
     copy_file("compile_commands.json", build_dir + os.sep + "compile_commands.json")
 
@@ -78,4 +86,3 @@ if __name__ == "__main__":
     os.system("cmake -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     os.system("cmake -B build/release_with_debug_info -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     replace_compile_commands()
-

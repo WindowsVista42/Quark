@@ -32,6 +32,8 @@ namespace common {
   u32 Iden::global_value = 0;
 
   struct Tag {};
+
+  //
   
   template <typename T>
   struct common_api Resource {
@@ -52,6 +54,8 @@ namespace common {
 
   template <typename T>
   T Resource<T>::value = {};
+
+  //
 
   //template <typename W, void (*F)(W& w)>
   //struct engine_api ParIter {
