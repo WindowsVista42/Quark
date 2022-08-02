@@ -25,6 +25,8 @@ namespace quark::platform::shared {
     public:
     static SharedLibrary load(const char* library_path);
     SharedLibrary& run(const char* procedure_name);
+    bool has(const char* procedure_name);
+    void unload();
   };
 
   using func_type = __cdecl void (*)();

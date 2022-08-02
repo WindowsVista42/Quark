@@ -7,3 +7,7 @@
 #include "window.hpp"
 #include "threadpool.hpp"
 #include "shared.hpp"
+
+namespace quark {
+  using SharedLibrary = shared::SharedLibrary;
+};
