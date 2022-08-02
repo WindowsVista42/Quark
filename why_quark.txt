@@ -1,0 +1,87 @@
+What should be in my game engine?
+
+Must Haves
++ Simple Multithreaded ECS -- Components -- Views, Resources, Events -- Systems -- Parallel Tools
+  + Runtime Reflection
+  + Serialization and Deserialization
+  + Automatic Multithreading
+  + Manual Multithreading
+  + Default to single threading when the user doesn't care
++ Modularized Architecture -- Shared Libraries
+  + Load a Module (Download DLL + Headers)
+  + Export a Module (Upload DLL + Headers)
+  + Modularized Engine -- Core -- Platform -- Engine
++ Extremely Fast Renderer -- Bindless Gpu Driven Rendering
+  + Frustum Culling
+  + Indirect Rendering -- Instanced Indirect Rendering
+  + Occlusion Culling
+  + LOD
+  + Render Effects
++ Automation Tools -- Build -- Run -- Export
+  + Automatic -- Asset optimization
+  + Easy -- Build -- Run -- Export
+
+Quark Core Principles
++ Simple Multithreaded ECS -- Bevy-like Semantics
++ Modularized Architecture -- Shared Libraries
++ Extremely Fast Renderer -- Bindless Gpu Driven Rendering
++ Automation Tools -- Import Build Run Export
+
+--- Effect API
+
+namespace effect {
+  template <typename T>
+  struct PushConstant<T> {
+    vec3 position;
+    quat rotation;
+    vec3 scale;
+    T t;
+  };
+
+  template <typename T>
+  static void draw(Transform& transform, Model& model, T& t) {
+    PushConstant<T> push_constant = {
+      .position = transform.position,
+      .rotation = transform.rotation,
+      .scale = model.scale,
+      .t = t,
+    };
+
+    vkCmdPushConstants(_main_cmd_buf[_frame_index],
+      internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+      0, sizeof(PushConstant<T>), &push_constant);
+    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[model.id].size, 1, _gpu_meshes[model.id].offset, 0);
+  }
+};
+
+struct ColorEffect {
+  static const char* name = "color";
+  vec3 color;
+};
+
+--- Possible u32 implementation of shear
+
+[1 0 0]   [x]   [x]
+[a 1 0] * [y] = [ax + y]
+[b 0 1]   [z]   [bx + z]
+
+[1 a 0]   [x]   [ay + x]
+[0 1 0] * [y] = [y]
+[0 b 1]   [z]   [by + z]
+
+[1 0 a]   [x]   [az + x]
+[0 1 b] * [y] = [bz + y]
+[0 0 1]   [z]   [z]
+
+pseudo:
+
+if 00 => vec3 it = in.xyz
+else if 01 => vec3 it = in.yxz
+else if 10 => vec3 it = in.zxy
+
+it.y = (a * it.x) + it.y
+it.z = (b * it.x) + it.z
+
+if 00 => vec3 out = it.xyz
+else if 01 => vec3 out = it.yxz
+else if 10 => vec3 out = it.zxy
