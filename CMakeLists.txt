@@ -174,7 +174,6 @@ target_link_libraries(quark_engine
   tinyobjloader
   vk-bootstrap::vk-bootstrap
   VulkanMemoryAllocator
-  OpenAL
   Bullet3Common
   BulletDynamics
   BulletCollision
@@ -191,6 +190,9 @@ target_link_libraries(quark_loader
 
 add_subdirectory(common)
 add_subdirectory(idler)
+
+#get_target_property(OUT common3d LINK_LIBRARIES)
+#message(STATUS "common3d: " ${OUT})
 
 #PUT YOUR PROJECT FOLDER HERE
 include(testbed/_build.cmake)

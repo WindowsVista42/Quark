@@ -633,10 +633,3 @@ mod_main() {
       .add(def(common::render_things), "render::begin_frame", 1)
       .add(def(common::exit_on_esc), -1);
 }
-
-#define mod_deps() const char* mod_deps()
-#define def_dep(name) name "\0"
-
-mod_deps() {
-  return "\0";
-}
