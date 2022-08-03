@@ -80,3 +80,7 @@ physics
 ```
 
 Maybe also add some kind of open world thing whenever I have the core engine stuff working.
+
+# Planned Architecture
+![](quark_engine_architecture.png)
+![](quark_export_structure.png)
