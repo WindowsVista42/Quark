@@ -24,7 +24,7 @@ Must Haves
 Quark Core Principles
 + Simple Multithreaded ECS -- Bevy-like Semantics
 + Modularized Architecture -- Shared Libraries
-+ Extremely Fast Renderer -- Bindless Gpu Driven Rendering
++ Low Overhead Renderer -- Bindless Gpu Driven Rendering
 + Automation Tools -- Import Build Run Export
 
 --- Effect API
