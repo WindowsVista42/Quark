@@ -1,0 +1,18 @@
+# cmake magic to load all folders in plugins
+
+MACRO(SUBDIRLIST result curdir)
+    FILE(GLOB children ${curdir}/*) # This was changed
+    SET(dirlist "")
+    FOREACH(child ${children})
+        IF(IS_DIRECTORY ${child}) # This was changed
+            LIST(APPEND dirlist ${child})
+        ENDIF()
+    ENDFOREACH()
+    SET(${result} ${dirlist})
+ENDMACRO()
+
+SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
+FOREACH(subdir ${SUBDIRS})
+  message(STATUS ${subdir})
+  add_subdirectory(${subdir}/src)
+ENDFOREACH()
