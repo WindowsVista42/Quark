@@ -74,7 +74,7 @@ if __name__ == "__main__":
       copy_file(build_dir + os.sep + dll_name, build_dir + os.sep + "lib" + os.sep + dll_name)
       #copy_file(DEBUG_DIR + os.sep + "glfw3.dll", DEBUG_DIR + os.sep + "lib" + os.sep + "glfw3.dll")
 
-    copy_file("mods" + os.sep + bin_name + ".dll", build_dir + os.sep + bin_name + ".dll")
+    #copy_file("mods" + os.sep + bin_name + ".dll", build_dir + os.sep + bin_name + ".dll")
   
     # Run if run mode
     if mode == "compile_run":

@@ -633,3 +633,36 @@ mod_main() {
       .add(def(common::render_things), "render::begin_frame", 1)
       .add(def(common::exit_on_esc), -1);
 }
+
+// struct Paddle {};
+// struct Transform {};
+//
+// Get me all of the entities with a Transform AND Paddle
+//
+// Thread A (updating positions idk)
+// Uses just Transforms
+//
+// Thread B (frustum culling)
+// Uses Transforms and Models and ShouldCull
+//
+// Thread A and Thread B run at the same time
+// Thread B sees that something is out of view and tells it to be culled
+// Thread A moves something into view
+// Thread B has culled the object even though it is visible
+//
+// Thread A runs (updating positions idk)
+// Thread A finishes (updating positions idk)
+// Thread A runs (frustum culling)
+// Thread A finishes (frustum culling)
+//
+// 0: (update enemy ai (goblins)) -- const Transforms, const EnemyParam, Goblin
+// 1: (update enemy ai (trees)) -- const Transforms, const EnemyParam, Trees
+//
+// 0 and 1 can run in parallel
+//
+// 0: (update enemy ai (goblins)) -- const Transforms, EnemyParam, Goblin
+// 1: (update enemy ai (trees)) -- const Transforms, EnemyParam, Trees
+// Tell the engine that Goblin and Trees are mutually exclusive
+// Maybe also a way to enforce this condition in debug builds
+//
+// 0 and 1 can run in parallel

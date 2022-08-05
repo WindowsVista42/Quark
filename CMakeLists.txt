@@ -56,7 +56,6 @@ add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
 add_subdirectory(lib/meshoptimizer)
-add_subdirectory(lib/openal-soft)
 add_subdirectory(lib/bullet3)
 
 target_compile_options(VulkanMemoryAllocator PRIVATE -Wno-nullability-completeness)

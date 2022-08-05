@@ -1,4 +1,4 @@
-set(MY_MOD_NAME common3d)
+set(MY_MOD_NAME common)
 
 add_library(${MY_MOD_NAME} SHARED
   main.cpp
