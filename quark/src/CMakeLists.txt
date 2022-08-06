@@ -1,0 +1,4 @@
+add_subdirectory(quark_core)
+add_subdirectory(quark_platform)
+add_subdirectory(quark_engine)
+add_subdirectory(quark_loader)

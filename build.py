@@ -54,7 +54,7 @@ if __name__ == "__main__":
     if not (opt_level in OPT_LEVELS):
       sys.exit("opt_level not recognized: " + opt_level)
 
-    build_dir = "build" + os.sep + opt_level
+    build_dir = "target" + os.sep + opt_level
 
     print("Compiling " + build_dir + os.sep + bin_name)
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
   
   # Setup if setup mode
   if mode == "setup":
-    os.system("cmake -B build/debug -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
-    os.system("cmake -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
-    os.system("cmake -B build/release_with_debug_info -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
+    os.system("cmake -B target/debug -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
+    os.system("cmake -B target/release -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
+    os.system("cmake -B target/release_with_debug_info -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     replace_compile_commands()

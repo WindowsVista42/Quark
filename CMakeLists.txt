@@ -72,5 +72,5 @@ include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
 
-add_subdirectory(quark)
-add_subdirectory(plugins)
+add_subdirectory(quark/src)
+add_subdirectory(mods)
