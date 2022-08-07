@@ -22,6 +22,8 @@ def pop_arg_and_run(opts):
     arg = arg_stack.pop()
     if (arg not in opts) or (opts[arg][0] == custom_text):
         print("Argument \"" + arg + "\" not valid!")
+        print()
+        opts["help"][0]()
         exit(-1)
     opts[arg][0]()
 
