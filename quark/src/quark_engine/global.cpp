@@ -37,15 +37,15 @@ namespace quark::engine::global {
   }
 
   void load_shaders() {
-    asset::load_directory("assets/shaders");
+    asset::load_directory("quark/shaders");
   }
 
   void load_meshes() {
-    asset::load_directory("assets/models");
+    asset::load_directory("quark/models");
   }
 
   void load_images() {
-    asset::load_directory("assets/textures");
+    asset::load_directory("quark/textures");
   }
 
   static std::chrono::steady_clock::time_point frame_begin_time;
