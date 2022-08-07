@@ -632,6 +632,8 @@ mod_main() {
       //.add(def(common::update1), "(void (*)())common::update0", 1)
       .add(def(common::render_things), "render::begin_frame", 1)
       .add(def(common::exit_on_esc), -1);
+
+  printf("Loaded!\n");
 }
 
 // struct Paddle {};
