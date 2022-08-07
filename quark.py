@@ -39,9 +39,9 @@ def print_help(help_msg, opts):
             for line in lines[1:]:
                 print("  {}".format(line))
 
-# copy from a to b
-# derives name of file from a, so b only needs to be an output dir
-# ie: copy_file_from_to("special_files/special.txt", "my_things/special_things")
+# copy from src to dst
+# derives name of file from src, so dst only needs to be an output dir
+# ie: copy_file("special_files/special.txt", "my_things/special_things")
 # will copy special_files/special.txt to my_things/special_things/special.txt
 def copy_file(src, dst):
     dst_fullpath = dst + os.sep + os.path.basename(src)
@@ -152,13 +152,13 @@ GLOBAL_OPTS = {
     "build":   (build,         "- Build"),
     "run":     (run,           "- Run"),
     "plugin":  (plugin,        "- Plugin Utilities"),
+    "help":    (help,          "- Help"),
 
     "1":       (custom_text,   "\nAliases:"),
     "b":       (build,         "- Build"),
     "r":       (run,           "- Run"),
     "p":       (plugin,        "- Plugin Utilities"),
-
-    "help":    (help,          "- Help"),
+    "h":       (help,          "- Help"),
 }
 
 BUILD_OPTS = {
@@ -177,12 +177,12 @@ RUN_OPTS = {
     "0":       (custom_text,   "Options:"),
     "debug":   (run_debug,     "- Run debug build"),
     "release": (run_release,   "- Run release build"),
+    "help":    (run_help,      "- Run help"),
 
     "1":       (custom_text,   "\nAliases:"),
     "d":       (run_debug,     "- Run debug build"),
     "r":       (run_release,   "- Run release build"),
-
-    "help":    (run_help,      "- Run help"),
+    "h":       (run_help,      "- Run help"),
 }
 
 PLUGIN_OPTS = {
