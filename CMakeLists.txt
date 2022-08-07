@@ -73,4 +73,4 @@ include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
 
 add_subdirectory(quark/src)
-add_subdirectory(mods)
+add_subdirectory(plugins)

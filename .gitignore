@@ -4,7 +4,7 @@ mods/*.dll
 lib/
 
 CMakeFiles/
-target/
+build/
 
 .cache/
 .idea/
