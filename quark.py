@@ -4,6 +4,7 @@ import sys
 import os
 import glob
 import shutil
+import atexit
 
 arg_stack = []
 
@@ -50,17 +51,46 @@ def copy_file(src, dst):
     shutil.copyfile(src, dst_fullpath)
     return
 
+# copy all files from src to dst
+def copy_dir(src, dst):
+    shutil.copytree(src, dst)
+    return
+
+# delete all files in a specified directory
+def clean_dir(dir):
+    fulldir = dir
+    if dir[-1] != '/':
+        fulldir += "/*"
+    else:
+        fulldir += "*"
+
+    paths = glob.glob(fulldir)
+    for p in paths:
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+        else:
+            os.remove(p)
+    return
+
+# delete the specified directory
+def del_dir(dir):
+    os.remove(dir)
+    return
+
 # BUILD
 
 def build():
     pop_arg_and_run(BUILD_OPTS)
 
 def build_internal(mode):
-    build_dir = "build/" + mode
+    # CLEAN FILES
+    print("- Cleaning previous build")
+    clean_dir("build/current")
 
     # COMPILE FILES
-    print("- Building " + mode + " build")
+    build_dir = "build/" + mode
 
+    print("- Building " + mode + " build")
     if not os.path.exists(build_dir):
         print("- Initializing " + mode + " build compilation cache")
         os.system("cmake -B build/" + mode +" -GNinja -DCMAKE_BUILD_TYPE=" + mode.capitalize() + " -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
@@ -82,10 +112,17 @@ def build_internal(mode):
 
     # COPY FILES
     print("- Copying " + mode + " build")
+
     build_lib_dir = build_dir + "/lib"
 
     shared_lib_paths = glob.glob(build_lib_dir + "/*.dll")
     loader_path = build_dir + "/quark/src/quark_loader/quark_loader.exe"
+
+    copy_dir("quark", "build/current/quark")
+    print("-- Copied \"quark\" to \"build/current/quark\"")
+    for dir in plugin_dirs:
+        copy_dir("plugins/" + dir, "build/current/" + dir)
+        print("-- Copied \"" + "plugins/" + dir + "\" to \"build/current/" + dir + "\"")
 
     copy_file(loader_path, "build/current")
     print("-- Copied \"" + loader_path + "\"")
@@ -110,13 +147,25 @@ def build_help():
 
 # RUN
 
+def run_program():
+    os.chdir("build" + os.sep + "current")
+    os.system("." + os.sep + "quark_loader")
+
+def attach_run_on_exit():
+    atexit.register(run_program)
+    return
+
 def run():
     pop_arg_and_run(RUN_OPTS)
 
 def run_debug():
+    build_debug()
+    attach_run_on_exit()
     return
 
 def run_release():
+    build_release()
+    attach_run_on_exit()
     return
 
 def run_help():
