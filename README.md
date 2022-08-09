@@ -18,6 +18,10 @@ Clone using
 
 ## Building  
 ```quark build debug```
+or
+```python3 quark build debug```
 
 ## Running
 ```quark run debug```
+or
+```python3 quark run debug```
