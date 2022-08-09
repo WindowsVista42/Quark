@@ -18,69 +18,8 @@ Clone using
 Setup build environment using  
 ```make b```
 
-Compile and run  
-```make d```
+## Building  
+```quark build debug```
 
-## Future Directory Structure
-```
-content/     - Current Game Assets
-  game/      - Put Assets for Target Game Here (if making a mod)
-  my_mod/    - Put Assets for Target Mod Here (if making a mod)
-  */         - Put Other Required Assets Here
-examples/    - Example Mods and Games
-my_game/     - Working Directory for Current Game
-publish/     - Most Recent Publish
-quark/       - Engine/API
-  core/      - Core Module
-  engine/    - Engine Module
-  physics/   - 3D Physics Module
-  platform/  - Platform Module
-scripts/     - Build Scripts
-target/      - Build Target
-  debug/     - Debug Build Files
-  release/   - Release Build Files
-third_party/ - Third Party Code and Dependencies
-wiki/        - Wiki
-./           - Current Directory
-```
-
-## Planned Module Structure
-```
-core
-- math
-- utility
-
-platform
-- window
-- allocator
-- library
-- threadpool
-
-engine
-- entity
-- component
-- registry
-- resource
-- system
-- reflect
-- input
-- global
-- event
-- asset
-
-engine_ext
-- render
-- audio
-- animate
-- text
-
-physics
-- physics
-- navmesh
-```
-
-Maybe also add some kind of open world thing whenever I have the core engine stuff working.
-
-# Planned Architecture
-![](quark_engine_architecture.png)
-![](quark_export_structure.png)
+## Running
+```quark run debug```
