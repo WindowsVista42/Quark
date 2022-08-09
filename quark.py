@@ -6,7 +6,6 @@ import glob
 import shutil
 import atexit
 import re
-import mmap
 
 arg_stack = []
 
