@@ -5,6 +5,8 @@ import os
 import glob
 import shutil
 import atexit
+import re
+import mmap
 
 arg_stack = []
 
@@ -18,7 +20,7 @@ def custom_text():
 def pop_arg_and_run(opts):
     if len(arg_stack) == 0:
         opts["help"][0]()
-        exit(0)
+        return
 
     arg = arg_stack.pop()
     if (arg not in opts) or (opts[arg][0] == custom_text):
@@ -28,9 +30,16 @@ def pop_arg_and_run(opts):
         exit(-1)
     opts[arg][0]()
 
+def pop_arg(help_msg) -> str:
+    if len(arg_stack) == 0:
+        print(help_msg)
+        exit(-1)
+    
+    return arg_stack.pop()
+
 # print a help menu with the right formatting
 def print_help(help_msg, opts):
-    print("Plugin Help:")
+    print(help_msg)
     for key in opts.keys():
         comment = opts[key][1];
         if opts[key][0] == custom_text:
@@ -38,7 +47,7 @@ def print_help(help_msg, opts):
                 print("  {}".format(line))
         else:
             lines = comment.splitlines()
-            print("    {:<8} {}".format(key, lines[0]))
+            print("    {:<12} {}".format(key, lines[0]))
             for line in lines[1:]:
                 print("  {}".format(line))
 
@@ -53,7 +62,7 @@ def copy_file(src, dst):
 
 # copy all files from src to dst
 def copy_dir(src, dst):
-    shutil.copytree(src, dst)
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns(".git"))
     return
 
 # delete all files in a specified directory
@@ -82,6 +91,11 @@ def del_dir(dir):
 def build():
     pop_arg_and_run(BUILD_OPTS)
 
+def build_setup(mode):
+    print("- Initializing " + mode + " build compilation cache")
+    os.system("cmake -B build/" + mode +" -GNinja -DCMAKE_BUILD_TYPE=" + mode.capitalize() + " -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
+    CONFIG_VALUES["refresh_build_" + mode] = 0
+
 def build_internal(mode):
     # CLEAN FILES
     print("- Cleaning previous build")
@@ -91,9 +105,8 @@ def build_internal(mode):
     build_dir = "build/" + mode
 
     print("- Building " + mode + " build")
-    if not os.path.exists(build_dir):
-        print("- Initializing " + mode + " build compilation cache")
-        os.system("cmake -B build/" + mode +" -GNinja -DCMAKE_BUILD_TYPE=" + mode.capitalize() + " -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
+    if not os.path.exists(build_dir) or CONFIG_VALUES["refresh_build_" + mode] == 1:
+        build_setup(mode)
 
     plugin_dirs = glob.glob("plugins/*/")
     for i in range(0, len(plugin_dirs)):
@@ -109,6 +122,29 @@ def build_internal(mode):
             sys.exit("- Failed to build!")
 
     print("- Finished building " + mode + " build")
+
+    # CLEAN OLD FILES
+    print("- Cleaning old shared libraries")
+
+    targets_f = open(build_dir + "/CMakeFiles/TargetDirectories.txt", "r")
+    targets_s = targets_f.read()
+    targets_f.close()
+
+    valid_libs = {"glfw3", "quark_engine", "quark_platform"}
+
+    # (build\/debug\/quark\/src\/)([^\/]*)
+    # (build\/debug\/plugins\/)([^\/]*)
+    # (build\/debug\/lib\/)([^\/]*)
+    # our valid directory prefixes
+    valid_prefix_list = ["build\\/" + mode + "\\/quark\\/src\\/", "build\\/" + mode + "\\/plugins\\/", "build\\/" + mode +"\\/lib\\/"]
+    print(valid_prefix_list)
+    for v in valid_prefix_list:
+        found = re.findall(v + "([^\\/]*)", targets_s)
+        for f in found:
+            valid_libs.add(f)
+
+    if "CMakeFiles" in valid_libs:
+        valid_libs.remove("CMakeFiles")
 
     # COPY FILES
     print("- Copying " + mode + " build")
@@ -127,11 +163,21 @@ def build_internal(mode):
     copy_file(loader_path, "build/current")
     print("-- Copied \"" + loader_path + "\"")
     for path in shared_lib_paths:
-        copy_file(path, "build/current")
-        print("-- Copied \"" + path + "\"")
+        name = os.path.basename(path)
+        name = name[0:name.find('.')]
+        if name.find("_Debug") != -1:
+            name = name[0:name.find("_Debug")]
+        if name in valid_libs:
+            copy_file(path, "build/current")
+            print("-- Copied \"" + path + "\"")
 
     print("- Finished copying " + mode + " build")
 
+    return
+
+def build_initialize():
+    build_setup("debug")
+    build_setup("release")
     return
 
 def build_debug():
@@ -173,10 +219,25 @@ def run_help():
 
 # PLUGIN
 
+def add_git_submodule(url, dst):
+    return
+
+def rem_git_submodule():
+    return
+
 def plugin():
     pop_arg_and_run(PLUGIN_OPTS)
 
 def plugin_add():
+    user_repo = "WindowsVista42/simple_plugin"
+    (_, repo) = user_repo.split("/")
+    url = "https://github.com/" + user_repo
+    cmd = "git clone " + url + " plugins" + os.sep + repo
+    print(cmd)
+    os.system(cmd)
+    #print(url)
+    CONFIG_VALUES["refresh_build_debug"] = 1
+    CONFIG_VALUES["refresh_build_release"] = 1
     return
 
 def plugin_create():
@@ -216,11 +277,13 @@ BUILD_OPTS = {
     "0":       (custom_text,   "Options:"),
     "debug":   (build_debug,   "- Debug build"),
     "release": (build_release, "- Release build"),
+    "initialize": (build_initialize, "- Initialize build files"),
     "help":    (build_help,    "- Build help"),
     
     "1":       (custom_text,   "\nAliases:"),
     "d":       (build_debug,   "- Debug build"),
     "r":       (build_release, "- Release build"),
+    "i":       (build_initialize, "- Initialize build files"),
     "h":       (build_help,    "- Build help"),
 }
 
@@ -255,8 +318,29 @@ PLUGIN_OPTS = {
 SHADER_OPTS = {
 }
 
+CONFIG_VALUES = {
+    "refresh_build_debug": 1,
+    "refresh_build_release": 1,
+}
+
 # MAIN
 if __name__ == "__main__":
+    if not os.path.exists(".quark"):
+        os.mkdir(".quark")
+        cfg_f = open(".quark/config.txt", "w")
+        for key in CONFIG_VALUES.keys():
+            cfg_f.write(key + "=" + str(CONFIG_VALUES[key]) + "\n")
+        cfg_f.close()
+
+    cfg_f = open(".quark/config.txt", "r")
+    cfg_s = cfg_f.read()
+
+    for line in cfg_s.splitlines():
+        key_value = line.split("=")
+        CONFIG_VALUES[key_value[0]] = int(key_value[1])
+
+    cfg_f.close()
+
     for arg in sys.argv:
         if arg != "":
             arg_stack.append(arg)
@@ -265,3 +349,8 @@ if __name__ == "__main__":
     arg_stack.pop()
 
     pop_arg_and_run(GLOBAL_OPTS)
+
+    cfg_f = open(".quark/config.txt", "w")
+    for key in CONFIG_VALUES.keys():
+        cfg_f.write(key + "=" + str(CONFIG_VALUES[key]) + "\n")
+    cfg_f.close()
