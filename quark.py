@@ -80,9 +80,30 @@ def clean_dir(dir):
             os.remove(p)
     return
 
+# Error handler for del_dir
+# https://stackoverflow.com/questions/2656322/shutil-rmtree-fails-on-windows-with-access-is-denied
+def onerror(func, path, exc_info):
+    """
+    Error handler for ``shutil.rmtree``.
+
+    If the error is due to an access error (read only file)
+    it attempts to add write permission and then retries.
+
+    If the error is for another reason it re-raises the error.
+    
+    Usage : ``shutil.rmtree(path, onerror=onerror)``
+    """
+    import stat
+    # Is the error an access error?
+    if not os.access(path, os.W_OK):
+        os.chmod(path, stat.S_IWUSR)
+        func(path)
+    else:
+        raise
+
 # delete the specified directory
 def del_dir(dir):
-    os.remove(dir)
+    shutil.rmtree(dir, onerror=onerror)
     return
 
 # BUILD
@@ -218,31 +239,38 @@ def run_help():
 
 # PLUGIN
 
-def add_git_submodule(url, dst):
-    return
-
-def rem_git_submodule():
-    return
-
 def plugin():
     pop_arg_and_run(PLUGIN_OPTS)
 
 def plugin_add():
-    user_repo = "WindowsVista42/simple_plugin"
-    (_, repo) = user_repo.split("/")
+    user_repo = pop_arg("Plugin add expects: 'User/Repo'")
+    splt = user_repo.split("/")
+
+    if len(splt) != 2:
+        print("Plugin add expects: 'User/Repo'")
+        return
+
+    (_, repo) = splt
+
+    if os.path.exists("plugins/" + repo):
+        print("Plugin already exists, please call 'quark plugin remove PLUGIN_NAME'")
+        return
+
     url = "https://github.com/" + user_repo
     cmd = "git clone " + url + " plugins" + os.sep + repo
-    print(cmd)
     os.system(cmd)
-    #print(url)
     CONFIG_VALUES["refresh_build_debug"] = 1
     CONFIG_VALUES["refresh_build_release"] = 1
+    print("Added plugin: '" + user_repo + "'")
     return
 
 def plugin_create():
     return
 
 def plugin_remove():
+    name = pop_arg("Plugin remove expects plugin name")
+    del_dir("./plugins/" + name)
+    print("Removed plugin: '" + name + "'")
     return
 
 def plugin_export():
