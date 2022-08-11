@@ -157,7 +157,6 @@ def build_internal(mode):
     # (build\/debug\/lib\/)([^\/]*)
     # our valid directory prefixes
     valid_prefix_list = ["build\\/" + mode + "\\/quark\\/src\\/", "build\\/" + mode + "\\/plugins\\/", "build\\/" + mode +"\\/lib\\/"]
-    print(valid_prefix_list)
     for v in valid_prefix_list:
         found = re.findall(v + "([^\\/]*)", targets_s)
         for f in found:
@@ -261,7 +260,7 @@ def plugin_add():
     os.system(cmd)
     CONFIG_VALUES["refresh_build_debug"] = 1
     CONFIG_VALUES["refresh_build_release"] = 1
-    print("Added plugin: '" + user_repo + "'")
+    print("Added plugin: '" + repo + "'")
     return
 
 def plugin_create():
