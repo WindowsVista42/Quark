@@ -126,24 +126,62 @@ def build_internal(mode):
     clean_dir("build/current")
 
     # COMPILE FILES
-    build_dir = "build/" + mode
-
-    print("- Building " + mode + " build")
-    if not os.path.exists(build_dir) or CONFIG_VALUES["refresh_build_" + mode] == 1:
-        build_setup(mode)
-
     plugin_dirs = glob.glob("plugins/*/")
     for i in range(0, len(plugin_dirs)):
-        plugin_dirs[i] = plugin_dirs[i][8:][:-1]
+        plugin_dirs[i] = plugin_dirs[i][len("plugins/"):][:-1]
 
-    print("-- Building: quark_loader")
-    if os.system("cmake --build " + build_dir + " --target quark_loader") != 0:
-        sys.exit("Failed to build!")
+    should_reinit = False
+    rebuild_list = []
 
     for p in plugin_dirs:
         print("-- Building plugin: ", p)
+
+        glob_cpps = glob.glob("plugins/" + p + "/src/**/*.cpp", recursive=True)
+        for i in range(0, len(glob_cpps)):
+            glob_cpps[i] += "\n"
+        curr_cpps = set(glob_cpps)
+        prev_cpps = set([])
+
+        cache_path = ".quark/tracked/" + p + ".txt"
+        if os.path.exists(cache_path):
+            tracked_cache_f = open(cache_path, "r")
+            prev_cpps = set(tracked_cache_f.readlines())
+            tracked_cache_f.close()
+        else:
+            tracked_cache_f = open(cache_path, "w")
+            tracked_cache_f.writelines(curr_cpps)
+            tracked_cache_f.close()
+            should_reinit = True
+
+        if curr_cpps != prev_cpps:
+            tracked_cache_f = open(cache_path, "w")
+            tracked_cache_f.writelines(curr_cpps)
+            tracked_cache_f.close()
+            should_reinit = True
+
+        #print("curr: ", curr_cpps)
+        #print("prev: ", prev_cpps)
+
+        #if changed:
+        #    print("changed!")
+
+        #if os.system("cmake --build " + build_dir + " --target " + p) != 0:
+        #    sys.exit("- Failed to build!")
+
+
+    build_dir = "build/" + mode
+
+    print("- Building " + mode + " build")
+    if not os.path.exists(build_dir) or CONFIG_VALUES["refresh_build_" + mode] == 1 or should_reinit:
+        build_setup(mode)
+
+    for p in rebuild_list:
         if os.system("cmake --build " + build_dir + " --target " + p) != 0:
             sys.exit("- Failed to build!")
+
+    #print("-- Building: quark_loader")
+    #if os.system("cmake --build " + build_dir + " --target quark_loader") != 0:
+    #    sys.exit("Failed to build!")
 
     print("- Finished building " + mode + " build")
 
@@ -198,7 +236,7 @@ def build_internal(mode):
 
     return
 
-def build_initialize():
+def build_init():
     build_setup("debug")
     build_setup("release")
     return
@@ -427,11 +465,19 @@ mod_main() {
         f = open(src_path + os.sep + ".." + os.sep + "deps.txt", "w")
         f.close()
 
+    print("Created plugin: '" + plugin_name + "'")
     return
 
 def plugin_remove():
     name = pop_arg("Plugin remove expects plugin name")
-    del_dir("./plugins/" + name)
+
+    plugin_dir = "./plugins/" + name
+    if os.path.exists(plugin_dir):
+        del_dir(plugin_dir)
+    else:
+        print("Plugin not found: '" + name + "'")
+        return
+
     print("Removed plugin: '" + name + "'")
     return
 
@@ -469,13 +515,13 @@ BUILD_OPTS = {
     "0":       (custom_text,   "Options:"),
     "debug":   (build_debug,   "- Debug build"),
     "release": (build_release, "- Release build"),
-    "initialize": (build_initialize, "- Initialize build files"),
+    "init":    (build_init,    "- Initialize build files"),
     "help":    (build_help,    "- Build help"),
     
     "1":       (custom_text,   "\nAliases:"),
     "d":       (build_debug,   "- Debug build"),
     "r":       (build_release, "- Release build"),
-    "i":       (build_initialize, "- Initialize build files"),
+    "i":       (build_init, "- Initialize build files"),
     "h":       (build_help,    "- Build help"),
 }
 
@@ -519,10 +565,15 @@ CONFIG_VALUES = {
 if __name__ == "__main__":
     if not os.path.exists(".quark"):
         os.mkdir(".quark")
+
+    if not os.path.exists(".quark/config.txt"):
         cfg_f = open(".quark/config.txt", "w")
         for key in CONFIG_VALUES.keys():
             cfg_f.write(key + "=" + str(CONFIG_VALUES[key]) + "\n")
         cfg_f.close()
+
+    if not os.path.exists(".quark/tracked"):
+        os.mkdir(".quark/tracked")
 
     cfg_f = open(".quark/config.txt", "r")
     cfg_s = cfg_f.read()
