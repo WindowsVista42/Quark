@@ -633,8 +633,6 @@ mod_main() {
       .add(def(common::render_things), "render::begin_frame", 1)
   //    .add(def(common::exit_on_esc), -1);
   ;
-  //
-  ////
 
   //printf("Loaded!\n");
 }
