@@ -72,5 +72,11 @@ include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
 
+# QUARK
 add_subdirectory(quark/src)
+
+# PLUGINS
+get_target_property(QUARK_ENGINE_SRC_DIR quark_engine SOURCE_DIR)
+set(QUARK_MODULE ${QUARK_ENGINE_SRC_DIR}/../module.hpp)
+
 add_subdirectory(plugins)

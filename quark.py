@@ -29,7 +29,7 @@ def pop_arg_and_run(opts):
         exit(-1)
     opts[arg][0]()
 
-def pop_arg(help_msg) -> str:
+def pop_arg(help_msg: str) -> str:
     if len(arg_stack) == 0:
         print(help_msg)
         exit(-1)
@@ -37,7 +37,7 @@ def pop_arg(help_msg) -> str:
     return arg_stack.pop()
 
 # print a help menu with the right formatting
-def print_help(help_msg, opts):
+def print_help(help_msg: str, opts):
     print(help_msg)
     for key in opts.keys():
         comment = opts[key][1];
@@ -105,6 +105,10 @@ def onerror(func, path, exc_info):
 def del_dir(dir):
     shutil.rmtree(dir, onerror=onerror)
     return
+
+def try_clone_repo(url, dst_path):
+    #print("git clone " + url + " " + dst_path)
+    return os.system("git clone " + url + " " + dst_path) == 0
 
 # BUILD
 
@@ -242,11 +246,13 @@ def plugin():
     pop_arg_and_run(PLUGIN_OPTS)
 
 def plugin_add():
-    user_repo = pop_arg("Plugin add expects: 'User/Repo'")
+    fmt_msg = "Plugin add expects: 'User/Repo'"
+
+    user_repo = pop_arg(fmt_msg)
     splt = user_repo.split("/")
 
     if len(splt) != 2:
-        print("Plugin add expects: 'User/Repo'")
+        print(fmt_msg)
         return
 
     (_, repo) = splt
@@ -255,15 +261,172 @@ def plugin_add():
         print("Plugin already exists, please call 'quark plugin remove PLUGIN_NAME'")
         return
 
-    url = "https://github.com/" + user_repo
-    cmd = "git clone " + url + " plugins" + os.sep + repo
-    os.system(cmd)
+    # http format: https://github.com/WindowsVista42/Quark.git
+    http = "https://github.com/" + user_repo + ".git"
+
+    # ssh format: git@github.com:WindowsVista42/Quark.git
+    ssh = "git@github.com" + user_repo + ".git"
+
+    if not try_clone_repo(http, "plugins" + os.sep + repo):
+        if not try_clone_repo(ssh, "plugins" + os.sep + repo):
+            print("Failed to git clone plugin: '" + user_repo + "'")
+            return
+
     CONFIG_VALUES["refresh_build_debug"] = 1
     CONFIG_VALUES["refresh_build_release"] = 1
     print("Added plugin: '" + repo + "'")
     return
 
 def plugin_create():
+    # making folder
+    plugin_name = pop_arg("Plugin create expects: 'plugin_name'")
+    plugin_name_caps = plugin_name.upper()
+
+    using_decl = "USING_" + plugin_name_caps
+    internal_decl = plugin_name_caps + "_INTERNAL"
+    api_decl = plugin_name + "_api"
+    var_decl = plugin_name + "_var"
+
+    path = "plugins" + os.sep + plugin_name
+    if not os.path.exists(path):
+        os.mkdir(path)
+    else:
+        print(path)
+        print("Plugin already exists, please call 'quark plugin remove PLUGIN_NAME' if you wish to erase the existing plugin")
+        return
+
+    # making src/api.hpp
+    if True:
+        src = """#pragma once
+
+#if defined(_WIN32) || defined(_WIN64)
+  #if defined($using_decl)
+    #define $api_decl __declspec(dllimport)
+    #define $var_decl extern __declspec(dllimport)
+  #elif defined($internal_decl)
+    #define $api_decl __declspec(dllexport)
+    #define $var_decl extern __declspec(dllexport)
+  #else
+    #define $api_decl __declspec(dllexport)
+    #define $var_decl extern __declspec(dllimport)
+  #endif
+#endif
+
+#ifndef $api_decl
+  #define $api_decl
+  #define $var_decl extern
+#endif"""
+
+        src = src.replace("$using_decl", using_decl)
+        src = src.replace("$internal_decl", internal_decl)
+        src = src.replace("$api_decl", api_decl)
+        src = src.replace("$var_decl", var_decl)
+
+        src_path = path + os.sep + "src"
+        os.mkdir(src_path)
+        f = open(src_path + os.sep + "api.hpp", "w")
+        f.write(src)
+        f.close()
+
+    # making src/CMakeLists.txt
+    if True:
+        src = """# automatically get mod name from mod directory name
+get_filename_component(MOD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
+get_filename_component(MY_MOD_NAME ${MOD_DIR} NAME)
+string(REPLACE " " "_" MY_MOD_NAME ${MY_MOD_NAME})
+project(${MY_MOD_NAME} C CXX)
+
+# add all source files in src/ directory
+file(GLOB SRC *.cpp)
+add_library(${MY_MOD_NAME} SHARED ${SRC})
+
+# precomple headers and link to quark_engine
+target_precompile_headers(${MY_MOD_NAME} PUBLIC ${QUARK_MODULE})
+target_link_libraries(${MY_MOD_NAME} quark_engine)
+
+FILE(STRINGS "../deps.txt" DEPS)
+
+# precompile headers and link to all other dependencies
+foreach(DEP ${DEPS})
+	get_target_property(DIR ${DEP} SOURCE_DIR)
+	target_precompile_headers(${MY_MOD_NAME} PUBLIC ${DIR}/module.hpp)
+	message(${DIR}/module.hpp)
+endforeach()
+
+foreach(DEP ${DEPS})
+	target_link_libraries(${MY_MOD_NAME} ${DEP})
+endforeach()"""
+
+        f = open(src_path + os.sep + "CMakeLists.txt", "w")
+        f.write(src)
+        f.close()
+
+    # making src/$plugin_name.hpp
+    if True:
+        src = """#pragma once
+
+#include "api.hpp"
+
+namespace $plugin_name {
+  $api_decl void print_hello();
+}"""
+
+        src = src.replace("$plugin_name", plugin_name)
+        src = src.replace("$api_decl", api_decl)
+
+        f = open(src_path + os.sep + plugin_name + ".hpp", "w")
+        f.write(src)
+        f.close()
+
+    # making src/$plugin_name.cpp
+    if True:
+        src = """#define $internal_decl
+#include "$plugin_name.hpp"
+using namespace quark;
+
+namespace $plugin_name {
+  void print_hello() {
+    static f32 t = 0.0f;
+    t += DT;
+
+    if (t > 0.5f) {
+      t -= 0.5f;
+      printf("Hello from $plugin_name!\\n");
+    }
+  }
+}
+
+mod_main() {
+  system::list("update")
+      .add(def($plugin_name::print_hello), -1);
+}
+"""
+
+        src = src.replace("$plugin_name", plugin_name)
+        src = src.replace("$api_decl", api_decl)
+
+        f = open(src_path + os.sep + plugin_name + ".cpp", "w")
+        f.write(src)
+        f.close()
+
+    # making src/module.hpp
+    if True:
+        src = """#pragma once
+
+#define $using_decl
+#include "$plugin_name.hpp\""""
+        src = src.replace("$using_decl", using_decl)
+        src = src.replace("$plugin_name", plugin_name)
+
+        f = open(src_path + os.sep + "module.hpp", "w")
+        f.write(src)
+        f.close()
+
+    # making deps.txt
+    if True:
+        f = open(src_path + os.sep + ".." + os.sep + "deps.txt", "w")
+        f.close()
+
     return
 
 def plugin_remove():
@@ -273,6 +436,9 @@ def plugin_remove():
     return
 
 def plugin_export():
+    return
+
+def plugin_update():
     return
 
 def plugin_help():
