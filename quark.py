@@ -120,54 +120,72 @@ def build_setup(mode):
     os.system("cmake -B build/" + mode +" -GNinja -DCMAKE_BUILD_TYPE=" + mode.capitalize() + " -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .")
     CONFIG_VALUES["refresh_build_" + mode] = 0
 
+def write_tracking(cache_path, curr_cpps):
+    print("wrote")
+    tracked_cache_f = open(cache_path, "w")
+
+    lines = []
+    for key in curr_cpps.keys():
+        lines.append(key + "," + curr_cpps[key])
+        print(key + "," + curr_cpps[key])
+
+    tracked_cache_f.writelines(lines)
+    tracked_cache_f.close()
+    return True
+
+
 def build_internal(mode):
     # CLEAN FILES
     print("- Cleaning previous build")
     clean_dir("build/current")
+
+    should_reinit = False
+    changed_set = set([])
+    rebuild_set = set([])
 
     # COMPILE FILES
     plugin_dirs = glob.glob("plugins/*/")
     for i in range(0, len(plugin_dirs)):
         plugin_dirs[i] = plugin_dirs[i][len("plugins/"):][:-1]
 
-    should_reinit = False
-    rebuild_list = []
-
     for p in plugin_dirs:
         print("-- Building plugin: ", p)
 
         glob_cpps = glob.glob("plugins/" + p + "/src/**/*.cpp", recursive=True)
-        for i in range(0, len(glob_cpps)):
-            glob_cpps[i] += "\n"
-        curr_cpps = set(glob_cpps)
-        prev_cpps = set([])
+
+        curr_cpps = {}
+        for cpp in glob_cpps:
+            curr_cpps[cpp] = str(os.path.getmtime(cpp)) + "\n"
+
+        prev_cpps = {}
 
         cache_path = ".quark/tracked/" + p + ".txt"
         if os.path.exists(cache_path):
             tracked_cache_f = open(cache_path, "r")
-            prev_cpps = set(tracked_cache_f.readlines())
+
+            lines = tracked_cache_f.readlines()
+            for line in lines:
+                (file, timestamp) = line.split(",")
+                prev_cpps[file] = timestamp
+
             tracked_cache_f.close()
         else:
-            tracked_cache_f = open(cache_path, "w")
-            tracked_cache_f.writelines(curr_cpps)
-            tracked_cache_f.close()
-            should_reinit = True
+            should_reinit = write_tracking(cache_path, curr_cpps)
 
-        if curr_cpps != prev_cpps:
-            tracked_cache_f = open(cache_path, "w")
-            tracked_cache_f.writelines(curr_cpps)
-            tracked_cache_f.close()
-            should_reinit = True
+        if set(curr_cpps.keys()) != set(prev_cpps.keys()):
+            should_reinit = write_tracking(cache_path, curr_cpps)
 
-        #print("curr: ", curr_cpps)
-        #print("prev: ", prev_cpps)
+        if set(curr_cpps.values()) != set(prev_cpps.values()):
+            write_tracking(cache_path, curr_cpps)
+            changed_set.add(p)
 
-        #if changed:
-        #    print("changed!")
+        print("curr: ", curr_cpps)
+        print("prev: ", prev_cpps)
 
-        #if os.system("cmake --build " + build_dir + " --target " + p) != 0:
-        #    sys.exit("- Failed to build!")
-
+    # if the files changed for any plugin, you need to rebuild the whole cmake project
+    #
+    # if the timestamps for a specific project changed, but no files were added or removed, then we can safely rebuild just that project
+    # and anything that depends on it
 
     build_dir = "build/" + mode
 
@@ -175,7 +193,47 @@ def build_internal(mode):
     if not os.path.exists(build_dir) or CONFIG_VALUES["refresh_build_" + mode] == 1 or should_reinit:
         build_setup(mode)
 
-    for p in rebuild_list:
+    plugin_deps = {}
+    for p in plugin_dirs:
+        deps_path = "plugins" + os.sep + p + os.sep + "deps.txt"
+        if os.path.exists(deps_path):
+            f = open(deps_path, "r")
+            deps_list = f.readlines()
+            f.close()
+
+            plugin_deps[p] = ["quark"]
+            for dep in deps_list:
+                plugin_deps[p].append(dep)
+        else:
+            plugin_deps[p] = ["quark"]
+
+    print("changed list: ", changed_set)
+    print("plugin deps: ", plugin_deps)
+
+    inv_plugin_deps = {"quark": set([])}
+    for p in plugin_dirs:
+        inv_plugin_deps[p] = set([])
+
+    for key in plugin_deps.keys():
+        for p in plugin_deps[key]:
+            inv_plugin_deps[p].add(key)
+
+    print("inv: ", inv_plugin_deps)
+
+    #changed_set.add("apple")
+
+    while len(changed_set) != 0:
+        p = changed_set.pop()
+
+        for p2 in inv_plugin_deps[p]:
+            changed_set.add(p2)
+
+        rebuild_set.add(p)
+
+    print("rebuild: ", rebuild_set)
+
+    # rebuild in-order everything that needs to be rebuilt
+    for p in rebuild_set:
         if os.system("cmake --build " + build_dir + " --target " + p) != 0:
             sys.exit("- Failed to build!")
 
