@@ -1,0 +1,119 @@
+if(input::get("some_action").down()) {
+  // do something
+}
+
+if(get_action("some_action").down()) {
+  // do something
+}
+
+if(get_action_down("some_action")) {
+  // do something
+}
+
+if(is_action_down(get_action("some_action"))) {
+  // do something
+}
+
+if(auto action = get_action("some_action"); action.is_down()) {
+  // do something
+}
+
+if(auto action = get_action("some_action"); is_action_down(action)) {
+  // do something
+}
+
+////////////////////////////////////////////////////////////////////////
+
+// Api philosphy?
+// API_DECL ReturnValue Operation_Type_SubOpSubType(Args...)
+// SubOpSubType can be omitted if the extra detail is not required
+
+bool get_action_down(const char* action_name);
+bool get_action_up(const char* action_name);
+bool get_action_just_down(const char* action_name);
+bool get_action_just_up(const char* action_name);
+f32  get_action_value(const char* action_name);
+
+template <typename... T>
+decltype(auto) get_entity_comp(Entity e);
+
+template <typename... T>
+View<T...> get_ecs_view();
+
+template <typename... T>
+decltype(auto) get_view_each(View<T...> view);
+
+template <typename T>
+T& get_resource(Resource<T> resource);
+
+// testing
+
+// //
+// // Resource<>
+// //
+
+// current api
+MAIN_CAMERA = Resource<render::Camera>::value;
+
+// new api?
+MAIN_CAMERA = get_resource(Resource<render::Camera> {});
+
+// //
+// // View<>
+// //
+
+// current api
+View<Color, const Transform, const Tag> view;
+for (auto [e, color, transform] : view.each()) {
+  // do something
+}
+
+// new api
+View<Color, const Transform, const Tag> view;
+for (auto [e, color, transform]: get_view_each(view)) {
+  // do something
+}
+
+// //
+// // vector
+// //
+
+// current api
+vec2 move_dir = {0.0f, 0.0f};
+  
+move_dir.x += input::get("d").value();
+move_dir.x -= input::get("a").value();
+move_dir.y += input::get("w").value();
+move_dir.y -= input::get("s").value();
+move_dir.norm_max_mag(1.0f);
+
+// new api
+vec2 move_dir = {0.0f, 0.0f};
+  
+move_dir.x += get_action_value("d");
+move_dir.x -= get_action_value("a");
+move_dir.y += get_action_value("w"):
+move_dir.y -= get_action_value("s"):
+
+// we dont pull this out into a separate function because
+// operations on vectors are dense and numerous
+move_dir.norm_max_mag(1.0f);
+
+// //
+// // entity builder?
+// //
+
+// current api
+view.create(A {}, B {}, C {});
+
+// new api? not sure i like this...
+make_entity(view);
+add_entity_comp(A {}, B {}, C {});
+Entity e = get_entity_id();
+
+// not sure if this multithreads
+
+// immediate mode api for building system lists
+// this doesnt need to multithread __ever__
+use_system_list("update");
+add_system_after("render::begin_frame", def_fun(my_render_things), 1);
