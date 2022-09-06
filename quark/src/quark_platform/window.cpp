@@ -9,6 +9,9 @@ namespace quark {
   bool _CONFIG_WINDOW_ENABLE_RESIZING;
   bool _CONFIG_WINDOW_ENABLE_RAW_MOUSE;
 
+  ThreadPool _GLOBAL_THREADPOOL;
+  std::thread::id _GLOBAL_MAIN_THREAD_ID = std::this_thread::get_id();
+
   void init_window() {
     if(_GLOBAL_WINDOW_PTR != 0) {
       panic("Attempted to create the window twice!");
@@ -125,4 +128,73 @@ namespace quark {
   f64 get_timestamp_difference(Timestamp T0, Timestamp T1) {
     return abs(T1.value - T0.value);
   }
+
+  void init_threadpool() {
+    _GLOBAL_THREADPOOL.init();
+  }
+
+  void deinit_threadpool() {}
+
+  void add_threadpool_work(WorkFunction work_func) {
+    _GLOBAL_THREADPOOL.push(work_func);
+  }
+
+  void set_threadpool_start() {
+    _GLOBAL_THREADPOOL.start();
+  }
+
+  void wait_threadpool_finished() {
+    _GLOBAL_THREADPOOL.join();
+  }
+
+  bool get_threadpool_finished() {
+    return _GLOBAL_THREADPOOL.finished();
+  }
+
+  isize get_threadpool_thread_count() {
+    return _GLOBAL_THREADPOOL.thread_count();
+  }
+
+#if defined(_WIN32) || defined(_WIN64)
+  Library load_library(const char* library_path) {
+    HINSTANCE hinstlib = LoadLibraryEx(
+        TEXT(library_path),
+        0,
+        0
+    );
+
+    if(hinstlib == 0) {
+      panic("Failed to find dll!");
+    }
+
+    return Library { hinstlib };
+  }
+
+  void unload_library(Library* library) {
+    FreeLibrary(library->hinstlib);
+    library->hinstlib = 0;
+  }
+
+  WorkFunction get_library_function(Library* library, const char* function_name) {
+    WorkFunction function = (WorkFunction) GetProcAddress(library->hinstlib, function_name);
+    if(function == 0) {
+      panic("Failed to find function in dll!");
+    }
+
+    return function;
+  }
+
+  void run_library_function(Library* library, const char* function_name) {
+    get_library_function(library, function_name)();
+  }
+
+  bool check_library_has_function(Library* library, const char* function_name) {
+    WorkFunction function = (WorkFunction) GetProcAddress(library->hinstlib, function_name);
+    if(function == 0) {
+      return false;
+    }
+
+    return true;
+  }
+#endif
 };

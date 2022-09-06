@@ -78,6 +78,8 @@ namespace quark::core::utility {
   #else
     #define mod_main() extern "C" void mod_main()
   #endif
+
+  #define namespace_enum(name, int_type, members...) namespace name { enum Enum : int_type { members }; }
 };
 
 namespace quark {

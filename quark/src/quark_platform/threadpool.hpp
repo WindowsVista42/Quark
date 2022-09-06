@@ -5,20 +5,20 @@
 #include <threadpool.hpp>
 
 namespace quark {
-  using WorkFunction = void (*)();
+  //using WorkFunction = void (*)();
 
-  platform_var ThreadPool THREADPOOL;
-  platform_var std::thread::id MAIN_THREAD_ID;
+  //platform_var ThreadPool THREADPOOL;
+  //platform_var std::thread::id MAIN_THREAD_ID;
 
-  platform_api void init_threadpool();
-  platform_api void deinit_threadpool();
+  //platform_api void init_threadpool();
+  //platform_api void deinit_threadpool();
 
-  platform_api void add_threadpool_work(WorkFunction work_func);
-  platform_api void set_threadpool_start();
-  platform_api void wait_threadpool_finished();
-  platform_api bool get_threadpool_finished();
+  //platform_api void add_threadpool_work(WorkFunction work_func);
+  //platform_api void set_threadpool_start();
+  //platform_api void wait_threadpool_finished();
+  //platform_api bool get_threadpool_finished();
 
-  platform_api isize get_threadpool_thread_count();
+  //platform_api isize get_threadpool_thread_count();
 };
 
 //namespace quark::platform::threadpool {

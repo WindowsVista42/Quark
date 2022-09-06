@@ -3,8 +3,8 @@
 #include <unordered_set>
 using namespace quark;
 
-#ifdef __WINDOWS__
-  static const char* dll_ext = ".dll";
+#if defined(_WIN32) || defined(_WIN64)
+  static const char* lib_ext = ".dll";
 #endif
 
 std::vector<std::string> parse_deps(const char* deps) {
@@ -56,10 +56,10 @@ int main() {
       std::string extension = filename.substr(first_dot, filename.size());
       filename = filename.substr(0, first_dot);
 
-      if (extension == dll_ext) {
-        shared::SharedLibrary lib = shared::load(it->path().relative_path().make_preferred().u8string().c_str());
-        if (lib.has("mod_main")) {
-          lib.run("mod_main");
+      if (extension == lib_ext) {
+        Library lib = load_library(it->path().relative_path().make_preferred().u8string().c_str());
+        if (check_library_has_function(&lib, "mod_main")) {
+          run_library_function(&lib, "mod_main");
           //if (lib.has("mod_deps")) {
           //  rem_libs.push_back(lib);
           //  rem_names.insert(filename);
@@ -67,7 +67,7 @@ int main() {
           //  lib.run("mod_main");
           //}
         } else {
-          lib.unload();
+          unload_library(&lib);
         }
       }
     }

@@ -8,6 +8,6 @@
 #include "threadpool.hpp"
 #include "shared.hpp"
 
-namespace quark {
-  using SharedLibrary = shared::SharedLibrary;
-};
+//namespace quark {
+//  using SharedLibrary = shared::SharedLibrary;
+//};

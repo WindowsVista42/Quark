@@ -3,13 +3,39 @@
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include <GLFW/glfw3.h>
+#include <threadpool.hpp>
 
-#define namespace_enum(name, int_type, members...) namespace name { enum Enum : int_type { members }; }
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
 
 namespace quark {
   // Timing
   struct Timestamp {
     f64 value;
+  };
+
+  // Threadpool
+  using WorkFunction = void (*)();
+
+  // Shared library
+  struct Library;
+
+#if defined(_WIN32) || defined(_WIN64)
+  struct Library {
+    HINSTANCE hinstlib;
+  };
+#endif
+
+  struct LinearAllocator {
+    u8* data;
+    usize size;
+    usize capacity;
+  };
+
+  struct LinearAllocationTracker {
+    usize size;
+    usize capacity;
   };
 
   namespace_enum(InputState, i32,
@@ -134,12 +160,17 @@ namespace quark {
     RightTrigger,
   );
 
+  // Window vars
   platform_var GLFWwindow* _GLOBAL_WINDOW_PTR;
   platform_var std::string _CONFIG_WINDOW_NAME;
   platform_var ivec2 _CONFIG_WINDOW_DIMENSIONS;
   platform_var bool _CONFIG_WINDOW_ENABLE_CURSOR;
   platform_var bool _CONFIG_WINDOW_ENABLE_RESIZING;
   platform_var bool _CONFIG_WINDOW_ENABLE_RAW_MOUSE;
+
+  // Threadpool vars
+  platform_var ThreadPool _GLOBAL_THREADPOOL;
+  platform_var std::thread::id _GLOBAL_MAIN_THREAD_ID;
 
   // Window control
   platform_api void init_window();
@@ -176,4 +207,37 @@ namespace quark {
   // Timing
   platform_api Timestamp get_timestamp();
   platform_api f64 get_timestamp_difference(Timestamp A, Timestamp B);
+
+  // Threadpool control
+  platform_api void init_threadpool();
+  platform_api void deinit_threadpool();
+
+  // Threadpool handling
+  platform_api void add_threadpool_work(WorkFunction work_func);
+  platform_api void set_threadpool_start();
+  platform_api void wait_threadpool_finished();
+  platform_api bool get_threadpool_finished();
+
+  platform_api isize get_threadpool_thread_count();
+
+  // Library handling
+  platform_api Library load_library(const char* library_path);
+  platform_api void unload_library(Library* library);
+  platform_api WorkFunction get_library_function(Library* library, const char* function_name);
+  platform_api void run_library_function(Library* library, const char* function_name);
+  platform_api bool check_library_has_function(Library* library, const char* function_name);
+
+  // Allocator handling
+  platform_api LinearAllocator create_linear_allocator(usize capacity);
+  platform_api void destroy_linear_allocator(LinearAllocator* allocator);
+  platform_api usize get_linear_allocator_remainder(LinearAllocator* allocator);
+  platform_api void reset_linear_allocator(LinearAllocator* allocator);
+
+  platform_api LinearAllocationTracker create_linear_allocation_tracker(usize capacity);
+  platform_api usize get_linear_allocation_tracker_remainder(LinearAllocationTracker* allocator, usize capacity);
+  platform_api void reset_linear_allocation_tracker(LinearAllocationTracker* allocator, usize capacity);
+
+  // Allocation functions
+  platform_api u8* alloc(LinearAllocator* allocator, usize size);
+  platform_api usize alloc(LinearAllocationTracker* allocator, usize size);
 };
