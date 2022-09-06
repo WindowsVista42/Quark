@@ -87,6 +87,26 @@ namespace quark::engine::component {
     vec3 _mesh_scale();
   };
 
+  struct Model2 {
+    vec3 half_extents;
+    u32 id;
+  };
+
+  vec3 get_model_scale_factor(Model2 model);
+  void set_model_scale_factor(Model2* model, vec3 scale_factor);
+
+  Model2 create_model_name_scale(const char* mesh_name, vec3 scale);
+  Model2 create_model_name_extents(const char* mesh_name, vec3 extents);
+
+  vec3 get_model_mesh_scale(u32 model_id);
+
+  struct MeshInfo {
+    u32 internal_offset;
+    u32 internal_count;
+  };
+
+  MeshInfo get_model_mesh_info(u32 model_id);
+
   // Image scale + Image id
   // 
   // Used for rendering

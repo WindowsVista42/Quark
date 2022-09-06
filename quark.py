@@ -237,10 +237,6 @@ def build_internal(mode):
         if os.system("cmake --build " + build_dir + " --target " + p) != 0:
             sys.exit("- Failed to build!")
 
-    #print("-- Building: quark_loader")
-    #if os.system("cmake --build " + build_dir + " --target quark_loader") != 0:
-    #    sys.exit("Failed to build!")
-
     print("- Finished building " + mode + " build")
 
     # CLEAN OLD FILES

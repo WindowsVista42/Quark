@@ -1,7 +1,5 @@
 #pragma once
 
-// API_NAME: common
-
 #if defined(_WIN32) || defined(_WIN64)
   #if defined(USING_COMMON)
     #define common_api __declspec(dllimport)

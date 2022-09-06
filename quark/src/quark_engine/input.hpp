@@ -148,6 +148,9 @@ namespace quark::engine::input {
 
   engine_api void update_all();
 
+  void bind_action(const char* action_name, InputEnum input);
+  void unbind_action(const char* action_name, InputEnum input);
+
   struct engine_api ActionState {
     f32 previous;
     f32 current;

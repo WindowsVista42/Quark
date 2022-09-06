@@ -4,190 +4,175 @@
 #include "../quark_core/module.hpp"
 #include <GLFW/glfw3.h>
 
-// INTERFACE
-namespace quark::platform::window {
-  // Platform window settings
-  struct platform_api WindowConfig {
-    // Window name
-    std::string name = "Quark";
-  
-    // Window dimensions in pixels
-    ivec2 dimensions = {1920, 1080};
-  
-    // Enable the cursor in the window, useful for 
-    // certain types of applications
-    bool enable_cursor = false;
-  
-    // Allow the user to resize the window
-    bool enable_window_resizing = false;
+#define namespace_enum(name, int_type, members...) namespace name { enum Enum : int_type { members }; }
 
-    // Enable raw mouse motion, this is
-    // typically preferred as a default option for
-    // fps-style games
-    bool enable_raw_mouse = true;
-  };
-
-  namespace internal {
-    platform_var WindowConfig _config;
-    platform_var GLFWwindow* _window;
-  };
-
-  // Get the window name
-  inline std::string name();
-
-  // Set the window name
-  inline void name(const char* name);
-
-  // Get the window dimensions in pixels
-  inline ivec2 dimensions();
-
-  // Set the window close flag
-  inline void close();
-
-  // Get if the current window should close
-  //inline bool should_close();
-
-  // Poll internal event queue
-  inline void poll_events();
-
-  // Get the state of the current key:
-  // 0, GLFW_PRESS, GLFW_RELEASE, GLFW_REPEAT
-  inline int key(int key);
-
-  // Get the state of the current mouse button:
-  // 0, GLFW_PRESS, GLFW_RELEASE
-  inline int mouse_button(int mouse_button);
-
-  // Get the state of the current mouse button:
-  // 0, GLFW_PRESS, GLFW_RELEASE
-  inline int joystick_button(int key);
-
-  // Initialize the window
-  platform_api void init();
-
-  // Deinitialize the window
-  platform_api void deinit();
-
-  // Resize window to specified dimensions in pixels
-  //static void dimensions(uvec2 dimensions) {
-  //  _dimensions = dimensions;
-  //  _resize = true;
-
-  //  if(_init) {
-  //    return;
-  //  }
-
-  //  panic("Setting the window dimensions is currently not supported after the window is created!");
-  //}
-
-  //// Does the window need a resize
-  //bool resize() {
-  //  return _resize;
-  //}
-
-  //// Force the window resize state
-  ////
-  //// WARNING: you could do very unsafe things with this function!
-  //static void resize(bool resize) {
-  //  _resize = resize;
-  //}
-
-  //// Does the window currently have the cursor enabled
-  //bool cursor() {
-  //  return _cursor;
-  //}
-
-  //void cursor(bool enable) {
-  //  _cursor = enable;
-  //  if(!_cursor || _init) {
-  //    return;
-  //  }
-
-  //  panic("Setting the window cursor state is currently not supported after the window is created!");
-  //}
-
-  //// Does the window have resizing currently enabled
-  //static bool window_resizing() {
-  //  return _window_resizing;
-  //}
-
-  //// Force the window to enable resizing
-  ////
-  //// This forces the window to rebuild.
-  //static void window_resizing(bool enable) {
-  //  _window_resizing = enable;
-  //  if(!_window_resizing || _init) {
-  //    return;
-  //  }
-
-  //  panic("Setting window resizing is currently not supported after the window is created!");
-  //}
-
-  //// Forcibly set the internal window pointer
-  ////
-  //// WARNING: Only intended for debug engine usage
-  //void FORCE_SET_GLFW_WINDOW_PTR_DEBUG(GLFWwindow* window) {
-  //  _window = window;
-  //}
-
-  //// Setup the window settings and configuration
-  //void load_config(Config config = {
-  //  .name = "Quark",
-  //  .dimensions = { 1920, 1080 },
-  //  .enable_cursor = false,
-  //  .enable_window_resizing = false,
-  //}) {
-  //  if(internal::_window != 0) {
-  //    panic("Window settings can only be applied before the window is created!");
-  //  }
-
-  //  name_(config.name);
-  //  dimensions(config.dimensions);
-  //  cursor(config.enable_cursor);
-  //  window_resizing(config.enable_window_resizing);
-  //}
-};
-
-// INLINE IMPL
-namespace quark::platform::window {
-  inline std::string name() {
-    return internal::_config.name;
-  }
-
-  inline void name(const char* name) {
-    if(internal::_window != 0) {
-      panic("Setting the window name is currently not supported after the window is created!");
-    }
-
-    internal::_config.name = std::string(name);
-  }
-
-  inline ivec2 dimensions() {
-    return internal::_config.dimensions;
-  }
-
-  inline void close() {
-    glfwSetWindowShouldClose(quark::platform::window::internal::_window, GLFW_TRUE);
-  }
-
-  inline bool should_close() {
-    return glfwWindowShouldClose(internal::_window);
-  }
-
-  inline void poll_events() {
-    glfwPollEvents();
-  }
-
-  inline int key(int key) {
-    return glfwGetKey(internal::_window, key);
-  }
-
-  inline int mouse_button(int mouse) {
-    return glfwGetMouseButton(internal::_window, mouse);
-  }
-};
-
-// EXPORTS
 namespace quark {
-  namespace window = platform::window;
+  // Timing
+  struct Timestamp {
+    f64 value;
+  };
+
+  namespace_enum(InputState, i32,
+    Press,
+    Release,
+  );
+
+  namespace_enum(Key, i32,
+    Apostrophe     = GLFW_KEY_APOSTROPHE,
+    Comma          = GLFW_KEY_COMMA,
+    Minus          = GLFW_KEY_MINUS,
+    Period         = GLFW_KEY_PERIOD,
+    Slash          = GLFW_KEY_SLASH,
+    Semicolon      = GLFW_KEY_SEMICOLON,
+    Equal          = GLFW_KEY_EQUAL,
+    LeftBracket    = GLFW_KEY_LEFT_BRACKET,
+    Backslash      = GLFW_KEY_BACKSLASH,
+    RightBracket   = GLFW_KEY_RIGHT_BRACKET,
+    GraveAccent    = GLFW_KEY_GRAVE_ACCENT,
+
+    Space          = GLFW_KEY_SPACE,
+
+    Num0           = GLFW_KEY_0,
+    Num1           = GLFW_KEY_1,
+    Num2           = GLFW_KEY_2,
+    Num3           = GLFW_KEY_3,
+    Num4           = GLFW_KEY_4,
+    Num5           = GLFW_KEY_5,
+    Num6           = GLFW_KEY_6,
+    Num7           = GLFW_KEY_7,
+    Num8           = GLFW_KEY_8,
+    Num9           = GLFW_KEY_9,
+
+    A              = GLFW_KEY_A,
+    B              = GLFW_KEY_B,
+    C              = GLFW_KEY_C,
+    D              = GLFW_KEY_D,
+    E              = GLFW_KEY_E,
+    F              = GLFW_KEY_F,
+    G              = GLFW_KEY_G,
+    H              = GLFW_KEY_H,
+    I              = GLFW_KEY_I,
+    J              = GLFW_KEY_J,
+    K              = GLFW_KEY_K,
+    L              = GLFW_KEY_L,
+    M              = GLFW_KEY_M,
+    N              = GLFW_KEY_N,
+    O              = GLFW_KEY_O,
+    P              = GLFW_KEY_P,
+    Q              = GLFW_KEY_Q,
+    R              = GLFW_KEY_R,
+    S              = GLFW_KEY_S,
+    T              = GLFW_KEY_T,
+    U              = GLFW_KEY_U,
+    V              = GLFW_KEY_V,
+    W              = GLFW_KEY_W,
+    X              = GLFW_KEY_X,
+    Y              = GLFW_KEY_Y,
+    Z              = GLFW_KEY_Z,
+
+    UpArrow        = GLFW_KEY_UP,
+    DownArrow      = GLFW_KEY_DOWN,
+    LeftArrow      = GLFW_KEY_LEFT,
+    RightArrow     = GLFW_KEY_RIGHT,
+
+    LeftControl    = GLFW_KEY_LEFT_CONTROL,
+    LeftShift      = GLFW_KEY_LEFT_SHIFT,
+  );
+
+  namespace_enum(MouseButton, i32,
+    Button1        = GLFW_MOUSE_BUTTON_1,
+    Button2        = GLFW_MOUSE_BUTTON_2,
+    Button3        = GLFW_MOUSE_BUTTON_3,
+    Button4        = GLFW_MOUSE_BUTTON_4,
+    Button5        = GLFW_MOUSE_BUTTON_5,
+    Button6        = GLFW_MOUSE_BUTTON_6,
+    Button7        = GLFW_MOUSE_BUTTON_7,
+    Button8        = GLFW_MOUSE_BUTTON_8,
+
+    LeftButton     = GLFW_MOUSE_BUTTON_LEFT  ,
+    RightButton    = GLFW_MOUSE_BUTTON_RIGHT ,
+    MiddleButton   = GLFW_MOUSE_BUTTON_MIDDLE,
+  );
+
+  namespace_enum(GamepadButton, i32,
+    A,
+    B,
+    X,
+    Y,
+
+    LeftButton,
+    RightButton,
+
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
+  );
+
+  namespace_enum(MouseAxis, i32,
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
+    ScrollUp,
+    ScrollDown,
+    ScrollLeft,
+    ScrollRight,
+  );
+
+  namespace_enum(GamepadAxis, i32,
+    LeftStickUp,
+    LeftStickDown,
+    LeftStickLeft,
+    LeftStickRight,
+    RightStickUp,
+    RightStickDown,
+    RightStickLeft,
+    RightStickRight,
+    LeftTrigger,
+    RightTrigger,
+  );
+
+  platform_var GLFWwindow* _GLOBAL_WINDOW_PTR;
+  platform_var const char* _CONFIG_WINDOW_NAME;
+  platform_var ivec2 _CONFIG_WINDOW_DIMENSIONS;
+  platform_var bool _CONFIG_WINDOW_ENABLE_CURSOR;
+  platform_var bool _CONFIG_WINDOW_ENABLE_RESIZING;
+  platform_var bool _CONFIG_WINDOW_ENABLE_RAW_MOUSE;
+
+  // Window control
+  platform_api void init_window();
+  platform_api void deinit_window();
+
+  // Window config
+  platform_api const char* get_window_name();
+  platform_api ivec2 get_window_dimensions();
+  platform_api bool get_window_should_close();
+
+  platform_api void set_window_name(const char* window_name);
+  platform_api void set_window_should_close();
+
+  // Input handling
+  platform_api InputState::Enum get_key_state(Key::Enum key);
+  platform_api InputState::Enum get_mouse_button_state(MouseButton::Enum mouse_button);
+  platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButton::Enum gamepad_button);
+
+  platform_api bool get_key_down(Key::Enum key);
+  platform_api bool get_mouse_button_down(Key::Enum key);
+  platform_api bool get_gamepad_button_down(Key::Enum key);
+
+  platform_api bool get_key_up(Key::Enum key);
+  platform_api bool get_mouse_button_up(Key::Enum key);
+  platform_api bool get_gamepad_button_up(Key::Enum key);
+
+  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxis::Enum gamepad_axis);
+
+  platform_api ivec2 get_mouse_position();
+
+  // Input updating 
+  platform_api void update_window_inputs();
+
+  // Timing
+  platform_api Timestamp get_timestamp();
+  platform_api f64 get_timestamp_difference(Timestamp A, Timestamp B);
 };
