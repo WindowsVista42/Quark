@@ -18,7 +18,7 @@ namespace quark {
   platform_api void wait_threadpool_finished();
   platform_api bool get_threadpool_finished();
 
-  platform_api const isize get_threadpool_thread_count();
+  platform_api isize get_threadpool_thread_count();
 };
 
 //namespace quark::platform::threadpool {

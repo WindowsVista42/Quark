@@ -76,10 +76,10 @@ namespace quark::engine::global {
     // Add our default engine systems
     {
       system::list("init")
-        .add(def(threadpool::internal::init), -1)
+        .add(def(init_threadpool), -1)
         .add(def(init_global_alloc), -1)
         .add(def(add_asset_types), -1)
-        .add(def(window::init), -1)
+        .add(def(init_window), -1)
         .add(def(render::internal::init_vulkan), -1) // NOTE(sean): add shaders after this!
         .add(def(render::internal::init_mesh_buffer), -1) // NOTE(sean): add meshes after this!
         .add(def(render::internal::init_command_pools_and_buffers), -1) // NOTE(sean): add textures after this!
@@ -106,7 +106,7 @@ namespace quark::engine::global {
 
       system::list("update")
         .add(def(render::internal::print_performance_statistics), -1)
-        .add(def(window::poll_events), -1)
+        .add(def(update_window_inputs), -1)
         .add(def(input::update_all), -1)
 
         .add(def(update_tag), -1)
@@ -163,7 +163,7 @@ namespace quark::engine::global {
     auto t1 = std::chrono::high_resolution_clock::now();
     std::cout << "init time: " << std::chrono::duration<f64>(t1 - t0).count() << " s" << std:: endl;
 
-    while(!window::should_close()) {
+    while(!get_window_should_close()) {
       system::list("update").run(false);
       state::transition_if_changed();
     }

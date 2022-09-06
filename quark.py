@@ -220,7 +220,8 @@ def build_internal(mode):
 
     print("inv: ", inv_plugin_deps)
 
-    #changed_set.add("apple")
+    #changed_set.add("quark_engine")
+    #changed_set.add("quark_loader")
 
     while len(changed_set) != 0:
         p = changed_set.pop()
@@ -231,6 +232,8 @@ def build_internal(mode):
         rebuild_set.add(p)
 
     print("rebuild: ", rebuild_set)
+
+    rebuild_set.add("quark_loader")
 
     # rebuild in-order everything that needs to be rebuilt
     for p in rebuild_set:

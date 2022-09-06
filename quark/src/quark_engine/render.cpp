@@ -114,7 +114,7 @@ namespace quark::engine::render {
     SUN_CAMERA.zfar = 500.0f;
     SUN_CAMERA.fov = 16.0f;
     _sun_view_projection = update_matrices(SUN_CAMERA, 2048, 2048);
-    _main_view_projection = update_matrices(MAIN_CAMERA, window::dimensions().x, window::dimensions().y);
+    _main_view_projection = update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
   }
   
   void update_world_data() {
@@ -274,8 +274,8 @@ namespace quark::engine::render {
     render_pass_begin_info.renderPass = _depth_prepass_render_pass;
     render_pass_begin_info.renderArea.offset.x = 0;
     render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
-    render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+    render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
+    render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
     render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
     render_pass_begin_info.clearValueCount = 1;
     render_pass_begin_info.pClearValues = clear_values;
@@ -328,8 +328,8 @@ namespace quark::engine::render {
     render_pass_begin_info.renderPass = _default_render_pass;
     render_pass_begin_info.renderArea.offset.x = 0;
     render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.extent.width = window::dimensions().x;
-    render_pass_begin_info.renderArea.extent.height = window::dimensions().y;
+    render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
+    render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
     render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
     render_pass_begin_info.clearValueCount = 2;
     render_pass_begin_info.pClearValues = clear_values;
@@ -786,7 +786,7 @@ namespace quark::engine::render {
       for_every(index, glfw_extension_count) { builder = builder.enable_extension(glfw_extensions[index]); }
     
       #ifdef DEBUG
-        builder = builder.request_validation_layers(true);
+        builder = builder.request_validation_layers(false);
       #else
         builder = builder.request_validation_layers(false);
       #endif
@@ -798,7 +798,7 @@ namespace quark::engine::render {
       _instance = vkb_inst.instance;
       _debug_messenger = vkb_inst.debug_messenger;
     
-      glfwCreateWindowSurface(_instance, window::internal::_window, 0, &_surface);
+      glfwCreateWindowSurface(_instance, _GLOBAL_WINDOW_PTR, 0, &_surface);
     
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;
@@ -938,7 +938,7 @@ namespace quark::engine::render {
     
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
       swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
-      swapchain_builder = swapchain_builder.set_desired_extent(window::dimensions().x, window::dimensions().y);
+      swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     
       vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
@@ -953,14 +953,14 @@ namespace quark::engine::render {
       info = {
         .format = ImageFormat::LinearRgba16,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .resolution = window::dimensions() / 8,
+        .resolution = get_window_dimensions() / 8,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_color");
 
       info = {
         .format = ImageFormat::LinearD24S8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .resolution = window::dimensions() / 8,
+        .resolution = get_window_dimensions() / 8,
       };
       ImageResource::create_one_per_frame(info, "forward_pass_depth");
     
@@ -975,7 +975,7 @@ namespace quark::engine::render {
         ImageResource::Info s_info = {
           .format = ImageFormat::LinearBgra8,
           .usage = ImageUsage::Present | ImageUsage::Dst,
-          .resolution = window::dimensions(),
+          .resolution = get_window_dimensions(),
           .samples = ImageSamples::One,
         };
 
@@ -1128,9 +1128,12 @@ namespace quark::engine::render {
       RenderEffect::Info::cache.add("color_line", re_info);
 
       auto t0 = std::chrono::high_resolution_clock::now();
-      threadpool::internal::_thread_pool.push([]() {RenderEffect::create("color_fill"); });
-      threadpool::internal::_thread_pool.push([]() {RenderEffect::create("color_line"); });
-      threadpool::internal::_thread_pool.join();
+      add_threadpool_work([]() {RenderEffect::create("color_fill"); });
+      add_threadpool_work([]() {RenderEffect::create("color_line"); });
+      wait_threadpool_finished();
+      //threadpool::internal::_thread_pool.push();
+      //threadpool::internal::_thread_pool.push();
+      //threadpool::internal::_thread_pool.join();
       auto t1 = std::chrono::high_resolution_clock::now();
 
       std::cout << "Total Effect time: " << std::chrono::duration<double>(t1 - t0).count() << "\n";

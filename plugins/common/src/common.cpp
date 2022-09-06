@@ -1,16 +1,17 @@
 #define COMMON_INTERNAL
 #include "common.hpp"
-// #include "../../../quark/src/module.hpp"
+#include "../../../quark/src/module.hpp"
+
 using namespace quark;
 
 namespace common {
   void exit_on_esc() {
-    if(window::key(GLFW_KEY_ESCAPE)) {
-      window::close();
+    if(get_key_down(KeyCode::Escape)) {
+      set_window_should_close();
     }
   }
 };
-#include "../../../quark/src/module.hpp"
+//#include "../../../quark/src/module.hpp"
 
 #include "common.hpp"
 using namespace quark;
@@ -722,6 +723,9 @@ void add_system_relative(const char* system_name, engine::system::system_functio
 mod_main() {
   def_res(render::Camera, MAIN_CAMERA);
 
+  _CONFIG_WINDOW_DIMENSIONS.x = 1920 / 2;
+  _CONFIG_WINDOW_DIMENSIONS.y = 1080 / 2;
+
   //add_resource(render::Camera, MAIN_CAMERA);
 
   set_system_list("state_init");
@@ -735,6 +739,7 @@ mod_main() {
   set_system_list("update");
   add_system_relative(def((void (*)())common::update0), "update_tag", 1);
   add_system_relative(def(common::render_things), "render::begin_frame", 1);
+  add_system(def(common::exit_on_esc), -1);
 
   //system::list("state_init")
   //  .add(def(common::init), -1)

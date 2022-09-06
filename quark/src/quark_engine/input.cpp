@@ -31,8 +31,8 @@ void mouse_callback(GLFWwindow* window, double x, double y) {
 }
 
 void init() {
-  glfwSetScrollCallback(window::internal::_window, scroll_callback);
-  glfwSetCursorPosCallback(window::internal::_window, mouse_callback);
+  glfwSetScrollCallback(_GLOBAL_WINDOW_PTR, scroll_callback);
+  glfwSetCursorPosCallback(_GLOBAL_WINDOW_PTR, mouse_callback);
 }
 
 void bind(const char* name, InputEnum input) {
@@ -65,7 +65,7 @@ void unbind(const char* name, InputEnum input) {
 }
 
 void update_key(ActionState* state, InputEnum input) {
-  i32 k = glfwGetKey(window::internal::_window, input - Key::BIAS);
+  i32 k = glfwGetKey(_GLOBAL_WINDOW_PTR, input - Key::BIAS);
 
   if(k == GLFW_PRESS) {
     state->current = 1.0f;
@@ -77,7 +77,7 @@ void update_key(ActionState* state, InputEnum input) {
 void update_mouse(ActionState* state, InputEnum input) {
   // mouse button input
   if(input >= Mouse::Button1 && input <= Mouse::Button8) {
-    i32 k = glfwGetMouseButton(window::internal::_window, input - Mouse::BIAS);
+    i32 k = glfwGetMouseButton(_GLOBAL_WINDOW_PTR, input - Mouse::BIAS);
 
     if(k == GLFW_PRESS) {
       state->current = 1.0f;

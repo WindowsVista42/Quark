@@ -1,7 +1,7 @@
 #define QUARK_PLATFORM_INTERNAL
 #include "threadpool.hpp"
 
-namespace quark::platform::threadpool {
+namespace quark {
   ThreadPool THREADPOOL;
 
   void init_threadpool() {

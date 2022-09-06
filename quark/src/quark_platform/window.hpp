@@ -13,11 +13,11 @@ namespace quark {
   };
 
   namespace_enum(InputState, i32,
-    Press,
-    Release,
+    Press = GLFW_PRESS,
+    Release = GLFW_RELEASE,
   );
 
-  namespace_enum(Key, i32,
+  namespace_enum(KeyCode, i32,
     Apostrophe     = GLFW_KEY_APOSTROPHE,
     Comma          = GLFW_KEY_COMMA,
     Minus          = GLFW_KEY_MINUS,
@@ -29,6 +29,7 @@ namespace quark {
     Backslash      = GLFW_KEY_BACKSLASH,
     RightBracket   = GLFW_KEY_RIGHT_BRACKET,
     GraveAccent    = GLFW_KEY_GRAVE_ACCENT,
+    Escape         = GLFW_KEY_ESCAPE,
 
     Space          = GLFW_KEY_SPACE,
 
@@ -79,7 +80,7 @@ namespace quark {
     LeftShift      = GLFW_KEY_LEFT_SHIFT,
   );
 
-  namespace_enum(MouseButton, i32,
+  namespace_enum(MouseButtonCode, i32,
     Button1        = GLFW_MOUSE_BUTTON_1,
     Button2        = GLFW_MOUSE_BUTTON_2,
     Button3        = GLFW_MOUSE_BUTTON_3,
@@ -94,7 +95,7 @@ namespace quark {
     MiddleButton   = GLFW_MOUSE_BUTTON_MIDDLE,
   );
 
-  namespace_enum(GamepadButton, i32,
+  namespace_enum(GamepadButtonCode, i32,
     A,
     B,
     X,
@@ -109,7 +110,7 @@ namespace quark {
     DPadRight,
   );
 
-  namespace_enum(MouseAxis, i32,
+  namespace_enum(MouseAxisCode, i32,
     MoveUp,
     MoveDown,
     MoveLeft,
@@ -120,7 +121,7 @@ namespace quark {
     ScrollRight,
   );
 
-  namespace_enum(GamepadAxis, i32,
+  namespace_enum(GamepadAxisCode, i32,
     LeftStickUp,
     LeftStickDown,
     LeftStickLeft,
@@ -134,7 +135,7 @@ namespace quark {
   );
 
   platform_var GLFWwindow* _GLOBAL_WINDOW_PTR;
-  platform_var const char* _CONFIG_WINDOW_NAME;
+  platform_var std::string _CONFIG_WINDOW_NAME;
   platform_var ivec2 _CONFIG_WINDOW_DIMENSIONS;
   platform_var bool _CONFIG_WINDOW_ENABLE_CURSOR;
   platform_var bool _CONFIG_WINDOW_ENABLE_RESIZING;
@@ -145,7 +146,7 @@ namespace quark {
   platform_api void deinit_window();
 
   // Window config
-  platform_api const char* get_window_name();
+  platform_api std::string get_window_name();
   platform_api ivec2 get_window_dimensions();
   platform_api bool get_window_should_close();
 
@@ -153,21 +154,21 @@ namespace quark {
   platform_api void set_window_should_close();
 
   // Input handling
-  platform_api InputState::Enum get_key_state(Key::Enum key);
-  platform_api InputState::Enum get_mouse_button_state(MouseButton::Enum mouse_button);
-  platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButton::Enum gamepad_button);
+  platform_api InputState::Enum get_key_state(KeyCode::Enum key);
+  platform_api InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button);
+  platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button);
 
-  platform_api bool get_key_down(Key::Enum key);
-  platform_api bool get_mouse_button_down(Key::Enum key);
-  platform_api bool get_gamepad_button_down(Key::Enum key);
+  platform_api bool get_key_down(KeyCode::Enum key);
+  platform_api bool get_mouse_button_down(MouseButtonCode::Enum key);
+  platform_api bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode::Enum key);
 
-  platform_api bool get_key_up(Key::Enum key);
-  platform_api bool get_mouse_button_up(Key::Enum key);
-  platform_api bool get_gamepad_button_up(Key::Enum key);
+  platform_api bool get_key_up(KeyCode::Enum key);
+  platform_api bool get_mouse_button_up(MouseButtonCode::Enum key);
+  platform_api bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode::Enum key);
 
-  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxis::Enum gamepad_axis);
+  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis);
 
-  platform_api ivec2 get_mouse_position();
+  platform_api vec2 get_mouse_position();
 
   // Input updating 
   platform_api void update_window_inputs();
