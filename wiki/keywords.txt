@@ -1,0 +1,17 @@
+action keywords:
+
+- add
+- get
+- set
+- init
+- deinit
+- do
+- begin
+- end
+- wait
+- on
+- alloc
+- dealloc
+- update
+- bind
+- unbind
