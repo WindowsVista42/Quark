@@ -1,5 +1,5 @@
 #define QUARK_PLATFORM_INTERNAL
-#include "window.hpp"
+#include "quark_platform.hpp"
 
 namespace quark {
   GLFWwindow* _GLOBAL_WINDOW_PTR;
