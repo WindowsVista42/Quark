@@ -197,4 +197,87 @@ namespace quark {
     return true;
   }
 #endif
+
+  LinearAllocator create_linear_allocator(usize capacity) {
+    u8* data = (u8*)malloc(capacity);
+
+    if(data == 0) {
+      panic("Failed to create linear allocator!");
+    }
+
+    return LinearAllocator {
+      .data = data,
+      .size = 0,
+      .capacity = capacity,
+    };
+  }
+
+  LinearAllocationTracker create_linear_allocation_tracker(usize capacity) {
+    return LinearAllocationTracker {
+      .size = 0,
+      .capacity = capacity
+    };
+  }
+
+  void destroy_linear_allocator(LinearAllocator* allocator) {
+    free(allocator->data);
+    allocator->size = 0;
+    allocator->capacity = 0;
+  }
+
+  void destroy_linear_allocation_tracker(LinearAllocationTracker* allocator) {
+    allocator->size = 0;
+    allocator->capacity = 0;
+  }
+
+  u8* alloc(LinearAllocator* allocator, usize size) {
+    usize new_length = allocator->size + size;
+
+    // TODO: figure out how I want to conditional enable this
+    if (new_length > allocator->capacity) {
+      panic("Failed to allocate to FixedBufferAllocator!");
+    }
+
+    u8* ptr = (allocator->data + allocator->size);
+    allocator->size += size;
+    return ptr;
+  }
+
+  usize alloc(LinearAllocationTracker* allocator, usize size) {
+    usize new_length = allocator->size + size;
+
+    // TODO: figure out how I want to conditional enable this
+    if (new_length > allocator->capacity) {
+      panic("Failed to allocate to FixedBufferAllocator!");
+    }
+
+    usize offset = allocator->size;
+    allocator->size += size;
+    return offset;
+  }
+
+  void reset_alloc(LinearAllocator* allocator) {
+    allocator->size = 0;
+  }
+
+  void reset_alloc(LinearAllocationTracker* allocator) {
+    allocator->size = 0;
+  }
+
+  platform_api void clear_alloc(LinearAllocator* allocator) {
+    memset(allocator->data, 0, allocator->capacity);
+    allocator->size = 0;
+  }
+
+  usize get_alloc_unused(LinearAllocator* allocator) {
+    return allocator->capacity - allocator->size;
+
+    // might need to use this calculation for some reason
+    // usize rem = _capacity - _size;
+    // return rem > 0 ? rem : 0;
+  }
+
+  usize get_alloc_unused(LinearAllocationTracker* allocator) {
+    return allocator->capacity - allocator->size;
+  }
 };

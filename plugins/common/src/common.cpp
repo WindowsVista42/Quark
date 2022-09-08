@@ -727,6 +727,7 @@ mod_main() {
   _CONFIG_WINDOW_DIMENSIONS.y = 1080 / 2;
 
   //add_resource(render::Camera, MAIN_CAMERA);
+  //
 
   set_system_list("state_init");
   add_system(def((void (*)())common::init), -1);
@@ -739,7 +740,7 @@ mod_main() {
   set_system_list("update");
   add_system_relative(def((void (*)())common::update0), "update_tag", 1);
   add_system_relative(def(common::render_things), "render::begin_frame", 1);
-  add_system(def(common::exit_on_esc), -1);
+  //add_system(def(common::exit_on_esc), -1);
 
   //system::list("state_init")
   //  .add(def(common::init), -1)

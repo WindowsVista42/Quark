@@ -5,8 +5,10 @@
 #include <GLFW/glfw3.h>
 #include <threadpool.hpp>
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
+#if defined(_WIN64)
+#define _AMD64_
+#include <libloaderapi.h>
+#undef max
 #endif
 
 namespace quark {
@@ -27,6 +29,7 @@ namespace quark {
   };
 #endif
 
+  // Allocators
   struct LinearAllocator {
     u8* data;
     usize size;
@@ -229,15 +232,23 @@ namespace quark {
 
   // Allocator handling
   platform_api LinearAllocator create_linear_allocator(usize capacity);
-  platform_api void destroy_linear_allocator(LinearAllocator* allocator);
-  platform_api usize get_linear_allocator_remainder(LinearAllocator* allocator);
-  platform_api void reset_linear_allocator(LinearAllocator* allocator);
-
   platform_api LinearAllocationTracker create_linear_allocation_tracker(usize capacity);
-  platform_api usize get_linear_allocation_tracker_remainder(LinearAllocationTracker* allocator, usize capacity);
-  platform_api void reset_linear_allocation_tracker(LinearAllocationTracker* allocator, usize capacity);
+
+  platform_api void destroy_linear_allocator(LinearAllocator* allocator);
+  platform_api void destroy_linear_allocation_tracker(LinearAllocationTracker* allocator);
 
   // Allocation functions
   platform_api u8* alloc(LinearAllocator* allocator, usize size);
   platform_api usize alloc(LinearAllocationTracker* allocator, usize size);
+
+  static u8* (*alloc_la)(LinearAllocator* allocator, usize size) = alloc;
+  static usize (*alloc_lat)(LinearAllocationTracker* allocator, usize size) = alloc;
+
+  platform_api void reset_alloc(LinearAllocator* allocator);
+  platform_api void reset_alloc(LinearAllocationTracker* allocator);
+
+  platform_api void clear_alloc(LinearAllocator* allocator);
+
+  platform_api usize get_alloc_unused(LinearAllocator* allocator);
+  platform_api usize get_alloc_unused(LinearAllocationTracker* allocator);
 };

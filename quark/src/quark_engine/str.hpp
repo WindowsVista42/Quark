@@ -14,23 +14,23 @@ namespace quark::engine {
   
     str() {
       this->length = 0;
-      this->data = (char*)alloc.alloc(this->length);
+      this->data = (char*)alloc_la(&alloc, this->length);
     }
   
     str(const char* chars) {
       this->length = strlen(chars);
-      this->data = (char*)alloc.alloc(this->length);
+      this->data = (char*)alloc_la(&alloc, this->length);
       memcpy(data, chars, this->length);
     }
   
     template <typename... T>
     str(const char* format, T... t) {
-      this->data = (char*)alloc.alloc(0);
+      this->data = (char*)alloc_la(&alloc, 0);//.alloc(0);
       this->length = sprintf(this->data, format, t...);
     }
   
     ~str() {
-      alloc.reset();
+      reset_alloc(&alloc);
       this->data = 0;
       this->length = 0;
     }
@@ -52,42 +52,47 @@ namespace quark::engine {
   
     str operator +(i32 a) {
       int len = sprintf(data + length, "%d", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);//alloc.alloc(len);
       length += len;
       return *this;
     }
   
     str operator +(i64 a) {
       int len = sprintf(data + length, "%lld", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);
+      //alloc.alloc(len);
       length += len;
       return *this;
     }
   
     str operator +(u32 a) {
       int len = sprintf(data + length, "%u", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);
+      //alloc.alloc(len);
       length += len;
       return *this;
     }
   
     str operator +(u64 a) {
       int len = sprintf(data + length, "%llu", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);
+      //alloc.alloc(len);
       length += len;
       return *this;
     }
   
     str operator +(f32 a) {
       int len = sprintf(data + length, "%f", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);
+      //alloc.alloc(len);
       length += len;
       return *this;
     }
   
     str operator +(f64 a) {
       int len = sprintf(data + length, "%lf", a);
-      alloc.alloc(len);
+      alloc_la(&alloc, len);
+      //alloc.alloc(len);
       length += len;
       return *this;
     }

@@ -193,7 +193,8 @@ namespace quark::engine::reflect {
     }
   
     printf("\n");
-    SCRATCH.reset();
+    reset_alloc(&SCRATCH);
+    //SCRATCH.reset();
   }
 
   void add_base_types() {

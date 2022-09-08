@@ -21,9 +21,10 @@ namespace quark::engine::global {
   LinearAllocator SCRATCH = LinearAllocator {};
 
   void init_global_alloc() {
-    SCRATCH.init(100 * MB);
-    str::alloc.init(10 * KB);
-    str::alloc_head = str::alloc.alloc(0);
+    SCRATCH = create_linear_allocator(100 * MB);
+    //SCRATCH.init(100 * MB);
+    str::alloc = create_linear_allocator(10 * KB);
+    str::alloc_head = alloc(&str::alloc, 0);
   }
 
   void add_asset_types() {

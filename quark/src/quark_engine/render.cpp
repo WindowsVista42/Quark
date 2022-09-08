@@ -849,14 +849,15 @@ namespace quark::engine::render {
         _transfer_queue_family = _graphics_queue_family;
       }
 
-      _render_alloc.init(100 * MB);
+      _render_alloc = create_linear_allocator(100 * MB);
+      //_render_alloc.init(100 * MB);
     }
 
     void init_mesh_buffer() {
       // Init staging buffer and allocation tracker
       constexpr usize _BUFFER_SIZE = 100 * MB;
       _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      _gpu_vertices_tracker.init(_BUFFER_SIZE);
+      _gpu_vertices_tracker = create_linear_allocation_tracker(_BUFFER_SIZE);
 
       BufferResource::Info info = {};
 
@@ -885,11 +886,14 @@ namespace quark::engine::render {
       LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
     
       _gpu_vertices = create_allocated_buffer(
-          old_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+          old_tracker.size * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
-      _gpu_vertices_tracker.deinit();
-      _gpu_vertices_tracker.init(old_tracker.size());
-      _gpu_vertices_tracker.alloc(old_tracker.size());
+      destroy_linear_allocation_tracker(&_gpu_vertices_tracker);
+      _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
+      alloc(&_gpu_vertices_tracker, old_tracker.size);
+      //_gpu_vertices_tracker.deinit();
+      //_gpu_vertices_tracker.init(old_tracker.size());
+      //_gpu_vertices_tracker.alloc(old_tracker.size());
     
       // buffer copy
       {
@@ -898,7 +902,7 @@ namespace quark::engine::render {
         VkBufferCopy copy = {};
         copy.dstOffset = 0;
         copy.srcOffset = 0;
-        copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
+        copy.size = _gpu_vertices_tracker.size * sizeof(VertexPNT);
         vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
     
         end_quick_commands(cmd);
@@ -1447,7 +1451,7 @@ namespace quark::engine::render {
       int size = ftell(fp);
       rewind(fp);
     
-      u8* buffer = (u8*)SCRATCH.alloc(size * sizeof(u8));
+      u8* buffer = (u8*)alloc(&SCRATCH, size * sizeof(u8));
     
       fread(buffer, size, 1, fp);
     
@@ -1459,12 +1463,12 @@ namespace quark::engine::render {
       module_create_info.pCode = (u32*)buffer;
       module_create_info.pNext = 0;
     
-      VkVertexShader* vert_shader = (VkVertexShader*)_render_alloc.alloc(sizeof(VkVertexShader));
+      VkVertexShader* vert_shader = (VkVertexShader*)alloc(&_render_alloc, sizeof(VkVertexShader));
       vk_check(vkCreateShaderModule(_device, &module_create_info, 0, &vert_shader->_));
     
       // printf("Loaded shader: %s\n", path->c_str());
     
-      SCRATCH.reset();
+      reset_alloc(&SCRATCH);
     
       // assets.add_raw_data<".vert.spv", VkShaderModule>(name,
       // vert_shaders[vert_shader_count - 1]);
@@ -1484,7 +1488,7 @@ namespace quark::engine::render {
       int size = ftell(fp);
       rewind(fp);
     
-      u8* buffer = (u8*)SCRATCH.alloc(size * sizeof(u8));
+      u8* buffer = (u8*)alloc(&SCRATCH, size * sizeof(u8));
     
       fread(buffer, size, 1, fp);
     
@@ -1496,12 +1500,12 @@ namespace quark::engine::render {
       module_create_info.pCode = (u32*)buffer;
       module_create_info.pNext = 0;
     
-      VkFragmentShader* frag_shader = (VkFragmentShader*)_render_alloc.alloc(sizeof(VkFragmentShader));
+      VkFragmentShader* frag_shader = (VkFragmentShader*)alloc(&_render_alloc, sizeof(VkFragmentShader));
       vk_check(vkCreateShaderModule(_device, &module_create_info, 0, &frag_shader->_));
     
       // printf("Loaded shader: %s\n", path->c_str());
     
-      SCRATCH.reset();
+      reset_alloc(&SCRATCH);
     
       return frag_shader;
     }
@@ -1512,7 +1516,7 @@ namespace quark::engine::render {
     AllocatedMesh create_mesh(void* data, usize size, usize elemsize) {
       AllocatedMesh mesh = {};
       mesh.size = size;
-      mesh.offset = _gpu_vertices_tracker.alloc(size);
+      mesh.offset = alloc(&_gpu_vertices_tracker, size);
     
       void* ptr;
       vmaMapMemory(_gpu_alloc, _gpu_vertices.alloc, &ptr);
@@ -1553,7 +1557,7 @@ namespace quark::engine::render {
       for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
     
       usize memsize = size * sizeof(VertexPNT);
-      VertexPNT* data = (VertexPNT*)_render_alloc.alloc(memsize);
+      VertexPNT* data = (VertexPNT*)alloc(&_render_alloc, memsize);
       usize count = 0;
     
       vec3 max_ext = {0.0f, 0.0f, 0.0f};
@@ -1803,7 +1807,7 @@ namespace quark::engine::render {
       vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
     
       //TODO(sean): store our AllocatedImage in the global textures array and 
-      Texture* texture = (Texture*)_render_alloc.alloc(sizeof(Texture));
+      Texture* texture = (Texture*)alloc(&_render_alloc, sizeof(Texture));
       texture->id = _global_constants_layout_info[2].count;
     
       _gpu_images[_global_constants_layout_info[2].count] = alloc_image;
@@ -1859,8 +1863,8 @@ namespace quark::engine::render {
     }
     
     void deinit_allocators() {
-      _render_alloc.deinit();
-      SCRATCH.deinit();
+      destroy_linear_allocator(&_render_alloc);
+      destroy_linear_allocator(&SCRATCH);
       vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
       vmaDestroyAllocator(_gpu_alloc);
     }
