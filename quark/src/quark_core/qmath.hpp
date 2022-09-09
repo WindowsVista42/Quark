@@ -6,7 +6,7 @@
 namespace quark::core::math {
   using simd_vec2 = float __attribute__((ext_vector_type(2)));
   using simd_vec3 = float __attribute__((ext_vector_type(3)));
-  using simd_vec4 = float __attribute__((ext_vector_type(5)));
+  using simd_vec4 = float __attribute__((ext_vector_type(4)));
 
   struct vec2;
   struct vec3;
@@ -348,5 +348,115 @@ namespace quark {
   using namespace core::math;
 
   namespace math = core::math;
+};
+
+namespace a {
+  struct vec2 {
+    float x, y;
+
+    float& operator [](std::size_t i);
+  };
+
+  struct vec3 {
+    float x, y, z;
+
+    float& operator [](std::size_t i);
+  };
+
+  struct vec4 {
+    float x, y, z, w;
+
+    float& operator [](std::size_t i);
+  };
+
+  struct quat {
+    float x, y, z, w;
+
+    float& operator [](std::size_t i);
+  };
+
+  struct mat2 {
+    vec2 xs, ys;
+
+    vec2& operator [](std::size_t i);
+  };
+
+  struct mat3 {
+    vec3 xs, ys, zs;
+
+    vec3& operator [](std::size_t i);
+  };
+
+  struct mat4 {
+    vec4 xs, ys, zs, ws;
+
+    vec4& operator [](std::size_t i);
+  };
+
+  // Vec2 operations
+
+  static vec2 operator -(vec2 a);
+
+  static vec2 operator +(vec2 a, vec2 b);
+  static vec2 operator -(vec2 a, vec2 b);
+  static vec2 operator *(vec2 a, vec2 b);
+  static vec2 operator /(vec2 a, vec2 b);
+
+  static void operator +=(vec2& a, vec2 b);
+  static void operator -=(vec2& a, vec2 b);
+  static void operator *=(vec2& a, vec2 b);
+  static void operator /=(vec2& a, vec2 b);
+
+  static vec2 operator ==(vec2 a, vec2 b);
+  static vec2 operator !=(vec2 a, vec2 b);
+
+  static float dot(vec2 a);
+  static float length(vec2 a);
+  static float distance(vec2 a, vec2 b);
+  static float distance2(vec2 a, vec2 b);
+  static vec2 normalize(vec2 a);
+  static vec2 normalize_unchecked(vec2 a);
+  static vec2 normalize_max_length(vec2 a, float max_length);
+  static vec2 rotate(vec2 a, float angle);
+  static vec3 cartesian(vec2 a);
+
+  // Vec3 operations
+
+  static vec3 operator -(vec3 a);
+
+  static vec3 operator +(vec3 a, vec3 b);
+  static vec3 operator -(vec3 a, vec3 b);
+  static vec3 operator *(vec3 a, vec3 b);
+  static vec3 operator /(vec3 a, vec3 b);
+
+  static void operator +=(vec3& a, vec3 b);
+  static void operator -=(vec3& a, vec3 b);
+  static void operator *=(vec3& a, vec3 b);
+  static void operator /=(vec3& a, vec3 b);
+
+  static vec3 operator ==(vec3 a, vec3 b);
+  static vec3 operator !=(vec3 a, vec3 b);
+
+  static float dot(vec3 a);
+  static float length(vec3 a);
+  static float distance(vec3 a, vec3 b);
+  static float distance2(vec3 a, vec3 b);
+  static vec3 normalize(vec3 a);
+  static vec3 normalize_unchecked(vec3 a);
+  static vec3 normalize_max_length(vec3 a, float max_length);
+
+  //static vec2 operator +(vec2 a, vec2 b) {
+  //  return vec2 {
+  //    a.x + b.x,
+  //    a.y + b.y,
+  //  };
+  //}
+
+  //static vec2 rotate(vec2 a, float angle) {
+  //  return vec2 {
+  //    a.x * cosf(angle) - a.y * sinf(angle),
+  //    a.x * sinf(angle) + a.y * cosf(angle),
+  //  };
+  //}
 };
 
