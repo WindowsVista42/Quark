@@ -15,6 +15,8 @@ git-lfs
 ## Building and Running
 Clone using  
 ```git clone git@github.com:WindowsVista42/Quark.git --recursive```
+or (if ssh is not set up)
+```git clone https://github.com/WindowsVista42/Quark.git --recursive```
 
 ## Building  
 ```quark build debug```
