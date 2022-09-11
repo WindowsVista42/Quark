@@ -42,8 +42,8 @@ namespace quark {
   };
 
   namespace_enum(InputState, i32,
-    Press = GLFW_PRESS,
-    Release = GLFW_RELEASE,
+    Press          = GLFW_PRESS,
+    Release        = GLFW_RELEASE,
   );
 
   namespace_enum(KeyCode, i32,
@@ -230,17 +230,19 @@ namespace quark {
   platform_api void run_library_function(Library* library, const char* function_name);
   platform_api bool check_library_has_function(Library* library, const char* function_name);
 
-  // Allocator handling
+  // Allocator control
   platform_api LinearAllocator create_linear_allocator(usize capacity);
   platform_api LinearAllocationTracker create_linear_allocation_tracker(usize capacity);
 
   platform_api void destroy_linear_allocator(LinearAllocator* allocator);
   platform_api void destroy_linear_allocation_tracker(LinearAllocationTracker* allocator);
 
-  // Allocation functions
+  // Allocator handling
   platform_api u8* alloc(LinearAllocator* allocator, usize size);
   platform_api usize alloc(LinearAllocationTracker* allocator, usize size);
 
+  // Named versions of alloc()
+  // Useful if you have an allocator named "alloc"
   static u8* (*alloc_la)(LinearAllocator* allocator, usize size) = alloc;
   static usize (*alloc_lat)(LinearAllocationTracker* allocator, usize size) = alloc;
 
