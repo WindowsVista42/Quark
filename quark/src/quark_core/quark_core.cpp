@@ -1,7 +1,3 @@
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include <stdio.h>
-
 #include "quark_core.hpp"
 
 namespace quark_core {
@@ -14,16 +10,22 @@ namespace quark_core {
   }
 
   f32 length(vec2 a) {
-    return sqrtf(dot(a, a));
+    return sqrt(dot(a, a));
   }
 
   f32 length2(vec2 a) {
     return dot(a, a);
   }
 
-  f32 distance(vec2 a, vec2 b);
+  f32 distance(vec2 a, vec2 b) {
+    vec2 d = a - b;
+    return sqrt(dot(d, d));
+  }
 
-  f32 distance2(vec2 a, vec2 b);
+  f32 distance2(vec2 a, vec2 b) {
+    vec2 d = a - b;
+    return dot(d, d);
+  }
 
   vec2 normalize(vec2 a) {
     return a / length(a);
@@ -37,7 +39,12 @@ namespace quark_core {
     return a;
   }
 
-  vec2 rotate_point(vec2 a, f32 angle);
+  vec2 rotate_point(vec2 a, f32 angle) {
+    return vec2 {
+      a.x * cos(angle) - a.y * sin(angle),
+      a.y * cos(angle) + a.x * sin(angle)
+    };
+  }
 
   // vec3
 
@@ -46,16 +53,30 @@ namespace quark_core {
   }
 
   f32 length(vec3 a) {
-    return sqrtf(dot(a, a));
+    return sqrt(dot(a, a));
   }
 
   f32 length2(vec3 a) {
     return dot(a, a);
   }
 
-  f32 distance(vec3 a, vec3 b);
+  f32 distance(vec3 a, vec3 b) {
+    vec3 d = a - b;
+    return sqrt(dot(d, d));
+  }
 
-  f32 distance2(vec3 a, vec3 b);
+  f32 distance2(vec3 a, vec3 b) {
+    vec3 d = a - b;
+    return dot(d, d);
+  }
+
+  vec3 cross(vec3 a, vec3 b) {
+    return vec3 {
+      (a.y * b.z) - (a.z * b.y),
+      (a.z * b.x) - (a.x * b.z),
+      (a.x * b.y) - (a.y * b.x),
+    };
+  }
 
   vec3 normalize(vec3 a) {
     return a / length(a);
@@ -69,7 +90,13 @@ namespace quark_core {
     return a;
   }
 
-  vec3 rotate_point(vec3 a, quat rotation);
+  vec3 rotate_point(vec3 a, quat rotation) {
+    // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+    vec3 u = vec3 { rotation.x, rotation.y, rotation.z };
+    f32 s = rotation.w;
+    vec3 t = 2.0f * cross(u, a);
+    return a + s * t + cross(u, t);
+  }
 
   // vec4
 
@@ -81,9 +108,15 @@ namespace quark_core {
     return sqrt(dot(a, a));
   }
 
-  f32 distance(vec4 a, vec4 b);
+  f32 distance(vec4 a, vec4 b) {
+    vec4 d = a - b;
+    return sqrt(dot(d, d));
+  }
 
-  f32 distance2(vec4 a, vec4 b);
+  f32 distance2(vec4 a, vec4 b) {
+    vec4 d = a - b;
+    return dot(d, d);
+  }
 
   vec4 normalize(vec4 a) {
     return a / length(a);
@@ -101,7 +134,10 @@ namespace quark_core {
 
   vec3 forward_eul2(eul2 a);
   vec3 right_eul2(eul2 a);
-  vec3 up_eul2(eul2 a);
+
+  vec3 up_eul2(eul2 a) {
+    return VEC3_UNIT_Z;
+  }
 
   // eul3
 
@@ -111,81 +147,193 @@ namespace quark_core {
 
   // quat
 
-  vec3 forward_quat(quat a);
-  vec3 right_quat(quat a);
-  vec3 up_quat(quat a);
+  vec3 forward_quat(quat a) {
+    return rotate_point(VEC3_UNIT_Y, a);
+  }
+
+  vec3 right_quat(quat a) {
+    return rotate_point(VEC3_UNIT_X, a);
+  }
+
+  vec3 up_quat(quat a) {
+    return rotate_point(VEC3_UNIT_X, a);
+  }
+
   quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
   quat look_at_quat(vec3 position, vec3 target, vec3 up);
   quat axis_angle_quat(vec3 axis, f32 angle);
 
   // mat2
 
-  mat2 transpose(mat2 a);
-  mat2 look_dir_mat2(vec2 position, vec2 direction, vec2 up);
-  mat2 look_at_mat2(vec2 position, vec2 target, vec2 up);
-  mat2 translate_mat2(vec2 position);
-  mat2 rotate_mat2(f32 rotation);
-  mat2 scale_mat2(vec2 scale);
-  mat2 transform_mat2(vec2 position, f32 rotation, vec2 scale);
+  mat2 transpose(mat2 a) {
+    return mat2 {
+      vec2 { a[0][0], a[1][0], },
+      vec2 { a[0][1], a[1][1], },
+    };
+  }
 
   // mat3
 
-  mat3 transpose(mat3 a);
-  mat3 look_dir_mat3(vec3 position, vec3 direction, vec3 up);
-  mat3 look_at_mat3(vec3 position, vec3 target, vec3 up);
-  mat3 axis_angle_mat3(vec3 axis, f32 angle);
-  mat3 translate_mat3(vec3 position);
-  mat3 rotate_mat3(quat rotation);
-  mat3 scale_mat3(vec3 scale);
-  mat3 transform_mat3(vec3 position, quat rotation, vec3 scale);
+  mat3 transpose(mat3 a) {
+    return mat3 {
+      vec3 { a[0][0], a[1][0], a[2][0] },
+      vec3 { a[0][1], a[1][1], a[2][1] },
+      vec3 { a[0][2], a[1][2], a[2][2] },
+    };
+  }
 
   // mat4
 
-  mat4 transpose(mat4 a);
-  mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
-  mat4 orthographic(f32 right, f32 down, f32 near, f32 far);
-  mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
-  mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
-  mat4 axis_angle_mat4(vec3 axis, f32 angle);
-  mat4 translate_mat4(vec3 position);
-  mat4 rotate_mat4(quat rotation);
-  mat4 scale_mat4(vec3 scale);
-  mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
-
-  // utility
-
-  f32 radians(f32 degrees);
-  f32 degrees(f32 radians);
-  f32 clamp(f32 a, f32 min, f32 max);
-  f32 max(f32 a, f32 b);
-  f32 min(f32 a, f32 b);
-
-  f32 sin(f32 t) {
-    return sinf(t);
+  mat4 transpose(mat4 a) {
+    return mat4 {
+      vec4 { a[0][0], a[1][0], a[2][0], a[3][0] },
+      vec4 { a[0][1], a[1][1], a[2][1], a[3][1] },
+      vec4 { a[0][2], a[1][2], a[2][2], a[3][2] },
+      vec4 { a[0][3], a[1][3], a[2][3], a[3][3] },
+    };
   }
 
-  f32 cos(f32 t) {
-    return cosf(t);
+  mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far) {
+    f32 inv_length = 1.0f / (z_near - z_far);
+    f32 f = 1.0f / tan((0.5f * fov_radians));
+    f32 a = f / aspect;
+    f32 b = (z_near + z_far) * inv_length;
+    f32 c = (2.0f * z_near * z_far) * inv_length;
+
+    return mat4{
+      vec4 {    a, 0.0f, 0.0f,  0.0f },
+      vec4 { 0.0f,   -f, 0.0f,  0.0f },
+      vec4 { 0.0f, 0.0f,    b, -1.0f },
+      vec4 { 0.0f, 0.0f,    c,  0.0f },
+    };
   }
 
-  f32 tan(f32 t) {
-    return tanf(t);
+  mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far) {
+    mat4 result = MAT4_ZERO;
+    f32 a = 2.0f / (right - left);
+    f32 b = 2.0f / (top - bottom);
+    f32 c = -2.0f / (far - near);
+    f32 x = -((right + left) / (right - left));
+    f32 y = -((top + bottom) / (top - bottom));
+    f32 z = -((far + near) / (far - near));
+
+    return mat4 {
+      vec4 {    a, 0.0f, 0.0f, 0.0f },
+      vec4 { 0.0f,    b, 0.0f, 0.0f },
+      vec4 { 0.0f, 0.0f,    c, 0.0f },
+      vec4 {    x,    y,    z, 1.0f },
+    };
   }
 
-  f32 asin(f32 t) {
-    return asinf(t);
+  mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up) {
+    vec3 f = normalize(direction);
+    vec3 s = normalize(cross(up, f));
+    vec3 u = cross(f, s);
+
+    return mat4 {
+      vec4 { s.x, u.x, -f.x, 0.0f },
+      vec4 { s.y, u.y, -f.y, 0.0f },
+      vec4 { s.z, u.z, -f.z, 0.0f },
+      vec4 { -dot(position, s), -dot(position, s), dot(position, f), 1.0f },
+    };
   }
 
-  f32 acos(f32 t) {
-    return acosf(t);
+  mat4 look_at_mat4(vec3 position, vec3 target, vec3 up) {
+    vec3 direction = target - position;
+    return look_dir_mat4(position, direction, up);
   }
 
-  f32 atan(f32 t) {
-    return atanf(t);
+  mat4 axis_angle_mat4(vec3 axis, f32 angle) {
+    f32 sinv = sin(angle);
+    f32 cosv = cos(angle);
+    vec3 axis_sin = axis * sinv;
+    vec3 axis_sq = axis * axis;
+    f32 omc = 1.0 - cosv;
+    f32 xyomc = axis.x * axis.y * omc;
+    f32 xzomc = axis.x * axis.z * omc;
+    f32 yzomc = axis.y * axis.z * omc;
+
+    return mat4 {
+      { 
+        axis_sq.x * omc + cosv,
+        xyomc + axis_sin.z,
+        xzomc - axis_sin.y,
+        0.0f,
+      },
+      {
+        xyomc - axis_sin.z,
+        axis_sq.y * omc + cosv,
+        yzomc + axis_sin.x,
+        0.0f,
+      },
+      {
+        xzomc + axis_sin.y,
+        yzomc - axis_sin.x,
+        axis_sq.z * omc + cosv,
+        0.0f,
+      },
+      VEC4_UNIT_W,
+    };
   }
 
-  f32 atan2(f32 y, f32 x) {
-    return atan2f(y, x);
+  mat4 translate_mat4(vec3 position) {
+    return mat4 {
+      vec4 { 1.0f, 0.0f, 0.0f, 0.0f },
+      vec4 { 0.0f, 1.0f, 0.0f, 0.0f },
+      vec4 { 0.0f, 0.0f, 1.0f, 0.0f },
+      vec4 { position.x, position.y, position.z, 1.0f },
+    };
+  }
+
+  mat4 rotate_mat4(quat rotation) {
+    // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
+
+    mat4 result = MAT4_IDENTITY;
+
+    f32 xx = rotation.x * rotation.x;
+    f32 xy = rotation.x * rotation.y;
+    f32 xz = rotation.x * rotation.z;
+    f32 xw = rotation.x * rotation.w;
+
+    f32 yy = rotation.y * rotation.y;
+    f32 yz = rotation.y * rotation.z;
+    f32 yw = rotation.y * rotation.w;
+
+    f32 zz = rotation.z * rotation.z;
+    f32 zw = rotation.z * rotation.w;
+
+    // Sean: this is transposed because we get weird results from bullet3 otherwise
+    result[0][0] = 1.0f - 2.0f * (yy + zz);
+    result[1][0] = 2.0f * (xy - zw);
+    result[2][0] = 2.0f * (xz + yw);
+
+    result[0][1] = 2.0f * (xy + zw);
+    result[1][1] = 1.0f - 2.0f * (xx + zz);
+    result[2][1] = 2.0f * (yz - xw);
+
+    result[0][2] = 2.0f * (xz - yw);
+    result[1][2] = 2.0f * (yz + xw);
+    result[2][2] = 1.0f - 2.0f * (xx + yy);
+
+    result[3][3] = 1.0f;
+
+    return result;
+  }
+
+  mat4 scale_mat4(vec3 scale) {
+    return mat4 {
+      vec4 { scale.x,       0,       0, 0 },
+      vec4 {       0, scale.y,       0, 0 },
+      vec4 {       0,       0, scale.z, 0 },
+      vec4 {       0,       0,       0, 1 },
+    };
+  }
+
+  mat4 transform_mat4(vec3 position, quat rotation, vec3 scale) {
+    mat4 m_translation = translate_mat4(position);
+    mat4 m_rotation = rotate_mat4(rotation);
+    mat4 m_scale = scale_mat4(scale);
+    return m_translation * m_rotation * m_scale;
   }
 
   // Math operators
@@ -231,6 +379,34 @@ namespace quark_core {
     };
   }
 
+  vec2 operator +(f32 a, vec2 b) {
+    return vec2 {
+      a + b.x,
+      a + b.y,
+    };
+  }
+
+  vec2 operator -(f32 a, vec2 b) {
+    return vec2 {
+      a - b.x,
+      a - b.y,
+    };
+  }
+
+  vec2 operator *(f32 a, vec2 b) {
+    return vec2 {
+      a * b.x,
+      a * b.y,
+    };
+  }
+
+  vec2 operator /(f32 a, vec2 b) {
+    return vec2 {
+      a / b.x,
+      a / b.y,
+    };
+  }
+
   void operator +=(vec2& a, f32 b) {
     a.x += b;
     a.y += b;
@@ -253,15 +429,15 @@ namespace quark_core {
 
   bool operator ==(vec2 a, f32 b) {
     return (
-      fabsf(a.x - b) < F32_EPSILON &&
-      fabsf(a.y - b) < F32_EPSILON
+      abs(a.x - b) < F32_EPSILON &&
+      abs(a.y - b) < F32_EPSILON
     );
   }
 
   bool operator !=(vec2 a, f32 b) {
     return (
-      fabsf(a.x - b) > F32_EPSILON ||
-      fabsf(a.y - b) > F32_EPSILON
+      abs(a.x - b) > F32_EPSILON ||
+      abs(a.y - b) > F32_EPSILON
     );
   }
 
@@ -369,6 +545,38 @@ namespace quark_core {
       a.x / b,
       a.y / b,
       a.z / b,
+    };
+  }
+
+  vec3 operator +(f32 a, vec3 b) {
+    return vec3 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+    };
+  }
+
+  vec3 operator -(f32 a, vec3 b) {
+    return vec3 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+    };
+  }
+
+  vec3 operator *(f32 a, vec3 b) {
+    return vec3 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+    };
+  }
+
+  vec3 operator /(f32 a, vec3 b) {
+    return vec3 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
     };
   }
 
@@ -528,6 +736,42 @@ namespace quark_core {
       a.y / b,
       a.z / b,
       a.w / b,
+    };
+  }
+
+  vec4 operator +(f32 a, vec4 b) {
+    return vec4 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+      a + b.w,
+    };
+  }
+
+  vec4 operator -(f32 a, vec4 b) {
+    return vec4 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+      a - b.w,
+    };
+  }
+
+  vec4 operator *(f32 a, vec4 b) {
+    return vec4 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+      a * b.w,
+    };
+  }
+
+  vec4 operator /(f32 a, vec4 b) {
+    return vec4 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
+      a / b.w,
     };
   }
 
@@ -751,6 +995,34 @@ namespace quark_core {
     };
   }
 
+  ivec2 operator +(i32 a, ivec2 b) {
+    return ivec2 {
+      a + b.x,
+      a + b.y,
+    };
+  }
+
+  ivec2 operator -(i32 a, ivec2 b) {
+    return ivec2 {
+      a - b.x,
+      a - b.y,
+    };
+  }
+
+  ivec2 operator *(i32 a, ivec2 b) {
+    return ivec2 {
+      a * b.x,
+      a * b.y,
+    };
+  }
+
+  ivec2 operator /(i32 a, ivec2 b) {
+    return ivec2 {
+      a / b.x,
+      a / b.y,
+    };
+  }
+
   void operator +=(ivec2& a, i32 b) {
     a.x += b;
     a.y += b;
@@ -877,6 +1149,38 @@ namespace quark_core {
       a.x / b,
       a.y / b,
       a.z / b,
+    };
+  }
+
+  ivec3 operator +(i32 a, ivec3 b) {
+    return ivec3 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+    };
+  }
+
+  ivec3 operator -(i32 a, ivec3 b) {
+    return ivec3 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+    };
+  }
+
+  ivec3 operator *(i32 a, ivec3 b) {
+    return ivec3 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+    };
+  }
+
+  ivec3 operator /(i32 a, ivec3 b) {
+    return ivec3 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
     };
   }
 
@@ -1020,6 +1324,42 @@ namespace quark_core {
       a.y / b,
       a.z / b,
       a.w / b,
+    };
+  }
+
+  ivec4 operator +(i32 a, ivec4 b) {
+    return ivec4 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+      a + b.w,
+    };
+  }
+
+  ivec4 operator -(i32 a, ivec4 b) {
+    return ivec4 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+      a - b.w,
+    };
+  }
+
+  ivec4 operator *(i32 a, ivec4 b) {
+    return ivec4 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+      a * b.w,
+    };
+  }
+
+  ivec4 operator /(i32 a, ivec4 b) {
+    return ivec4 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
+      a / b.w,
     };
   }
 
@@ -1172,6 +1512,34 @@ namespace quark_core {
     };
   }
 
+  uvec2 operator +(u32 a, uvec2 b) {
+    return uvec2 {
+      a + b.x,
+      a + b.y,
+    };
+  }
+
+  uvec2 operator -(u32 a, uvec2 b) {
+    return uvec2 {
+      a - b.x,
+      a - b.y,
+    };
+  }
+
+  uvec2 operator *(u32 a, uvec2 b) {
+    return uvec2 {
+      a * b.x,
+      a * b.y,
+    };
+  }
+
+  uvec2 operator /(u32 a, uvec2 b) {
+    return uvec2 {
+      a / b.x,
+      a / b.y,
+    };
+  }
+
   void operator +=(uvec2& a, u32 b) {
     a.x += b;
     a.y += b;
@@ -1298,6 +1666,38 @@ namespace quark_core {
       a.x / b,
       a.y / b,
       a.z / b,
+    };
+  }
+
+  uvec3 operator +(u32 a, uvec3 b) {
+    return uvec3 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+    };
+  }
+
+  uvec3 operator -(u32 a, uvec3 b) {
+    return uvec3 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+    };
+  }
+
+  uvec3 operator *(u32 a, uvec3 b) {
+    return uvec3 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+    };
+  }
+
+  uvec3 operator /(u32 a, uvec3 b) {
+    return uvec3 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
     };
   }
 
@@ -1444,6 +1844,42 @@ namespace quark_core {
     };
   }
 
+  uvec4 operator +(u32 a, uvec4 b) {
+    return uvec4 {
+      a + b.x,
+      a + b.y,
+      a + b.z,
+      a + b.w,
+    };
+  }
+
+  uvec4 operator -(u32 a, uvec4 b) {
+    return uvec4 {
+      a - b.x,
+      a - b.y,
+      a - b.z,
+      a - b.w,
+    };
+  }
+
+  uvec4 operator *(u32 a, uvec4 b) {
+    return uvec4 {
+      a * b.x,
+      a * b.y,
+      a * b.z,
+      a * b.w,
+    };
+  }
+
+  uvec4 operator /(u32 a, uvec4 b) {
+    return uvec4 {
+      a / b.x,
+      a / b.y,
+      a / b.z,
+      a / b.w,
+    };
+  }
+
   void operator +=(uvec4& a, u32 b) {
     a.x += b;
     a.y += b;
@@ -1554,40 +1990,177 @@ namespace quark_core {
 
   // mat2
 
-  mat2 operator +(mat2 a, mat2 b);
-  mat2 operator -(mat2 a, mat2 b);
-  mat2 operator *(mat2 a, mat2 b);
+  mat2 operator +(mat2 a, mat2 b) {
+    return mat2 {
+      a[0] + b[0],
+      a[1] + b[1],
+    };
+  }
 
-  void operator +=(mat2& a, mat2 b);
-  void operator -=(mat2& a, mat2 b);
-  void operator *=(mat2& a, mat2 b);
+  mat2 operator -(mat2 a, mat2 b) {
+    return mat2 {
+      a[0] - b[0],
+      a[1] - b[1],
+    };
+  }
 
-  bool operator ==(mat2 a, mat2 b);
-  bool operator !=(mat2 a, mat2 b);
+  mat2 operator *(mat2 a, mat2 b) {
+    return mat2 {
+      vec2 {
+        (a[0][0] * b[0][0]) + (a[1][0] * b[0][1]),
+        (a[0][1] * b[0][0]) + (a[1][1] * b[0][1]),
+      },
+      vec2 {
+        (a[0][0] * b[1][0]) + (a[1][0] * b[1][1]),
+        (a[0][1] * b[1][0]) + (a[1][1] * b[1][1]),
+      },
+    };
+  }
+
+  void operator +=(mat2& a, mat2 b) {
+    a = a + b;
+  }
+
+  void operator -=(mat2& a, mat2 b) {
+    a = a - b;
+  }
+
+  void operator *=(mat2& a, mat2 b) {
+    a = a * b;
+  }
+
+  bool operator ==(mat2 a, mat2 b) {
+    return a[0] == b[0] && a[1] == b[1];
+  }
+
+  bool operator !=(mat2 a, mat2 b) {
+    return a[0] != b[0] || a[1] != b[1];
+  }
 
   // mat3
 
-  mat3 operator +(mat3 a, mat3 b);
-  mat3 operator -(mat3 a, mat3 b);
-  mat3 operator *(mat3 a, mat3 b);
+  mat3 operator +(mat3 a, mat3 b) {
+    return mat3 {
+      a[0] + b[0],
+      a[1] + b[1],
+      a[2] + b[2],
+    };
+  }
 
-  void operator +=(mat3& a, mat3 b);
-  void operator -=(mat3& a, mat3 b);
-  void operator *=(mat3& a, mat3 b);
+  mat3 operator -(mat3 a, mat3 b) {
+    return mat3 {
+      a[0] - b[0],
+      a[1] - b[1],
+      a[2] - b[2],
+    };
+  }
 
-  bool operator ==(mat3 a, mat3 b);
-  bool operator !=(mat3 a, mat3 b);
+  mat3 operator *(mat3 a, mat3 b) {
+    return mat3 {
+      vec3 {
+        (a[0][0] * b[0][0]) + (a[1][0] * b[0][1]) + (a[2][0] * b[0][2]),
+        (a[0][1] * b[0][0]) + (a[1][1] * b[0][1]) + (a[2][1] * b[0][2]),
+        (a[0][2] * b[0][0]) + (a[1][2] * b[0][1]) + (a[2][2] * b[0][2]),
+      },
+      vec3 {
+        (a[0][0] * b[1][0]) + (a[1][0] * b[1][1]) + (a[2][0] * b[1][2]),
+        (a[0][1] * b[1][0]) + (a[1][1] * b[1][1]) + (a[2][1] * b[1][2]),
+        (a[0][2] * b[1][0]) + (a[1][2] * b[1][1]) + (a[2][2] * b[1][2]),
+      },
+      vec3 {
+        (a[0][0] * b[2][0]) + (a[1][0] * b[2][1]) + (a[2][0] * b[2][2]),
+        (a[0][1] * b[2][0]) + (a[1][1] * b[2][1]) + (a[2][1] * b[2][2]),
+        (a[0][2] * b[2][0]) + (a[1][2] * b[2][1]) + (a[2][2] * b[2][2]),
+      },
+    };
+  }
+
+  void operator +=(mat3& a, mat3 b) {
+    a = a + b;
+  }
+
+  void operator -=(mat3& a, mat3 b) {
+    a = a - b;
+  }
+
+  void operator *=(mat3& a, mat3 b) {
+    a = a * b;
+  }
+
+  bool operator ==(mat3 a, mat3 b) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+  }
+
+  bool operator !=(mat3 a, mat3 b) {
+    return a[0] != b[0] || a[1] != b[1] || a[2] != b[2];
+  } 
 
   // mat4
 
-  mat4 operator +(mat4 a, mat4 b);
-  mat4 operator -(mat4 a, mat4 b);
-  mat4 operator *(mat4 a, mat4 b);
+  mat4 operator +(mat4 a, mat4 b) {
+    return mat4 {
+      a[0] + b[0],
+      a[1] + b[1],
+      a[2] + b[2],
+      a[3] + b[3],
+    };
+  }
 
-  void operator +=(mat4& a, mat4 b);
-  void operator -=(mat4& a, mat4 b);
-  void operator *=(mat4& a, mat4 b);
+  mat4 operator -(mat4 a, mat4 b) {
+    return mat4 {
+      a[0] - b[0],
+      a[1] - b[1],
+      a[2] - b[2],
+      a[3] - b[3],
+    };
+  }
 
-  bool operator ==(mat4 a, mat4 b);
-  bool operator !=(mat4 a, mat4 b);
+  mat4 operator *(mat4 a, mat4 b) {
+    return mat4 {
+      vec4 {
+        (a[0][0] * b[0][0]) + (a[1][0] * b[0][1]) + (a[2][0] * b[0][2]) + (a[3][0] * b[0][3]),
+        (a[0][1] * b[0][0]) + (a[1][1] * b[0][1]) + (a[2][1] * b[0][2]) + (a[3][1] * b[0][3]),
+        (a[0][2] * b[0][0]) + (a[1][2] * b[0][1]) + (a[2][2] * b[0][2]) + (a[3][2] * b[0][3]),
+        (a[0][3] * b[0][0]) + (a[1][3] * b[0][1]) + (a[2][3] * b[0][2]) + (a[3][3] * b[0][3]),
+      },
+      vec4 {
+        (a[0][0] * b[1][0]) + (a[1][0] * b[1][1]) + (a[2][0] * b[1][2]) + (a[3][0] * b[1][3]),
+        (a[0][1] * b[1][0]) + (a[1][1] * b[1][1]) + (a[2][1] * b[1][2]) + (a[3][1] * b[1][3]),
+        (a[0][2] * b[1][0]) + (a[1][2] * b[1][1]) + (a[2][2] * b[1][2]) + (a[3][2] * b[1][3]),
+        (a[0][3] * b[1][0]) + (a[1][3] * b[1][1]) + (a[2][3] * b[1][2]) + (a[3][3] * b[1][3]),
+      },
+      vec4 {
+        (a[0][0] * b[2][0]) + (a[1][0] * b[2][1]) + (a[2][0] * b[2][2]) + (a[3][0] * b[2][3]),
+        (a[0][1] * b[2][0]) + (a[1][1] * b[2][1]) + (a[2][1] * b[2][2]) + (a[3][1] * b[2][3]),
+        (a[0][2] * b[2][0]) + (a[1][2] * b[2][1]) + (a[2][2] * b[2][2]) + (a[3][2] * b[2][3]),
+        (a[0][3] * b[2][0]) + (a[1][3] * b[2][1]) + (a[2][3] * b[2][2]) + (a[3][3] * b[2][3]),
+      },
+      vec4 {
+        (a[0][0] * b[3][0]) + (a[1][0] * b[3][1]) + (a[2][0] * b[3][2]) + (a[3][0] * b[3][3]),
+        (a[0][1] * b[3][0]) + (a[1][1] * b[3][1]) + (a[2][1] * b[3][2]) + (a[3][1] * b[3][3]),
+        (a[0][2] * b[3][0]) + (a[1][2] * b[3][1]) + (a[2][2] * b[3][2]) + (a[3][2] * b[3][3]),
+        (a[0][3] * b[3][0]) + (a[1][3] * b[3][1]) + (a[2][3] * b[3][2]) + (a[3][3] * b[3][3]),
+      },
+    };
+  }
+
+  void operator +=(mat4& a, mat4 b) {
+    a = a + b;
+  }
+
+  void operator -=(mat4& a, mat4 b) {
+    a = a - b;
+  }
+
+  void operator *=(mat4& a, mat4 b) {
+    a = a * b;
+  }
+
+  bool operator ==(mat4 a, mat4 b) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+  }
+
+  bool operator !=(mat4 a, mat4 b) {
+    return a[0] != b[0] || a[1] != b[1] || a[2] != b[2] || a[3] != b[3];
+  }
 };

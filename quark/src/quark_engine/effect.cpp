@@ -3,6 +3,8 @@
 #include "effect.hpp"
 #include "str.hpp"
 
+#include <iostream>
+
 namespace quark::engine::effect {
   using namespace render::internal;
 

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <float.h>
 #include <stdint.h>
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
-#include <typeinfo>
 
 // QUARK_CORE
 
@@ -71,104 +71,101 @@ namespace quark_core {
 
   // vec2
 
-  static f32 dot(vec2 a, vec2 b);
-  static f32 length(vec2 a);
-  static f32 length2(vec2 a);
-  static f32 distance(vec2 a, vec2 b);
-  static f32 distance2(vec2 a, vec2 b);
-  static vec2 normalize(vec2 a);
-  static vec2 normalize_max_length(vec2 a, f32 max_length);
-  static vec2 rotate_point(vec2 a, f32 angle);
+  f32 dot(vec2 a, vec2 b);
+  f32 length(vec2 a);
+  f32 length2(vec2 a);
+  f32 distance(vec2 a, vec2 b);
+  f32 distance2(vec2 a, vec2 b);
+  vec2 normalize(vec2 a);
+  vec2 normalize_max_length(vec2 a, f32 max_length);
+  vec2 rotate_point(vec2 a, f32 angle);
 
   // vec3
 
-  static f32 dot(vec3 a, vec3 b);
-  static f32 length(vec3 a);
-  static f32 length2(vec3 a);
-  static f32 distance(vec3 a, vec3 b);
-  static f32 distance2(vec3 a, vec3 b);
-  static vec3 normalize_max_length(vec3 a, f32 max_length);
-  static vec3 rotate_point(vec3 a, quat rotation);
+  f32 dot(vec3 a, vec3 b);
+  f32 length(vec3 a);
+  f32 length2(vec3 a);
+  f32 distance(vec3 a, vec3 b);
+  f32 distance2(vec3 a, vec3 b);
+  vec3 cross(vec3 a, vec3 b);
+  vec3 normalize_max_length(vec3 a, f32 max_length);
+  vec3 rotate_point(vec3 a, quat rotation);
 
   // vec4
 
-  static f32 dot(vec4 a, vec4 b);
-  static f32 length(vec4 a);
-  static f32 distance(vec4 a, vec4 b);
-  static f32 distance2(vec4 a, vec4 b);
-  static vec4 normalize(vec4 a);
-  static vec4 normalize_max_length(vec4 a, f32 max_length);
+  f32 dot(vec4 a, vec4 b);
+  f32 length(vec4 a);
+  f32 distance(vec4 a, vec4 b);
+  f32 distance2(vec4 a, vec4 b);
+  vec4 normalize(vec4 a);
+  vec4 normalize_max_length(vec4 a, f32 max_length);
 
   // eul2
 
-  static vec3 forward_eul2(eul2 a);
-  static vec3 right_eul2(eul2 a);
-  static vec3 up_eul2(eul2 a);
+  vec3 forward_eul2(eul2 a);
+  vec3 right_eul2(eul2 a);
+  vec3 up_eul2(eul2 a);
 
   // eul3
 
-  static vec3 forward_eul3(eul3 a);
-  static vec3 right_eul3(eul3 a);
-  static vec3 up_eul3(eul3 a);
+  vec3 forward_eul3(eul3 a);
+  vec3 right_eul3(eul3 a);
+  vec3 up_eul3(eul3 a);
 
   // quat
 
-  static vec3 forward_quat(quat a);
-  static vec3 right_quat(quat a);
-  static vec3 up_quat(quat a);
-  static quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
-  static quat look_at_quat(vec3 position, vec3 target, vec3 up);
-  static quat axis_angle_quat(vec3 axis, f32 angle);
+  vec3 forward_quat(quat a);
+  vec3 right_quat(quat a);
+  vec3 up_quat(quat a);
+  quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
+  quat look_at_quat(vec3 position, vec3 target, vec3 up);
+  quat axis_angle_quat(vec3 axis, f32 angle);
 
   // mat2
 
-  static mat2 transpose(mat2 a);
-  static mat2 look_dir_mat2(vec2 position, vec2 direction, vec2 up);
-  static mat2 look_at_mat2(vec2 position, vec2 target, vec2 up);
-  static mat2 translate_mat2(vec2 position);
-  static mat2 rotate_mat2(f32 rotation);
-  static mat2 scale_mat2(vec2 scale);
-  static mat2 transform_mat2(vec2 position, f32 rotation, vec2 scale);
+  mat2 transpose(mat2 a);
 
   // mat3
 
-  static mat3 transpose(mat3 a);
-  static mat3 look_dir_mat3(vec3 position, vec3 direction, vec3 up);
-  static mat3 look_at_mat3(vec3 position, vec3 target, vec3 up);
-  static mat3 axis_angle_mat3(vec3 axis, f32 angle);
-  static mat3 translate_mat3(vec3 position);
-  static mat3 rotate_mat3(quat rotation);
-  static mat3 scale_mat3(vec3 scale);
-  static mat3 transform_mat3(vec3 position, quat rotation, vec3 scale);
+  mat3 transpose(mat3 a);
 
   // mat4
 
-  static mat4 transpose(mat4 a);
-  static mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
-  static mat4 orthographic(f32 right, f32 down, f32 near, f32 far);
-  static mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
-  static mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
-  static mat4 axis_angle_mat4(vec3 axis, f32 angle);
-  static mat4 translate_mat4(vec3 position);
-  static mat4 rotate_mat4(quat rotation);
-  static mat4 scale_mat4(vec3 scale);
-  static mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
+  mat4 transpose(mat4 a);
+  mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
+  mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far);
+  mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
+  mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
+  mat4 axis_angle_mat4(vec3 axis, f32 angle);
+  mat4 translate_mat4(vec3 position);
+  mat4 rotate_mat4(quat rotation);
+  mat4 scale_mat4(vec3 scale);
+  mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
 
   // utility
 
-  static f32 radians(f32 degrees);
-  static f32 degrees(f32 radians);
-  static f32 clamp(f32 a, f32 min, f32 max);
-  static f32 max(f32 a, f32 b);
-  static f32 min(f32 a, f32 b);
+  f32 radians(f32 deg);
+  f32 degrees(f32 rad);
 
-  static f32 sin(f32 t);
-  static f32 cos(f32 t);
-  static f32 tan(f32 t);
-  static f32 asin(f32 t);
-  static f32 acos(f32 t);
-  static f32 atan(f32 t);
-  static f32 atan2(f32 y, f32 x);
+  f32 clamp(f32 a, f32 minv, f32 maxv);
+  f32 max(f32 a, f32 b);
+  f32 min(f32 a, f32 b);
+  f32 abs(f32 a);
+  f32 round(f32 a);
+
+  f32 sqrt(f32 a);
+  f32 pow(f32 a, f32 exp);
+  f32 log10(f32 a);
+  f32 log2(f32 a);
+  f32 log(f32 a);
+
+  f32 sin(f32 t);
+  f32 cos(f32 t);
+  f32 tan(f32 t);
+  f32 asin(f32 t);
+  f32 acos(f32 t);
+  f32 atan(f32 t);
+  f32 atan2(f32 y, f32 x);
 
   // Builtin C++ reflection
   
@@ -187,9 +184,9 @@ namespace quark_core {
 
   // Units
 
-  static constexpr usize KB = 1024lu;
-  static constexpr usize MB = 1024lu * 1024lu;
-  static constexpr usize GB = 1024lu * 1024lu * 1024lu;
+  constexpr usize KB = 1024lu;
+  constexpr usize MB = 1024lu * 1024lu;
+  constexpr usize GB = 1024lu * 1024lu * 1024lu;
 
   // Range-based for loops
   
@@ -199,7 +196,7 @@ namespace quark_core {
 
   // Convenience function decl
   
-  #define noreturn [[noreturn]]
+  //#define noreturn [[noreturn]]
 
   // Type def helpers
 
@@ -290,364 +287,500 @@ namespace quark_core {
 
   // vec2
 
-  static vec2 operator -(vec2 a);
+  vec2 operator -(vec2 a);
 
-  static vec2 operator +(vec2 a, f32 b);
-  static vec2 operator -(vec2 a, f32 b);
-  static vec2 operator *(vec2 a, f32 b);
-  static vec2 operator /(vec2 a, f32 b);
+  vec2 operator +(vec2 a, f32 b);
+  vec2 operator -(vec2 a, f32 b);
+  vec2 operator *(vec2 a, f32 b);
+  vec2 operator /(vec2 a, f32 b);
 
-  static void operator +=(vec2& a, f32 b);
-  static void operator -=(vec2& a, f32 b);
-  static void operator *=(vec2& a, f32 b);
-  static void operator /=(vec2& a, f32 b);
+  vec2 operator +(f32 a, vec2 b);
+  vec2 operator -(f32 a, vec2 b);
+  vec2 operator *(f32 a, vec2 b);
+  vec2 operator /(f32 a, vec2 b);
 
-  static bool operator ==(vec2 a, f32 b);
-  static bool operator !=(vec2 a, f32 b);
+  void operator +=(vec2& a, f32 b);
+  void operator -=(vec2& a, f32 b);
+  void operator *=(vec2& a, f32 b);
+  void operator /=(vec2& a, f32 b);
 
-  static vec2 operator +(vec2 a, vec2 b);
-  static vec2 operator -(vec2 a, vec2 b);
-  static vec2 operator *(vec2 a, vec2 b);
-  static vec2 operator /(vec2 a, vec2 b);
+  vec2 operator +(vec2 a, vec2 b);
+  vec2 operator -(vec2 a, vec2 b);
+  vec2 operator *(vec2 a, vec2 b);
+  vec2 operator /(vec2 a, vec2 b);
 
-  static void operator +=(vec2& a, vec2 b);
-  static void operator -=(vec2& a, vec2 b);
-  static void operator *=(vec2& a, vec2 b);
-  static void operator /=(vec2& a, vec2 b);
+  void operator +=(vec2& a, vec2 b);
+  void operator -=(vec2& a, vec2 b);
+  void operator *=(vec2& a, vec2 b);
+  void operator /=(vec2& a, vec2 b);
 
-  static bool operator ==(vec2 a, vec2 b);
-  static bool operator !=(vec2 a, vec2 b);
+  bool operator ==(vec2 a, vec2 b);
+  bool operator !=(vec2 a, vec2 b);
 
   // vec3
 
-  static vec3 operator -(vec3 a);
+  vec3 operator -(vec3 a);
 
-  static vec3 operator +(vec3 a, f32 b);
-  static vec3 operator -(vec3 a, f32 b);
-  static vec3 operator *(vec3 a, f32 b);
-  static vec3 operator /(vec3 a, f32 b);
+  vec3 operator +(vec3 a, f32 b);
+  vec3 operator -(vec3 a, f32 b);
+  vec3 operator *(vec3 a, f32 b);
+  vec3 operator /(vec3 a, f32 b);
 
-  static void operator +=(vec3& a, f32 b);
-  static void operator -=(vec3& a, f32 b);
-  static void operator *=(vec3& a, f32 b);
-  static void operator /=(vec3& a, f32 b);
+  vec3 operator +(f32 a, vec3 b);
+  vec3 operator -(f32 a, vec3 b);
+  vec3 operator *(f32 a, vec3 b);
+  vec3 operator /(f32 a, vec3 b);
 
-  static bool operator ==(vec3 a, f32 b);
-  static bool operator !=(vec3 a, f32 b);
+  void operator +=(vec3& a, f32 b);
+  void operator -=(vec3& a, f32 b);
+  void operator *=(vec3& a, f32 b);
+  void operator /=(vec3& a, f32 b);
 
-  static vec3 operator +(vec3 a, vec3 b);
-  static vec3 operator -(vec3 a, vec3 b);
-  static vec3 operator *(vec3 a, vec3 b);
-  static vec3 operator /(vec3 a, vec3 b);
+  bool operator ==(vec3 a, f32 b);
+  bool operator !=(vec3 a, f32 b);
 
-  static void operator +=(vec3& a, vec3 b);
-  static void operator -=(vec3& a, vec3 b);
-  static void operator *=(vec3& a, vec3 b);
-  static void operator /=(vec3& a, vec3 b);
+  vec3 operator +(vec3 a, vec3 b);
+  vec3 operator -(vec3 a, vec3 b);
+  vec3 operator *(vec3 a, vec3 b);
+  vec3 operator /(vec3 a, vec3 b);
 
-  static bool operator ==(vec3 a, vec3 b);
-  static bool operator !=(vec3 a, vec3 b);
+  void operator +=(vec3& a, vec3 b);
+  void operator -=(vec3& a, vec3 b);
+  void operator *=(vec3& a, vec3 b);
+  void operator /=(vec3& a, vec3 b);
+
+  bool operator ==(vec3 a, vec3 b);
+  bool operator !=(vec3 a, vec3 b);
 
   // vec4
 
-  static vec4 operator -(vec4 a);
+  vec4 operator -(vec4 a);
 
-  static vec4 operator +(vec4 a, f32 b);
-  static vec4 operator -(vec4 a, f32 b);
-  static vec4 operator *(vec4 a, f32 b);
-  static vec4 operator /(vec4 a, f32 b);
+  vec4 operator +(vec4 a, f32 b);
+  vec4 operator -(vec4 a, f32 b);
+  vec4 operator *(vec4 a, f32 b);
+  vec4 operator /(vec4 a, f32 b);
 
-  static void operator +=(vec4& a, f32 b);
-  static void operator -=(vec4& a, f32 b);
-  static void operator *=(vec4& a, f32 b);
-  static void operator /=(vec4& a, f32 b);
+  vec4 operator +(f32 a, vec4 b);
+  vec4 operator -(f32 a, vec4 b);
+  vec4 operator *(f32 a, vec4 b);
+  vec4 operator /(f32 a, vec4 b);
 
-  static bool operator ==(vec4 a, f32 b);
-  static bool operator !=(vec4 a, f32 b);
+  void operator +=(vec4& a, f32 b);
+  void operator -=(vec4& a, f32 b);
+  void operator *=(vec4& a, f32 b);
+  void operator /=(vec4& a, f32 b);
 
-  static vec4 operator +(vec4 a, vec4 b);
-  static vec4 operator -(vec4 a, vec4 b);
-  static vec4 operator *(vec4 a, vec4 b);
-  static vec4 operator /(vec4 a, vec4 b);
+  bool operator ==(vec4 a, f32 b);
+  bool operator !=(vec4 a, f32 b);
 
-  static void operator +=(vec4& a, vec4 b);
-  static void operator -=(vec4& a, vec4 b);
-  static void operator *=(vec4& a, vec4 b);
-  static void operator /=(vec4& a, vec4 b);
+  vec4 operator +(vec4 a, vec4 b);
+  vec4 operator -(vec4 a, vec4 b);
+  vec4 operator *(vec4 a, vec4 b);
+  vec4 operator /(vec4 a, vec4 b);
 
-  static bool operator ==(vec4 a, vec4 b);
-  static bool operator !=(vec4 a, vec4 b);
+  void operator +=(vec4& a, vec4 b);
+  void operator -=(vec4& a, vec4 b);
+  void operator *=(vec4& a, vec4 b);
+  void operator /=(vec4& a, vec4 b);
+
+  bool operator ==(vec4 a, vec4 b);
+  bool operator !=(vec4 a, vec4 b);
 
   // euler2
 
-  static eul2 operator -(eul2 a);
+  eul2 operator -(eul2 a);
 
-  static eul2 operator +(eul2 a, eul2 b);
-  static eul2 operator -(eul2 a, eul2 b);
-  static eul2 operator *(eul2 a, eul2 b);
-  static eul2 operator /(eul2 a, eul2 b);
+  eul2 operator +(eul2 a, eul2 b);
+  eul2 operator -(eul2 a, eul2 b);
+  eul2 operator *(eul2 a, eul2 b);
+  eul2 operator /(eul2 a, eul2 b);
 
-  static void operator +=(eul2& a, eul2 b);
-  static void operator -=(eul2& a, eul2 b);
-  static void operator *=(eul2& a, eul2 b);
-  static void operator /=(eul2& a, eul2 b);
+  void operator +=(eul2& a, eul2 b);
+  void operator -=(eul2& a, eul2 b);
+  void operator *=(eul2& a, eul2 b);
+  void operator /=(eul2& a, eul2 b);
 
-  static bool operator ==(eul2 a, eul2 b);
-  static bool operator !=(eul2 a, eul2 b);
+  bool operator ==(eul2 a, eul2 b);
+  bool operator !=(eul2 a, eul2 b);
 
   // eul3
 
-  static eul3 operator -(eul3 a);
+  eul3 operator -(eul3 a);
 
-  static eul3 operator +(eul3 a, eul3 b);
-  static eul3 operator -(eul3 a, eul3 b);
-  static eul3 operator *(eul3 a, eul3 b);
-  static eul3 operator /(eul3 a, eul3 b);
+  eul3 operator +(eul3 a, eul3 b);
+  eul3 operator -(eul3 a, eul3 b);
+  eul3 operator *(eul3 a, eul3 b);
+  eul3 operator /(eul3 a, eul3 b);
 
-  static void operator +=(eul3& a, eul3 b);
-  static void operator -=(eul3& a, eul3 b);
-  static void operator *=(eul3& a, eul3 b);
-  static void operator /=(eul3& a, eul3 b);
+  void operator +=(eul3& a, eul3 b);
+  void operator -=(eul3& a, eul3 b);
+  void operator *=(eul3& a, eul3 b);
+  void operator /=(eul3& a, eul3 b);
 
-  static bool operator ==(eul3 a, eul3 b);
-  static bool operator !=(eul3 a, eul3 b);
+  bool operator ==(eul3 a, eul3 b);
+  bool operator !=(eul3 a, eul3 b);
 
   // quat
 
-  static quat operator -(quat a);
+  quat operator -(quat a);
 
-  static quat operator +(quat a, quat b);
-  static quat operator -(quat a, quat b);
-  static quat operator *(quat a, quat b);
-  static quat operator /(quat a, quat b);
+  quat operator +(quat a, quat b);
+  quat operator -(quat a, quat b);
+  quat operator *(quat a, quat b);
+  quat operator /(quat a, quat b);
 
-  static void operator +=(quat& a, quat b);
-  static void operator -=(quat& a, quat b);
-  static void operator *=(quat& a, quat b);
-  static void operator /=(quat& a, quat b);
+  void operator +=(quat& a, quat b);
+  void operator -=(quat& a, quat b);
+  void operator *=(quat& a, quat b);
+  void operator /=(quat& a, quat b);
 
-  static bool operator ==(quat a, quat b);
-  static bool operator !=(quat a, quat b);
+  bool operator ==(quat a, quat b);
+  bool operator !=(quat a, quat b);
 
   // ivec2
 
-  static ivec2 operator -(ivec2 a);
+  ivec2 operator -(ivec2 a);
 
-  static ivec2 operator +(ivec2 a, i32 b);
-  static ivec2 operator -(ivec2 a, i32 b);
-  static ivec2 operator *(ivec2 a, i32 b);
-  static ivec2 operator /(ivec2 a, i32 b);
+  ivec2 operator +(ivec2 a, i32 b);
+  ivec2 operator -(ivec2 a, i32 b);
+  ivec2 operator *(ivec2 a, i32 b);
+  ivec2 operator /(ivec2 a, i32 b);
 
-  static void operator +=(ivec2& a, i32 b);
-  static void operator -=(ivec2& a, i32 b);
-  static void operator *=(ivec2& a, i32 b);
-  static void operator /=(ivec2& a, i32 b);
+  ivec2 operator +(i32 a, ivec2 b);
+  ivec2 operator -(i32 a, ivec2 b);
+  ivec2 operator *(i32 a, ivec2 b);
+  ivec2 operator /(i32 a, ivec2 b);
 
-  static bool operator ==(ivec2 a, i32 b);
-  static bool operator !=(ivec2 a, i32 b);
+  void operator +=(ivec2& a, i32 b);
+  void operator -=(ivec2& a, i32 b);
+  void operator *=(ivec2& a, i32 b);
+  void operator /=(ivec2& a, i32 b);
 
-  static ivec2 operator +(ivec2 a, ivec2 b);
-  static ivec2 operator -(ivec2 a, ivec2 b);
-  static ivec2 operator *(ivec2 a, ivec2 b);
-  static ivec2 operator /(ivec2 a, ivec2 b);
+  bool operator ==(ivec2 a, i32 b);
+  bool operator !=(ivec2 a, i32 b);
 
-  static void operator +=(ivec2& a, ivec2 b);
-  static void operator -=(ivec2& a, ivec2 b);
-  static void operator *=(ivec2& a, ivec2 b);
-  static void operator /=(ivec2& a, ivec2 b);
+  ivec2 operator +(ivec2 a, ivec2 b);
+  ivec2 operator -(ivec2 a, ivec2 b);
+  ivec2 operator *(ivec2 a, ivec2 b);
+  ivec2 operator /(ivec2 a, ivec2 b);
 
-  static bool operator ==(ivec2 a, ivec2 b);
-  static bool operator !=(ivec2 a, ivec2 b);
+  void operator +=(ivec2& a, ivec2 b);
+  void operator -=(ivec2& a, ivec2 b);
+  void operator *=(ivec2& a, ivec2 b);
+  void operator /=(ivec2& a, ivec2 b);
+
+  bool operator ==(ivec2 a, ivec2 b);
+  bool operator !=(ivec2 a, ivec2 b);
 
   // ivec3
 
-  static ivec3 operator -(ivec3 a);
+  ivec3 operator -(ivec3 a);
 
-  static ivec3 operator +(ivec3 a, i32 b);
-  static ivec3 operator -(ivec3 a, i32 b);
-  static ivec3 operator *(ivec3 a, i32 b);
-  static ivec3 operator /(ivec3 a, i32 b);
+  ivec3 operator +(ivec3 a, i32 b);
+  ivec3 operator -(ivec3 a, i32 b);
+  ivec3 operator *(ivec3 a, i32 b);
+  ivec3 operator /(ivec3 a, i32 b);
 
-  static void operator +=(ivec3& a, i32 b);
-  static void operator -=(ivec3& a, i32 b);
-  static void operator *=(ivec3& a, i32 b);
-  static void operator /=(ivec3& a, i32 b);
+  ivec3 operator +(i32 a, ivec3 b);
+  ivec3 operator -(i32 a, ivec3 b);
+  ivec3 operator *(i32 a, ivec3 b);
+  ivec3 operator /(i32 a, ivec3 b);
 
-  static bool operator ==(ivec3 a, i32 b);
-  static bool operator !=(ivec3 a, i32 b);
+  void operator +=(ivec3& a, i32 b);
+  void operator -=(ivec3& a, i32 b);
+  void operator *=(ivec3& a, i32 b);
+  void operator /=(ivec3& a, i32 b);
 
-  static ivec3 operator +(ivec3 a, ivec3 b);
-  static ivec3 operator -(ivec3 a, ivec3 b);
-  static ivec3 operator *(ivec3 a, ivec3 b);
-  static ivec3 operator /(ivec3 a, ivec3 b);
+  bool operator ==(ivec3 a, i32 b);
+  bool operator !=(ivec3 a, i32 b);
 
-  static void operator +=(ivec3& a, ivec3 b);
-  static void operator -=(ivec3& a, ivec3 b);
-  static void operator *=(ivec3& a, ivec3 b);
-  static void operator /=(ivec3& a, ivec3 b);
+  ivec3 operator +(ivec3 a, ivec3 b);
+  ivec3 operator -(ivec3 a, ivec3 b);
+  ivec3 operator *(ivec3 a, ivec3 b);
+  ivec3 operator /(ivec3 a, ivec3 b);
 
-  static bool operator ==(ivec3 a, ivec3 b);
-  static bool operator !=(ivec3 a, ivec3 b);
+  void operator +=(ivec3& a, ivec3 b);
+  void operator -=(ivec3& a, ivec3 b);
+  void operator *=(ivec3& a, ivec3 b);
+  void operator /=(ivec3& a, ivec3 b);
+
+  bool operator ==(ivec3 a, ivec3 b);
+  bool operator !=(ivec3 a, ivec3 b);
 
   // ivec4
 
-  static ivec4 operator -(ivec4 a);
+  ivec4 operator -(ivec4 a);
 
-  static ivec4 operator +(ivec4 a, i32 b);
-  static ivec4 operator -(ivec4 a, i32 b);
-  static ivec4 operator *(ivec4 a, i32 b);
-  static ivec4 operator /(ivec4 a, i32 b);
+  ivec4 operator +(ivec4 a, i32 b);
+  ivec4 operator -(ivec4 a, i32 b);
+  ivec4 operator *(ivec4 a, i32 b);
+  ivec4 operator /(ivec4 a, i32 b);
 
-  static void operator +=(ivec4& a, i32 b);
-  static void operator -=(ivec4& a, i32 b);
-  static void operator *=(ivec4& a, i32 b);
-  static void operator /=(ivec4& a, i32 b);
+  ivec4 operator +(i32 a, ivec4 b);
+  ivec4 operator -(i32 a, ivec4 b);
+  ivec4 operator *(i32 a, ivec4 b);
+  ivec4 operator /(i32 a, ivec4 b);
 
-  static bool operator ==(ivec4 a, i32 b);
-  static bool operator !=(ivec4 a, i32 b);
+  void operator +=(ivec4& a, i32 b);
+  void operator -=(ivec4& a, i32 b);
+  void operator *=(ivec4& a, i32 b);
+  void operator /=(ivec4& a, i32 b);
 
-  static ivec4 operator +(ivec4 a, ivec4 b);
-  static ivec4 operator -(ivec4 a, ivec4 b);
-  static ivec4 operator *(ivec4 a, ivec4 b);
-  static ivec4 operator /(ivec4 a, ivec4 b);
+  bool operator ==(ivec4 a, i32 b);
+  bool operator !=(ivec4 a, i32 b);
 
-  static void operator +=(ivec4& a, ivec4 b);
-  static void operator -=(ivec4& a, ivec4 b);
-  static void operator *=(ivec4& a, ivec4 b);
-  static void operator /=(ivec4& a, ivec4 b);
+  ivec4 operator +(ivec4 a, ivec4 b);
+  ivec4 operator -(ivec4 a, ivec4 b);
+  ivec4 operator *(ivec4 a, ivec4 b);
+  ivec4 operator /(ivec4 a, ivec4 b);
 
-  static bool operator ==(ivec4 a, ivec4 b);
-  static bool operator !=(ivec4 a, ivec4 b);
+  void operator +=(ivec4& a, ivec4 b);
+  void operator -=(ivec4& a, ivec4 b);
+  void operator *=(ivec4& a, ivec4 b);
+  void operator /=(ivec4& a, ivec4 b);
+
+  bool operator ==(ivec4 a, ivec4 b);
+  bool operator !=(ivec4 a, ivec4 b);
 
   // uvec2
 
-  static uvec2 operator +(uvec2 a, u32 b);
-  static uvec2 operator -(uvec2 a, u32 b);
-  static uvec2 operator *(uvec2 a, u32 b);
-  static uvec2 operator /(uvec2 a, u32 b);
+  uvec2 operator +(uvec2 a, u32 b);
+  uvec2 operator -(uvec2 a, u32 b);
+  uvec2 operator *(uvec2 a, u32 b);
+  uvec2 operator /(uvec2 a, u32 b);
 
-  static void operator +=(uvec2& a, u32 b);
-  static void operator -=(uvec2& a, u32 b);
-  static void operator *=(uvec2& a, u32 b);
-  static void operator /=(uvec2& a, u32 b);
+  uvec2 operator +(u32 a, uvec2 b);
+  uvec2 operator -(u32 a, uvec2 b);
+  uvec2 operator *(u32 a, uvec2 b);
+  uvec2 operator /(u32 a, uvec2 b);
 
-  static bool operator ==(uvec2 a, u32 b);
-  static bool operator !=(uvec2 a, u32 b);
+  void operator +=(uvec2& a, u32 b);
+  void operator -=(uvec2& a, u32 b);
+  void operator *=(uvec2& a, u32 b);
+  void operator /=(uvec2& a, u32 b);
 
-  static uvec2 operator +(uvec2 a, uvec2 b);
-  static uvec2 operator -(uvec2 a, uvec2 b);
-  static uvec2 operator *(uvec2 a, uvec2 b);
-  static uvec2 operator /(uvec2 a, uvec2 b);
+  bool operator ==(uvec2 a, u32 b);
+  bool operator !=(uvec2 a, u32 b);
 
-  static void operator +=(uvec2& a, uvec2 b);
-  static void operator -=(uvec2& a, uvec2 b);
-  static void operator *=(uvec2& a, uvec2 b);
-  static void operator /=(uvec2& a, uvec2 b);
+  uvec2 operator +(uvec2 a, uvec2 b);
+  uvec2 operator -(uvec2 a, uvec2 b);
+  uvec2 operator *(uvec2 a, uvec2 b);
+  uvec2 operator /(uvec2 a, uvec2 b);
 
-  static bool operator ==(uvec2 a, uvec2 b);
-  static bool operator !=(uvec2 a, uvec2 b);
+  void operator +=(uvec2& a, uvec2 b);
+  void operator -=(uvec2& a, uvec2 b);
+  void operator *=(uvec2& a, uvec2 b);
+  void operator /=(uvec2& a, uvec2 b);
+
+  bool operator ==(uvec2 a, uvec2 b);
+  bool operator !=(uvec2 a, uvec2 b);
 
   // uvec3
 
-  static uvec3 operator +(uvec3 a, u32 b);
-  static uvec3 operator -(uvec3 a, u32 b);
-  static uvec3 operator *(uvec3 a, u32 b);
-  static uvec3 operator /(uvec3 a, u32 b);
+  uvec3 operator +(uvec3 a, u32 b);
+  uvec3 operator -(uvec3 a, u32 b);
+  uvec3 operator *(uvec3 a, u32 b);
+  uvec3 operator /(uvec3 a, u32 b);
 
-  static void operator +=(uvec3& a, u32 b);
-  static void operator -=(uvec3& a, u32 b);
-  static void operator *=(uvec3& a, u32 b);
-  static void operator /=(uvec3& a, u32 b);
+  uvec3 operator +(u32 a, uvec3 b);
+  uvec3 operator -(u32 a, uvec3 b);
+  uvec3 operator *(u32 a, uvec3 b);
+  uvec3 operator /(u32 a, uvec3 b);
 
-  static bool operator ==(uvec3 a, u32 b);
-  static bool operator !=(uvec3 a, u32 b);
+  void operator +=(uvec3& a, u32 b);
+  void operator -=(uvec3& a, u32 b);
+  void operator *=(uvec3& a, u32 b);
+  void operator /=(uvec3& a, u32 b);
 
-  static uvec3 operator +(uvec3 a, uvec3 b);
-  static uvec3 operator -(uvec3 a, uvec3 b);
-  static uvec3 operator *(uvec3 a, uvec3 b);
-  static uvec3 operator /(uvec3 a, uvec3 b);
+  bool operator ==(uvec3 a, u32 b);
+  bool operator !=(uvec3 a, u32 b);
 
-  static void operator +=(uvec3& a, uvec3 b);
-  static void operator -=(uvec3& a, uvec3 b);
-  static void operator *=(uvec3& a, uvec3 b);
-  static void operator /=(uvec3& a, uvec3 b);
+  uvec3 operator +(uvec3 a, uvec3 b);
+  uvec3 operator -(uvec3 a, uvec3 b);
+  uvec3 operator *(uvec3 a, uvec3 b);
+  uvec3 operator /(uvec3 a, uvec3 b);
 
-  static bool operator ==(uvec3 a, uvec3 b);
-  static bool operator !=(uvec3 a, uvec3 b);
+  void operator +=(uvec3& a, uvec3 b);
+  void operator -=(uvec3& a, uvec3 b);
+  void operator *=(uvec3& a, uvec3 b);
+  void operator /=(uvec3& a, uvec3 b);
+
+  bool operator ==(uvec3 a, uvec3 b);
+  bool operator !=(uvec3 a, uvec3 b);
 
   // uvec4
 
-  static uvec4 operator +(uvec4 a, u32 b);
-  static uvec4 operator -(uvec4 a, u32 b);
-  static uvec4 operator *(uvec4 a, u32 b);
-  static uvec4 operator /(uvec4 a, u32 b);
+  uvec4 operator +(uvec4 a, u32 b);
+  uvec4 operator -(uvec4 a, u32 b);
+  uvec4 operator *(uvec4 a, u32 b);
+  uvec4 operator /(uvec4 a, u32 b);
 
-  static void operator +=(uvec4& a, u32 b);
-  static void operator -=(uvec4& a, u32 b);
-  static void operator *=(uvec4& a, u32 b);
-  static void operator /=(uvec4& a, u32 b);
+  uvec4 operator +(u32 a, uvec4 b);
+  uvec4 operator -(u32 a, uvec4 b);
+  uvec4 operator *(u32 a, uvec4 b);
+  uvec4 operator /(u32 a, uvec4 b);
 
-  static bool operator ==(uvec4 a, u32 b);
-  static bool operator !=(uvec4 a, u32 b);
+  void operator +=(uvec4& a, u32 b);
+  void operator -=(uvec4& a, u32 b);
+  void operator *=(uvec4& a, u32 b);
+  void operator /=(uvec4& a, u32 b);
 
-  static uvec4 operator +(uvec4 a, uvec4 b);
-  static uvec4 operator -(uvec4 a, uvec4 b);
-  static uvec4 operator *(uvec4 a, uvec4 b);
-  static uvec4 operator /(uvec4 a, uvec4 b);
+  bool operator ==(uvec4 a, u32 b);
+  bool operator !=(uvec4 a, u32 b);
 
-  static void operator +=(uvec4& a, uvec4 b);
-  static void operator -=(uvec4& a, uvec4 b);
-  static void operator *=(uvec4& a, uvec4 b);
-  static void operator /=(uvec4& a, uvec4 b);
+  uvec4 operator +(uvec4 a, uvec4 b);
+  uvec4 operator -(uvec4 a, uvec4 b);
+  uvec4 operator *(uvec4 a, uvec4 b);
+  uvec4 operator /(uvec4 a, uvec4 b);
 
-  static bool operator ==(uvec4 a, uvec4 b);
-  static bool operator !=(uvec4 a, uvec4 b);
+  void operator +=(uvec4& a, uvec4 b);
+  void operator -=(uvec4& a, uvec4 b);
+  void operator *=(uvec4& a, uvec4 b);
+  void operator /=(uvec4& a, uvec4 b);
+
+  bool operator ==(uvec4 a, uvec4 b);
+  bool operator !=(uvec4 a, uvec4 b);
 
   // mat2
 
-  static mat2 operator +(mat2 a, mat2 b);
-  static mat2 operator -(mat2 a, mat2 b);
-  static mat2 operator *(mat2 a, mat2 b);
+  mat2 operator +(mat2 a, mat2 b);
+  mat2 operator -(mat2 a, mat2 b);
+  mat2 operator *(mat2 a, mat2 b);
 
-  static void operator +=(mat2& a, mat2 b);
-  static void operator -=(mat2& a, mat2 b);
-  static void operator *=(mat2& a, mat2 b);
+  void operator +=(mat2& a, mat2 b);
+  void operator -=(mat2& a, mat2 b);
+  void operator *=(mat2& a, mat2 b);
 
-  static bool operator ==(mat2 a, mat2 b);
-  static bool operator !=(mat2 a, mat2 b);
+  bool operator ==(mat2 a, mat2 b);
+  bool operator !=(mat2 a, mat2 b);
 
   // mat3
 
-  static mat3 operator +(mat3 a, mat3 b);
-  static mat3 operator -(mat3 a, mat3 b);
-  static mat3 operator *(mat3 a, mat3 b);
+  mat3 operator +(mat3 a, mat3 b);
+  mat3 operator -(mat3 a, mat3 b);
+  mat3 operator *(mat3 a, mat3 b);
 
-  static void operator +=(mat3& a, mat3 b);
-  static void operator -=(mat3& a, mat3 b);
-  static void operator *=(mat3& a, mat3 b);
+  void operator +=(mat3& a, mat3 b);
+  void operator -=(mat3& a, mat3 b);
+  void operator *=(mat3& a, mat3 b);
 
-  static bool operator ==(mat3 a, mat3 b);
-  static bool operator !=(mat3 a, mat3 b);
+  bool operator ==(mat3 a, mat3 b);
+  bool operator !=(mat3 a, mat3 b);
 
   // mat4
 
-  static mat4 operator +(mat4 a, mat4 b);
-  static mat4 operator -(mat4 a, mat4 b);
-  static mat4 operator *(mat4 a, mat4 b);
+  mat4 operator +(mat4 a, mat4 b);
+  mat4 operator -(mat4 a, mat4 b);
+  mat4 operator *(mat4 a, mat4 b);
 
-  static void operator +=(mat4& a, mat4 b);
-  static void operator -=(mat4& a, mat4 b);
-  static void operator *=(mat4& a, mat4 b);
+  void operator +=(mat4& a, mat4 b);
+  void operator -=(mat4& a, mat4 b);
+  void operator *=(mat4& a, mat4 b);
 
-  static bool operator ==(mat4 a, mat4 b);
-  static bool operator !=(mat4 a, mat4 b);
+  bool operator ==(mat4 a, mat4 b);
+  bool operator !=(mat4 a, mat4 b);
 
   // Math consts
-  constexpr f32 F32_EPSILON = FLT_EPSILON;
+  static constexpr f32 F32_DECIMAL_DIG = 9;                        // # of decimal digits of rounding precision
+  static constexpr f32 F32_DIG         = 6;                        // # of decimal digits of precision
+  static constexpr f32 F32_EPSILON     = 1.192092896e-07F;         // smallest such that 1.0+FLT_EPSILON != 1.0
+  static constexpr f32 F32_HAS_SUBNORM = 1;                        // type does support subnormal numbers
+  static constexpr f32 F32_GUARD       = 0;
+  static constexpr f32 F32_MANT_DIG    = 24;                       // # of bits in mantissa
+  static constexpr f32 F32_MAX         = 3.402823466e+38F;         // max value
+  static constexpr f32 F32_MAX_10_EXP  = 38;                       // max decimal exponent
+  static constexpr f32 F32_MAX_EXP     = 128;                      // max binary exponent
+  static constexpr f32 F32_MIN         = 1.175494351e-38F;         // min normalized positive value
+  static constexpr f32 F32_MIN_10_EXP  = (-37);                    // min decimal exponent
+  static constexpr f32 F32_MIN_EXP     = (-125);                   // min binary exponent
+  static constexpr f32 F32_NORMALIZE   = 0;
+  static constexpr f32 F32_RADIX       = 2;                        // exponent radix
+  static constexpr f32 F32_E           = 2.71828182845904523536;   // e
+  static constexpr f32 F32_LOG2E       = 1.44269504088896340736;   // log2(e)
+  static constexpr f32 F32_LOG10E      = 0.434294481903251827651;  // log10(e)
+  static constexpr f32 F32_LN2         = 0.693147180559945309417;  // ln(2)
+  static constexpr f32 F32_LN10        = 2.30258509299404568402;   // ln(10)
+  static constexpr f32 F32_PI          = 3.14159265358979323846;   // pi
+  static constexpr f32 F32_PI_2        = 1.57079632679489661923;   // pi/2
+  static constexpr f32 F32_PI_4        = 0.785398163397448309616;  // pi/4
+  static constexpr f32 F32_1_PI        = 0.318309886183790671538;  // 1/pi
+  static constexpr f32 F32_2_PI        = 0.636619772367581343076;  // 2/pi
+  static constexpr f32 F32_2_SQRTPI    = 1.12837916709551257390;   // 2/sqrt(pi)
+  static constexpr f32 F32_SQRT2       = 1.41421356237309504880;   // sqrt(2)
+  static constexpr f32 F32_SQRT1_2     = 0.707106781186547524401;  // 1/sqrt(2)
 
-  inline void a() {
-    sinf(32.0f);
-  }
+  static constexpr vec2 VEC2_ZERO   = vec2 { 0.0f, 0.0f };
+  static constexpr vec2 VEC2_ONE    = vec2 { 1.0f, 1.0f };
+  static constexpr vec2 VEC2_UNIT_X = vec2 { 1.0f, 0.0f };
+  static constexpr vec2 VEC2_UNIT_Y = vec2 { 0.0f, 1.0f };
+
+  static constexpr vec3 VEC3_ZERO   = vec3 { 0.0f, 0.0f, 0.0f };
+  static constexpr vec3 VEC3_ONE    = vec3 { 1.0f, 1.0f, 1.0f };
+  static constexpr vec3 VEC3_UNIT_X = vec3 { 1.0f, 0.0f, 0.0f };
+  static constexpr vec3 VEC3_UNIT_Y = vec3 { 0.0f, 1.0f, 0.0f };
+  static constexpr vec3 VEC3_UNIT_Z = vec3 { 0.0f, 0.0f, 1.0f };
+
+  static constexpr vec4 VEC4_ZERO   = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_ONE    = vec4 { 1.0f, 1.0f, 1.0f, 1.0f };
+  static constexpr vec4 VEC4_UNIT_X = vec4 { 1.0f, 0.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_Y = vec4 { 0.0f, 1.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_Z = vec4 { 0.0f, 0.0f, 1.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_W = vec4 { 0.0f, 0.0f, 0.0f, 1.0f };
+
+  static constexpr mat2 MAT2_ZERO = mat2 {
+    vec2 { 0, 0 },
+    vec2 { 0, 0 },
+  };
+
+  static constexpr mat2 MAT2_ONE = mat2 {
+    vec2 { 1, 1 },
+    vec2 { 1, 1 },
+  };
+
+  static constexpr mat2 MAT2_IDENTITY = mat2 {
+    vec2 { 1, 0 },
+    vec2 { 0, 1 },
+  };
+
+  static constexpr mat3 MAT3_ZERO = mat3 {
+    vec3 { 0, 0, 0 },
+    vec3 { 0, 0, 0 },
+    vec3 { 0, 0, 0 },
+  };
+
+  static constexpr mat3 MAT3_ONE = mat3 {
+    vec3 { 1, 1, 1 },
+    vec3 { 1, 1, 1 },
+    vec3 { 1, 1, 1 },
+  };
+
+  static constexpr mat3 MAT3_IDENTITY = mat3 {
+    vec3 { 1, 0, 0 },
+    vec3 { 0, 1, 0 },
+    vec3 { 0, 0, 1 },
+  };
+
+  static constexpr mat4 MAT4_ZERO = mat4 {
+    vec4 { 0, 0, 0, 0 },
+    vec4 { 0, 0, 0, 0 },
+    vec4 { 0, 0, 0, 0 },
+    vec4 { 0, 0, 0, 0 },
+  };
+
+  static constexpr mat4 MAT4_ONE = mat4 {
+    vec4 { 1, 1, 1, 1 },
+    vec4 { 1, 1, 1, 1 },
+    vec4 { 1, 1, 1, 1 },
+    vec4 { 1, 1, 1, 1 },
+  };
+
+  static constexpr mat4 MAT4_IDENTITY = mat4 {
+    vec4 { 1, 0, 0, 0 },
+    vec4 { 0, 1, 0, 0 },
+    vec4 { 0, 0, 1, 0 },
+    vec4 { 0, 0, 0, 1 },
+  };
 };
 
 // should be defined in platform
