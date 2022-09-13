@@ -46,6 +46,10 @@ namespace quark_core {
     };
   }
 
+  vec2 as_vec2(eul2 a) {
+    return *(vec2*)&a;
+  }
+
   // vec3
 
   f32 dot(vec3 a, vec3 b) {
@@ -98,6 +102,10 @@ namespace quark_core {
     return a + s * t + cross(u, t);
   }
 
+  vec3 as_vec3(eul3 a) {
+    return *(vec3*)&a;
+  }
+
   // vec4
 
   f32 dot(vec4 a, vec4 b) {
@@ -106,6 +114,10 @@ namespace quark_core {
 
   f32 length(vec4 a) {
     return sqrt(dot(a, a));
+  }
+
+  f32 length2(vec4 a) {
+    return dot(a, a);
   }
 
   f32 distance(vec4 a, vec4 b) {
@@ -130,38 +142,87 @@ namespace quark_core {
     return a;
   }
 
+  vec4 as_vec4(quat a) {
+    return *(vec4*)&a;
+  }
+
   // eul2
 
-  vec3 forward_eul2(eul2 a);
-  vec3 right_eul2(eul2 a);
+  vec3 forward(eul2 a) {
+    // x, y, z
+    return vec3 {
+      -sin(a.x) * sin(a.y), // x+ right
+       cos(a.x) * sin(a.y), // y+ forward
+      -cos(a.y),            // z+ up
+    };
+  }
 
-  vec3 up_eul2(eul2 a) {
-    return VEC3_UNIT_Z;
+  vec3 right(eul2 a) {
+    // y, -x, z
+    return vec3 {
+       cos(a.x) * sin(a.y),
+       sin(a.x) * sin(a.y),
+      -cos(a.y),           
+    };
+  }
+
+  vec3 up(eul2 a) {
+    // -z, y, x
+    return vec3 {
+       cos(a.y),           
+       cos(a.x) * sin(a.y),
+      -sin(a.x) * sin(a.y),
+    };
+  }
+
+  eul2 as_eul2(vec2 a) {
+    return *(eul2*)&a;
   }
 
   // eul3
 
-  vec3 forward_eul3(eul3 a);
-  vec3 right_eul3(eul3 a);
-  vec3 up_eul3(eul3 a);
+  vec3 forward(eul3 a);
+  vec3 right(eul3 a);
+  vec3 up(eul3 a);
+
+  eul3 as_eul3(vec3 a) {
+    return *(eul3*)&a;
+  }
 
   // quat
 
-  vec3 forward_quat(quat a) {
+  vec3 forward(quat a) {
     return rotate_point(VEC3_UNIT_Y, a);
   }
 
-  vec3 right_quat(quat a) {
+  vec3 right(quat a) {
     return rotate_point(VEC3_UNIT_X, a);
   }
 
-  vec3 up_quat(quat a) {
+  vec3 up(quat a) {
     return rotate_point(VEC3_UNIT_X, a);
   }
 
   quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
   quat look_at_quat(vec3 position, vec3 target, vec3 up);
   quat axis_angle_quat(vec3 axis, f32 angle);
+
+  quat conjugate(quat a) {
+    return quat {
+      -a.x,
+      -a.y,
+      -a.z,
+       a.w
+    };
+  }
+
+  quat normalize(quat a) {
+    return as_quat(normalize(as_vec4(a)));
+  }
+
+  quat as_quat(vec4 a) {
+    return *(quat*)&a;
+  }
 
   // mat2
 
@@ -939,20 +1000,40 @@ namespace quark_core {
 
   // quat
 
-  quat operator -(quat a);
+  quat operator *(f32 a, quat b) {
+    return as_quat(a * as_vec4(b));
+  }
 
-  quat operator +(quat a, quat b);
-  quat operator -(quat a, quat b);
-  quat operator *(quat a, quat b);
-  quat operator /(quat a, quat b);
+  quat operator *(quat a, f32 b) {
+    return as_quat(as_vec4(a) * b);
+  }
 
-  void operator +=(quat& a, quat b);
-  void operator -=(quat& a, quat b);
+  quat operator +(quat a, quat b) {
+    return as_quat(as_vec4(a) + as_vec4(b));
+  }
+
+  quat operator *(quat a, quat b) {
+    return quat {
+       a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x,
+      -a.x * b.z + a.y * b.w + a.z * b.x + a.w * b.y,
+       a.x * b.y - a.y * b.x + a.z * b.w + a.w * b.z,
+      -a.x * b.x - a.y * b.y - a.z * b.z + a.w * b.w,
+    };
+  }
+
+  void operator +=(quat& a, quat b) {
+    a = a + b;
+  }
+
   void operator *=(quat& a, quat b);
-  void operator /=(quat& a, quat b);
 
-  bool operator ==(quat a, quat b);
-  bool operator !=(quat a, quat b);
+  bool operator ==(quat a, quat b) {
+    return as_vec4(a) == as_vec4(b);
+  }
+
+  bool operator !=(quat a, quat b) {
+    return as_vec4(a) != as_vec4(b);
+  }
 
   // ivec2
 

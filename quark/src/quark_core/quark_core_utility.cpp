@@ -6,11 +6,11 @@
 namespace quark_core {
   // utility
 
-  f32 radians(f32 deg) {
+  f32 rad(f32 deg) {
     return (deg * F32_PI) / 180.0f;
   }
 
-  f32 degrees(f32 rad) {
+  f32 deg(f32 rad) {
     return (rad * 180.0f) / F32_PI;
   }
 

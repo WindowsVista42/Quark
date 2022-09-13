@@ -7,6 +7,27 @@
 #include <condition_variable>
 
 // QUARK_CORE
+// Api convention is
+// RET OP_TYPE_DETAIL(ARGS...)
+//
+// example:
+// f32 dot(vec2 a, vec2 b);
+// ret OP (args...)
+//
+// f32 dot(vec3 a, vec3 b);
+// ret OP (args...)
+//
+// -------------------------
+//
+// quat axis_angle_quat(vec3 axis, f32 angle);
+// ret  OP         TYPE(args...)
+//
+// mat4 axis_angle_mat4(vec3 axis, f32 angle);
+// ret  OP         TYPE(args...)
+//
+// Optionally, return type can be specified as TYPE in function names
+// For quat_core this is typically not done, unless the arguments
+// are the same across different use cases
 
 namespace quark_core {
   // Number types
@@ -80,6 +101,8 @@ namespace quark_core {
   vec2 normalize_max_length(vec2 a, f32 max_length);
   vec2 rotate_point(vec2 a, f32 angle);
 
+  vec2 as_vec2(eul2 a);
+
   // vec3
 
   f32 dot(vec3 a, vec3 b);
@@ -91,35 +114,50 @@ namespace quark_core {
   vec3 normalize_max_length(vec3 a, f32 max_length);
   vec3 rotate_point(vec3 a, quat rotation);
 
+  vec3 as_vec3(eul3 a);
+
   // vec4
 
   f32 dot(vec4 a, vec4 b);
   f32 length(vec4 a);
+  f32 length2(vec3 a);
   f32 distance(vec4 a, vec4 b);
   f32 distance2(vec4 a, vec4 b);
   vec4 normalize(vec4 a);
   vec4 normalize_max_length(vec4 a, f32 max_length);
 
+  vec4 as_vec4(quat a);
+
   // eul2
 
-  vec3 forward_eul2(eul2 a);
-  vec3 right_eul2(eul2 a);
-  vec3 up_eul2(eul2 a);
+  vec3 forward(eul2 a);
+  vec3 right(eul2 a);
+  vec3 up(eul2 a);
+
+  eul2 as_eul2(vec2 a);
 
   // eul3
 
-  vec3 forward_eul3(eul3 a);
-  vec3 right_eul3(eul3 a);
-  vec3 up_eul3(eul3 a);
+  vec3 forward(eul3 a);
+  vec3 right(eul3 a);
+  vec3 up(eul3 a);
+
+  eul3 as_eul3(vec3 a);
 
   // quat
 
-  vec3 forward_quat(quat a);
-  vec3 right_quat(quat a);
-  vec3 up_quat(quat a);
+  vec3 forward(quat a);
+  vec3 right(quat a);
+  vec3 up(quat a);
+
+  quat conjugate(quat a);
+  quat normalize(quat a);
+
   quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
   quat look_at_quat(vec3 position, vec3 target, vec3 up);
   quat axis_angle_quat(vec3 axis, f32 angle);
+
+  quat as_quat(vec4 a);
 
   // mat2
 
@@ -134,6 +172,7 @@ namespace quark_core {
   mat4 transpose(mat4 a);
   mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
   mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far);
+
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
   mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
   mat4 axis_angle_mat4(vec3 axis, f32 angle);
@@ -144,8 +183,8 @@ namespace quark_core {
 
   // utility
 
-  f32 radians(f32 deg);
-  f32 degrees(f32 rad);
+  f32 rad(f32 deg);
+  f32 deg(f32 rad);
 
   f32 clamp(f32 a, f32 minv, f32 maxv);
   f32 max(f32 a, f32 b);
@@ -423,17 +462,14 @@ namespace quark_core {
 
   // quat
 
-  quat operator -(quat a);
+  quat operator *(f32 a, quat b);
+  quat operator *(quat a, f32 b);
 
   quat operator +(quat a, quat b);
-  quat operator -(quat a, quat b);
   quat operator *(quat a, quat b);
-  quat operator /(quat a, quat b);
 
   void operator +=(quat& a, quat b);
-  void operator -=(quat& a, quat b);
   void operator *=(quat& a, quat b);
-  void operator /=(quat& a, quat b);
 
   bool operator ==(quat a, quat b);
   bool operator !=(quat a, quat b);
