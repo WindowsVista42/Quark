@@ -183,10 +183,14 @@ namespace quark_core {
   // mat4
 
   mat4 transpose(mat4 a);
+
   mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
   mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far);
 
+  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
+
+  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
   mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
   mat4 axis_angle_mat4(vec3 axis, f32 angle);
   mat4 translate_mat4(vec3 position);

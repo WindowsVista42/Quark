@@ -319,7 +319,6 @@ namespace quark_core {
   }
 
 
-  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up) {
     vec3 f = normalize(-direction);
     vec3 s = normalize(cross(up, f));
