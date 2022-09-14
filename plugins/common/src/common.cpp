@@ -282,9 +282,10 @@ namespace common {
       move_dir.x -= input::get("a").value();
       move_dir.y += input::get("w").value();
       move_dir.y -= input::get("s").value();
-      move_dir.norm_max_mag(1.0f);
+      move_dir = normalize_max_length(move_dir, 1.0f);
 
-      main_camera->pos.xy += move_dir * DT;
+      main_camera->pos.x += move_dir.x * DT;
+      main_camera->pos.y += move_dir.y * DT;
   
       main_camera->pos.z += input::get("up").value() * DT;
       main_camera->pos.z -= input::get("down").value() * DT;
@@ -302,9 +303,10 @@ namespace common {
     move_dir.x -= input::get("a").value();
     move_dir.y += input::get("w").value();
     move_dir.y -= input::get("s").value();
-    move_dir.norm_max_mag(1.0f);
+    move_dir = normalize_max_length(move_dir, 1.0f);
   
-    main_camera->pos.xy += move_dir * DT;
+    main_camera->pos.x += move_dir.x * DT;
+    main_camera->pos.y += move_dir.y * DT;
   
     main_camera->pos.z += input::get("up").value() * DT;
     main_camera->pos.z -= input::get("down").value() * DT;
@@ -694,7 +696,7 @@ namespace common {
     View<Transform, Color, Tag> renderables = {};
     for(auto [e, transform, color] : get_view_each(renderables)) {
       PushC c = {
-        .mat = MAIN_VIEW_PROJECTION * mat4::transform(transform.position, transform.rotation, GPU_MESH_SCALES[model.id]),
+        .mat = MAIN_VIEW_PROJECTION * transform_mat4(transform.position, transform.rotation, GPU_MESH_SCALES[model.id]),
         .color = color,
       };
   

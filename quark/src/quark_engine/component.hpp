@@ -12,8 +12,8 @@ namespace quark::engine::component {
   //
   // This stores the positional and rotational information of an entity
   struct Transform {
-    vec3 position = vec3::zero;
-    quat rotation = quat::identity;
+    vec3 position;
+    quat rotation;
   };
 
   // Vertex input desription helper
@@ -56,8 +56,8 @@ namespace quark::engine::component {
   //
   // Used internally for collision detection and frustum culling
   struct Aabb {
-    vec3 position = vec3::zero;
-    vec3 half_extents = vec3::zero;
+    vec3 position;
+    vec3 half_extents;
   };
 
   using UserMeshData = std::vector<VertexPNT>;
@@ -70,14 +70,14 @@ namespace quark::engine::component {
   // so they have a bunch of member methods to make
   // some common actions easier
   struct engine_api Model {
-    vec3 half_extents = vec3::half;
+    vec3 half_extents;
     u32 id = 0; // 0th item is our "default" -- probably a suzanne
 
     vec3 calculate_scale();
     void calculate_scale(vec3 scale);
 
-    static Model from_name_scale(const char* mesh_name, vec3 scale = vec3::one);
-    static Model from_name_half_extents(const char* mesh_name, vec3 half_extents = vec3::one);
+    static Model from_name_scale(const char* mesh_name, vec3 scale);
+    static Model from_name_half_extents(const char* mesh_name, vec3 half_extents);
 
     std::string mesh();
     void mesh(const char* mesh_name);
@@ -118,7 +118,7 @@ namespace quark::engine::component {
     vec3 scale;
     u32 id = 0; // 0th item is our "default" -- probably a debug image
 
-    static Texture from_image_scale(const char* image_name, vec3 scale = vec3::one);
+    static Texture from_image_scale(const char* image_name, vec3 scale);
 
     std::string image();
     void image(const char* image_name);

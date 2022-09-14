@@ -106,6 +106,14 @@ namespace quark_core {
     return *(vec3*)&a;
   }
 
+  vec3 as_vec3(vec2 xy, f32 z) {
+    return vec3 { xy.x, xy.y, z };
+  }
+
+  vec3 as_vec3(f32 x, vec2 yz) {
+    return vec3 { x, yz.x, yz.y };
+  }
+
   // vec4
 
   f32 dot(vec4 a, vec4 b) {
@@ -144,6 +152,30 @@ namespace quark_core {
 
   vec4 as_vec4(quat a) {
     return *(vec4*)&a;
+  }
+
+  vec4 as_vec4(f32 x, f32 y, vec2 zw) {
+    return vec4 { x, y, zw.x, zw.y };
+  }
+
+  vec4 as_vec4(f32 x, vec2 yz, f32 w) {
+    return vec4 { x, yz.x, yz.y, w };
+  }
+
+  vec4 as_vec4(f32 x, vec3 yzw) {
+    return vec4 { x, yzw.x, yzw.y, yzw.z };
+  }
+
+  vec4 as_vec4(vec2 xy, f32 z, f32 w) {
+    return vec4 { xy.x, xy.y, z, w };
+  }
+
+  vec4 as_vec4(vec2 xy, vec2 zw) {
+    return vec4 { xy.x, xy.y, zw.x, zw.y };
+  }
+
+  vec4 as_vec4(vec3 xyz, f32 w) {
+    return vec4 { xyz.x, xyz.y, xyz.z, w };
   }
 
   // eul2
@@ -256,15 +288,15 @@ namespace quark_core {
 
   mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far) {
     f32 inv_length = 1.0f / (z_near - z_far);
-    f32 f = 1.0f / tan((0.5f * fov_radians));
+    f32 f = 1.0f / tan(0.5f * fov_radians);
     f32 a = f / aspect;
     f32 b = (z_near + z_far) * inv_length;
     f32 c = (2.0f * z_near * z_far) * inv_length;
 
     return mat4{
       vec4 {    a, 0.0f, 0.0f,  0.0f },
-      vec4 { 0.0f,   -f, 0.0f,  0.0f },
       vec4 { 0.0f, 0.0f,    b, -1.0f },
+      vec4 { 0.0f,    f, 0.0f,  0.0f },
       vec4 { 0.0f, 0.0f,    c,  0.0f },
     };
   }
@@ -286,16 +318,18 @@ namespace quark_core {
     };
   }
 
+
+  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up) {
-    vec3 f = normalize(direction);
+    vec3 f = normalize(-direction);
     vec3 s = normalize(cross(up, f));
-    vec3 u = cross(f, s);
+    vec3 u = cross(s, f);
 
     return mat4 {
-      vec4 { s.x, u.x, -f.x, 0.0f },
-      vec4 { s.y, u.y, -f.y, 0.0f },
-      vec4 { s.z, u.z, -f.z, 0.0f },
-      vec4 { -dot(position, s), -dot(position, s), dot(position, f), 1.0f },
+      vec4 { s.x, f.x, u.x, 0.0f },
+      vec4 { s.y, f.y, u.y, 0.0f },
+      vec4 { s.z, f.z, u.z, 0.0f },
+      vec4 { -dot(position, s), -dot(position, f), -dot(position, u), 1.0f },
     };
   }
 
@@ -565,7 +599,7 @@ namespace quark_core {
 
   // vec3
 
-  f32& vec3::operator[](usize i) {
+  f32& vec3::operator [](usize i) {
     return ((f32*)this)[i];
   }
 
@@ -754,6 +788,10 @@ namespace quark_core {
   }
 
   // vec4
+
+  f32& vec4::operator [](usize i) {
+    return ((f32*)this)[i];
+  }
 
   vec4 operator -(vec4 a) {
     return vec4 {
@@ -1189,7 +1227,7 @@ namespace quark_core {
 
   // ivec3
 
-  i32& ivec3::operator[](usize i) {
+  i32& ivec3::operator [](usize i) {
     return ((i32*)this)[i];
   }
 
@@ -1362,6 +1400,10 @@ namespace quark_core {
   }
 
   // ivec4
+
+  i32& ivec4::operator [](usize i) {
+    return ((i32*)this)[i];
+  }
 
   ivec4 operator -(ivec4 a) {
     return ivec4 {
@@ -1706,7 +1748,7 @@ namespace quark_core {
 
   // uvec3
 
-  u32& uvec3::operator[](usize i) {
+  u32& uvec3::operator [](usize i) {
     return ((u32*)this)[i];
   }
 
@@ -1879,6 +1921,10 @@ namespace quark_core {
   }
 
   // uvec4
+
+  u32& uvec4::operator [](usize i) {
+    return ((u32*)this)[i];
+  }
 
   uvec4 operator -(uvec4 a) {
     return uvec4 {
@@ -2071,6 +2117,10 @@ namespace quark_core {
 
   // mat2
 
+  vec2& mat2::operator[](usize i) {
+    return ((vec2*)this)[i];
+  }
+
   mat2 operator +(mat2 a, mat2 b) {
     return mat2 {
       a[0] + b[0],
@@ -2119,6 +2169,10 @@ namespace quark_core {
   }
 
   // mat3
+
+  vec3& mat3::operator[](usize i) {
+    return ((vec3*)this)[i];
+  }
 
   mat3 operator +(mat3 a, mat3 b) {
     return mat3 {
@@ -2177,6 +2231,10 @@ namespace quark_core {
   } 
 
   // mat4
+
+  vec4& mat4::operator[](usize i) {
+    return ((vec4*)this)[i];
+  }
 
   mat4 operator +(mat4 a, mat4 b) {
     return mat4 {

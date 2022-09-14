@@ -280,4 +280,9 @@ namespace quark {
   usize get_alloc_unused(LinearAllocationTracker* allocator) {
     return allocator->capacity - allocator->size;
   }
+
+  void panic(const char* message) {
+    printf("Panicked at message: \"%s\"", message);
+    exit(-1);
+  }
 };

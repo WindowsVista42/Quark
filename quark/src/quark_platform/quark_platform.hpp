@@ -253,4 +253,23 @@ namespace quark {
 
   platform_api usize get_alloc_unused(LinearAllocator* allocator);
   platform_api usize get_alloc_unused(LinearAllocationTracker* allocator);
+
+  [[noreturn]] platform_api void panic(const char* message);
+
+  #if defined(_WIN32) || defined(_WIN64)
+    #define mod_main() extern "C" __declspec(dllexport) void mod_main()
+  #else
+    #define mod_main() extern "C" void mod_main()
+  #endif
+
+  // #define panic(message)                                                                                                                               \
+  //   fprintf(stderr, "Panicked at message: \"%s\" : %d : %s\n", message, __LINE__, __FILE__);                                                           \
+  //   exit(-1);
+  //   //char* a = 0;                                                                                                                                       \
+  //   //*a = 0
+  
+  #define panic2(s) \
+    str::print(str() + "\nPanicked at message:\n" + s + "\n" + __LINE__ + " : " + __FILE__ + "\n"); \
+    exit(-1)
+
 };

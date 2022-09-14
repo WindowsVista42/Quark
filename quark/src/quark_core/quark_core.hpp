@@ -90,6 +90,8 @@ namespace quark_core {
 
   // Math functions
 
+  #define swizzle(v, i...) swizzle_internal<i>(v)
+
   // vec2
 
   f32 dot(vec2 a, vec2 b);
@@ -111,10 +113,14 @@ namespace quark_core {
   f32 distance(vec3 a, vec3 b);
   f32 distance2(vec3 a, vec3 b);
   vec3 cross(vec3 a, vec3 b);
+  vec3 normalize(vec3 a);
   vec3 normalize_max_length(vec3 a, f32 max_length);
   vec3 rotate_point(vec3 a, quat rotation);
 
   vec3 as_vec3(eul3 a);
+
+  vec3 as_vec3(vec2 xy, f32 z);
+  vec3 as_vec3(f32 x, vec2 yz);
 
   // vec4
 
@@ -127,6 +133,13 @@ namespace quark_core {
   vec4 normalize_max_length(vec4 a, f32 max_length);
 
   vec4 as_vec4(quat a);
+
+  vec4 as_vec4(f32 x, f32 y, vec2 zw);
+  vec4 as_vec4(f32 x, vec2 yz, f32 w);
+  vec4 as_vec4(f32 x, vec3 yzw);
+  vec4 as_vec4(vec2 xy, f32 z, f32 w);
+  vec4 as_vec4(vec2 xy, vec2 zw);
+  vec4 as_vec4(vec3 xyz, f32 w);
 
   // eul2
 
@@ -817,6 +830,151 @@ namespace quark_core {
     vec4 { 0, 0, 1, 0 },
     vec4 { 0, 0, 0, 1 },
   };
+
+// SPAGHETTI SWIZZLE
+// This secion defines swizzles for all vector types
+
+#define USING_EXT_VEC_TYPES \
+  using vec2s = float __attribute__((ext_vector_type(2))); \
+  using vec3s = float __attribute__((ext_vector_type(3))); \
+  using vec4s = float __attribute__((ext_vector_type(4))); \
+  \
+  using ivec2s = i32 __attribute__((ext_vector_type(2))); \
+  using ivec3s = i32 __attribute__((ext_vector_type(3))); \
+  using ivec4s = i32 __attribute__((ext_vector_type(4))); \
+  \
+  using uvec2s = u32 __attribute__((ext_vector_type(2))); \
+  using uvec3s = u32 __attribute__((ext_vector_type(3))); \
+  using uvec4s = u32 __attribute__((ext_vector_type(4))); \
+
+#define MAKE_SWIZZLE_2_2(out_ty, in_ty) \
+  template <u32 ix, u32 iy> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy); \
+    return out_ty { val.x, val.y }; \
+  }
+
+#define MAKE_SWIZZLE_2_3(out_ty, in_ty) \
+  template <u32 ix, u32 iy> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy); \
+    return out_ty { val.x, val.y }; \
+  }
+
+#define MAKE_SWIZZLE_2_4(out_ty, in_ty) \
+  template <u32 ix, u32 iy> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z, t.w }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy); \
+    return out_ty { val.x, val.y }; \
+  }
+
+#define MAKE_SWIZZLE_3_2(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz); \
+    return out_ty { val.x, val.y, val.z }; \
+  }
+
+#define MAKE_SWIZZLE_3_3(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz); \
+    return out_ty { val.x, val.y, val.z }; \
+  }
+
+#define MAKE_SWIZZLE_3_4(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z, t.w }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz); \
+    return out_ty { val.x, val.y, val.z }; \
+  }
+
+#define MAKE_SWIZZLE_4_2(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz, u32 iw> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz, iw); \
+    return out_ty { val.x, val.y, val.z, val.w }; \
+  }
+
+#define MAKE_SWIZZLE_4_3(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz, u32 iw> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz, iw); \
+    return out_ty { val.x, val.y, val.z, val.w }; \
+  }
+
+#define MAKE_SWIZZLE_4_4(out_ty, in_ty) \
+  template <u32 ix, u32 iy, u32 iz, u32 iw> \
+  out_ty swizzle_internal(in_ty t) { \
+    USING_EXT_VEC_TYPES \
+    in_ty##s tv = in_ty##s { t.x, t.y, t.z, t.w }; \
+    out_ty##s val = __builtin_shufflevector(tv, tv, ix, iy, iz, iw); \
+    return out_ty { val.x, val.y, val.z, val.w }; \
+  }
+
+  MAKE_SWIZZLE_2_2(vec2, vec2)
+  MAKE_SWIZZLE_2_2(ivec2, ivec2)
+  MAKE_SWIZZLE_2_2(uvec2, uvec2)
+
+  MAKE_SWIZZLE_2_3(vec2, vec3)
+  MAKE_SWIZZLE_2_3(ivec2, ivec3)
+  MAKE_SWIZZLE_2_3(uvec2, uvec3)
+
+  MAKE_SWIZZLE_2_4(vec2, vec4)
+  MAKE_SWIZZLE_2_4(ivec2, ivec4)
+  MAKE_SWIZZLE_2_4(uvec2, uvec4)
+
+  MAKE_SWIZZLE_3_2(vec3, vec2)
+  MAKE_SWIZZLE_3_2(ivec3, ivec2)
+  MAKE_SWIZZLE_3_2(uvec3, uvec2)
+
+  MAKE_SWIZZLE_3_3(vec3, vec3)
+  MAKE_SWIZZLE_3_3(ivec3, ivec3)
+  MAKE_SWIZZLE_3_3(uvec3, uvec3)
+
+  MAKE_SWIZZLE_3_4(vec3, vec4)
+  MAKE_SWIZZLE_3_4(ivec3, ivec4)
+  MAKE_SWIZZLE_3_4(uvec3, uvec4)
+
+  MAKE_SWIZZLE_4_2(vec4, vec2)
+  MAKE_SWIZZLE_4_2(ivec4, ivec2)
+  MAKE_SWIZZLE_4_2(uvec4, uvec2)
+
+  MAKE_SWIZZLE_4_3(vec4, vec3)
+  MAKE_SWIZZLE_4_3(ivec4, ivec3)
+  MAKE_SWIZZLE_4_3(uvec4, uvec3)
+
+  MAKE_SWIZZLE_4_4(vec4, vec4)
+  MAKE_SWIZZLE_4_4(ivec4, ivec4)
+  MAKE_SWIZZLE_4_4(uvec4, uvec4)
+
+#undef MAKE_SWIZZLE_2_2
+#undef MAKE_SWIZZLE_2_3
+#undef MAKE_SWIZZLE_2_4
+
+#undef MAKE_SWIZZLE_3_2
+#undef MAKE_SWIZZLE_3_3
+#undef MAKE_SWIZZLE_3_4
+
+#undef MAKE_SWIZZLE_4_2
+#undef MAKE_SWIZZLE_4_3
+#undef MAKE_SWIZZLE_4_4
 };
 
 // should be defined in platform

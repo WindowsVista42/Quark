@@ -1,5 +1,6 @@
 #define QUARK_ENGINE_INTERNAL
 #include "system.hpp"
+#include "../quark_platform/module.hpp"
 
 namespace quark::engine::system {
   void SystemList::_add(const char* name, system_function function, usize real_index, bool add_after) {

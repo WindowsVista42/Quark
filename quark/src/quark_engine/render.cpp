@@ -3,7 +3,9 @@
 #include <tiny_obj_loader.h>
 #include <vulkan/vulkan.h>
 
-#include "../quark_core/module.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "qoi.h"
 
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
@@ -12,16 +14,14 @@
 #include "asset.hpp"
 #include "global.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#include "qoi.h"
-
 #define VMA_IMPLEMENTATION
 #include "render.hpp"
 
 #include "effect.hpp"
 
 #include "str.hpp"
+
+#include "../quark_core/module.hpp"
 
 //lkjlkjlkjlkj
 
@@ -46,43 +46,43 @@ namespace quark::engine::render {
   }
 
   Camera MAIN_CAMERA = {
-    .spherical_dir = {0.0f, M_PI_2},
-    .pos = vec3::zero,
-    .dir = vec3::unit_y,
+    .spherical_dir = {0.0f, F32_PI_2},
+    .pos = VEC3_ZERO,
+    .dir = VEC3_UNIT_Y,
   };
 
   Camera SUN_CAMERA = {
-    .spherical_dir = {0.0f, M_PI_2},
-    .pos = vec3::zero,
-    .dir = vec3::unit_y * - 1.0f,
+    .spherical_dir = {0.0f, F32_PI_2},
+    .pos = VEC3_ZERO,
+    .dir = VEC3_UNIT_Y * - 1.0f,
   };
   
   //TODO(sean): update this so that it can output cull data to the input camera
   mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
-    mat4 view_projection = mat4::identity;
+    mat4 view_projection = MAT4_IDENTITY;
   
     f32 aspect = (f32)width / (f32)height;
     mat4 projection, view;
   
     if (projection_type == PERSPECTIVE_PROJECTION) {
-      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+      projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
     } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
       //projection = mat4::orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
-      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+      projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
     } else {
-      projection = mat4::perspective(radians(camera.fov), aspect, camera.znear, camera.zfar);
+      projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
     }
   
-    view = mat4::look_dir(camera.pos, camera.dir, vec3::unit_z);
+    view = look_dir_mat4(camera.pos, camera.dir, VEC3_UNIT_Z);
     view_projection = projection * view;
   
     // Calculate updated frustum
     //if (!PAUSE_FRUSTUM_CULLING) {
     if (true) {
-      mat4 projection_matrix_t = projection.transpose();//transpose(projection);
-  
-      auto normalize_plane = [](vec4 p) { return p / p.xyz.mag(); };
-  
+      mat4 projection_matrix_t = transpose(projection);
+
+      auto normalize_plane = [](vec4 p) { return p / length(swizzle(p, 0, 1, 2)); };
+
       vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
       vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
   
@@ -97,7 +97,7 @@ namespace quark::engine::render {
       _cull_data.lod_step = 1.5f;
   
       {
-        mat4 m = view_projection.transpose();
+        mat4 m = transpose(view_projection);
         _cull_planes[0] = m[3] + m[0];
         _cull_planes[1] = m[3] - m[0];
         _cull_planes[2] = m[3] + m[1];
@@ -111,10 +111,10 @@ namespace quark::engine::render {
   }
 
   void update_cameras() {
-    MAIN_CAMERA.dir = MAIN_CAMERA.spherical_dir.cartesian();
+    MAIN_CAMERA.dir = forward(MAIN_CAMERA.spherical_dir);
 
     SUN_CAMERA.pos = MAIN_CAMERA.pos + vec3{20.0f, 20.0f, 300.0f};
-    SUN_CAMERA.dir = (MAIN_CAMERA.pos - SUN_CAMERA.pos).norm();
+    SUN_CAMERA.dir = normalize(MAIN_CAMERA.pos - SUN_CAMERA.pos);
     SUN_CAMERA.znear = 10.0f;
     SUN_CAMERA.zfar = 500.0f;
     SUN_CAMERA.fov = 16.0f;
@@ -131,7 +131,7 @@ namespace quark::engine::render {
     for (auto [e, transform, color, light] : registry::view<const Transform, const Color, const PointLight>().each()) {
       world_data->point_lights[count].position = transform.position;
       world_data->point_lights[count].falloff = light.falloff;
-      world_data->point_lights[count].color = color.xyz;
+      world_data->point_lights[count].color = swizzle(color, 0, 1, 2);
       world_data->point_lights[count].directionality = light.directionality;
       count += 1;
     }
@@ -141,21 +141,21 @@ namespace quark::engine::render {
     for (auto [e, transform, color, light] : registry::view<const Transform, const Color, const DirectionalLight>().each()) {
       world_data->directional_lights[count].position = transform.position;
       world_data->directional_lights[count].falloff = light.falloff;
-      world_data->directional_lights[count].direction = transform.rotation.forward();
-      world_data->directional_lights[count].color = color.xyz;
+      world_data->directional_lights[count].direction = forward(transform.rotation);
+      world_data->directional_lights[count].color = swizzle(color, 0, 1, 2);
       world_data->directional_lights[count].directionality = light.directionality;
       count += 1;
     }
     world_data->directional_light_count = count;
   
-    world_data->main_camera.spherical_dir = MAIN_CAMERA.spherical_dir;
+    world_data->main_camera.spherical_dir = as_vec2(MAIN_CAMERA.spherical_dir);
     world_data->main_camera.pos = MAIN_CAMERA.pos;
     world_data->main_camera.znear = MAIN_CAMERA.znear;
     world_data->main_camera.dir = MAIN_CAMERA.dir;
     world_data->main_camera.zfar = MAIN_CAMERA.zfar;
     world_data->main_camera.fov = MAIN_CAMERA.fov;
   
-    world_data->sun_camera.spherical_dir = SUN_CAMERA.spherical_dir;
+    world_data->sun_camera.spherical_dir = as_vec2(SUN_CAMERA.spherical_dir);
     world_data->sun_camera.pos = SUN_CAMERA.pos;
     world_data->sun_camera.znear = SUN_CAMERA.znear;
     world_data->sun_camera.dir = SUN_CAMERA.dir;
@@ -169,7 +169,7 @@ namespace quark::engine::render {
       //world_data->sun_light.directionality = light.directionality;
       world_data->sun_light.direction = SUN_CAMERA.dir;
       world_data->sun_light.directionality = 1.0f;
-      world_data->sun_light.color = vec3(0.8f);
+      world_data->sun_light.color = vec3 { 0.8f, 0.8f, 0.8f };
     }
   
     world_data->TT = TT;
@@ -247,8 +247,8 @@ namespace quark::engine::render {
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = 2;
-    dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
+    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
   
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
@@ -300,8 +300,8 @@ namespace quark::engine::render {
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = 2;
-    dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
+    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
   
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
@@ -361,8 +361,8 @@ namespace quark::engine::render {
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
     dpc.TEXTURE_INDEX = texture.id;
-    dpc.MODEL_ROTATION = transform.rotation;
-    dpc.MODEL_SCALE = vec4(model.half_extents, 1.0f);
+    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
 
     _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
   }
@@ -382,9 +382,9 @@ namespace quark::engine::render {
     AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
 
     ColorPushConstant pcd;
-    pcd.MODEL_POSITION = vec4(transform.position, 1.0f);
-    pcd.MODEL_ROTATION = transform.rotation;
-    pcd.MODEL_SCALE = vec4(model.half_extents, 1.0f);
+    pcd.MODEL_POSITION = as_vec4(transform.position, 1.0f);
+    pcd.MODEL_ROTATION = as_vec4(transform.rotation);
+    pcd.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
     pcd.color = color;
 
     _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
@@ -1429,17 +1429,17 @@ namespace quark::engine::render {
     
       for_every(i, 6) {
         usize out = 0;
-        out += _cull_planes[i].dot(vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += _cull_planes[i].dot(vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-    
-        out += _cull_planes[i].dot(vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += _cull_planes[i].dot(vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-    
-        out += _cull_planes[i].dot(vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += _cull_planes[i].dot(vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-    
-        out += _cull_planes[i].dot(vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += _cull_planes[i].dot(vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
+        out += dot(_cull_planes[i], vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
+        out += dot(_cull_planes[i], vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
+
+        out += dot(_cull_planes[i], vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
+        out += dot(_cull_planes[i], vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
+
+        out += dot(_cull_planes[i], vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
+        out += dot(_cull_planes[i], vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
+
+        out += dot(_cull_planes[i], vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
+        out += dot(_cull_planes[i], vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
         if (out == 8) {
           return false;
         }
@@ -1663,7 +1663,7 @@ namespace quark::engine::render {
       AllocatedMesh* mesh = &_gpu_meshes[mesh_id];//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
       *mesh = create_mesh(data, size, sizeof(VertexPNT));
 
-      _gpu_mesh_scales[mesh_id] = ext.norm_max_mag(2.0f);
+      _gpu_mesh_scales[mesh_id] = normalize_max_length(ext, 2.0f);
 
       return mesh_id;
     }

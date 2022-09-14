@@ -17,7 +17,7 @@ namespace quark::engine::render {
   };
   
   struct engine_api Camera {
-    vec2 spherical_dir;
+    eul2 spherical_dir;
     vec3 pos;
     vec3 dir;
     f32 znear = 0.01;
