@@ -25,8 +25,8 @@
 // mat4 axis_angle_mat4(vec3 axis, f32 angle);
 // ret  OP         TYPE(args...)
 //
-// Optionally, return type can be specified as TYPE in function names
-// For quat_core this is typically not done, unless the arguments
+// Return type will sometimes be specified as TYPE in function names
+// For quark_core this is typically only done if the arguments
 // are the same across different use cases
 
 namespace quark_core {

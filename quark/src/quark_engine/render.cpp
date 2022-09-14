@@ -2,9 +2,11 @@
 #include <iostream>
 #include <tiny_obj_loader.h>
 #include <vulkan/vulkan.h>
+
+#include "../quark_core/module.hpp"
+
 #define QUARK_ENGINE_INTERNAL
 #include "api.hpp"
-#include "../quark_core/module.hpp"
 #include "component.hpp"
 #include "registry.hpp"
 #include "asset.hpp"
