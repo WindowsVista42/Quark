@@ -166,8 +166,9 @@ namespace quark_core {
   quat conjugate(quat a);
   quat normalize(quat a);
 
-  quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
-  quat look_at_quat(vec3 position, vec3 target, vec3 up);
+  quat rotate_quat(mat3 rotation);
+  quat rotate_quat(mat4 rotation);
+  quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis);
   quat axis_angle_quat(vec3 axis, f32 angle);
 
   quat as_quat(vec4 a);

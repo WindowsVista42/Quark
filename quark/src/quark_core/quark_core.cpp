@@ -235,9 +235,89 @@ namespace quark_core {
     return rotate_point(VEC3_UNIT_X, a);
   }
 
-  quat look_dir_quat(vec3 position, vec3 direction, vec3 up);
-  quat look_at_quat(vec3 position, vec3 target, vec3 up);
-  quat axis_angle_quat(vec3 axis, f32 angle);
+  quat rotate_quat(mat3 rotation) {
+    return rotation_axes_quat(rotation.xs, rotation.ys, rotation.zs);
+  }
+
+  quat rotate_quat(mat4 rotation) {
+    return rotation_axes_quat(
+      swizzle(rotation.xs, 0, 1, 2),
+      swizzle(rotation.ys, 0, 1, 2),
+      swizzle(rotation.zs, 0, 1, 2)
+    );
+  }
+
+  quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis) {
+    // https://github.com/microsoft/DirectXMath --> `XM$quaternionRotationMatrix`
+
+    auto [m00, m01, m02] = x_axis;
+    auto [m10, m11, m12] = y_axis;
+    auto [m20, m21, m22] = z_axis;
+
+    if(m22 <= 0.0) {
+      // x^2 + y^2 >= z^2 + w^2
+      f32 dif10 = m11 - m00;
+      f32 omm22 = 1.0 - m22;
+      if(dif10 <= 0.0) {
+        // x^2 >= y^2
+        f32 four_xsq = omm22 - dif10;
+        f32 inv4x = 0.5 / sqrt(four_xsq);
+
+        return quat {
+          four_xsq * inv4x,
+          (m01 + m10) * inv4x,
+          (m02 + m20) * inv4x,
+          (m12 - m21) * inv4x,
+        };
+      } else {
+        // y^2 >= x^2
+        f32 four_ysq = omm22 + dif10;
+        f32 inv4y = 0.5 / sqrt(four_ysq);
+
+        return quat {
+          (m01 + m10) * inv4y,
+          four_ysq * inv4y,
+          (m12 + m21) * inv4y,
+          (m20 - m02) * inv4y,
+        };
+      }
+    } else {
+      // z^2 + w^2 >= x^2 + y^2
+      f32 sum10 = m11 + m00;
+      f32 opm22 = 1.0 + m22;
+      if(sum10 <= 0.0) {
+        // z^2 >= w^2
+        f32 four_zsq = opm22 - sum10;
+        f32 inv4z = 0.5 / sqrt(four_zsq);
+
+        return quat {
+          (m02 + m20) * inv4z,
+          (m12 + m21) * inv4z,
+          four_zsq * inv4z,
+          (m01 - m10) * inv4z,
+        };
+      } else {
+        // w^2 >= z^2
+        f32 four_wsq = opm22 + sum10;
+        f32 inv4w = 0.5 / sqrt(four_wsq);
+
+        return quat {
+          (m12 - m21) * inv4w,
+          (m20 - m02) * inv4w,
+          (m01 - m10) * inv4w,
+          four_wsq * inv4w,
+        };
+      }
+    }
+  }
+
+  quat axis_angle_quat(vec3 axis, f32 angle) {
+    f32 sinv = sin(angle * 0.5f);
+    f32 cosv = cos(angle * 0.5f);
+    vec3 v = axis * sinv;
+
+    return as_quat(as_vec4(v, cosv));
+  }
 
   quat conjugate(quat a) {
     return quat {
@@ -295,8 +375,8 @@ namespace quark_core {
 
     return mat4{
       vec4 {    a, 0.0f, 0.0f,  0.0f },
-      vec4 { 0.0f, 0.0f,    b, -1.0f },
       vec4 { 0.0f,    f, 0.0f,  0.0f },
+      vec4 { 0.0f, 0.0f,    b, -1.0f },
       vec4 { 0.0f, 0.0f,    c,  0.0f },
     };
   }
@@ -325,10 +405,10 @@ namespace quark_core {
     vec3 u = cross(s, f);
 
     return mat4 {
-      vec4 { s.x, f.x, u.x, 0.0f },
-      vec4 { s.y, f.y, u.y, 0.0f },
-      vec4 { s.z, f.z, u.z, 0.0f },
-      vec4 { -dot(position, s), -dot(position, f), -dot(position, u), 1.0f },
+      vec4 { s.x, u.x, f.x, 0.0f },
+      vec4 { s.y, u.y, f.y, 0.0f },
+      vec4 { s.z, u.z, f.z, 0.0f },
+      vec4 { -dot(position, s), -dot(position, u), -dot(position, f), 1.0f },
     };
   }
 
