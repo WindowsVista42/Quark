@@ -221,14 +221,14 @@ namespace common {
   //template <> Input* Resource<Input>::value = &global_input;
   
   void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1) {
-    for_every(i, 10) {
-      view0.create(Transform{}, Color{}, Tag{}, Iden {Iden::global_value});
+    for_every(i, 1) {
+      view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
       Iden::global_value += 1;
     }
   
-    for_every(i, 10) {
-      view1.create(Transform{}, Color{});
-    }
+    //for_every(i, 10) {
+    //  view1.create(Transform{}, Color{});
+    //}
   
     input::bind("w", Key::W);
     input::bind("s", Key::S);
@@ -659,7 +659,7 @@ namespace common {
   }
   
   void render_things() {
-    Model model = Model::from_name_scale("cube", {4.0f, 1.0f, 1.0f});
+    Model model = Model::from_name_scale("suzanne", {4.0f, 1.0f, 1.0f});
   
     struct PushC {
       mat4 mat;

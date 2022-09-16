@@ -3,6 +3,8 @@
 #include "../quark_platform/module.hpp"
 
 namespace quark {
+#define typedef_unique(type, basetype) struct type : public basetype {}
+
   // required for rendering
   struct Transform;
   struct Model;
@@ -62,6 +64,72 @@ namespace quark {
     Texture albedo;
   };
 
+  struct PbrMaterial {
+    Texture albedo;
+    Texture metallic_roughness;
+    Texture normals;
+    Texture height;
+    Texture occlusion;
+    Texture emission;
+
+    vec2 tiling;
+    vec2 offset;
+
+    vec3 albedo_tint;
+    f32 metallic_strength;
+    f32 roughness_strength;
+    f32 normals_strength;
+    f32 height_strength;
+    f32 occlusion_strength;
+
+    vec3 emission_tint;
+    f32 emission_strength;
+  };
+
+  struct PbrPushData {
+    f32 position_x;
+    f32 position_y;
+    f32 position_z;
+
+    f32 rotation_x;
+    f32 rotation_y;
+    f32 rotation_z;
+    f32 rotation_w;
+
+    f32 scale_x;
+    f32 scale_y;
+    f32 scale_z;
+
+    u32 albedo;
+    u32 metallic_roughness;
+    u32 normals;
+    u32 height;
+    u32 occlusion;
+    u32 emission;
+
+    f32 tiling_x;
+    f32 tiling_y;
+
+    f32 offset_x;
+    f32 offset_y;
+
+    f32 albedo_tint_x;
+    f32 albedo_tint_y;
+    f32 albedo_tint_z;
+
+    f32 metallic_strength;
+    f32 roughness_strength;
+    f32 normals_strength;
+    f32 height_strength;
+    f32 occlusion_strength;
+
+    f32 emission_tint_x;
+    f32 emission_tint_y;
+    f32 emission_tint_z;
+
+    f32 emission_strength;
+  };
+
   struct ActionState {
     f32 previous;
     f32 current;
@@ -75,6 +143,23 @@ namespace quark {
 
     f32 value;
   };
+
+  // new camera tech
+
+  // struct Camera2 {
+  //   vec3 position;
+  //   eul3 rotation;
+  //   f32 fov;
+  //   f32 znear;
+  //   f32 zfar;
+  //   u32 projection_type;
+  // };
+
+  // struct Camera2d {
+  //   vec2 position;
+  //   f32 rotation;
+  //   f32 zoom;
+  // };
 
   // Global control
   engine_api void init_all();
