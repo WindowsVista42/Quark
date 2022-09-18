@@ -33,8 +33,8 @@ void mouse_callback(GLFWwindow* window, double x, double y) {
 }
 
 void init() {
-  glfwSetScrollCallback(_GLOBAL_WINDOW_PTR, scroll_callback);
-  glfwSetCursorPosCallback(_GLOBAL_WINDOW_PTR, mouse_callback);
+  glfwSetScrollCallback(get_window_ptr(), scroll_callback);
+  glfwSetCursorPosCallback(get_window_ptr(), mouse_callback);
 }
 
 void bind(const char* name, InputEnum input) {

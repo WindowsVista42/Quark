@@ -2,18 +2,22 @@
 #include "quark_platform.hpp"
 
 namespace quark {
-  GLFWwindow* _GLOBAL_WINDOW_PTR;
-  std::string _CONFIG_WINDOW_NAME;
-  ivec2 _CONFIG_WINDOW_DIMENSIONS;
-  bool _CONFIG_WINDOW_ENABLE_CURSOR;
-  bool _CONFIG_WINDOW_ENABLE_RESIZING;
-  bool _CONFIG_WINDOW_ENABLE_RAW_MOUSE;
+  GLFWwindow* _window_ptr;
+  std::string _window_name;
+  ivec2 _window_dimensions;
+  bool _window_enable_cursor;
+  bool _window_enable_resizing;
+  bool _window_enable_raw_mouse;
 
-  ThreadPool _GLOBAL_THREADPOOL;
-  std::thread::id _GLOBAL_MAIN_THREAD_ID = std::this_thread::get_id();
+  ThreadPool _threadpool;
+  thread_id _main_thread_id = std::this_thread::get_id();
+
+  GLFWwindow* get_window_ptr() {
+    return _window_ptr;
+  }
 
   void init_window() {
-    if(_GLOBAL_WINDOW_PTR != 0) {
+    if(_window_ptr != 0) {
       panic("Attempted to create the window twice!");
     };
 
@@ -24,62 +28,62 @@ namespace quark {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, _CONFIG_WINDOW_ENABLE_RESIZING ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
 
     // TODO(sean): allow for this not to be the primary monitor
     const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-    if(_CONFIG_WINDOW_DIMENSIONS.x <= 0) {
-      _CONFIG_WINDOW_DIMENSIONS.x = vid_mode->width;
+    if(_window_dimensions.x <= 0) {
+      _window_dimensions.x = vid_mode->width;
     }
 
-    if(_CONFIG_WINDOW_DIMENSIONS.y <= 0) {
-      _CONFIG_WINDOW_DIMENSIONS.y = vid_mode->height;
+    if(_window_dimensions.y <= 0) {
+      _window_dimensions.y = vid_mode->height;
     }
 
-    _GLOBAL_WINDOW_PTR = glfwCreateWindow(_CONFIG_WINDOW_DIMENSIONS.x, _CONFIG_WINDOW_DIMENSIONS.y, _CONFIG_WINDOW_NAME.c_str(), 0, 0);
+    _window_ptr = glfwCreateWindow(_window_dimensions.x, _window_dimensions.y, _window_name.c_str(), 0, 0);
 
-    glfwSetInputMode(_GLOBAL_WINDOW_PTR, GLFW_CURSOR, _CONFIG_WINDOW_ENABLE_CURSOR ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_HIDDEN);
-    glfwSetInputMode(_GLOBAL_WINDOW_PTR, GLFW_RAW_MOUSE_MOTION, _CONFIG_WINDOW_ENABLE_RAW_MOUSE ? GLFW_TRUE : GLFW_FALSE);
-    glfwGetFramebufferSize(_GLOBAL_WINDOW_PTR, &_CONFIG_WINDOW_DIMENSIONS.x, &_CONFIG_WINDOW_DIMENSIONS.y);
+    glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(_window_ptr, GLFW_RAW_MOUSE_MOTION, _window_enable_raw_mouse ? GLFW_TRUE : GLFW_FALSE);
+    glfwGetFramebufferSize(_window_ptr, &_window_dimensions.x, &_window_dimensions.y);
   }
 
   void deinit_window() {
-    glfwDestroyWindow(_GLOBAL_WINDOW_PTR);
+    glfwDestroyWindow(_window_ptr);
     glfwTerminate();
   }
 
   std::string get_window_name() {
-    return _CONFIG_WINDOW_NAME;
+    return _window_name;
   }
 
   ivec2 get_window_dimensions() {
-    return _CONFIG_WINDOW_DIMENSIONS;
+    return _window_dimensions;
   }
 
   bool get_window_should_close() {
-    return glfwWindowShouldClose(_GLOBAL_WINDOW_PTR) == GLFW_TRUE;
+    return glfwWindowShouldClose(_window_ptr) == GLFW_TRUE;
   }
 
   void set_window_name(const char* window_name) {
-    glfwSetWindowTitle(_GLOBAL_WINDOW_PTR, window_name);
+    glfwSetWindowTitle(_window_ptr, window_name);
   }
 
   void set_window_should_close() {
-    glfwSetWindowShouldClose(_GLOBAL_WINDOW_PTR, GLFW_TRUE);
+    glfwSetWindowShouldClose(_window_ptr, GLFW_TRUE);
   }
 
   InputState::Enum get_key_state(KeyCode::Enum key) {
-    return (InputState::Enum)glfwGetKey(_GLOBAL_WINDOW_PTR, (int)key);
+    return (InputState::Enum)glfwGetKey(_window_ptr, (int)key);
   }
 
   InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button) {
-    return (InputState::Enum)glfwGetMouseButton(_GLOBAL_WINDOW_PTR, (int)mouse_button);
+    return (InputState::Enum)glfwGetMouseButton(_window_ptr, (int)mouse_button);
   }
 
   InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button) {
     panic("get_gamepad_button_state() called!");
-    //return (InputState::Enum)glfwGetKey(_GLOBAL_WINDOW_PTR, (int)gamepad_button);
+    //return (InputState::Enum)glfwGetKey(_window_ptr, (int)gamepad_button);
   }
 
   bool get_key_down(KeyCode::Enum key) {
@@ -113,7 +117,7 @@ namespace quark {
   // TODO(sean): make this relative to the bottom left of the screen
   vec2 get_mouse_position() {
     f64 x = 0, y = 0;
-    glfwGetCursorPos(_GLOBAL_WINDOW_PTR, &x, &y);
+    glfwGetCursorPos(_window_ptr, &x, &y);
     return vec2 {(f32)x, (f32)y};
   }
 
@@ -130,29 +134,33 @@ namespace quark {
   }
 
   void init_threadpool() {
-    _GLOBAL_THREADPOOL.init();
+    _threadpool.init();
   }
 
   void deinit_threadpool() {}
 
+  thread_id get_main_thread_id() {
+    return _main_thread_id;
+  }
+
   void add_threadpool_work(WorkFunction work_func) {
-    _GLOBAL_THREADPOOL.push(work_func);
+    _threadpool.push(work_func);
   }
 
   void set_threadpool_start() {
-    _GLOBAL_THREADPOOL.start();
+    _threadpool.start();
   }
 
   void wait_threadpool_finished() {
-    _GLOBAL_THREADPOOL.join();
+    _threadpool.join();
   }
 
   bool get_threadpool_finished() {
-    return _GLOBAL_THREADPOOL.finished();
+    return _threadpool.finished();
   }
 
   isize get_threadpool_thread_count() {
-    return _GLOBAL_THREADPOOL.thread_count();
+    return _threadpool.thread_count();
   }
 
 #if defined(_WIN32) || defined(_WIN64)

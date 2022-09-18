@@ -163,23 +163,12 @@ namespace quark {
     RightTrigger,
   );
 
-  // Window vars
-  platform_var GLFWwindow* _GLOBAL_WINDOW_PTR;
-  platform_var std::string _CONFIG_WINDOW_NAME;
-  platform_var ivec2 _CONFIG_WINDOW_DIMENSIONS;
-  platform_var bool _CONFIG_WINDOW_ENABLE_CURSOR;
-  platform_var bool _CONFIG_WINDOW_ENABLE_RESIZING;
-  platform_var bool _CONFIG_WINDOW_ENABLE_RAW_MOUSE;
-
-  // Threadpool vars
-  platform_var ThreadPool _GLOBAL_THREADPOOL;
-  platform_var std::thread::id _GLOBAL_MAIN_THREAD_ID;
-
   // Window control
   platform_api void init_window();
   platform_api void deinit_window();
 
-  // Window config
+  // Window handling
+  platform_api GLFWwindow* get_window_ptr();
   platform_api std::string get_window_name();
   platform_api ivec2 get_window_dimensions();
   platform_api bool get_window_should_close();
@@ -187,7 +176,7 @@ namespace quark {
   platform_api void set_window_name(const char* window_name);
   platform_api void set_window_should_close();
 
-  // Input handling
+  // Window input handling
   platform_api InputState::Enum get_key_state(KeyCode::Enum key);
   platform_api InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button);
   platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button);
@@ -204,7 +193,7 @@ namespace quark {
 
   platform_api vec2 get_mouse_position();
 
-  // Input updating 
+  // Window input updating 
   platform_api void update_window_inputs();
 
   // Timing
@@ -216,6 +205,7 @@ namespace quark {
   platform_api void deinit_threadpool();
 
   // Threadpool handling
+  platform_api thread_id get_main_thread_id();
   platform_api void add_threadpool_work(WorkFunction work_func);
   platform_api void set_threadpool_start();
   platform_api void wait_threadpool_finished();

@@ -65,6 +65,7 @@ namespace quark {
   
   using mutex = std::mutex;
   using cvar  = std::condition_variable;
+  using thread_id = std::thread::id;
   
   // Math types
   
