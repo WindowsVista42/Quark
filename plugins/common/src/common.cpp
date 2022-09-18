@@ -222,7 +222,6 @@ namespace common {
     //  view1.create(Transform{}, Color{});
     //}
 
-
     create_action("w");
     create_action("s");
     create_action("a");
@@ -232,6 +231,11 @@ namespace common {
     create_action("v");
     create_action("pause");
 
+    create_action("look_right", 0.0f);
+    create_action("look_left", 0.0f);
+    create_action("look_up", 0.0f);
+    create_action("look_down", 0.0f);
+
     bind_action("w", KeyCode::W);
     bind_action("s", KeyCode::S);
     bind_action("a", KeyCode::A);
@@ -240,6 +244,11 @@ namespace common {
     bind_action("down", KeyCode::LeftControl);
     bind_action("v", KeyCode::V);
     bind_action("pause", KeyCode::P);
+
+    bind_action("look_right", MouseAxisCode::MoveRight, 0, 1.0f / 64.0f);
+    bind_action("look_left", MouseAxisCode::MoveLeft, 0, 1.0f / 64.0f);
+    bind_action("look_up", MouseAxisCode::MoveUp, 0, 1.0f / 64.0f);
+    bind_action("look_down", MouseAxisCode::MoveDown, 0, 1.0f / 64.0f);
   }
 
   void update0(View<Color, const Transform, const Tag> view) {
@@ -322,10 +331,12 @@ namespace common {
       //main_camera->spherical_dir.y += get_input_value(KeyCode::I) / 64.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y -= get_input_value(KeyCode::K) / 64.0f;//as_eul2(get_mouse_delta());
 
-      main_camera->spherical_dir.x += get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.x -= get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.y += get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.y -= get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.x += get_action("look_right").value;//get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.x -= get_action("look_left").value;//get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.y += get_action("look_up").value;//get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.y -= get_action("look_down").value;//get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
+
+      main_camera->spherical_dir.y = clamp(main_camera->spherical_dir.y, 0.01f, F32_PI - 0.01f);
 
       MAIN_CAMERA = Resource<render::Camera>::value;
     }

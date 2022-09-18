@@ -218,11 +218,11 @@ namespace quark {
 
   f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis) {
     if(mouse_axis == MouseAxisCode::MoveUp) {
-      return -min(get_mouse_delta().y, 0.0f);
+      return max(get_mouse_delta().y, 0.0f);
     }
 
     if(mouse_axis == MouseAxisCode::MoveDown) {
-      return max(get_mouse_delta().y, 0.0f);
+      return -min(get_mouse_delta().y, 0.0f);
     }
 
     if(mouse_axis == MouseAxisCode::MoveRight) {
