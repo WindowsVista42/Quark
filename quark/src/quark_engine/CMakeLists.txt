@@ -8,7 +8,6 @@ add_library(quark_engine SHARED
   state.cpp
   reflect.cpp
   asset.cpp
-  input.cpp
   render.cpp
   effect.cpp
   par_tools.cpp
