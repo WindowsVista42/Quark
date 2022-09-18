@@ -209,15 +209,6 @@ namespace common {
     }
   };
   
-  struct Input {
-    Input& map(const char* name, usize input) {
-      input::bind(name, input);
-      return *this;
-    }
-  
-    input::ActionState get(const char* name) const { return input::get(name); }
-  };
-  
   //static Input global_input = {};
   //template <> Input* Resource<Input>::value = &global_input;
   
@@ -230,21 +221,31 @@ namespace common {
     //for_every(i, 10) {
     //  view1.create(Transform{}, Color{});
     //}
-  
-    input::bind("w", Key::W);
-    input::bind("s", Key::S);
-    input::bind("a", Key::A);
-    input::bind("d", Key::D);
-    input::bind("v", Key::V);
-    input::bind("up", Key::Space);
-    input::bind("down", Key::LeftControl);
-    input::bind("pause", Key::P);
+
+
+    create_action("w");
+    create_action("s");
+    create_action("a");
+    create_action("d");
+    create_action("up");
+    create_action("down");
+    create_action("v");
+    create_action("pause");
+
+    bind_action("w", KeyCode::W);
+    bind_action("s", KeyCode::S);
+    bind_action("a", KeyCode::A);
+    bind_action("d", KeyCode::D);
+    bind_action("up", KeyCode::Space);
+    bind_action("down", KeyCode::LeftControl);
+    bind_action("v", KeyCode::V);
+    bind_action("pause", KeyCode::P);
   }
 
   void update0(View<Color, const Transform, const Tag> view) {
     //auto& input = input_res.get();
   
-    if(!input::get("pause").down()) {
+    if(!get_action("pause").down) {
       static f32 T = 0.0f;
       f32 ctr = 0.0f;
       for (auto [e, color, transform] : view.each()) {
@@ -276,23 +277,55 @@ namespace common {
     //printf("ptr: %llu\n", (usize)&MAIN_CAMERA);
     //str::print(str() + (usize)&v.get());
     {
+      update_all_actions();
+
       Resource<render::Camera> main_camera;
 
       vec2 move_dir = {0.0f, 0.0f};
-  
-      move_dir.x += input::get("d").value();
-      move_dir.x -= input::get("a").value();
-      move_dir.y += input::get("w").value();
-      move_dir.y -= input::get("s").value();
+
+      //move_dir.x += get_action("move_right").value;
+      //move_dir.x -= get_action("move_left").value;
+      //move_dir.y += get_action("move_up").value;
+      //move_dir.y -= get_action("move_down").value;
+
+      //create_action("move_y", 1.0f);
+      //create_action("move_x", 1.0f);
+
+      //bind_action("move_y", KeyCode::W,  1.0f);
+      //bind_action("move_y", KeyCode::S, -1.0f);
+
+      //bind_action("move_x", KeyCode::D,  1.0f);
+      //bind_action("move_x", KeyCode::A, -1.0f);
+
+      //move_dir.y += get_action("move_y").value;
+      //move_dir.x += get_action("move_x").value;
+
+      //printf("action_value: %f\n", get_action("d").value
+
+      move_dir.x += get_action("d").value; // input::get("d").value();
+      move_dir.x -= get_action("a").value; // input::get("a").value();
+      move_dir.y += get_action("w").value; // input::get("w").value();
+      move_dir.y -= get_action("s").value; // input::get("s").value();
       move_dir = normalize_max_length(move_dir, 1.0f);
 
       main_camera->pos.x += move_dir.x * DT;
       main_camera->pos.y += move_dir.y * DT;
   
-      main_camera->pos.z += input::get("up").value() * DT;
-      main_camera->pos.z -= input::get("down").value() * DT;
+      main_camera->pos.z += get_action("up").value * DT;
+      main_camera->pos.z -= get_action("down").value * DT;
   
-      main_camera->spherical_dir.y -= input::get("v").value() * DT;
+      //main_camera->spherical_dir.y -= input::get("v").value() * DT;
+      //main_camera->spherical_dir = as_eul2(as_vec2(main_camera->spherical_dir) + get_mouse_delta());
+      //main_camera->spherical_dir += as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.x += get_input_value(KeyCode::J) / 64.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.x -= get_input_value(KeyCode::L) / 64.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.y += get_input_value(KeyCode::I) / 64.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.y -= get_input_value(KeyCode::K) / 64.0f;//as_eul2(get_mouse_delta());
+
+      main_camera->spherical_dir.x += get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.x -= get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.y += get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir.y -= get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
 
       MAIN_CAMERA = Resource<render::Camera>::value;
     }
@@ -301,19 +334,19 @@ namespace common {
   void update1(Resource<render::Camera> main_camera) {
     vec2 move_dir = {0.0f, 0.0f};
   
-    move_dir.x += input::get("d").value();
-    move_dir.x -= input::get("a").value();
-    move_dir.y += input::get("w").value();
-    move_dir.y -= input::get("s").value();
+    move_dir.x += get_action("d").value;
+    move_dir.x -= get_action("a").value;
+    move_dir.y += get_action("w").value;
+    move_dir.y -= get_action("s").value;
     move_dir = normalize_max_length(move_dir, 1.0f);
   
     main_camera->pos.x += move_dir.x * DT;
     main_camera->pos.y += move_dir.y * DT;
   
-    main_camera->pos.z += input::get("up").value() * DT;
-    main_camera->pos.z -= input::get("down").value() * DT;
+    main_camera->pos.z += get_action("up").value * DT;
+    main_camera->pos.z -= get_action("down").value * DT;
   
-    main_camera->spherical_dir.y -= input::get("v").value() * DT;
+    main_camera->spherical_dir.y -= get_action("v").value * DT;
   }
   
   // Transform, const Color, const Tag0
@@ -727,8 +760,7 @@ void add_system_relative(const char* system_name, engine::system::system_functio
 mod_main() {
   def_res(render::Camera, MAIN_CAMERA);
 
-  _CONFIG_WINDOW_DIMENSIONS.x = 1920 / 2;
-  _CONFIG_WINDOW_DIMENSIONS.y = 1080 / 2;
+  set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
 
   //add_resource(render::Camera, MAIN_CAMERA);
   //
