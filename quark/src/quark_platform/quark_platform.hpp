@@ -41,126 +41,157 @@ namespace quark {
     usize capacity;
   };
 
+  namespace_enum(InputType, u16,
+    Key            = 0,
+    MouseButton    = 1,
+    GamepadButton  = 2,
+    MouseAxis      = 3,
+    GamepadAxis    = 4,
+  );
+
   namespace_enum(InputState, i32,
     Press          = GLFW_PRESS,
     Release        = GLFW_RELEASE,
   );
 
+  using input_id = i32;
+
+  union RawInputId {
+    struct {
+      u16 value;
+      u16 type;
+    };
+    i32 bits;
+  };
+
+  constexpr i32 make_raw_input_id(u16 type, u16 value) {
+    u32 t = (((u32)type) & 0x0000FFFF) << 16;
+    u32 v = ((u32)value) & 0x0000FFFF;
+
+    return (i32)(t | v);
+  }
+
   namespace_enum(KeyCode, i32,
-    Apostrophe     = GLFW_KEY_APOSTROPHE,
-    Comma          = GLFW_KEY_COMMA,
-    Minus          = GLFW_KEY_MINUS,
-    Period         = GLFW_KEY_PERIOD,
-    Slash          = GLFW_KEY_SLASH,
-    Semicolon      = GLFW_KEY_SEMICOLON,
-    Equal          = GLFW_KEY_EQUAL,
-    LeftBracket    = GLFW_KEY_LEFT_BRACKET,
-    Backslash      = GLFW_KEY_BACKSLASH,
-    RightBracket   = GLFW_KEY_RIGHT_BRACKET,
-    GraveAccent    = GLFW_KEY_GRAVE_ACCENT,
-    Escape         = GLFW_KEY_ESCAPE,
+    Apostrophe      = make_raw_input_id(InputType::Key, GLFW_KEY_APOSTROPHE),
+    Comma           = make_raw_input_id(InputType::Key, GLFW_KEY_COMMA),
+    Minus           = make_raw_input_id(InputType::Key, GLFW_KEY_MINUS),
+    Period          = make_raw_input_id(InputType::Key, GLFW_KEY_PERIOD),
+    Slash           = make_raw_input_id(InputType::Key, GLFW_KEY_SLASH),
+    Semicolon       = make_raw_input_id(InputType::Key, GLFW_KEY_SEMICOLON),
+    Equal           = make_raw_input_id(InputType::Key, GLFW_KEY_EQUAL),
+    LeftBracket     = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_BRACKET),
+    Backslash       = make_raw_input_id(InputType::Key, GLFW_KEY_BACKSLASH),
+    RightBracket    = make_raw_input_id(InputType::Key, GLFW_KEY_RIGHT_BRACKET),
+    GraveAccent     = make_raw_input_id(InputType::Key, GLFW_KEY_GRAVE_ACCENT),
+    Escape          = make_raw_input_id(InputType::Key, GLFW_KEY_ESCAPE),
 
-    Space          = GLFW_KEY_SPACE,
+    Space           = make_raw_input_id(InputType::Key, GLFW_KEY_SPACE),
 
-    Num0           = GLFW_KEY_0,
-    Num1           = GLFW_KEY_1,
-    Num2           = GLFW_KEY_2,
-    Num3           = GLFW_KEY_3,
-    Num4           = GLFW_KEY_4,
-    Num5           = GLFW_KEY_5,
-    Num6           = GLFW_KEY_6,
-    Num7           = GLFW_KEY_7,
-    Num8           = GLFW_KEY_8,
-    Num9           = GLFW_KEY_9,
+    Num0            = make_raw_input_id(InputType::Key, GLFW_KEY_0),
+    Num1            = make_raw_input_id(InputType::Key, GLFW_KEY_1),
+    Num2            = make_raw_input_id(InputType::Key, GLFW_KEY_2),
+    Num3            = make_raw_input_id(InputType::Key, GLFW_KEY_3),
+    Num4            = make_raw_input_id(InputType::Key, GLFW_KEY_4),
+    Num5            = make_raw_input_id(InputType::Key, GLFW_KEY_5),
+    Num6            = make_raw_input_id(InputType::Key, GLFW_KEY_6),
+    Num7            = make_raw_input_id(InputType::Key, GLFW_KEY_7),
+    Num8            = make_raw_input_id(InputType::Key, GLFW_KEY_8),
+    Num9            = make_raw_input_id(InputType::Key, GLFW_KEY_9),
 
-    A              = GLFW_KEY_A,
-    B              = GLFW_KEY_B,
-    C              = GLFW_KEY_C,
-    D              = GLFW_KEY_D,
-    E              = GLFW_KEY_E,
-    F              = GLFW_KEY_F,
-    G              = GLFW_KEY_G,
-    H              = GLFW_KEY_H,
-    I              = GLFW_KEY_I,
-    J              = GLFW_KEY_J,
-    K              = GLFW_KEY_K,
-    L              = GLFW_KEY_L,
-    M              = GLFW_KEY_M,
-    N              = GLFW_KEY_N,
-    O              = GLFW_KEY_O,
-    P              = GLFW_KEY_P,
-    Q              = GLFW_KEY_Q,
-    R              = GLFW_KEY_R,
-    S              = GLFW_KEY_S,
-    T              = GLFW_KEY_T,
-    U              = GLFW_KEY_U,
-    V              = GLFW_KEY_V,
-    W              = GLFW_KEY_W,
-    X              = GLFW_KEY_X,
-    Y              = GLFW_KEY_Y,
-    Z              = GLFW_KEY_Z,
+    A               = make_raw_input_id(InputType::Key, GLFW_KEY_A),
+    B               = make_raw_input_id(InputType::Key, GLFW_KEY_B),
+    C               = make_raw_input_id(InputType::Key, GLFW_KEY_C),
+    D               = make_raw_input_id(InputType::Key, GLFW_KEY_D),
+    E               = make_raw_input_id(InputType::Key, GLFW_KEY_E),
+    F               = make_raw_input_id(InputType::Key, GLFW_KEY_F),
+    G               = make_raw_input_id(InputType::Key, GLFW_KEY_G),
+    H               = make_raw_input_id(InputType::Key, GLFW_KEY_H),
+    I               = make_raw_input_id(InputType::Key, GLFW_KEY_I),
+    J               = make_raw_input_id(InputType::Key, GLFW_KEY_J),
+    K               = make_raw_input_id(InputType::Key, GLFW_KEY_K),
+    L               = make_raw_input_id(InputType::Key, GLFW_KEY_L),
+    M               = make_raw_input_id(InputType::Key, GLFW_KEY_M),
+    N               = make_raw_input_id(InputType::Key, GLFW_KEY_N),
+    O               = make_raw_input_id(InputType::Key, GLFW_KEY_O),
+    P               = make_raw_input_id(InputType::Key, GLFW_KEY_P),
+    Q               = make_raw_input_id(InputType::Key, GLFW_KEY_Q),
+    R               = make_raw_input_id(InputType::Key, GLFW_KEY_R),
+    S               = make_raw_input_id(InputType::Key, GLFW_KEY_S),
+    T               = make_raw_input_id(InputType::Key, GLFW_KEY_T),
+    U               = make_raw_input_id(InputType::Key, GLFW_KEY_U),
+    V               = make_raw_input_id(InputType::Key, GLFW_KEY_V),
+    W               = make_raw_input_id(InputType::Key, GLFW_KEY_W),
+    X               = make_raw_input_id(InputType::Key, GLFW_KEY_X),
+    Y               = make_raw_input_id(InputType::Key, GLFW_KEY_Y),
+    Z               = make_raw_input_id(InputType::Key, GLFW_KEY_Z),
 
-    UpArrow        = GLFW_KEY_UP,
-    DownArrow      = GLFW_KEY_DOWN,
-    LeftArrow      = GLFW_KEY_LEFT,
-    RightArrow     = GLFW_KEY_RIGHT,
+    UpArrow         = make_raw_input_id(InputType::Key, GLFW_KEY_UP),
+    DownArrow       = make_raw_input_id(InputType::Key, GLFW_KEY_DOWN),
+    LeftArrow       = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT),
+    RightArrow      = make_raw_input_id(InputType::Key, GLFW_KEY_RIGHT),
 
-    LeftControl    = GLFW_KEY_LEFT_CONTROL,
-    LeftShift      = GLFW_KEY_LEFT_SHIFT,
+    LeftControl     = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_CONTROL),
+    LeftShift       = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_SHIFT),
   );
 
   namespace_enum(MouseButtonCode, i32,
-    Button1        = GLFW_MOUSE_BUTTON_1,
-    Button2        = GLFW_MOUSE_BUTTON_2,
-    Button3        = GLFW_MOUSE_BUTTON_3,
-    Button4        = GLFW_MOUSE_BUTTON_4,
-    Button5        = GLFW_MOUSE_BUTTON_5,
-    Button6        = GLFW_MOUSE_BUTTON_6,
-    Button7        = GLFW_MOUSE_BUTTON_7,
-    Button8        = GLFW_MOUSE_BUTTON_8,
+    Button1         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_1),
+    Button2         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_2),
+    Button3         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_3),
+    Button4         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_4),
+    Button5         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_5),
+    Button6         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_6),
+    Button7         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_7),
+    Button8         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_8),
 
-    LeftButton     = GLFW_MOUSE_BUTTON_LEFT  ,
-    RightButton    = GLFW_MOUSE_BUTTON_RIGHT ,
-    MiddleButton   = GLFW_MOUSE_BUTTON_MIDDLE,
+    LeftButton      = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_LEFT),
+    RightButton     = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_RIGHT ),
+    MiddleButton    = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_MIDDLE),
   );
 
   namespace_enum(GamepadButtonCode, i32,
-    A,
-    B,
-    X,
-    Y,
+    A               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_A),
+    B               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_B),
+    X               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_X),
+    Y               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_Y),
 
-    LeftButton,
-    RightButton,
+    LeftBumper      = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_BUMPER),
+    RightBumper     = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER),
 
-    DPadUp,
-    DPadDown,
-    DPadLeft,
-    DPadRight,
+    LeftThumb       = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_THUMB),
+    RightThumb      = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_THUMB),
+
+    DPadUp          = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_UP),
+    DPadDown        = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_DOWN),
+    DPadLeft        = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_LEFT),
+    DPadRight       = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT),
   );
 
   namespace_enum(MouseAxisCode, i32,
-    MoveUp,
-    MoveDown,
-    MoveLeft,
-    MoveRight,
-    ScrollUp,
-    ScrollDown,
-    ScrollLeft,
-    ScrollRight,
+    MoveUp          = make_raw_input_id(InputType::MouseAxis, 0),
+    MoveDown        = make_raw_input_id(InputType::MouseAxis, 1),
+    MoveLeft        = make_raw_input_id(InputType::MouseAxis, 2),
+    MoveRight       = make_raw_input_id(InputType::MouseAxis, 3),
+
+    ScrollUp        = make_raw_input_id(InputType::MouseAxis, 4),
+    ScrollDown      = make_raw_input_id(InputType::MouseAxis, 5),
+    ScrollLeft      = make_raw_input_id(InputType::MouseAxis, 6),
+    ScrollRight     = make_raw_input_id(InputType::MouseAxis, 7),
   );
 
   namespace_enum(GamepadAxisCode, i32,
-    LeftStickUp,
-    LeftStickDown,
-    LeftStickLeft,
-    LeftStickRight,
-    RightStickUp,
-    RightStickDown,
-    RightStickLeft,
-    RightStickRight,
-    LeftTrigger,
-    RightTrigger,
+    LeftStickUp     = make_raw_input_id(InputType::GamepadAxis, 0),
+    LeftStickDown   = make_raw_input_id(InputType::GamepadAxis, 1),
+    LeftStickLeft   = make_raw_input_id(InputType::GamepadAxis, 2),
+    LeftStickRight  = make_raw_input_id(InputType::GamepadAxis, 3),
+
+    RightStickUp    = make_raw_input_id(InputType::GamepadAxis, 4),
+    RightStickDown  = make_raw_input_id(InputType::GamepadAxis, 5),
+    RightStickLeft  = make_raw_input_id(InputType::GamepadAxis, 6),
+    RightStickRight = make_raw_input_id(InputType::GamepadAxis, 7),
+
+    LeftTrigger     = make_raw_input_id(InputType::GamepadAxis, 8),
+    RightTrigger    = make_raw_input_id(InputType::GamepadAxis, 9),
   );
 
   // Window control
@@ -174,9 +205,16 @@ namespace quark {
   platform_api bool get_window_should_close();
 
   platform_api void set_window_name(const char* window_name);
+  platform_api void set_window_dimensions(ivec2 window_dimensions);
   platform_api void set_window_should_close();
 
   // Window input handling
+  platform_api InputState::Enum get_input_state(input_id input, u32 source_id = 0);
+  platform_api f32 get_input_value(input_id input, u32 source_id = 0);
+
+  platform_api bool get_input_down(input_id input, u32 source_id = 0);
+  platform_api bool get_input_up(input_id input, u32 source_id = 0);
+
   platform_api InputState::Enum get_key_state(KeyCode::Enum key);
   platform_api InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button);
   platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button);
@@ -190,8 +228,13 @@ namespace quark {
   platform_api bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode::Enum key);
 
   platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis);
+  platform_api f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis);
 
+  platform_api vec2 get_mouse_delta();
   platform_api vec2 get_mouse_position();
+
+  platform_api vec2 get_scroll_position();
+  platform_api vec2 get_scroll_delta();
 
   // Window input updating 
   platform_api void update_window_inputs();

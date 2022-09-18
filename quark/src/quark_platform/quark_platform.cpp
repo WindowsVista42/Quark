@@ -9,8 +9,41 @@ namespace quark {
   bool _window_enable_resizing;
   bool _window_enable_raw_mouse;
 
+  vec2 _window_mouse_pos_delta;
+  vec2 _window_scroll_pos_delta;
+  vec2 _window_mouse_pos_accum;
+  vec2 _window_scroll_pos_accum;
+
   ThreadPool _threadpool;
   thread_id _main_thread_id = std::this_thread::get_id();
+
+  vec2 _mouse_position;
+  vec2 _mouse_delta;
+
+  vec2 _scroll_position;
+  vec2 _scroll_delta;
+
+  // raw movement in *some* unit
+  // reset at the end of update_window_inputs()
+  vec2 _scroll_accumulator = {};
+  void scroll_callback(GLFWwindow* window, double x, double y) {
+    _scroll_accumulator.x += (f32)x;
+    _scroll_accumulator.y -= (f32)y;
+  }
+
+  // raw movement in pixels
+  // reset at the end of update_window_inputs()
+  vec2 _mouse_accumulator = {};
+  void mouse_callback(GLFWwindow* window, double x, double y) {
+    static f64 last_x = 0.0f;
+    static f64 last_y = 0.0f;
+  
+    _mouse_accumulator.x += (f32)(last_x - x);
+    _mouse_accumulator.y += (f32)(last_y - y);
+  
+    last_x = x;
+    last_y = y;
+  }
 
   GLFWwindow* get_window_ptr() {
     return _window_ptr;
@@ -46,6 +79,9 @@ namespace quark {
     glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_HIDDEN);
     glfwSetInputMode(_window_ptr, GLFW_RAW_MOUSE_MOTION, _window_enable_raw_mouse ? GLFW_TRUE : GLFW_FALSE);
     glfwGetFramebufferSize(_window_ptr, &_window_dimensions.x, &_window_dimensions.y);
+
+    glfwSetScrollCallback(_window_ptr, scroll_callback);
+    glfwSetCursorPosCallback(_window_ptr, mouse_callback);
   }
 
   void deinit_window() {
@@ -69,16 +105,82 @@ namespace quark {
     glfwSetWindowTitle(_window_ptr, window_name);
   }
 
+  void set_window_dimensions(ivec2 window_dimensions) {
+    _window_dimensions = window_dimensions;
+  }
+
   void set_window_should_close() {
     glfwSetWindowShouldClose(_window_ptr, GLFW_TRUE);
   }
 
+  InputState::Enum get_input_state(input_id input, u32 source_id) {
+    RawInputId raw = { .bits = input };
+
+    if(raw.type == InputType::Key) {
+      return get_key_state((KeyCode::Enum)input);
+    }
+
+    if(raw.type == InputType::MouseButton) {
+      return get_mouse_button_state((MouseButtonCode::Enum)input);
+    }
+
+    if(raw.type == InputType::GamepadButton) {
+      return get_gamepad_button_state(source_id, (GamepadButtonCode::Enum)input);
+    }
+
+    if(raw.type == InputType::MouseAxis) {
+      return get_mouse_axis((MouseAxisCode::Enum)input) != 0.0f ? InputState::Press : InputState::Release;
+    }
+
+    if(raw.type == InputType::GamepadAxis) {
+      return get_gamepad_axis(source_id, (GamepadAxisCode::Enum)input) != 0.0f ? InputState::Press : InputState::Release;
+    }
+
+    return InputState::Release;
+  }
+
+  f32 get_input_value(input_id input, u32 source_id) {
+    RawInputId raw = { .bits = input };
+
+    if(raw.type == InputType::Key) {
+      return get_key_state((KeyCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    }
+
+    if(raw.type == InputType::MouseButton) {
+      return get_mouse_button_state((MouseButtonCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    }
+
+    if(raw.type == InputType::GamepadButton) {
+      return get_gamepad_button_state(source_id, (GamepadButtonCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    }
+
+    if(raw.type == InputType::MouseAxis) {
+      return get_mouse_axis((MouseAxisCode::Enum)input);
+    }
+
+    if(raw.type == InputType::GamepadAxis) {
+      return get_gamepad_axis(source_id, (GamepadAxisCode::Enum)input);
+    }
+
+    return 0.0f;
+  }
+
+  bool get_input_down(input_id input, u32 source_id) {
+    return get_input_state(input, source_id) == InputState::Press;
+  }
+
+  bool get_input_up(input_id input, u32 source_id) {
+    return get_input_state(input, source_id) == InputState::Release;
+  }
+
   InputState::Enum get_key_state(KeyCode::Enum key) {
-    return (InputState::Enum)glfwGetKey(_window_ptr, (int)key);
+    int code = RawInputId { .bits = key }.value;
+    return (InputState::Enum)glfwGetKey(_window_ptr, code);
   }
 
   InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button) {
-    return (InputState::Enum)glfwGetMouseButton(_window_ptr, (int)mouse_button);
+    int code = RawInputId { .bits = mouse_button }.value;
+    return (InputState::Enum)glfwGetMouseButton(_window_ptr, code);
   }
 
   InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button) {
@@ -110,19 +212,77 @@ namespace quark {
     return get_gamepad_button_state(gamepad_id, gamepad_button) == InputState::Release;
   }
 
-  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis) {
+  f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis) {
     panic("get_gamepad_axis() called!");
+  }
+
+  f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis) {
+    if(mouse_axis == MouseAxisCode::MoveUp) {
+      return -min(get_mouse_delta().y, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::MoveDown) {
+      return max(get_mouse_delta().y, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::MoveRight) {
+      return max(get_mouse_delta().x, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::MoveLeft) {
+      return -min(get_mouse_delta().x, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::ScrollUp) {
+      return max(get_scroll_delta().y, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::ScrollDown) {
+      return -min(get_scroll_delta().y, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::ScrollRight) {
+      return max(get_scroll_delta().x, 0.0f);
+    }
+
+    if(mouse_axis == MouseAxisCode::ScrollLeft) {
+      return -min(get_scroll_delta().x, 0.0f);
+    }
+
+    return 0;
+  }
+
+  vec2 get_mouse_delta() {
+    return _mouse_delta;
   }
 
   // TODO(sean): make this relative to the bottom left of the screen
   vec2 get_mouse_position() {
-    f64 x = 0, y = 0;
-    glfwGetCursorPos(_window_ptr, &x, &y);
-    return vec2 {(f32)x, (f32)y};
+    return _mouse_position;
+    //f64 x = 0, y = 0;
+    //glfwGetCursorPos(_window_ptr, &x, &y);
+    //return vec2 {(f32)x, (f32)y};
+  }
+
+  vec2 get_scroll_delta() {
+    return _scroll_delta;
+  }
+
+  vec2 get_scroll_position() {
+    return _scroll_position;
   }
 
   void update_window_inputs() {
     glfwPollEvents();
+
+    _mouse_position -= _mouse_accumulator;
+    _scroll_position += _scroll_accumulator;
+
+    _mouse_delta = _mouse_accumulator;
+    _scroll_delta = _scroll_accumulator;
+
+    _scroll_accumulator = {0,0};
+    _mouse_accumulator = {0,0};
   }
 
   Timestamp get_timestamp() {
