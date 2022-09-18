@@ -67,7 +67,7 @@ void unbind(const char* name, InputEnum input) {
 }
 
 void update_key(ActionState* state, InputEnum input) {
-  i32 k = glfwGetKey(_GLOBAL_WINDOW_PTR, input - Key::BIAS);
+  i32 k = glfwGetKey(get_window_ptr(), input - Key::BIAS);
 
   if(k == GLFW_PRESS) {
     state->current = 1.0f;
@@ -79,7 +79,7 @@ void update_key(ActionState* state, InputEnum input) {
 void update_mouse(ActionState* state, InputEnum input) {
   // mouse button input
   if(input >= Mouse::Button1 && input <= Mouse::Button8) {
-    i32 k = glfwGetMouseButton(_GLOBAL_WINDOW_PTR, input - Mouse::BIAS);
+    i32 k = glfwGetMouseButton(get_window_ptr(), input - Mouse::BIAS);
 
     if(k == GLFW_PRESS) {
       state->current = 1.0f;

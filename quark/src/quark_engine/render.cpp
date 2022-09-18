@@ -803,7 +803,7 @@ namespace quark::engine::render {
       _instance = vkb_inst.instance;
       _debug_messenger = vkb_inst.debug_messenger;
     
-      glfwCreateWindowSurface(_instance, _GLOBAL_WINDOW_PTR, 0, &_surface);
+      glfwCreateWindowSurface(_instance, get_window_ptr(), 0, &_surface);
     
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;

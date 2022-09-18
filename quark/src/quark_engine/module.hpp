@@ -20,11 +20,13 @@
 #include "component.hpp"
 
 // IO
-#include "input.hpp"
+//#include "input.hpp"
 //#include "engine/audio.hpp"
 #include "render.hpp"
 #include "effect.hpp"
 #include "par_tools.hpp"
+
+#include "quark_engine.hpp"
 
 namespace quark::engine {
   using Entity = entity::Entity;

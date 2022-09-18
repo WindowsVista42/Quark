@@ -169,8 +169,8 @@ namespace quark::engine::input {
 
 namespace quark {
   using Key = engine::input::Key::KeyEnum;
-  using Mouse = engine::input::Mouse::MouseEnum;
-  using ActionState = engine::input::ActionState;
+  //using Mouse = engine::input::Mouse::MouseEnum;
+  //using ActionState = engine::input::ActionState;
 
   namespace input = engine::input;
 };

@@ -3,6 +3,7 @@
 #include "../quark_platform/module.hpp"
 
 namespace quark {
+#if 0
   // required for rendering
   struct Transform;
   struct Model;
@@ -16,7 +17,7 @@ namespace quark {
   struct Mesh;
   struct MeshProperties;
   
-  // useful for frustum culling and
+  // useful for frustum culling and basic collision detection
   struct Aabb;
   
   // texture data
@@ -50,6 +51,11 @@ namespace quark {
   
   struct Texture {
     u32 id;
+  };
+
+  struct TextureProperties {
+    u32 width;
+    u32 height;
   };
   
   struct DebugColor : public vec4 {};
@@ -127,6 +133,14 @@ namespace quark {
   
     f32 emission_strength;
   };
+#endif
+
+  struct ActionProperties {
+    std::vector<input_id> input_ids;
+    std::vector<u32> source_ids;
+    std::vector<f32> input_strengths;
+    f32 max_value;
+  };
   
   struct ActionState {
     f32 previous;
@@ -138,9 +152,10 @@ namespace quark {
     bool just_down;
     bool up;
     bool just_up;
-  
+
     f32 value;
   };
+
   
   // new camera tech
   
@@ -159,22 +174,31 @@ namespace quark {
   //   f32 zoom;
   // };
   
+#if 0
   // Global control
   engine_api void init_all();
   engine_api void deinit_all();
+#endif
   
   // Action control
   engine_api void init_actions();
   engine_api void deinit_actions();
   
   // Action handling
-  engine_api void bind_action(const char* action_name, u32 input);
-  engine_api void unbind_action(const char* action_name, u32 input);
+  engine_api void create_action(const char* action_name, f32 max_value = 1.0f);
+  engine_api void destroy_action(const char* action_name);
+
+  engine_api void bind_action(const char* action_name, input_id input, u32 source_id = 0, f32 strength = 1.0f);
+  engine_api void unbind_action(const char* action_name, input_id input, u32 source_id = 0);
   
   engine_api Action get_action(const char* action_name);
   
   engine_api void update_all_actions();
+
+  engine_api ActionProperties* get_action_properties(const char* action_name);
+  engine_api ActionState* get_action_state(const char* action_name);
   
+#if 0
   // System control
   engine_api void init_systems();
   engine_api void deinit_systems();
@@ -204,4 +228,5 @@ namespace quark {
   
   #undef add_system_relative
   #define add_system_relative(function, relative_function, relative_position)
+#endif
 }; // namespace quark

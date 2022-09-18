@@ -7,6 +7,7 @@
 #include "asset.hpp"
 #include "input.hpp"
 #include "str.hpp"
+#include "quark_engine.hpp"
 
 #include "../quark_platform/module.hpp"
 
@@ -108,7 +109,7 @@ namespace quark::engine::global {
       system::list("update")
         .add(def(render::internal::print_performance_statistics), -1)
         .add(def(update_window_inputs), -1)
-        .add(def(input::update_all), -1)
+        .add(def(update_all_actions), -1)
 
         .add(def(update_tag), -1)
 
