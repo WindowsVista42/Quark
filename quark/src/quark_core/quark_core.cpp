@@ -1083,37 +1083,130 @@ namespace quark {
   
   // eul2
   
-  eul2 operator -(eul2 a);
+  eul2 operator -(eul2 a) {
+    return eul2 {
+      -a.x,
+      -a.y,
+    };
+  }
   
-  eul2 operator +(eul2 a, eul2 b);
-  eul2 operator -(eul2 a, eul2 b);
-  eul2 operator *(eul2 a, eul2 b);
-  eul2 operator /(eul2 a, eul2 b);
+  eul2 operator +(eul2 a, eul2 b) {
+    return eul2 {
+      a.x + b.x,
+      a.y + b.y,
+    };
+  }
+
+  eul2 operator -(eul2 a, eul2 b) {
+    return eul2 {
+      a.x - b.x,
+      a.y - b.y,
+    };
+  }
+
+  eul2 operator *(eul2 a, eul2 b) {
+    return eul2 {
+      a.x * b.x,
+      a.y * b.y,
+    };
+  }
+
+  eul2 operator /(eul2 a, eul2 b) {
+    return eul2 {
+      a.x / b.x,
+      a.y / b.y,
+    };
+  }
   
-  void operator +=(eul2& a, eul2 b);
-  void operator -=(eul2& a, eul2 b);
-  void operator *=(eul2& a, eul2 b);
-  void operator /=(eul2& a, eul2 b);
+  void operator +=(eul2& a, eul2 b) {
+    a = a + b;
+  }
+
+  void operator -=(eul2& a, eul2 b) {
+    a = a - b;
+  }
+
+  void operator *=(eul2& a, eul2 b) {
+    a = a * b;
+  }
+
+  void operator /=(eul2& a, eul2 b) {
+    a = a / b;
+  }
   
-  bool operator ==(eul2 a, eul2 b);
-  bool operator !=(eul2 a, eul2 b);
+  bool operator ==(eul2 a, eul2 b) {
+    return as_vec2(a) == as_vec2(b);
+  }
+
+  bool operator !=(eul2 a, eul2 b) {
+    return as_vec2(a) != as_vec2(b);
+  }
   
   // eul3
   
-  eul3 operator -(eul3 a);
+  eul3 operator -(eul3 a) {
+    return eul3 {
+      -a.x,
+      -a.y,
+      -a.z,
+    };
+  }
   
-  eul3 operator +(eul3 a, eul3 b);
-  eul3 operator -(eul3 a, eul3 b);
-  eul3 operator *(eul3 a, eul3 b);
-  eul3 operator /(eul3 a, eul3 b);
+  eul3 operator +(eul3 a, eul3 b) {
+    return eul3 {
+      a.x + b.x,
+      a.y + b.y,
+      a.z + b.z,
+    };
+  }
+
+  eul3 operator -(eul3 a, eul3 b) {
+    return eul3 {
+      a.x - b.x,
+      a.y - b.y,
+      a.z - b.z,
+    };
+  }
+
+  eul3 operator *(eul3 a, eul3 b) {
+    return eul3 {
+      a.x * b.x,
+      a.y * b.y,
+      a.z * b.z,
+    };
+  }
+
+  eul3 operator /(eul3 a, eul3 b) {
+    return eul3 {
+      a.x / b.x,
+      a.y / b.y,
+      a.z / b.z,
+    };
+  }
   
-  void operator +=(eul3& a, eul3 b);
-  void operator -=(eul3& a, eul3 b);
-  void operator *=(eul3& a, eul3 b);
-  void operator /=(eul3& a, eul3 b);
+  void operator +=(eul3& a, eul3 b) {
+    a = a + b;
+  }
+
+  void operator -=(eul3& a, eul3 b) {
+    a = a - b;
+  }
+
+  void operator *=(eul3& a, eul3 b) {
+    a = a * b;
+  }
+
+  void operator /=(eul3& a, eul3 b) {
+    a = a / b;
+  }
   
-  bool operator ==(eul3 a, eul3 b);
-  bool operator !=(eul3 a, eul3 b);
+  bool operator ==(eul3 a, eul3 b) {
+    return as_vec3(a) == as_vec3(b);
+  }
+
+  bool operator !=(eul3 a, eul3 b) {
+    return as_vec3(a) != as_vec3(b);
+  }
   
   // quat
   
