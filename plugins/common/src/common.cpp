@@ -222,10 +222,10 @@ namespace common {
     //  view1.create(Transform{}, Color{});
     //}
 
-    create_action("w");
-    create_action("s");
-    create_action("a");
-    create_action("d");
+    create_action("move_forward");
+    create_action("move_backward");
+    create_action("move_left");
+    create_action("move_right");
     create_action("up");
     create_action("down");
     create_action("v");
@@ -236,10 +236,10 @@ namespace common {
     create_action("look_up", 0.0f);
     create_action("look_down", 0.0f);
 
-    bind_action("w", KeyCode::W);
-    bind_action("s", KeyCode::S);
-    bind_action("a", KeyCode::A);
-    bind_action("d", KeyCode::D);
+    bind_action("move_forward", KeyCode::W);
+    bind_action("move_backward", KeyCode::S);
+    bind_action("move_left", KeyCode::A);
+    bind_action("move_right", KeyCode::D);
     bind_action("up", KeyCode::Space);
     bind_action("down", KeyCode::LeftControl);
     bind_action("v", KeyCode::V);
@@ -311,17 +311,13 @@ namespace common {
 
       //printf("action_value: %f\n", get_action("d").value
 
-      move_dir.x += get_action("d").value; // input::get("d").value();
-      move_dir.x -= get_action("a").value; // input::get("a").value();
-      move_dir.y += get_action("w").value; // input::get("w").value();
-      move_dir.y -= get_action("s").value; // input::get("s").value();
-      move_dir = normalize_max_length(move_dir, 1.0f);
+      move_dir = get_action_vec2("move_right", "move_left", "move_forward", "move_backward");
 
-      main_camera->pos.x += move_dir.x * DT;
-      main_camera->pos.y += move_dir.y * DT;
-  
-      main_camera->pos.z += get_action("up").value * DT;
-      main_camera->pos.z -= get_action("down").value * DT;
+      //move_dir.x += get_action("d").value; // input::get("d").value();
+      //move_dir.x -= get_action("a").value; // input::get("a").value();
+      //move_dir.y += get_action("w").value; // input::get("w").value();
+      //move_dir.y -= get_action("s").value; // input::get("s").value();
+      move_dir = normalize_max_length(move_dir, 1.0f);
   
       //main_camera->spherical_dir.y -= input::get("v").value() * DT;
       //main_camera->spherical_dir = as_eul2(as_vec2(main_camera->spherical_dir) + get_mouse_delta());
@@ -331,12 +327,21 @@ namespace common {
       //main_camera->spherical_dir.y += get_input_value(KeyCode::I) / 64.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y -= get_input_value(KeyCode::K) / 64.0f;//as_eul2(get_mouse_delta());
 
-      main_camera->spherical_dir.x += get_action("look_right").value;//get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.x -= get_action("look_left").value;//get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.y += get_action("look_up").value;//get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
-      main_camera->spherical_dir.y -= get_action("look_down").value;//get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
+      main_camera->spherical_dir += as_eul2(get_action_vec2("look_right", "look_left", "look_up", "look_down"));
+      //main_camera->spherical_dir.x += get_action("look_right").value;//get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.x -= get_action("look_left").value;//get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.y += get_action("look_up").value;//get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
+      //main_camera->spherical_dir.y -= get_action("look_down").value;//get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
 
       main_camera->spherical_dir.y = clamp(main_camera->spherical_dir.y, 0.01f, F32_PI - 0.01f);
+
+      move_dir = rotate_point(move_dir, main_camera->spherical_dir.x);
+
+      main_camera->pos.x += move_dir.x * DT;
+      main_camera->pos.y += move_dir.y * DT;
+  
+      main_camera->pos.z += get_action("up").value * DT;
+      main_camera->pos.z -= get_action("down").value * DT;
 
       MAIN_CAMERA = Resource<render::Camera>::value;
     }
@@ -345,19 +350,19 @@ namespace common {
   void update1(Resource<render::Camera> main_camera) {
     vec2 move_dir = {0.0f, 0.0f};
   
-    move_dir.x += get_action("d").value;
-    move_dir.x -= get_action("a").value;
-    move_dir.y += get_action("w").value;
-    move_dir.y -= get_action("s").value;
-    move_dir = normalize_max_length(move_dir, 1.0f);
+    //move_dir.x += get_action("d").value;
+    //move_dir.x -= get_action("a").value;
+    //move_dir.y += get_action("w").value;
+    //move_dir.y -= get_action("s").value;
+    //move_dir = normalize_max_length(move_dir, 1.0f);
   
-    main_camera->pos.x += move_dir.x * DT;
-    main_camera->pos.y += move_dir.y * DT;
+    //main_camera->pos.x += move_dir.x * DT;
+    //main_camera->pos.y += move_dir.y * DT;
   
-    main_camera->pos.z += get_action("up").value * DT;
-    main_camera->pos.z -= get_action("down").value * DT;
+    //main_camera->pos.z += get_action("up").value * DT;
+    //main_camera->pos.z -= get_action("down").value * DT;
   
-    main_camera->spherical_dir.y -= get_action("v").value * DT;
+    //main_camera->spherical_dir.y -= get_action("v").value * DT;
   }
   
   // Transform, const Color, const Tag0

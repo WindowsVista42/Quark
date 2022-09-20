@@ -192,6 +192,7 @@ namespace quark {
   engine_api void unbind_action(const char* action_name, input_id input, u32 source_id = 0);
   
   engine_api Action get_action(const char* action_name);
+  engine_api vec2 get_action_vec2(const char* action_x_pos, const char* action_x_neg, const char* action_y_pos, const char* action_y_neg);
   
   engine_api void update_all_actions();
 

@@ -72,6 +72,18 @@ namespace quark {
     };
   }
 
+  vec2 get_action_vec2(const char* action_x_pos, const char* action_x_neg, const char* action_y_pos, const char* action_y_neg) {
+    ActionState xp = _action_state_map.at(action_x_pos);
+    ActionState xn = _action_state_map.at(action_x_neg);
+    ActionState yp = _action_state_map.at(action_y_pos);
+    ActionState yn = _action_state_map.at(action_y_neg);
+
+    return vec2 {
+      xp.current - xn.current,
+      yp.current - yn.current,
+    };
+  }
+
   ActionProperties* get_action_properties(const char* action_name) {
     return &_action_properties_map.at(action_name);
   }
