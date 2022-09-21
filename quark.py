@@ -6,6 +6,7 @@ import glob
 import shutil
 import atexit
 import re
+import time
 
 arg_stack = []
 
@@ -139,6 +140,8 @@ def build_internal(mode):
     print("- Cleaning previous build")
     clean_dir("build/current")
 
+    start_t = time.time()
+
     should_reinit = False
     changed_set = set([])
     rebuild_set = set([])
@@ -241,6 +244,8 @@ def build_internal(mode):
             sys.exit("- Failed to build!")
 
     print("- Finished building " + mode + " build")
+    end_t = time.time()
+    print("Build took: ", end_t - start_t, "s")
 
     # CLEAN OLD FILES
     print("- Cleaning old shared libraries")
@@ -412,7 +417,7 @@ def plugin_create():
         src = src.replace("$api_decl", api_decl)
         src = src.replace("$var_decl", var_decl)
 
-        src_path = path + os.sep + "src"
+        src_path = path + os.sep + plugin_name
         os.mkdir(src_path)
         f = open(src_path + os.sep + "api.hpp", "w")
         f.write(src)
