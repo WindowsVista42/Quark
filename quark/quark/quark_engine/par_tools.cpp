@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_INTERNAL
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "par_tools.hpp"
 
 namespace quark::engine::par_tools {

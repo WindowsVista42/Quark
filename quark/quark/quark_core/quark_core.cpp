@@ -183,27 +183,27 @@ namespace quark {
   vec3 forward(eul2 a) {
     // x, y, z
     return vec3 {
-      -sin(a.x) * sin(a.y), // x+ right
-       cos(a.x) * sin(a.y), // y+ forward
-      -cos(a.y),            // z+ up
+      -sin(a.yaw) * sin(a.pitch), // x+ right
+       cos(a.yaw) * sin(a.pitch), // y+ forward
+      -cos(a.pitch),              // z+ up
     };
   }
   
   vec3 right(eul2 a) {
     // y, -x, z
     return vec3 {
-       cos(a.x) * sin(a.y),
-       sin(a.x) * sin(a.y),
-      -cos(a.y),           
+       cos(a.yaw) * sin(a.pitch),
+       sin(a.yaw) * sin(a.pitch),
+      -cos(a.pitch),           
     };
   }
   
   vec3 up(eul2 a) {
     // -z, y, x
     return vec3 {
-       cos(a.y),           
-       cos(a.x) * sin(a.y),
-      -sin(a.x) * sin(a.y),
+       cos(a.pitch),           
+       cos(a.yaw) * sin(a.pitch),
+      -sin(a.yaw) * sin(a.pitch),
     };
   }
   
@@ -233,6 +233,22 @@ namespace quark {
   
   vec3 up(quat a) {
     return rotate_point(VEC3_UNIT_X, a);
+  }
+
+  quat rotate_quat(eul3 rotation) {
+    f32 cos_yaw   = cos(rotation.yaw * 0.5);
+    f32 sin_yaw   = sin(rotation.yaw * 0.5);
+    f32 cos_pitch = cos(rotation.pitch * 0.5);
+    f32 sin_pitch = sin(rotation.pitch * 0.5);
+    f32 cos_roll  = cos(rotation.roll * 0.5);
+    f32 sin_roll  = sin(rotation.roll * 0.5);
+
+    return quat {
+      .x = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw,
+      .y = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw,
+      .z = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw,
+      .w = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw,
+    };
   }
   
   quat rotate_quat(mat3 rotation) {
@@ -1085,36 +1101,36 @@ namespace quark {
   
   eul2 operator -(eul2 a) {
     return eul2 {
-      -a.x,
-      -a.y,
+      -a.yaw,
+      -a.pitch,
     };
   }
   
   eul2 operator +(eul2 a, eul2 b) {
     return eul2 {
-      a.x + b.x,
-      a.y + b.y,
+      a.yaw + b.yaw,
+      a.pitch + b.pitch,
     };
   }
 
   eul2 operator -(eul2 a, eul2 b) {
     return eul2 {
-      a.x - b.x,
-      a.y - b.y,
+      a.yaw - b.yaw,
+      a.pitch - b.pitch,
     };
   }
 
   eul2 operator *(eul2 a, eul2 b) {
     return eul2 {
-      a.x * b.x,
-      a.y * b.y,
+      a.yaw * b.yaw,
+      a.pitch * b.pitch,
     };
   }
 
   eul2 operator /(eul2 a, eul2 b) {
     return eul2 {
-      a.x / b.x,
-      a.y / b.y,
+      a.yaw / b.yaw,
+      a.pitch / b.pitch,
     };
   }
   
@@ -1146,41 +1162,41 @@ namespace quark {
   
   eul3 operator -(eul3 a) {
     return eul3 {
-      -a.x,
-      -a.y,
-      -a.z,
+      -a.yaw,
+      -a.pitch,
+      -a.roll,
     };
   }
   
   eul3 operator +(eul3 a, eul3 b) {
     return eul3 {
-      a.x + b.x,
-      a.y + b.y,
-      a.z + b.z,
+      a.yaw + b.yaw,
+      a.pitch + b.pitch,
+      a.roll + b.roll,
     };
   }
 
   eul3 operator -(eul3 a, eul3 b) {
     return eul3 {
-      a.x - b.x,
-      a.y - b.y,
-      a.z - b.z,
+      a.yaw - b.yaw,
+      a.pitch - b.pitch,
+      a.roll - b.roll,
     };
   }
 
   eul3 operator *(eul3 a, eul3 b) {
     return eul3 {
-      a.x * b.x,
-      a.y * b.y,
-      a.z * b.z,
+      a.yaw * b.yaw,
+      a.pitch * b.pitch,
+      a.roll * b.roll,
     };
   }
 
   eul3 operator /(eul3 a, eul3 b) {
     return eul3 {
-      a.x / b.x,
-      a.y / b.y,
-      a.z / b.z,
+      a.yaw / b.yaw,
+      a.pitch / b.pitch,
+      a.roll / b.roll,
     };
   }
   

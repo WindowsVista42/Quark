@@ -1,3 +1,4 @@
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 #include <unordered_map>
 

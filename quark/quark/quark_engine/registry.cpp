@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_INTERNAL
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "registry.hpp"
 
 namespace quark::engine::registry {

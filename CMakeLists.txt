@@ -73,7 +73,8 @@ include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
 
 # QUARK
-add_subdirectory(quark/src)
+add_subdirectory(quark/quark)
+include_directories(quark/)
 
 # PLUGINS
 get_target_property(QUARK_ENGINE_SRC_DIR quark_engine SOURCE_DIR)

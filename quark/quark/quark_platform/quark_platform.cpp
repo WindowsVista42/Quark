@@ -1,4 +1,4 @@
-#define QUARK_PLATFORM_INTERNAL
+#define QUARK_PLATFORM_IMPLEMENTATION
 #include "quark_platform.hpp"
 
 namespace quark {

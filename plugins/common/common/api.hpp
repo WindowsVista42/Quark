@@ -1,14 +1,11 @@
 #pragma once
 
 #if defined(_WIN32) || defined(_WIN64)
-  #if defined(USING_COMMON)
-    #define common_api __declspec(dllimport)
-    #define common_var extern __declspec(dllimport)
-  #elif defined(COMMON_INTERNAL)
+  #if defined(COMMON_IMPLEMENTATION)
     #define common_api __declspec(dllexport)
     #define common_var extern __declspec(dllexport)
   #else
-    #define common_api __declspec(dllexport)
+    #define common_api __declspec(dllimport)
     #define common_var extern __declspec(dllimport)
   #endif
 #endif

@@ -9,7 +9,7 @@ file(GLOB SRC *.cpp)
 add_library(${MY_MOD_NAME} SHARED ${SRC})
 
 # precomple headers and link to quark_engine
-target_precompile_headers(${MY_MOD_NAME} PUBLIC ${QUARK_MODULE})
+#target_precompile_headers(${MY_MOD_NAME} PUBLIC ${QUARK_MODULE})
 target_link_libraries(${MY_MOD_NAME} quark_engine)
 
 FILE(STRINGS "../deps.txt" DEPS)

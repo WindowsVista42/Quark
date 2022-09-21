@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_INTERNAL
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "system.hpp"
 #include "../quark_platform/module.hpp"
 

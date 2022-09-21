@@ -1,9 +1,5 @@
-#define COMMON_INTERNAL
+#define COMMON_IMPLEMENTATION
 #include "common.hpp"
-#include "../../../quark/src/module.hpp"
-
-//
-using namespace quark;
 
 namespace common {
   void exit_on_esc() {
@@ -11,9 +7,15 @@ namespace common {
       set_window_should_close();
     }
   }
+
+  void print_hello() {
+    printf("Hello from common AHHH!\n");
+  }
 };
-//#include "../../../quark/src/module.hpp"
+
 //
+//#include "../../../quark/src/module.hpp"
+////
 
 #include "common.hpp"
 using namespace quark;
@@ -333,9 +335,9 @@ namespace common {
       //main_camera->spherical_dir.y += get_action("look_up").value;//get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y -= get_action("look_down").value;//get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
 
-      main_camera->spherical_dir.y = clamp(main_camera->spherical_dir.y, 0.01f, F32_PI - 0.01f);
+      main_camera->spherical_dir.pitch = clamp(main_camera->spherical_dir.pitch, 0.01f, F32_PI - 0.01f);
 
-      move_dir = rotate_point(move_dir, main_camera->spherical_dir.x);
+      move_dir = rotate_point(move_dir, main_camera->spherical_dir.yaw);
 
       main_camera->pos.x += move_dir.x * DT;
       main_camera->pos.y += move_dir.y * DT;
@@ -792,6 +794,7 @@ mod_main() {
   set_system_list("update");
   add_system_relative(def((void (*)())common::update0), "update_tag", 1);
   add_system_relative(def(common::render_things), "render::begin_frame", 1);
+  add_system(def(common::exit_on_esc), -1);
   //add_system(def(common::exit_on_esc), -1);
 
   //system::list("state_init")

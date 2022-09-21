@@ -151,7 +151,7 @@ def build_internal(mode):
     for p in plugin_dirs:
         print("-- Building plugin: ", p)
 
-        glob_cpps = glob.glob("plugins/" + p + "/src/**/*.cpp", recursive=True)
+        glob_cpps = glob.glob("plugins/" + p + "/" + p +"/**/*.cpp", recursive=True)
 
         curr_cpps = {}
         for cpp in glob_cpps:
@@ -203,7 +203,7 @@ def build_internal(mode):
 
             plugin_deps[p] = ["quark"]
             for dep in deps_list:
-                plugin_deps[p].append(dep)
+                plugin_deps[p].append(dep.strip())
         else:
             plugin_deps[p] = ["quark"]
 
@@ -255,7 +255,7 @@ def build_internal(mode):
     # (build\/debug\/plugins\/)([^\/]*)
     # (build\/debug\/lib\/)([^\/]*)
     # our valid directory prefixes
-    valid_prefix_list = ["build\\/" + mode + "\\/quark\\/src\\/", "build\\/" + mode + "\\/plugins\\/", "build\\/" + mode +"\\/lib\\/"]
+    valid_prefix_list = ["build\\/" + mode + "\\/quark\\/quark\\/", "build\\/" + mode + "\\/plugins\\/", "build\\/" + mode +"\\/lib\\/"]
     for v in valid_prefix_list:
         found = re.findall(v + "([^\\/]*)", targets_s)
         for f in found:
@@ -270,7 +270,7 @@ def build_internal(mode):
     build_lib_dir = build_dir + "/lib"
 
     shared_lib_paths = glob.glob(build_lib_dir + "/*.dll")
-    loader_path = build_dir + "/quark/src/quark_loader/quark_loader.exe"
+    loader_path = build_dir + "/quark/quark/quark_loader/quark_loader.exe"
 
     copy_dir("quark", "build/current/quark")
     print("-- Copied \"quark\" to \"build/current/quark\"")
@@ -377,8 +377,7 @@ def plugin_create():
     plugin_name = pop_arg("Plugin create expects: 'plugin_name'")
     plugin_name_caps = plugin_name.upper()
 
-    using_decl = "USING_" + plugin_name_caps
-    internal_decl = plugin_name_caps + "_INTERNAL"
+    implementation_decl = plugin_name_caps + "_IMPLEMENTATION"
     api_decl = plugin_name + "_api"
     var_decl = plugin_name + "_var"
 
@@ -395,14 +394,11 @@ def plugin_create():
         src = """#pragma once
 
 #if defined(_WIN32) || defined(_WIN64)
-  #if defined($using_decl)
-    #define $api_decl __declspec(dllimport)
-    #define $var_decl extern __declspec(dllimport)
-  #elif defined($internal_decl)
+  #if defined($implementation_decl)
     #define $api_decl __declspec(dllexport)
     #define $var_decl extern __declspec(dllexport)
   #else
-    #define $api_decl __declspec(dllexport)
+    #define $api_decl __declspec(dllimport)
     #define $var_decl extern __declspec(dllimport)
   #endif
 #endif
@@ -412,8 +408,7 @@ def plugin_create():
   #define $var_decl extern
 #endif"""
 
-        src = src.replace("$using_decl", using_decl)
-        src = src.replace("$internal_decl", internal_decl)
+        src = src.replace("$implementation_decl", implementation_decl)
         src = src.replace("$api_decl", api_decl)
         src = src.replace("$var_decl", var_decl)
 
@@ -460,6 +455,9 @@ endforeach()"""
     if True:
         src = """#pragma once
 
+#include <quark/module.hpp>
+using namespace quark;
+
 #include "api.hpp"
 
 namespace $plugin_name {
@@ -475,9 +473,8 @@ namespace $plugin_name {
 
     # making src/$plugin_name.cpp
     if True:
-        src = """#define $internal_decl
+        src = """#define $implementation_decl
 #include "$plugin_name.hpp"
-using namespace quark;
 
 namespace $plugin_name {
   void print_hello() {
@@ -497,6 +494,7 @@ mod_main() {
 }
 """
 
+        src = src.replace("$implementation_decl", implementation_decl)
         src = src.replace("$plugin_name", plugin_name)
         src = src.replace("$api_decl", api_decl)
 
@@ -508,9 +506,7 @@ mod_main() {
     if True:
         src = """#pragma once
 
-#define $using_decl
 #include "$plugin_name.hpp\""""
-        src = src.replace("$using_decl", using_decl)
         src = src.replace("$plugin_name", plugin_name)
 
         f = open(src_path + os.sep + "module.hpp", "w")

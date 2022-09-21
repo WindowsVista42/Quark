@@ -167,6 +167,7 @@ namespace quark {
   quat conjugate(quat a);
   quat normalize(quat a);
   
+  quat rotate_quat(eul3 rotation);
   quat rotate_quat(mat3 rotation);
   quat rotate_quat(mat4 rotation);
   quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis);
@@ -282,12 +283,12 @@ namespace quark {
   };
   
   struct eul2 {
-    f32 x, y;
+    f32 yaw, pitch;
     f32& operator [](usize i);
   };
   
   struct eul3 {
-    f32 x, y, z;
+    f32 yaw, pitch, roll;
     f32& operator [](usize i);
   };
   

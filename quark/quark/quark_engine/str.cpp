@@ -1,4 +1,4 @@
-#define QUARK_ENGINE_INTERNAL
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "str.hpp"
 
 namespace quark::engine {

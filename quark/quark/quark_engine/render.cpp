@@ -7,7 +7,7 @@
 #include "stb_image.h"
 #include "qoi.h"
 
-#define QUARK_ENGINE_INTERNAL
+#define QUARK_ENGINE_IMPLEMENTATION
 #include "api.hpp"
 #include "component.hpp"
 #include "registry.hpp"
