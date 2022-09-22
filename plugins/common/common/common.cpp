@@ -4,14 +4,20 @@
 
 namespace common {
   void exit_on_esc() {
-    static f32 t = 0;
-    t += DT;
+    if(get_action("ui_exit").just_down) {
+      printf("here!\n");
+      MouseMode::Enum mouse_mode = get_mouse_mode();
 
-    if(t > 0.5f) {
+      if(mouse_mode == MouseMode::Hidden || mouse_mode == MouseMode::Visible) {
+        set_mouse_mode(MouseMode::Captured);
+        return;
+      }
+
+      if(mouse_mode == MouseMode::Captured) {
+        set_mouse_mode(MouseMode::Visible);
+        return;
+      }
     }
-
-    f32 d = 0.1666666 - DT;
-    _sleep((d * 100.0f));
   }
 
   void print_hello() {
@@ -297,22 +303,6 @@ namespace common {
     //printf("ptr: %llu\n", (usize)&MAIN_CAMERA);
     //str::print(str() + (usize)&v.get());
     {
-      Action a = get_action("move_left");
-      if(get_action("ui_exit").just_down) {
-        printf("here!\n");
-        MouseMode::Enum mouse_mode = get_mouse_mode();
-
-        if(mouse_mode == MouseMode::Hidden || mouse_mode == MouseMode::Visible) {
-          set_mouse_mode(MouseMode::Captured);
-          return;
-        }
-
-        if(mouse_mode == MouseMode::Captured) {
-          set_mouse_mode(MouseMode::Visible);
-          return;
-        }
-      }
-
       Resource<render::Camera> main_camera;
 
       vec2 move_dir = {0.0f, 0.0f};
@@ -806,6 +796,13 @@ mod_main() {
   //add_resource(render::Camera, MAIN_CAMERA);
   //
 
+  create_job("common::init", (void (*)())common::init);
+  create_job(def(common::create_thing_test));
+
+  create_job_list("game_init");
+  add_job_to_list("game_init", "common::init", "", -1);
+  add_job_to_list("game_init", "common::create_thing_test", "", -1);
+
   set_system_list("state_init");
   add_system(def((void (*)())common::init), -1);
   add_system(def(common::create_thing_test), -1);
@@ -818,6 +815,7 @@ mod_main() {
   add_system_relative(def((void (*)())common::update0), "update_tag", 1);
   add_system_relative(def(common::render_things), "render::begin_frame", 1);
   add_system(def(common::exit_on_esc), -1);
+
   //add_system(def(common::exit_on_esc), -1);
 
   //system::list("state_init")
