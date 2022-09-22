@@ -89,25 +89,25 @@ namespace quark {
     return &_action_properties_map.at(action_name);
   }
 
-  ActionState* get_action_state(const char* action_name) {
-    return &_action_state_map.at(action_name);
+  ActionState get_action_state(const char* action_name) {
+    return _action_state_map.at(action_name);
   }
 
   void update_all_actions() {
     for(auto action = _action_state_map.begin(); action != _action_state_map.end(); action++) {
       auto& name = action->first;
-      auto& state = action->second;
-      auto& properties = _action_properties_map.at(name);
+      auto state = &action->second;
+      auto properties = &_action_properties_map.at(name);
 
-      state.previous = state.current;
-      state.current = 0.0f;
+      state->previous = state->current;
+      state->current = 0.0f;
 
-      for_every(i, properties.input_ids.size()) {
-        state.current += get_input_value(properties.input_ids[i], properties.source_ids[i]) * properties.input_strengths[i];
+      for_every(i, properties->input_ids.size()) {
+        state->current += get_input_value(properties->input_ids[i], properties->source_ids[i]) * properties->input_strengths[i];
       }
 
-      if(properties.max_value > 0.0f) {
-        state.current = clamp(state.current, 0.0f, properties.max_value);
+      if(properties->max_value > 0.0f) {
+        state->current = clamp(state->current, 0.0f, properties->max_value);
       }
     }
   }

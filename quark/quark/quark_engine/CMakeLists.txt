@@ -14,26 +14,26 @@ add_library(quark_engine SHARED
   quark_engine.cpp
 )
 
-#target_precompile_headers(quark_engine PUBLIC
-#  <cstdint>
-#  <cstdio>
-#  <iostream>
-#  <vector>
-#  <filesystem>
-#  <string>
-#  <typeindex>
-#  <unordered_map>
-#  <math.h>
-#  <VkBootstrap.h>
-#  <tiny_obj_loader.h>
-#  <vk_mem_alloc.h>
-#  <entt/entity/entity.hpp>
-#  <entt/entity/registry.hpp>
-#  <BulletCollision/CollisionDispatch/btGhostObject.h>
-#  <btBulletDynamicsCommon.h>
-#  <stb_image.h>
-#  <qoi.h>
-#)
+target_precompile_headers(quark_engine PUBLIC
+  <cstdint>
+  <cstdio>
+  <iostream>
+  <vector>
+  <filesystem>
+  <string>
+  <typeindex>
+  <unordered_map>
+  <math.h>
+  <VkBootstrap.h>
+  <tiny_obj_loader.h>
+  <vk_mem_alloc.h>
+  <entt/entity/entity.hpp>
+  <entt/entity/registry.hpp>
+  <BulletCollision/CollisionDispatch/btGhostObject.h>
+  <btBulletDynamicsCommon.h>
+  <stb_image.h>
+  <qoi.h>
+)
 
 target_link_libraries(quark_engine
   quark_core

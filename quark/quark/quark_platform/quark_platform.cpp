@@ -76,7 +76,7 @@ namespace quark {
 
     _window_ptr = glfwCreateWindow(_window_dimensions.x, _window_dimensions.y, _window_name.c_str(), 0, 0);
 
-    glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     glfwSetInputMode(_window_ptr, GLFW_RAW_MOUSE_MOTION, _window_enable_raw_mouse ? GLFW_TRUE : GLFW_FALSE);
     glfwGetFramebufferSize(_window_ptr, &_window_dimensions.x, &_window_dimensions.y);
 
@@ -101,6 +101,10 @@ namespace quark {
     return glfwWindowShouldClose(_window_ptr) == GLFW_TRUE;
   }
 
+  MouseMode::Enum get_mouse_mode() {
+    return (MouseMode::Enum)glfwGetInputMode(_window_ptr, GLFW_CURSOR);
+  }
+
   void set_window_name(const char* window_name) {
     glfwSetWindowTitle(_window_ptr, window_name);
   }
@@ -111,6 +115,10 @@ namespace quark {
 
   void set_window_should_close() {
     glfwSetWindowShouldClose(_window_ptr, GLFW_TRUE);
+  }
+
+  void set_mouse_mode(MouseMode::Enum mouse_mode) {
+    glfwSetInputMode(_window_ptr, GLFW_CURSOR, mouse_mode);
   }
 
   InputState::Enum get_input_state(input_id input, u32 source_id) {
@@ -253,7 +261,7 @@ namespace quark {
   }
 
   vec2 get_mouse_delta() {
-    return _mouse_delta;
+    return get_mouse_mode() == MouseMode::Captured ? _mouse_delta : VEC2_ZERO;
   }
 
   // TODO(sean): make this relative to the bottom left of the screen

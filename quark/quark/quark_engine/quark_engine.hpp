@@ -197,7 +197,7 @@ namespace quark {
   engine_api void update_all_actions();
 
   engine_api ActionProperties* get_action_properties(const char* action_name);
-  engine_api ActionState* get_action_state(const char* action_name);
+  engine_api ActionState get_action_state(const char* action_name);
   
 #if 0
   // System control

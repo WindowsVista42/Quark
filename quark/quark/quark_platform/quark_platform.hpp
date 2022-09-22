@@ -41,19 +41,6 @@ namespace quark {
     usize capacity;
   };
 
-  namespace_enum(InputType, u16,
-    Key            = 0,
-    MouseButton    = 1,
-    GamepadButton  = 2,
-    MouseAxis      = 3,
-    GamepadAxis    = 4,
-  );
-
-  namespace_enum(InputState, i32,
-    Press          = GLFW_PRESS,
-    Release        = GLFW_RELEASE,
-  );
-
   using input_id = i32;
 
   union RawInputId {
@@ -70,6 +57,19 @@ namespace quark {
 
     return (i32)(t | v);
   }
+
+  namespace_enum(InputState, i32,
+    Press          = GLFW_PRESS,
+    Release        = GLFW_RELEASE,
+  );
+
+  namespace_enum(InputType, u16,
+    Key            = 0,
+    MouseButton    = 1,
+    GamepadButton  = 2,
+    MouseAxis      = 3,
+    GamepadAxis    = 4,
+  );
 
   namespace_enum(KeyCode, i32,
     Apostrophe      = make_raw_input_id(InputType::Key, GLFW_KEY_APOSTROPHE),
@@ -194,6 +194,12 @@ namespace quark {
     RightTrigger    = make_raw_input_id(InputType::GamepadAxis, 9),
   );
 
+  namespace_enum(MouseMode, i32,
+    Visible  = GLFW_CURSOR_NORMAL,
+    Hidden   = GLFW_CURSOR_HIDDEN,
+    Captured = GLFW_CURSOR_DISABLED,
+  );
+
   // Window control
   platform_api void init_window();
   platform_api void deinit_window();
@@ -229,6 +235,9 @@ namespace quark {
 
   platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis);
   platform_api f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis);
+
+  platform_api MouseMode::Enum get_mouse_mode();
+  platform_api void set_mouse_mode(MouseMode::Enum mouse_mode);
 
   platform_api vec2 get_mouse_delta();
   platform_api vec2 get_mouse_position();

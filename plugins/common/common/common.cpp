@@ -1,11 +1,17 @@
+#include <stdlib.h>
 #define COMMON_IMPLEMENTATION
 #include "common.hpp"
 
 namespace common {
   void exit_on_esc() {
-    if(get_key_down(KeyCode::Escape)) {
-      set_window_should_close();
+    static f32 t = 0;
+    t += DT;
+
+    if(t > 0.5f) {
     }
+
+    f32 d = 0.1666666 - DT;
+    _sleep((d * 100.0f));
   }
 
   void print_hello() {
@@ -14,14 +20,15 @@ namespace common {
 };
 
 //
+
 //#include "../../../quark/src/module.hpp"
 ////
 
-#include "common.hpp"
-using namespace quark;
+//#include "common.hpp"
+//using namespace quark;
 
-#include <entt/entity/view.hpp>
-#include <string.h>
+//#include <entt/entity/view.hpp>
+//#include <string.h>
 
 // job types
 // - do some function, spsc
@@ -232,11 +239,12 @@ namespace common {
     create_action("down");
     create_action("v");
     create_action("pause");
+    create_action("ui_exit");
 
     create_action("look_right", 0.0f);
-    create_action("look_left", 0.0f);
-    create_action("look_up", 0.0f);
-    create_action("look_down", 0.0f);
+    create_action("look_left",  0.0f);
+    create_action("look_up",    0.0f);
+    create_action("look_down",  0.0f);
 
     bind_action("move_forward", KeyCode::W);
     bind_action("move_backward", KeyCode::S);
@@ -246,11 +254,12 @@ namespace common {
     bind_action("down", KeyCode::LeftControl);
     bind_action("v", KeyCode::V);
     bind_action("pause", KeyCode::P);
+    bind_action("ui_exit", KeyCode::Escape);
 
     bind_action("look_right", MouseAxisCode::MoveRight, 0, 1.0f / 64.0f);
-    bind_action("look_left", MouseAxisCode::MoveLeft, 0, 1.0f / 64.0f);
-    bind_action("look_up", MouseAxisCode::MoveUp, 0, 1.0f / 64.0f);
-    bind_action("look_down", MouseAxisCode::MoveDown, 0, 1.0f / 64.0f);
+    bind_action("look_left",  MouseAxisCode::MoveLeft,  0, 1.0f / 64.0f);
+    bind_action("look_up",    MouseAxisCode::MoveUp,    0, 1.0f / 64.0f);
+    bind_action("look_down",  MouseAxisCode::MoveDown,  0, 1.0f / 64.0f);
   }
 
   void update0(View<Color, const Transform, const Tag> view) {
@@ -288,7 +297,21 @@ namespace common {
     //printf("ptr: %llu\n", (usize)&MAIN_CAMERA);
     //str::print(str() + (usize)&v.get());
     {
-      update_all_actions();
+      Action a = get_action("move_left");
+      if(get_action("ui_exit").just_down) {
+        printf("here!\n");
+        MouseMode::Enum mouse_mode = get_mouse_mode();
+
+        if(mouse_mode == MouseMode::Hidden || mouse_mode == MouseMode::Visible) {
+          set_mouse_mode(MouseMode::Captured);
+          return;
+        }
+
+        if(mouse_mode == MouseMode::Captured) {
+          set_mouse_mode(MouseMode::Visible);
+          return;
+        }
+      }
 
       Resource<render::Camera> main_camera;
 
