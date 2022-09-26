@@ -250,7 +250,7 @@ namespace quark {
 
   // Timing
   platform_api Timestamp get_timestamp();
-  platform_api f64 get_timestamp_difference(Timestamp A, Timestamp B);
+  platform_api f64 get_timestamp_difference(Timestamp t0, Timestamp t1);
 
   // Threadpool control
   platform_api void init_threadpool();

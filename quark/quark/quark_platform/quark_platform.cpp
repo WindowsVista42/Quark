@@ -297,8 +297,8 @@ namespace quark {
     return Timestamp { .value = glfwGetTime() };
   }
 
-  f64 get_timestamp_difference(Timestamp T0, Timestamp T1) {
-    return abs(T1.value - T0.value);
+  f64 get_timestamp_difference(Timestamp t0, Timestamp t1) {
+    return abs(t1.value - t0.value);
   }
 
   void init_threadpool() {

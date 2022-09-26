@@ -507,11 +507,6 @@ namespace common {
         {{1, false}, {3, true}},
         {{0, true}, {1, false}},
         {{2, true}, {-1}},
-        {{3, true}, {-1}},
-        {{2, false}, {3, true}},
-        {{0, false}, {1, true}},
-        {{1, true}, {2, false}}, 
-  
         //{{1, false},  {2, false}},
         //{{1, false}, {3, false}},
         //{{0, false},  {1, false}},
@@ -521,8 +516,15 @@ namespace common {
         //{{0, false}, {1, false}},
         //{{1, false},  {2, false}},
     };
-  
-    std::array<std::vector<std::vector<int>>, 4> res_dep_table;
+
+    constexpr int res_count = 4;
+    std::array<std::vector<std::vector<int>>, res_count> res_dep_table;
+    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_dep_table;
+    std::array<std::vector<int>, count_of(usage_arr)> fun_dep_table_dense;
+    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_notif_table;
+    std::array<std::vector<int>, count_of(usage_arr)> fun_notif_table_dense;
+
+    Timestamp t0 = get_timestamp();
   
     for_every(i, count_of(usage_arr)) {
       for_every(j, 2) {
@@ -552,26 +554,26 @@ namespace common {
       }
     }
   
-    for_every(i, 4) {
+    for_every(i, res_count) {
       if (res_dep_table[i].back().empty()) {
         res_dep_table[i].pop_back();
       }
     }
   
-    printf("\n");
-    for_every(i, 4) {
-      printf("%llu --> ", i);
-      for_every(j, res_dep_table[i].size()) {
-        for_every(k, res_dep_table[i][j].size()) { printf("%c", res_dep_table[i][j][k] + 'a'); }
-        printf(",");
-      }
-      printf("\n");
-    }
+    // printf("\n");
+    // for_every(i, 4) {
+    //   printf("%llu --> ", i);
+    //   for_every(j, res_dep_table[i].size()) {
+    //     for_every(k, res_dep_table[i][j].size()) { printf("%c", res_dep_table[i][j][k] + 'a'); }
+    //     printf(",");
+    //   }
+    //   printf("\n");
+    // }
   
-    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_dep_table;
+    // std::array<std::unordered_set<int>, count_of(usage_arr)> fun_dep_table;
     for_every(i, count_of(usage_arr)) { fun_dep_table[i] = {}; }
   
-    for_every(i, 4) {
+    for_every(i, res_count) {
       for_range(j, 1, res_dep_table[i].size()) { // skip the first entry
         // for every element in [j], add every element in [j-1] to its fun_dep_table
         for_every(k, res_dep_table[i][j].size()) {
@@ -582,7 +584,7 @@ namespace common {
       }
     }
   
-    std::array<std::vector<int>, count_of(usage_arr)> fun_dep_table_dense;
+    // std::array<std::vector<int>, count_of(usage_arr)> fun_dep_table_dense;
     for_every(i, fun_dep_table_dense.size()) {
       fun_dep_table_dense[i] = {};
       for (auto it = fun_dep_table[i].begin(); it != fun_dep_table[i].end(); it++) {
@@ -590,17 +592,17 @@ namespace common {
       }
     }
   
-    printf("\n");
-    for_every(i, fun_dep_table_dense.size()) {
-      printf("%c --> ", (char)i + 'a');
-      for_every(j, fun_dep_table_dense[i].size()) { printf("%c,", fun_dep_table_dense[i][j] + 'a'); }
-      printf("\n");
-    }
+    // printf("\n");
+    // for_every(i, fun_dep_table_dense.size()) {
+    //   printf("%c --> ", (char)i + 'a');
+    //   for_every(j, fun_dep_table_dense[i].size()) { printf("%c,", fun_dep_table_dense[i][j] + 'a'); }
+    //   printf("\n");
+    // }
   
-    std::array<std::unordered_set<int>, count_of(usage_arr)> fun_notif_table;
+    // std::array<std::unordered_set<int>, count_of(usage_arr)> fun_notif_table;
     for_every(i, count_of(usage_arr)) { fun_notif_table[i] = {}; }
   
-    for_every(i, 4) {
+    for_every(i, res_count) {
       for_range(j, 0, res_dep_table[i].size() - 1) { // skip the last entry
         // for every element in [j], add every element in [j+1] to its fun_notif_table
         for_every(k, res_dep_table[i][j].size()) {
@@ -611,7 +613,7 @@ namespace common {
       }
     }
   
-    std::array<std::vector<int>, count_of(usage_arr)> fun_notif_table_dense;
+    // std::array<std::vector<int>, count_of(usage_arr)> fun_notif_table_dense;
     for_every(i, fun_notif_table_dense.size()) {
       fun_notif_table_dense[i] = {};
       for (auto it = fun_notif_table[i].begin(); it != fun_notif_table[i].end(); it++) {
@@ -619,52 +621,56 @@ namespace common {
       }
     }
   
-    printf("\n");
-    for_every(i, fun_notif_table_dense.size()) {
-      printf("%c --> ", (char)i + 'a');
-      for_every(j, fun_notif_table_dense[i].size()) { printf("%c,", fun_notif_table_dense[i][j] + 'a'); }
-      printf("\n");
-    }
+    // printf("\n");
+    // for_every(i, fun_notif_table_dense.size()) {
+    //   printf("%c --> ", (char)i + 'a');
+    //   for_every(j, fun_notif_table_dense[i].size()) { printf("%c,", fun_notif_table_dense[i][j] + 'a'); }
+    //   printf("\n");
+    // }
   
-    std::vector<int> start_arr;
-    for_every(i, fun_dep_table_dense.size()) {
-      if (fun_dep_table_dense[i].empty()) {
-        start_arr.push_back(i);
-      }
-    }
+    // std::vector<int> start_arr;
+    // for_every(i, fun_dep_table_dense.size()) {
+    //   if (fun_dep_table_dense[i].empty()) {
+    //     start_arr.push_back(i);
+    //   }
+    // }
   
-    printf("\n");
-    for_every(i, start_arr.size()) { printf("%c,", start_arr[i] + 'a'); }
-    printf("\n");
+    // printf("\n");
+    // for_every(i, start_arr.size()) { printf("%c,", start_arr[i] + 'a'); }
+    // printf("\n");
   
-    std::array<int, count_of(usage_arr)> start_counters;
-    for_every(i, start_counters.size()) { start_counters[i] = fun_dep_table_dense[i].size(); }
+    // std::array<int, count_of(usage_arr)> start_counters;
+    // for_every(i, start_counters.size()) { start_counters[i] = fun_dep_table_dense[i].size(); }
   
-    printf("\n");
-    for_every(i, start_counters.size()) { printf("%d,", start_counters[i]); }
-    printf("\n");
+    // printf("\n");
+    // for_every(i, start_counters.size()) { printf("%d,", start_counters[i]); }
+    // printf("\n");
   
-    usize start = 0;
-    std::vector<int> run_arr = start_arr;
-    std::array<int, count_of(usage_arr)> run_counters = start_counters;
+    // usize start = 0;
+    // std::vector<int> run_arr = start_arr;
+    // std::array<int, count_of(usage_arr)> run_counters = start_counters;
   
-    printf("\n");
-    while (start != run_arr.size()) {
-      for_range(i, start, run_arr.size()) { printf("%c,", run_arr[i] + 'a'); }
-      printf("\n");
+    // printf("\n");
+    // while (start != run_arr.size()) {
+    //   for_range(i, start, run_arr.size()) { printf("%c,", run_arr[i] + 'a'); }
+    //   printf("\n");
   
-      auto idx = run_arr[start];
-      for_every(i, fun_notif_table_dense[idx].size()) {
-        run_counters[fun_notif_table_dense[idx][i]] -= 1;
-        if (run_counters[fun_notif_table_dense[idx][i]] == 0) {
-          run_arr.push_back(fun_notif_table_dense[idx][i]);
-        }
-      }
+    //   auto idx = run_arr[start];
+    //   for_every(i, fun_notif_table_dense[idx].size()) {
+    //     run_counters[fun_notif_table_dense[idx][i]] -= 1;
+    //     if (run_counters[fun_notif_table_dense[idx][i]] == 0) {
+    //       run_arr.push_back(fun_notif_table_dense[idx][i]);
+    //     }
+    //   }
   
-      start += 1;
-    }
+    //   start += 1;
+    // }
   
-    printf("\n");
+    // printf("\n");
+    Timestamp t1 = get_timestamp();
+    f64 diff = get_timestamp_difference(t0, t1);
+    printf("Function dep build took: %f\n", (f32)diff);
+    printf("fcount: %d\n", (i32)count_of(usage_arr));
   }
 
   void set_effect(const char* effect_name) {
@@ -796,12 +802,12 @@ mod_main() {
   //add_resource(render::Camera, MAIN_CAMERA);
   //
 
-  create_job("common::init", (void (*)())common::init);
-  create_job(def(common::create_thing_test));
+  // create_job("common::init", (void (*)())common::init);
+  // create_job(def(common::create_thing_test));
 
-  create_job_list("game_init");
-  add_job_to_list("game_init", "common::init", "", -1);
-  add_job_to_list("game_init", "common::create_thing_test", "", -1);
+  // create_job_list("game_init");
+  // add_job_to_list("game_init", "common::init", "", -1);
+  // add_job_to_list("game_init", "common::create_thing_test", "", -1);
 
   set_system_list("state_init");
   add_system(def((void (*)())common::init), -1);

@@ -156,6 +156,10 @@ namespace quark {
     f32 value;
   };
 
+  struct ResourceAccess {
+    i32 resource_id;
+    bool const_access;
+  };
   
   // new camera tech
   
@@ -198,81 +202,30 @@ namespace quark {
 
   engine_api ActionProperties* get_action_properties(const char* action_name);
   engine_api ActionState get_action_state(const char* action_name);
-  
-#if 1
-  // System control
-  //engine_api void init_systems();
-  //engine_api void deinit_systems();
 
-  // Job scheduler control
-  engine_api void init_jobs();
-  engine_api void deinit_jobs();
+  // Scheduler control
+  engine_api void init_systems();
+  engine_api void deinit_systems();
 
-  void create_job(const char* job_name, WorkFunction job_func);
-  void destroy_job(const char* job_name);
+  // System list handling
+  engine_api void create_system_list(const char* system_list_name);
+  engine_api void destroy_system_list(const char* system_list_name);
+  engine_api void run_system_list(const char* system_list_name);
 
-  void create_job_list(const char* job_list_name);
-  void destroy_job_list(const char* job_list_name);
-  void run_job_list(const char* job_list_name);
-
-  WorkFunction get_job_func_ptr(const char* job_name, const char* relative_to, i32 position);
-  void add_job_to_list(const char* list_name, const char* job_name, const char* relative_to, i32 position);
-  void remove_job_to_list(const char* list_name, const char* job_name);
-
-  //add_job("game_init", "my_update", my_update, "", -1);
-  //add_job("game_deinit", def(my_update), "", -1);
-  //add_job("game_update", def(my_update), "", -1);
-
-  //create_state("game", "game_init", "game_update", "game_deinit");
-  //create_state("menu", "menu_init", "menu_update", "menu_deinit");
-
-  //create_job("common_init", common_init);
-  //create_job("my_update", my_update);
-  //create_job("render_things", render_things);
-  //create_job("update0", update0);
-  //create_job("create_thing_test", create_thing_test);
-
-  //create_job_list("game_init");
-  //add_job("game_init", "common_init", "", -1);
-  //add_job("game_init", "create_thing_test", "", -1);
-
-  //create_job_list("game_update");
-  //add_job("game_update", "my_update", "", -1);
-  //add_job("game_update", "render_things", "render::begin_frame", 1);
-  //add_job("game_update", "update0", "update_tag", 1);
-
-  //create_state("game", "game_init", "game_update", "");
-
-  //get_state_init();
-  //get_state_deinit();
-  //get_state_update();
-  
   // System handling
-  //engine_api void get_system(const char* list, const char* system_name);
-  //engine_api void add_system(const char* list, const char* system_name, WorkFunction function, const char* relative_to, i32 position);
-  //engine_api void remove_system(const char* list, const char* system_name);
-  //engine_api void replace_system(const char* list, const char* system_name, WorkFunction function);
-  //engine_api void rename_system(const char* list, const char* system_name, const char* new_name);
-  //engine_api void run_system_list(const char* list);
-  //
-  //#define remove_system(function, position)
-  //#define remove_system_relative(function, relative_function, relative_position)
-  //engine_api void remove_system_advanced(WorkFunction function, const char* function_name);
-  //engine_api void remove_system_relative_advanced(WorkFunction function, const char* function_name, const char* relative_name, i32 relative_position);
-  //
-  //engine_api WorkFunction get_system(const char* function_name);
-  //engine_api std::vector<WorkFunction>* get_all_systems();
-  //
-  //engine_api void replace_system(const char* function_name, WorkFunction new_function);
-  //engine_api void replace_system_and_name(const char* function_name, WorkFunction new_function, const char* new_name);
+  engine_api void create_system(const char* system_name, WorkFunction system_func);
+  engine_api void destroy_system(const char* system_name);
 
-  //engine_api void run_system_list(const char* list_name);
-  
-  // System macro impl
-  //#undef add_system
-  //#define add_system(function, position)
-  //
-  //#undef add_system_relative
-  //#define add_system_relative(function, relative_function, relative_position)
-#endif
+  // system --> system list handling
+  engine_api void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position);
+  engine_api void remove_system(const char* list_name, const char* system_name);
+
+  // States control
+  engine_api void init_states();
+  engine_api void deinit_states();
+
+  // States handling
+  engine_api void create_state(const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
+  engine_api void change_state(const char* new_state);
+  engine_api void run_state();
 }; // namespace quark
