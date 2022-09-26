@@ -111,4 +111,7 @@ namespace quark {
       }
     }
   }
+
+  void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position) {
+  }
 };

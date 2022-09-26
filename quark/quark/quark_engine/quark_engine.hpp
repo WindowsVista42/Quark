@@ -225,7 +225,13 @@ namespace quark {
   engine_api void deinit_states();
 
   // States handling
+
+  // Create a state with init, update, and deinit functions
   engine_api void create_state(const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
+
+  // Change to a new state, this will happen after this frame is done
   engine_api void change_state(const char* new_state);
+
+  // Run the current state
   engine_api void run_state();
 }; // namespace quark
