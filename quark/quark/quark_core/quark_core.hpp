@@ -225,7 +225,7 @@ namespace quark {
   f32 acos(f32 t);
   f32 atan(f32 t);
   f32 atan2(f32 y, f32 x);
-  
+
   // Builtin C++ reflection
   
   using type_info = std::type_info;
@@ -239,6 +239,18 @@ namespace quark {
   template <typename T>
   const type_info get_type_info() {
     return std::type_info(typeid(T));
+  }
+
+  // http://www.cse.yorku.ca/~oz/hash.html
+  static u32 hash_str_fast(const char *str) {
+    u32 hash = 5381;
+    i32 c;
+
+    while ((c = *str++)) {
+      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+
+    return hash;
   }
   
   // Units

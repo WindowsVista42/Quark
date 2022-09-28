@@ -177,6 +177,21 @@ namespace quark {
   //   f32 rotation;
   //   f32 zoom;
   // };
+
+  using system_id = u32;
+  using system_list_id = u32;
+
+  struct SystemListInfo {
+    std::vector<u32> systems;
+  };
+
+  using state_id = u32;
+
+  struct StateInfo {
+    system_list_id init_system_list;
+    system_list_id update_system_list;
+    system_list_id deinit_system_list;
+  };
   
 #if 0
   // Global control
@@ -212,6 +227,8 @@ namespace quark {
   engine_api void destroy_system_list(const char* system_list_name);
   engine_api void run_system_list(const char* system_list_name);
 
+  engine_api void run_system_list_id(system_list_id system_list);
+
   // System handling
   engine_api void create_system(const char* system_name, WorkFunction system_func);
   engine_api void destroy_system(const char* system_name);
@@ -225,13 +242,8 @@ namespace quark {
   engine_api void deinit_states();
 
   // States handling
-
-  // Create a state with init, update, and deinit functions
-  engine_api void create_state(const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
-
-  // Change to a new state, this will happen after this frame is done
+  engine_api void create_state(const char* state_name, const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
+  engine_api void destroy_state(const char* state_name);
   engine_api void change_state(const char* new_state);
-
-  // Run the current state
   engine_api void run_state();
 }; // namespace quark
