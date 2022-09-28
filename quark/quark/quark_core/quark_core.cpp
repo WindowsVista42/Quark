@@ -16,6 +16,10 @@ namespace quark {
   f32 length2(vec2 a) {
     return dot(a, a);
   }
+
+  f32 inv_length(vec2 a) {
+    return inv_sqrt(dot(a, a));
+  }
   
   f32 distance(vec2 a, vec2 b) {
     vec2 d = a - b;
@@ -28,7 +32,7 @@ namespace quark {
   }
   
   vec2 normalize(vec2 a) {
-    return a / length(a);
+    return a * inv_length(a);
   }
   
   vec2 normalize_max_length(vec2 a, f32 max_length) {
@@ -63,6 +67,10 @@ namespace quark {
   f32 length2(vec3 a) {
     return dot(a, a);
   }
+
+  f32 inv_length(vec3 a) {
+    return inv_sqrt(dot(a, a));
+  }
   
   f32 distance(vec3 a, vec3 b) {
     vec3 d = a - b;
@@ -83,7 +91,7 @@ namespace quark {
   }
   
   vec3 normalize(vec3 a) {
-    return a / length(a);
+    return a * inv_length(a);
   }
   
   vec3 normalize_max_length(vec3 a, f32 max_length) {
@@ -127,6 +135,10 @@ namespace quark {
   f32 length2(vec4 a) {
     return dot(a, a);
   }
+
+  f32 inv_length(vec4 a) {
+    return inv_sqrt(dot(a, a));
+  }
   
   f32 distance(vec4 a, vec4 b) {
     vec4 d = a - b;
@@ -139,7 +151,7 @@ namespace quark {
   }
   
   vec4 normalize(vec4 a) {
-    return a / length(a);
+    return a * inv_length(a);
   }
   
   vec4 normalize_max_length(vec4 a, f32 max_length) {

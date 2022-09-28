@@ -136,13 +136,15 @@ namespace quark {
   }
 
   void destroy_system_list(const char* system_list_name) {
-    u32 name_hash = hash_str_fast(system_list_name);
+    panic("destroy_system_list not supported yet!");
 
-    if(_system_lists.find(name_hash) == _system_lists.end()) {
-      panic("Attempted to destroy a system list that does not exist!");
-    }
+    // u32 name_hash = hash_str_fast(system_list_name);
 
-    _system_lists.erase(std::find(_system_lists.begin(), _system_lists.end(), system_list_name));
+    // if(_system_lists.find(name_hash) == _system_lists.end()) {
+    //   panic("Attempted to destroy a system list that does not exist!");
+    // }
+
+    // _system_lists.erase(std::find(_system_lists.begin(), _system_lists.end(), system_list_name));
   }
 
   void run_system_list(const char* system_list_name) {
@@ -159,7 +161,27 @@ namespace quark {
 
     for_every(i, list->systems.size()) {
       // Optionally log/time the functions being run
-      _system_functions.at(list->systems[i])();
+      WorkFunction system = _system_functions.at(list->systems[i]);
+      if(system != 0) { // we optionally allow tags in the form of a system
+        system();
+      }
+    }
+  }
+
+  void print_system_list(const char* system_list_name) {
+    u32 list_hash = hash_str_fast(system_list_name);
+
+    if(_system_lists.find(list_hash) == _system_lists.end()) {
+      panic("Attempted to run a system list that does not exist!");
+    }
+
+    printf("Printing system list: %s\n", system_list_name);
+
+    SystemListInfo* list = &_system_lists.at(list_hash);
+
+    for_every(i, list->systems.size()) {
+      // Optionally log/time the functions being run
+      printf("System: %s\n", _system_names.at(list->systems[i]).c_str());
     }
   }
 
@@ -188,13 +210,52 @@ namespace quark {
 
   // system --> system list handling
   void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position) {
+    u32 list_hash = hash_str_fast(list_name);
+    u32 system_hash = hash_str_fast(system_name);
+    u32 relative_hash = hash_str_fast(relative_to);
+
+    if(_system_lists.find(list_hash) == _system_lists.end()) {
+      panic("Could not find system list to add system to!");
+    }
+
+    SystemListInfo* list = &_system_lists.at(list_hash);
+
+    // insert first item if its the first item
+    if(list->systems.size() == 0) {
+      if(position != 0 && position != -1) {
+        panic("Position for the first item of a system list should be 0 or -1!");
+      }
+
+      list->systems.push_back(system_hash);
+      return;
+    }
+
+    // absolute positioning
+    // index to add item AFTER
+    if(std::string(relative_to) == "") {
+      usize absolute_position = (((isize)list->systems.size() + position) % list->systems.size());
+      if(position < 0) {
+        absolute_position += 1;
+      } 
+
+      if(absolute_position == list->systems.size()) {
+        list->systems.push_back(system_hash);
+        return;
+      }
+
+      auto index = list->systems.begin() + absolute_position;
+      list->systems.insert(index, system_hash);
+      return;
+    } else {
+      panic("Relative positioning not supported yet for add_system!");
+    } 
   }
 
   void remove_system(const char* list_name, const char* system_name) {
+   panic("remove_system not implemented!");
   }
 
   std::unordered_map<state_id, StateInfo> _states;
-  bool _first_state = true;
   bool _changed_state = true;
   state_id _previous_state;
   state_id _current_state;
@@ -241,9 +302,32 @@ namespace quark {
   }
 
   void change_state(const char* new_state) {
+    _previous_state = _current_state;
+    _current_state = hash_str_fast(new_state);
+    _changed_state = true;
   }
 
   // Run the current state
   void run_state() {
+    if(_changed_state) {
+      _changed_state = false;
+
+      run_system_list_id(_states.at(_previous_state).deinit_system_list);
+      run_system_list_id(_states.at(_current_state).init_system_list);
+    }
+
+    run_system_list_id(_states.at(_current_state).update_system_list);
+  }
+
+  void run_state_init() {
+    run_system_list_id(_states.at(_current_state).init_system_list);
+  }
+
+  void run_state_deinit() {
+    run_system_list_id(_states.at(_current_state).deinit_system_list);
+  }
+
+  void set_state_changed(bool value) {
+    _changed_state = value;
   }
 };

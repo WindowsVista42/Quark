@@ -33,6 +33,23 @@ namespace quark {
   f32 round(f32 a) {
     return std::round(a);
   }
+
+  // fast inv sqrt
+  f32 inv_sqrt(f32 a){
+    union {
+        float f;
+        uint32_t i;
+    } conv;
+  
+    float x2;
+    const float threehalfs = 1.5F;
+  
+    x2 = a * 0.5F;
+    conv.f  = a;
+    conv.i  = 0x5f3759df - ( conv.i >> 1 );
+    conv.f  = conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
+    return conv.f;
+  }
   
   f32 sqrt(f32 a) {
     return std::sqrt(a);

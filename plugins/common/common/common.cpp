@@ -794,48 +794,38 @@ void add_system_relative(const char* system_name, engine::system::system_functio
   system::list(SYSTEM_LIST_CURRENT).add(system_name, func, relative_func, relative_position);
 }
 
+void something() {
+  printf("Hello from something!\n");
+}
+
+void something2() {
+  printf("Hello from something2!\n");
+}
+
+void something3() {
+  printf("Hello from something3!\n");
+}
+
 mod_main() {
   def_res(render::Camera, MAIN_CAMERA);
 
   set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
 
-  //add_resource(render::Camera, MAIN_CAMERA);
-  //
+  create_system("common_init", (void (*)())common::init);
+  create_system("create_thing_test", common::create_thing_test);
 
-  // create_job("common::init", (void (*)())common::init);
-  // create_job(def(common::create_thing_test));
+  create_system("update0", (void (*)())common::update0);
+  create_system("render_things", common::render_things);
+  create_system("exit_on_esc", common::exit_on_esc);
 
-  // create_job_list("game_init");
-  // add_job_to_list("game_init", "common::init", "", -1);
-  // add_job_to_list("game_init", "common::create_thing_test", "", -1);
+  add_system("init", "common_init", "", -1);
+  add_system("init", "create_thing_test", "", -1);
 
-  set_system_list("state_init");
-  add_system(def((void (*)())common::init), -1);
-  add_system(def(common::create_thing_test), -1);
+  add_system("update", "update0", "" , 4);
+  add_system("update", "render_things", "" , 7);
+  add_system("update", "exit_on_esc", "" , -1);
 
-  //set_system_list("state_init");
-  //add_system(def(common::init), -1);
-  //add_system(def(common::create_thing_test), -1);
-
-  set_system_list("update");
-  add_system_relative(def((void (*)())common::update0), "update_tag", 1);
-  add_system_relative(def(common::render_things), "render::begin_frame", 1);
-  add_system(def(common::exit_on_esc), -1);
-
-  //add_system(def(common::exit_on_esc), -1);
-
-  //system::list("state_init")
-  //  .add(def(common::init), -1)
-  //  .add(def(common::create_thing_test), -1);
-
-  //system::list("update")
-  //    .add(def((void (*)())common::update0), "update_tag", 1)
-  //    //.add(def(common::update1), "(void (*)())common::update0", 1)
-  //    .add(def(common::render_things), "render::begin_frame", 1)
-  ////    .add(def(common::exit_on_esc), -1);
-  //;
-
-  //printf("Loaded!\n");
+  print_system_list("update");
 }
 
 // struct Paddle {};

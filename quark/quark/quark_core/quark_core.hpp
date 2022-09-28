@@ -98,6 +98,7 @@ namespace quark {
   f32 dot(vec2 a, vec2 b);
   f32 length(vec2 a);
   f32 length2(vec2 a);
+  f32 inv_length(vec2 a);
   f32 distance(vec2 a, vec2 b);
   f32 distance2(vec2 a, vec2 b);
   vec2 normalize(vec2 a);
@@ -111,6 +112,7 @@ namespace quark {
   f32 dot(vec3 a, vec3 b);
   f32 length(vec3 a);
   f32 length2(vec3 a);
+  f32 inv_length(vec3 a);
   f32 distance(vec3 a, vec3 b);
   f32 distance2(vec3 a, vec3 b);
   vec3 cross(vec3 a, vec3 b);
@@ -127,7 +129,8 @@ namespace quark {
   
   f32 dot(vec4 a, vec4 b);
   f32 length(vec4 a);
-  f32 length2(vec3 a);
+  f32 length2(vec4 a);
+  f32 inv_length(vec4 a);
   f32 distance(vec4 a, vec4 b);
   f32 distance2(vec4 a, vec4 b);
   vec4 normalize(vec4 a);
@@ -213,6 +216,7 @@ namespace quark {
   f32 round(f32 a);
   
   f32 sqrt(f32 a);
+  f32 inv_sqrt(f32 a);
   f32 pow(f32 a, f32 exp);
   f32 log10(f32 a);
   f32 log2(f32 a);

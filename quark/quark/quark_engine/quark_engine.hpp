@@ -228,6 +228,7 @@ namespace quark {
   engine_api void run_system_list(const char* system_list_name);
 
   engine_api void run_system_list_id(system_list_id system_list);
+  engine_api void print_system_list(const char* system_list_name);
 
   // System handling
   engine_api void create_system(const char* system_name, WorkFunction system_func);
@@ -246,4 +247,7 @@ namespace quark {
   engine_api void destroy_state(const char* state_name);
   engine_api void change_state(const char* new_state);
   engine_api void run_state();
+  engine_api void run_state_init();
+  engine_api void run_state_deinit();
+  engine_api void set_state_changed(bool value);
 }; // namespace quark

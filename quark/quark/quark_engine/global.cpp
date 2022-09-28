@@ -64,112 +64,101 @@ namespace quark::engine::global {
   void update_tag() {}
 
   void init() {
-    // Add default system lists
+    // Create builtin system lists
     {
-      system::create("init");
-      system::create("state_init");
-      system::create("update");
-      system::create("state_deinit");
-      system::create("deinit");
-      system::create("resize");
+      // quark_init and quark_deinit are special
+      // They get run when the engine inits and deinits
+      //
+      // This is a good place to load something like a settings file
+      // or load global resources like images!
+      create_system_list("quark_init");
+      create_system_list("quark_deinit");
+
+      create_system_list("init");
+      create_system_list("update");
+      create_system_list("deinit");
     }
 
-    // Add our default engine systems
+    // Create builtin systems
     {
-      system::list("init")
-        .add(def(init_threadpool), -1)
-        .add(def(init_global_alloc), -1)
-        .add(def(add_asset_types), -1)
-        .add(def(init_window), -1)
-        .add(def(render::internal::init_vulkan), -1) // NOTE(sean): add shaders after this!
-        .add(def(render::internal::init_mesh_buffer), -1) // NOTE(sean): add meshes after this!
-        .add(def(render::internal::init_command_pools_and_buffers), -1) // NOTE(sean): add textures after this!
+      // Quark init
+      create_system("init_threadpool", init_threadpool);
+      create_system("init_global_alloc", init_global_alloc);
+      create_system("add_asset_types", add_asset_types);
+      create_system("init_window", init_window);
+      create_system("init_vulkan", render::internal::init_vulkan);
+      create_system("init_mesh_buffer", render::internal::init_mesh_buffer);
+      create_system("init_command_pools_and_buffers", render::internal::init_command_pools_and_buffers);
+      create_system("load_shaders", load_shaders);
+      create_system("load_meshes", load_meshes);
+      create_system("init_swapchain", render::internal::init_swapchain);
+      create_system("init_render_passes", render::internal::init_render_passes);
+      create_system("init_framebuffers", render::internal::init_framebuffers);
+      create_system("init_sync_objects", render::internal::init_sync_objects);
+      create_system("init_sampler", render::internal::init_sampler);
+      create_system("copy_meshes_to_gpu", render::internal::copy_meshes_to_gpu); // NOTE(sean): add meshes before this!
+      create_system("init_pipelines", render::internal::init_pipelines); // NOTE(sean): add shaders before this!
 
-        .add(def(load_shaders), -1)
-        .add(def(load_meshes), -1)
-        //.add(def(load_images), -1)
-
-        // Creating random internal resources
-        .add(def(render::internal::init_swapchain), -1)
-        .add(def(render::internal::init_render_passes), -1)
-        .add(def(render::internal::init_framebuffers), -1)
-        .add(def(render::internal::init_sync_objects), -1)
-        .add(def(render::internal::init_sampler), -1)
-
-        //.add(def(render::internal::init_global_descriptors), -1) // NOTE(sean): add textures before this!
-        .add(def(render::internal::copy_meshes_to_gpu), -1) // NOTE(sean): add meshes before this!
-        .add(def(render::internal::init_pipelines), -1) // NOTE(sean): add shaders before this!
-
-        //.add(def(render::internal::init_reflection), -1)
-        //.add(def(), -1)
-        ;
-        //.add(def(render::init), -1);
-
-      system::list("update")
-        .add(def(render::internal::print_performance_statistics), -1)
-        .add(def(update_window_inputs), -1)
-        .add(def(update_all_actions), -1)
-
-        .add(def(update_tag), -1)
-
-        .add(def(render::update_cameras), -1)
-        //.add(def(render::update_world_data), -1)
-
-        .add(def(render::begin_frame), -1) // NOTE(sean): rendering begins here!
-
-        //  //.add(def(render::begin_shadow_rendering), -1)
-        //  //.add(def(render::draw_shadow_things), -1)
-        //  //.add(def(render::end_shadow_rendering), -1)
-
-        //  .add(def(render::begin_depth_prepass_rendering), -1)
-        //  //.add(def(render::draw_depth_prepass_things), -1)
-        //  .add(def(render::end_depth_prepass_rendering), -1)
-
-        //  .add(def(render::begin_forward_rendering), -1) // NOTE(sean): custom effects begin here!
-
-        //    .add(def(render::begin_lit_pass), -1)
-        //    .add(def(render::draw_lit_pass_things), -1)
-        //    .add(def(render::end_lit_pass), -1)
-
-        //    .add(def(render::begin_solid_pass), -1)
-        //    .add(def(render::draw_solid_pass_things), -1)
-        //    .add(def(render::end_solid_pass), -1)
-
-        //    .add(def(render::begin_wireframe_pass), -1)
-        //    .add(def(render::draw_wireframe_pass_things), -1)
-        //    .add(def(render::end_wireframe_pass), -1)
-
-        //  .add(def(render::end_forward_rendering), -1) // NOTE(sean): custom effects end here!
-
-        .add(def(render::end_frame), -1) // NOTE(sean): rendering ends here!
-        ;
+      // Update
+      create_system("print_performance_statistics", render::internal::print_performance_statistics);
+      create_system("update_window_inputs", update_window_inputs);
+      create_system("update_all_actions", update_all_actions);
+      create_system("update_tag", 0);
+      create_system("update_cameras", render::update_cameras);
+      create_system("begin_frame", render::begin_frame);
+      create_system("end_frame", render::end_frame);
     }
 
-    // Load systems from quark_*.dll/so
+    // Add systems to system lists
     {
+      // Quark init
+      add_system("quark_init", "init_threadpool", "", -1);
+      add_system("quark_init", "init_global_alloc", "", -1);
+      add_system("quark_init", "add_asset_types", "", -1);
+      add_system("quark_init", "init_window", "", -1);
+      add_system("quark_init", "init_vulkan", "", -1);
+      add_system("quark_init", "init_mesh_buffer", "", -1);
+      add_system("quark_init", "init_command_pools_and_buffers", "", -1);
+      add_system("quark_init", "load_shaders", "", -1);
+      add_system("quark_init", "load_meshes", "", -1);
+      add_system("quark_init", "init_swapchain", "", -1);
+      add_system("quark_init", "init_render_passes", "", -1);
+      add_system("quark_init", "init_framebuffers", "", -1);
+      add_system("quark_init", "init_sync_objects", "", -1);
+      add_system("quark_init", "init_sampler", "", -1);
+      add_system("quark_init", "copy_meshes_to_gpu", "", -1);
+      add_system("quark_init", "init_pipelines", "", -1);
+
+      // Update
+      add_system("update", "print_performance_statistics", "", -1);
+      add_system("update", "update_window_inputs", "", -1);
+      add_system("update", "update_all_actions", "", -1);
+      add_system("update", "update_tag", "", -1);
+      add_system("update", "update_cameras", "", -1);
+      add_system("update", "begin_frame", "", -1);
+      add_system("update", "end_frame", "", -1);
     }
 
-    // Let the user add their systems
+    // Add states
+    {
+      create_state("main", "init", "update", "deinit");
+    }
   }
 
   void run() {
-    // Add this before running so that they are GUARANTEED to be begin and end
-    system::list("update")
-      .add(def(begin_frame_timer), 0)
-      .add(def(end_frame_timer), -1);
-
-    auto t0 = std::chrono::high_resolution_clock::now();
-    system::list("init").run(true);
-    system::list("state_init").run();
-    auto t1 = std::chrono::high_resolution_clock::now();
-    std::cout << "init time: " << std::chrono::duration<f64>(t1 - t0).count() << " s" << std:: endl;
+    run_system_list("quark_init");
+    change_state("main");
+    run_state_init();
+    set_state_changed(false);
 
     while(!get_window_should_close()) {
-      system::list("update").run(false);
-      state::transition_if_changed();
+      Timestamp t0 = get_timestamp();
+      run_state();
+      Timestamp t1 = get_timestamp();
+      DT = get_timestamp_difference(t0, t1);
     }
 
-    system::list("state_deinit").run();
-    system::list("deinit").run();
+    run_state_deinit();
+    run_system_list("quark_deinit");
   }
 };

@@ -2,7 +2,6 @@ assets/shaders/*.spv
 assets/shaders/*.vert
 mods/*.dll
 lib/
-plugins/*/
 
 CMakeFiles/
 build/
