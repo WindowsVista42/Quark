@@ -163,6 +163,7 @@ namespace quark {
       // Optionally log/time the functions being run
       WorkFunction system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
+        //print_tempstr(create_tempstr() + "Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
         system();
       }
     }
@@ -256,7 +257,7 @@ namespace quark {
   }
 
   std::unordered_map<state_id, StateInfo> _states;
-  bool _changed_state = true;
+  bool _changed_state = false;
   state_id _previous_state;
   state_id _current_state;
 
@@ -301,10 +302,13 @@ namespace quark {
     _states.erase(_states.find(hash_str_fast(state_name)));
   }
 
-  void change_state(const char* new_state) {
+  void change_state(const char* new_state, bool set_internal_state_changed_flag) {
     _previous_state = _current_state;
     _current_state = hash_str_fast(new_state);
-    _changed_state = true;
+
+    if(set_internal_state_changed_flag) {
+      _changed_state = true;
+    }
   }
 
   // Run the current state

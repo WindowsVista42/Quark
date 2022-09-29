@@ -2,6 +2,9 @@
 #define COMMON_IMPLEMENTATION
 #include "common.hpp"
 
+declare_resource(common_var, float);
+define_resource(float, 1.0f);
+
 namespace common {
   void exit_on_esc() {
     if(get_action("ui_exit").just_down) {
@@ -50,8 +53,15 @@ struct def_par_fn_struct { \
 }; \
 constexpr auto& fname = def_par_fn_struct::fname
 
-#define def_res(sname, svalue) \
-  common::Resource<sname>::value = svalue;
+//#define define_resource(sname) \
+//  template <> \
+//  sname Resource<sname>::value = {};
+
+#define set_res(sname, svalue) \
+  Resource<sname>::value = svalue; \
+
+//template <typename T>
+//T Resource<T>::value = {};
 
 namespace common {
   struct Iden {
@@ -64,26 +74,7 @@ namespace common {
   struct Tag {};
 
   //
-  
-  template <typename T>
-  struct common_api Resource {
-    static T value;
 
-    T& get() {
-      return Resource<T>::value;
-    }
-
-    void set(T& new_value) {
-      return Resource<T>::value = new_value;
-    }
-
-    T* operator ->() {
-      return &Resource<T>::value;
-    }
-  };
-
-  template <typename T>
-  T Resource<T>::value = {};
 
   //
 
@@ -268,7 +259,7 @@ namespace common {
     bind_action("look_down",  MouseAxisCode::MoveDown,  0, 1.0f / 64.0f);
   }
 
-  void update0(View<Color, const Transform, const Tag> view) {
+  void update0(View<Color, const Transform, const Tag> view, Resource<Camera3D> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
@@ -303,7 +294,10 @@ namespace common {
     //printf("ptr: %llu\n", (usize)&MAIN_CAMERA);
     //str::print(str() + (usize)&v.get());
     {
-      Resource<render::Camera> main_camera;
+      //Resource<render::Camera> main_camera_res = {};
+      //render::Camera* main_camera = main_camera_res.value;
+      //resource(Camera3D) main_camera_res;
+      render::Camera* main_camera = get_resource(res);
 
       vec2 move_dir = {0.0f, 0.0f};
 
@@ -358,7 +352,7 @@ namespace common {
       main_camera->pos.z += get_action("up").value * DT;
       main_camera->pos.z -= get_action("down").value * DT;
 
-      MAIN_CAMERA = Resource<render::Camera>::value;
+      MAIN_CAMERA = *main_camera;//Resource<render::Camera>::value;
     }
   }
   
@@ -786,14 +780,6 @@ void set_system_list(const char* list_name) {
   SYSTEM_LIST_CURRENT = list_name;
 }
 
-void add_system(const char* system_name, engine::system::system_function func, isize relative_position) {
-  system::list(SYSTEM_LIST_CURRENT).add(system_name, func, relative_position);
-}
-
-void add_system_relative(const char* system_name, engine::system::system_function func, const char* relative_func, isize relative_position) {
-  system::list(SYSTEM_LIST_CURRENT).add(system_name, func, relative_func, relative_position);
-}
-
 void something() {
   printf("Hello from something!\n");
 }
@@ -807,8 +793,6 @@ void something3() {
 }
 
 mod_main() {
-  def_res(render::Camera, MAIN_CAMERA);
-
   set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
 
   create_system("common_init", (void (*)())common::init);
@@ -825,7 +809,10 @@ mod_main() {
   add_system("update", "render_things", "" , 7);
   add_system("update", "exit_on_esc", "" , -1);
 
+  print_system_list("init");
   print_system_list("update");
+
+  *Resource<float>::value = 2.0f;
 }
 
 // struct Paddle {};

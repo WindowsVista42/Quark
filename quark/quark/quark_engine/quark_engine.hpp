@@ -245,9 +245,68 @@ namespace quark {
   // States handling
   engine_api void create_state(const char* state_name, const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
   engine_api void destroy_state(const char* state_name);
-  engine_api void change_state(const char* new_state);
+  engine_api void change_state(const char* new_state, bool set_internal_state_changed_flag = true);
   engine_api void run_state();
   engine_api void run_state_init();
   engine_api void run_state_deinit();
-  engine_api void set_state_changed(bool value);
-}; // namespace quark
+
+  // Temp str
+  struct engine_api tempstr {
+    char* data;
+    usize length;
+  }; 
+
+  // No cleanup required, create_tempstr automatically resets the internal buffer
+  tempstr create_tempstr();
+  void append_tempstr(tempstr* s, const char* data);
+  void print_tempstr(tempstr s);
+
+  // Operators for
+  // `create_tempstr() + "Something" + " " + 3.0`
+  // semantics
+  tempstr operator +(tempstr s, const char* data);
+  tempstr operator +(tempstr s, f32 data);
+  tempstr operator +(tempstr s, f64 data);
+  tempstr operator +(tempstr s, i32 data);
+  tempstr operator +(tempstr s, i64 data);
+  tempstr operator +(tempstr s, u32 data);
+  tempstr operator +(tempstr s, u64 data);
+  tempstr operator +(tempstr s, vec2 data);
+  tempstr operator +(tempstr s, vec3 data);
+  tempstr operator +(tempstr s, vec4 data);
+  tempstr operator +(tempstr s, ivec2 data);
+  tempstr operator +(tempstr s, ivec3 data);
+  tempstr operator +(tempstr s, ivec4 data);
+  tempstr operator +(tempstr s, uvec2 data);
+  tempstr operator +(tempstr s, uvec3 data);
+  tempstr operator +(tempstr s, uvec4 data);
+
+  // Global resourced API
+  template <typename T>
+  struct Resource {
+    static T* value;
+  };
+
+  // Declare a resource in a header file
+  #define declare_resource(api_var_decl, type) \
+  api_var_decl type type##_RESOURCE; \
+  template<> inline type* quark::Resource<type>::value = &type##_RESOURCE; \
+  template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
+
+  // Define the resource in a cpp file
+  #define define_resource(type, val) \
+  type type##_RESOURCE = val
+
+  // Take a resource handle and get the resource value from it
+  //#define get_resource(resource_handle) resource_handle.value
+  template <typename T>
+  T* get_resource(Resource<T> res) {
+    return res.value;
+  }
+
+  // Take a resource handle and set the resource value in it
+  template <typename T>
+  void set_resource(Resource<T> res, T value) {
+    res.value = value;
+  }
+};

@@ -11,8 +11,6 @@
 // Core engine
 #include "registry.hpp"
 #include "entity.hpp"
-#include "system.hpp"
-#include "state.hpp"
 #include "reflect.hpp"
 #include "asset.hpp"
 //

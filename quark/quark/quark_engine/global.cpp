@@ -1,8 +1,6 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "global.hpp"
 #include "reflect.hpp"
-#include "state.hpp"
-#include "system.hpp"
 #include "render.hpp"
 #include "asset.hpp"
 #include "str.hpp"
@@ -147,9 +145,8 @@ namespace quark::engine::global {
 
   void run() {
     run_system_list("quark_init");
-    change_state("main");
+    change_state("main", false);
     run_state_init();
-    set_state_changed(false);
 
     while(!get_window_should_close()) {
       Timestamp t0 = get_timestamp();
