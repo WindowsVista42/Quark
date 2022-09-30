@@ -3,6 +3,8 @@
 #include <unordered_map>
 
 namespace quark {
+  define_resource(Registry, {});
+
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
 

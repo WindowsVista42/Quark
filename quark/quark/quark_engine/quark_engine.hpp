@@ -1,6 +1,7 @@
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
+#include <entt/entt.hpp>
 
 namespace quark {
 #if 0
@@ -281,7 +282,7 @@ namespace quark {
   tempstr operator +(tempstr s, uvec3 data);
   tempstr operator +(tempstr s, uvec4 data);
 
-  // Global resourced API
+  // Global resource API
   template <typename T>
   struct Resource {
     static T* value;
@@ -309,4 +310,16 @@ namespace quark {
   void set_resource(Resource<T> res, T value) {
     res.value = value;
   }
+
+  // Component view API
+  template <typename... T>
+  struct View {};
+
+  //template <typename... T>
+  //struct Exclude {};
+
+  using entity_id = entt::entity;
+  using Registry = entt::basic_registry<entity_id>;
+
+  declare_resource(engine_var, Registry);
 };

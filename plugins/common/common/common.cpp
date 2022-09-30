@@ -28,6 +28,11 @@ namespace common {
   }
 };
 
+struct Camera3D : render::Camera {};
+
+declare_resource(common_var, Camera3D);
+define_resource(Camera3D, {});
+
 //
 
 //#include "../../../quark/src/module.hpp"
@@ -675,10 +680,10 @@ namespace common {
     engine::effect::end_everything();
   }
 
-  template <typename... T>
-  decltype(auto) get_view_each(View<T...> view) {
-    return registry::view<T...>().each();
-  }
+  //template <typename... T>
+  //decltype(auto) get_view_each(View<T...> view) {
+  //  return registry::view<T...>().each();
+  //}
 
   template <typename PushConstant>
   void draw_effect_ptr(Model model, PushConstant* push_constant) {
@@ -721,6 +726,16 @@ namespace common {
   void draw_effect_pushc(Model model, PushConstant push_constant) {
     static_assert(!std::is_pointer_v<PushConstant>, "Use draw_effect_ptr() instead");
     engine::effect::draw(model, push_constant);
+  }
+
+  //template <typename... T>
+  //decltype(auto) get_view_each(View<T...> view) {
+  //  return get_resource(Resource<Registry> {})->view<T...>(entt::exclude<>).each();
+  //}
+
+  template <typename... T>
+  decltype(auto) get_view_each(View<T...> view) {
+    return get_resource(Resource<Registry> {})->view<T...>().each();
   }
   
   void render_things() {
