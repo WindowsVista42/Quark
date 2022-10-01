@@ -306,7 +306,7 @@ namespace quark {
   engine_api tempstr operator +=(tempstr s, uvec4 data);
 
   // Nicer to use panic
-  [[noreturn]] void panic(tempstr s);
+  [[noreturn]] engine_api void panic(tempstr s);
 
   // Global resource API
   template <typename T>
@@ -398,7 +398,7 @@ namespace quark {
   }
 
   template <typename... T, typename... V>
-  decltype(auto) get_handle_comp(Handle<T...> handle, View<V...> view) {
+  decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle) {
     static_assert("get_handle_comp not supported yet!\n");
     //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
   }
@@ -449,6 +449,68 @@ namespace quark {
 
   // template <typename... T, typename... S, typename... E>
   // View<S...> get_view_subset(View<T...> view, Include<E...> exclude);
+
+  // Asset API
+  // This api provides two options for storing assets:
+  //   Option one:
+  //     Asset data is stored internally and fetched when requested
+  //   Option two:
+  //     Asset data is not stored internally, and instead names are associated with asset "ids"
+  //     An asset "id" is just a number that can then be used externally to fetch some data
+  //
+  //  Example usage:
+  //    Option one:
+  //      EnemyConfig config = get_asset("my_enemy_config");
+  //    Option two:
+  //      model_id id = (model_id)get_asset_id("suzanne");
+  //      Model model = get_model(id);
+
+  // template <typename T>
+  // T* get_asset(const char* name);
+
+  // template <typename T>
+  // usize get_asset_id(const char* name);
+
+  // template <typename T>
+  // T* try_get_asset(const char* name);
+
+  // template <typename T>
+  // usize get_asset_count();
+
+  // template <typename T>
+  // struct Asset {
+  //   u32 id;
+  // };
+
+  template <typename T>
+  using AssetFileLoader = void (*)(const char* path, const char* name);
+
+  template <typename T>
+  struct Asset {
+    u32 id;
+    // u32 gen;
+    //
+  };
+
+  enum class asset_id : u32 {};
+
+  template <typename... T>
+  void add_asset(const char* name, T... data);
+
+  template <typename T>
+  const T* get_asset(const char* name);
+
+  template <typename T>
+  const T* get_asset(asset_id id);
+
+  template <typename T>
+  asset_id get_asset_id(const char* name);
+
+  template <typename T>
+  void add_asset_file_loader(const char* file_extension, AssetFileLoader<T> loader);
+
+  template <typename T>
+  std::vector<T>* get_asset_storage();
 };
 
 // TODO: Thread Safety
@@ -456,8 +518,10 @@ namespace quark {
 //   - Actions (create, destroy, binding)
 //   - Systems (create, destroy, adding)
 //   - Scratch buffer allocator
+//   - add_asset
 // Unique per-thread:
 //   - Tempstr api
+// Should be threadsafe just warn:
 //
 // Resource<PtrToArr>
 // Resource<const PtrToArr>

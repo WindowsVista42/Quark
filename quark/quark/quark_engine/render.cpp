@@ -1660,6 +1660,13 @@ namespace quark::engine::render {
       u32 mesh_id = _gpu_mesh_count;
       _gpu_mesh_count += 1;
 
+      const char* name = "";
+
+      struct MeshScale : vec3 {};
+
+      //add_asset(name, _gpu_meshes[mesh_id], MeshScale { normalize_max_length(ext, 2.0f) });
+      //add_asset(, name);
+
       AllocatedMesh* mesh = &_gpu_meshes[mesh_id];//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
       *mesh = create_mesh(data, size, sizeof(VertexPNT));
 

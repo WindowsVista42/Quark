@@ -246,9 +246,9 @@ namespace quark {
   }
 
   // http://www.cse.yorku.ca/~oz/hash.html
-  static u32 hash_str_fast(const char *str) {
+  static constexpr u32 hash_str_fast(const char *str) {
     u32 hash = 5381;
-    i32 c;
+    i32 c = 0;
 
     while ((c = *str++)) {
       hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
