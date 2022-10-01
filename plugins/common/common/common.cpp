@@ -2,9 +2,6 @@
 #define COMMON_IMPLEMENTATION
 #include "common.hpp"
 
-declare_resource(common_var, float);
-define_resource(float, 1.0f);
-
 namespace common {
   void exit_on_esc() {
     if(get_action("ui_exit").just_down) {
@@ -162,70 +159,77 @@ namespace common {
 
   //
   
-  template <typename... T>
-  struct View {
-    struct IterInfo {
-      using iterator_t = typeof(registry::internal::_registry.view<T...>().each().begin());
-      iterator_t begin;
-      iterator_t end;
-    };
+  // template <typename... T>
+  // struct View {
+  //   struct IterInfo {
+  //     using iterator_t = typeof(registry::internal::_registry.view<T...>().each().begin());
+  //     iterator_t begin;
+  //     iterator_t end;
+  //   };
 
-    template <auto F>
-    static void apply_view(IterInfo& iter) {
-      for(auto it = iter->begin; it != iter->end; it++) {
-        std::apply(F, *it);
-      }
-    }
+  //   template <auto F>
+  //   static void apply_view(IterInfo& iter) {
+  //     for(auto it = iter->begin; it != iter->end; it++) {
+  //       std::apply(F, *it);
+  //     }
+  //   }
 
-    View& create(T... t) {
-      Entity::create().add(t...);
-      return *this;
-    }
-  
-    decltype(auto) each() {
-      return registry::view<T...>().each();
-    }
+  //   View& create(T... t) {
+  //     Entity::create().add(t...);
+  //     return *this;
+  //   }
+  // 
+  //   decltype(auto) each() {
+  //     return registry::view<T...>().each();
+  //   }
 
-    template <auto F>
-    void iter() {
-      for(auto it : registry::view<T...>().each()) {
-        std::apply(F, *it);
-      }
-    }
+  //   template <auto F>
+  //   void iter() {
+  //     for(auto it : registry::view<T...>().each()) {
+  //       std::apply(F, *it);
+  //     }
+  //   }
 
-    template <auto F, usize N>
-    void par_iter() {
-      auto each = registry::internal::_registry.view<T...>().each();
-      auto true_begin = each.begin();
-      auto true_end = each.end();
-      auto locl_begin = true_begin;
-      bool ex = false;
-      while(!ex) {
-        auto begin = locl_begin;
-        auto end = locl_begin;
+  //   template <auto F, usize N>
+  //   void par_iter() {
+  //     auto each = registry::internal::_registry.view<T...>().each();
+  //     auto true_begin = each.begin();
+  //     auto true_end = each.end();
+  //     auto locl_begin = true_begin;
+  //     bool ex = false;
+  //     while(!ex) {
+  //       auto begin = locl_begin;
+  //       auto end = locl_begin;
 
-        for(usize i = 0; i < N; i += 1) {
-          end++;
-          if(end == true_end) {
-            ex = true;
-          }
-        }
+  //       for(usize i = 0; i < N; i += 1) {
+  //         end++;
+  //         if(end == true_end) {
+  //           ex = true;
+  //         }
+  //       }
 
-        locl_begin = end;
+  //       locl_begin = end;
 
-        ParIter<IterInfo, apply_view<F>>::push(IterInfo{begin, end});
-      }
+  //       ParIter<IterInfo, apply_view<F>>::push(IterInfo{begin, end});
+  //     }
 
-      ParIter<IterInfo, apply_view<F>>::join();
-    }
-  };
+  //     ParIter<IterInfo, apply_view<F>>::join();
+  //   }
+  // };
   
   //static Input global_input = {};
   //template <> Input* Resource<Input>::value = &global_input;
   
   void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1) {
     for_every(i, 1) {
-      view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
+      //create_entity_add_comp(view0, Transform {.position = {0.0f, 0.0f, 2.0f}}, Color {}, Tag {}, Iden {Iden::global_value});
+      entity_id e = create_entity();
+      add_entity_comp(view0, e, {.position = {0.0f, 0.0f, 2.0f}}, {}, {}, {Iden::global_value});
+      //add_entity_comp(view0, e, Tag {}, Iden {Iden::global_value});
+      //begin_entity();
+      //add_entity_comp(view0, Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
+      //end_entity();
+      //view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
       Iden::global_value += 1;
     }
   
@@ -264,13 +268,13 @@ namespace common {
     bind_action("look_down",  MouseAxisCode::MoveDown,  0, 1.0f / 64.0f);
   }
 
-  void update0(View<Color, const Transform, const Tag> view, Resource<Camera3D> res) {
+  void update0(View<Include<Color, const Transform, const Tag>> view, Resource<Camera3D> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
       static f32 T = 0.0f;
       f32 ctr = 0.0f;
-      for (auto [e, color, transform] : view.each()) {
+      for (auto [e, color, transform] : get_registry_each(view)) {
         // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
         // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
         // ctr += 0.25f;
@@ -826,8 +830,6 @@ mod_main() {
 
   print_system_list("init");
   print_system_list("update");
-
-  *Resource<float>::value = 2.0f;
 }
 
 // struct Paddle {};

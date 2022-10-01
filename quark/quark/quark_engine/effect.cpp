@@ -1,7 +1,7 @@
 #include <vulkan/vulkan_core.h>
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "effect.hpp"
-#include "str.hpp"
+#include "quark_engine.hpp"
 
 #include <iostream>
 
@@ -100,13 +100,11 @@ namespace quark::engine::effect {
         }
 
         // we are trying to add an array resource thats a different type
-        str::print(str() + "Attempted to create resource: '" + name.c_str() + "' which is a different resource type!");
-        panic("");
+        panic(create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which is a different resource type!\n");
       }
 
       // identifier exists and was not valid for appending
-      str::print(str() + "Attempted to create resource: '" + name.c_str() + "' which already exists!");
-      panic("");
+      panic(create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which already exists!\n");
       return;
     }
 
@@ -242,7 +240,7 @@ namespace quark::engine::effect {
       cache_one_per_frame.get(name)[index] = res;
     }
 
-    str::print(str() + "Created image res!");
+    print_tempstr(create_tempstr() + "Created image res!\n");
   }
 
   void ImageResource::create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name) {
@@ -275,7 +273,7 @@ namespace quark::engine::effect {
     }
 
     if (new_index > 8) {
-      panic2("unsupported image layout transition!");
+      panic(create_tempstr() + "unsupported image layout transition!\n");
     }
 
     VkAccessFlagBits access_lookup[9] = {
@@ -353,7 +351,7 @@ namespace quark::engine::effect {
         }
       }; break;
       default: {
-        panic2("Provided resource for blit operation was not an image resource!");
+        panic(create_tempstr() + "Provided resource for blit operation was not an image resource!\n");
       };
     };
   }
@@ -452,7 +450,7 @@ namespace quark::engine::effect {
     cache_one.add(name, res);
     Info::cache_one.add(name, info);
 
-    str::print(str() + "Created buffer res!");
+    print_tempstr(create_tempstr() + "Created buffer res!\n");
   }
 
   void BufferResource::create_array(BufferResource::Info& info, std::string name) {
@@ -524,7 +522,7 @@ namespace quark::engine::effect {
     cache_one.add(name, res);
     Info::cache_one.add(name, info);
 
-    str::print(str() + "Created sampler res!");
+    print_tempstr(create_tempstr() + "Created sampler res!\n");
   }
 
   void SamplerResource::create_array(SamplerResource::Info& info, std::string name) {
@@ -545,11 +543,11 @@ namespace quark::engine::effect {
     return;
   }
 
-  str operator +(str s, ivec2 i) {
-    return s + "(x: " + i.x + ", y: " + i.y + ")";
-  }
+  //str operator +(str s, ivec2 i) {
+  //  return s + "(x: " + i.x + ", y: " + i.y + ")";
+  //}
 
-  str operator +(str s, ImageSamples i) {
+  tempstr operator +(tempstr s, ImageSamples i) {
     switch(i) {
       case(ImageSamples::One): { return s + "ImageSamples::One"; };
       case(ImageSamples::Two): { return s + "ImageSamples::Two"; };
@@ -564,44 +562,43 @@ namespace quark::engine::effect {
   void RenderTarget::Info::_validate() {
     // validate counts
     if (this->image_resources.size() == 0) {
-      panic2("Size of 'RenderTarget::image_resources' list must not be zero!" + "\n"
-           + "Did you forgot to put resources?");
+      panic(create_tempstr() + "Size of 'RenderTarget::image_resources' list must not be zero!" + "\n"
+           + "Did you forgot to put resources?\n");
     }
 
     // validate counts
     if (this->next_usage_modes.size() == 0) {
-      panic2("Size of 'RenderTarget::usage_modes' list must not be zero!" + "\n"
-           + "Did you forgot to put usage modes?");
+      panic(create_tempstr() + "Size of 'RenderTarget::usage_modes' list must not be zero!" + "\n"
+           + "Did you forgot to put usage modes?\n");
     }
 
     // validate counts
     if (this->image_resources.size() != this->next_usage_modes.size()) {
-      panic2("There must be at least one usage mode per image resource!" + "\n"
-           + "Did you forgot some usage modes or resources?");
+      panic(create_tempstr() + "There must be at least one usage mode per image resource!" + "\n"
+           + "Did you forgot some usage modes or resources?\n");
     }
 
     for_every(i, this->image_resources.size() - 1) {
       // validate we have 'one_per_frame' resources
       if (!ImageResource::Info::cache_one_per_frame.has(this->image_resources[i])) {
-        panic2("Image resources need to be 'one_per_frame' type resources!" + "\n"
-             + "Did you make your image resources using 'ImageResource::create_one_per_frame()'?");
+        panic(create_tempstr() + "Image resources need to be 'one_per_frame' type resources!" + "\n"
+             + "Did you make your image resources using 'ImageResource::create_one_per_frame()'?\n");
       }
 
       auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
 
       // validate we have color resources
       if (!res._is_color()) {
-        panic2("Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
-             + "Did you forgot to put a depth resource at the end?");
+        panic(create_tempstr() + "Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
+             + "Did you forgot to put a depth resource at the end?\n");
       }
     }
 
     // validate that a depth resource is at the last pos
     if (ImageResource::Info::cache_one_per_frame[this->image_resources[this->image_resources.size() - 1]]._is_color()) {
-      str::print(str()
+      panic(create_tempstr()
           + "Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
-          + "Did you forgot to put a depth resource at the end?");
-      panic("");
+          + "Did you forgot to put a depth resource at the end?\n");
     }
 
     for_every(i, this->image_resources.size()) {
@@ -609,8 +606,8 @@ namespace quark::engine::effect {
 
       // validate all images are render targets
       if ((res.usage & ImageUsage::RenderTarget) == 0) {
-        panic2("Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
-             + "Did you forget to add this flag?");
+        panic(create_tempstr() + "Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
+             + "Did you forget to add this flag?\n");
       }
 
       //if (((res.usage & ImageUsage::Texture) != 0) && this->usage_modes[i] != UsageMode::ClearStore) {
@@ -626,15 +623,15 @@ namespace quark::engine::effect {
       ImageSamples other_samp = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].samples;
 
       if (resolution != other_res) {
-        panic2("All image resources in 'RenderTarget::image_resources' must be the same resolution!" + "\n"
+        panic(create_tempstr() + "All image resources in 'RenderTarget::image_resources' must be the same resolution!" + "\n"
              + "Mismatched resolution: " + resolution + " and " +  other_res + "\n"
-             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?");
+             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?\n");
       }
 
       if (samples != other_samp) {
-        panic2("All image resources in 'RenderTarget::image_resources' must have the same ImageSamples count!" + "\n"
+        panic(create_tempstr() + "All image resources in 'RenderTarget::image_resources' must have the same ImageSamples count!" + "\n"
              + "Mismatched sample count: " + samples + " and " +  other_samp + "\n"
-             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?");
+             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?\n");
       }
     }
   }
@@ -821,7 +818,7 @@ namespace quark::engine::effect {
 
   void RenderTarget::create(RenderTarget::Info& info, std::string name) {
     if(Info::cache.has(name)) {
-      panic2("Attempted to create RenderTarget with name: '" + name.c_str() + "' which already exists!");
+      panic(create_tempstr() + "Attempted to create RenderTarget with name: '" + name.c_str() + "' which already exists!\n");
     }
 
     auto render_target = info._create();
@@ -829,7 +826,7 @@ namespace quark::engine::effect {
     RenderTarget::Info::cache.add(name, info);
     RenderTarget::cache.add(name, render_target);
 
-    str::print(str() + "Created render target!");
+    print_tempstr(create_tempstr() + "Created render target!\n");
   }
 
   ResourceGroup ResourceGroup::Info::_create() {
@@ -841,12 +838,12 @@ namespace quark::engine::effect {
   }
 
   void ResourceGroup::create(ResourceGroup::Info& info, std::string name) {
-    panic2("Cant create 'ResourceGroup' yet!");
+    panic(create_tempstr() + "Cant create 'ResourceGroup' yet!\n");
   }
 
   void PushConstant::create(PushConstant::Info& info, std::string name) {
     if(Info::cache.has(name)) {
-      panic2("Attempted to create PushConstant with name: '" + name.c_str() + "' which already exists!");
+      panic(create_tempstr() + "Attempted to create PushConstant with name: '" + name.c_str() + "' which already exists!\n");
     }
 
     PushConstant::Info::cache.add(name, info);
@@ -887,12 +884,12 @@ namespace quark::engine::effect {
     ResourceBundle resource_bundle = {};
 
     if (this->resource_groups.size() > 4) {
-      panic2("Resource groups cannot be more than 4");
+      panic(create_tempstr() + "Resource groups cannot be more than 4\n");
     }
 
     for_every(i, 4) {
       if (this->resource_groups[i] != "") {
-        panic2("resource group not \"\"");
+        panic(create_tempstr() + "resource group not \"\"\n");
       }
     }
 
@@ -907,7 +904,7 @@ namespace quark::engine::effect {
 
   void ResourceBundle::create(ResourceBundle::Info& info, std::string name) {
     if (Info::cache.has(name)) {
-      panic2("Attempted to create ResourceBundle with name: '" + name.c_str() + "' which already exists!");
+      panic(create_tempstr() + "Attempted to create ResourceBundle with name: '" + name.c_str() + "' which already exists!\n");
     }
 
     auto resource_bundle = info._create();
@@ -1024,12 +1021,12 @@ namespace quark::engine::effect {
 
   void RenderMode::create(RenderMode::Info& info, std::string name) {
     if (Info::cache.has(name)) {
-      panic2("Attempted to create RenderMode with name: '" + name.c_str() + "' which already exists!");
+      panic(create_tempstr() + "Attempted to create RenderMode with name: '" + name.c_str() + "' which already exists!\n");
     }
 
     RenderMode::Info::cache.add(name, info);
 
-    str::print(str() + "Created RenderMode!");
+    print_tempstr(create_tempstr() + "Created RenderMode!\n");
   }
 
   VkPipelineShaderStageCreateInfo RenderEffect::Info::_vertex_stage(const char* entry_name) {
@@ -1129,7 +1126,7 @@ namespace quark::engine::effect {
 
     RenderEffect::cache.add(name, render_effect);
 
-    str::print(str() + "Created RenderEffect!");
+    print_tempstr(create_tempstr() + "Created RenderEffect!\n");
 
     RenderEffect::_mutex.unlock();
   }

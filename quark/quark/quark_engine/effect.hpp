@@ -2,11 +2,10 @@
 
 #include "api.hpp"
 #include "render.hpp"
-#include "registry.hpp"
 #include "asset.hpp"
-#include "unordered_set"
+#include <unordered_set>
 #include <vulkan/vulkan_core.h>
-#include "str.hpp"
+#include <array>
 
 namespace quark::engine::effect {
   inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;
@@ -26,7 +25,7 @@ namespace quark::engine::effect {
 
     inline T& get(std::string name) {
       if (!has(name)) {
-        panic2("Could not find: '" + name.c_str() + "'");
+        panic(create_tempstr() + "Could not find: '" + name.c_str() + "'" + "\n");
       }
 
       return data.at(name);

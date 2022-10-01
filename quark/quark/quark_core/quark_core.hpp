@@ -256,6 +256,17 @@ namespace quark {
 
     return hash;
   }
+
+  // C++ template helpers
+  template<typename T, typename... Ts>
+  constexpr bool template_contains() {
+    return std::disjunction_v<std::is_same<T, Ts>...>;
+  }
+
+  template<typename... A, typename... B>
+  constexpr bool template_is_subset() {
+    return (template_contains<B, A...>() && ...);
+  }
   
   // Units
   

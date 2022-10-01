@@ -2,12 +2,9 @@
 
 #include "api.hpp"
 #include "../quark_core/module.hpp"
-#include "vulkan/vulkan.h"
-#include "entity.hpp"
+#include <vulkan/vulkan.h>
 
 namespace quark::engine::component {
-  void add_reflection();
-
   // Position (vec3) + Rotation (quat)
   //
   // This stores the positional and rotational information of an entity
@@ -60,7 +57,7 @@ namespace quark::engine::component {
     vec3 half_extents;
   };
 
-  using UserMeshData = std::vector<VertexPNT>;
+  // using UserMeshData = std::vector<VertexPNT>;
 
   // Mesh half_extents + Mesh id
   //
@@ -149,8 +146,8 @@ namespace quark::engine::component {
     template <u32 yd, typename... T>
     struct Id {
       static constexpr u32 id = yd;
-      static bool has_required_components(Entity entity) { return entity.has<T...>(); };
-      using args = entity::internal::pack<T...>;
+      //static bool has_required_components(Entity entity) { return entity.has<T...>(); };
+      //using args = entity::internal::pack<T...>;
     };
   
     using LitTextureFill   = Id<0, Transform, Model, Texture>;

@@ -128,13 +128,13 @@ namespace quark {
 
   // System list handling
   void create_system_list(const char* system_list_name) {
-    u32 name_hash = hash_str_fast(system_list_name);
+    system_list_id name_hash = (system_list_id)hash_str_fast(system_list_name);
 
     if(_system_lists.find(name_hash) != _system_lists.end()) {
       panic("Attempted to create a system list that already exists!");
     }
 
-    _system_lists.insert(std::make_pair(hash_str_fast(system_list_name), SystemListInfo {}));
+    _system_lists.insert(std::make_pair(name_hash, SystemListInfo {}));
   }
 
   void destroy_system_list(const char* system_list_name) {
@@ -150,7 +150,7 @@ namespace quark {
   }
 
   void run_system_list(const char* system_list_name) {
-    u32 name_hash = hash_str_fast(system_list_name);
+    system_list_id name_hash = (system_list_id)hash_str_fast(system_list_name);
     run_system_list_id(name_hash);
   }
 
@@ -172,7 +172,7 @@ namespace quark {
   }
 
   void print_system_list(const char* system_list_name) {
-    u32 list_hash = hash_str_fast(system_list_name);
+    system_list_id list_hash = (system_list_id)hash_str_fast(system_list_name);
 
     if(_system_lists.find(list_hash) == _system_lists.end()) {
       panic("Attempted to run a system list that does not exist!");
@@ -190,7 +190,7 @@ namespace quark {
 
   // System handling
   void create_system(const char* system_name, WorkFunction system_func) {
-    u32 name_hash = hash_str_fast(system_name);
+    system_id name_hash = (system_id)hash_str_fast(system_name);
 
     if(_system_functions.find(name_hash) != _system_functions.end()) {
       panic("Attempted to create a system with a name that already exists");
@@ -201,7 +201,7 @@ namespace quark {
   }
 
   void destroy_system(const char* system_name) {
-    u32 name_hash = hash_str_fast(system_name);
+    system_id name_hash = (system_id)hash_str_fast(system_name);
 
     if(_system_functions.find(name_hash) != _system_functions.end()) {
       panic("Attempted to create a system with a name that already exists");
@@ -213,9 +213,9 @@ namespace quark {
 
   // system --> system list handling
   void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position) {
-    u32 list_hash = hash_str_fast(list_name);
-    u32 system_hash = hash_str_fast(system_name);
-    u32 relative_hash = hash_str_fast(relative_to);
+    system_list_id list_hash = (system_list_id)hash_str_fast(list_name);
+    system_id system_hash = (system_id)hash_str_fast(system_name);
+    system_id relative_hash = (system_id)hash_str_fast(relative_to);
 
     if(_system_lists.find(list_hash) == _system_lists.end()) {
       panic("Could not find system list to add system to!");
@@ -274,11 +274,11 @@ namespace quark {
   // States handling
 
   void create_state(const char* state_name, const char* init_system_list, const char* update_system_list, const char* deinit_system_list) {
-    u32 name_hash = hash_str_fast(state_name);
+    state_id name_hash = (state_id)hash_str_fast(state_name);
 
-    system_list_id init_id = hash_str_fast(init_system_list);
-    system_list_id update_id = hash_str_fast(update_system_list);
-    system_list_id deinit_id = hash_str_fast(deinit_system_list);
+    system_list_id init_id = (system_list_id)hash_str_fast(init_system_list);
+    system_list_id update_id = (system_list_id)hash_str_fast(update_system_list);
+    system_list_id deinit_id = (system_list_id)hash_str_fast(deinit_system_list);
 
     // TODO(sean): maybe better error message that tells if more than 1 is bad
     if(_system_lists.find(init_id) == _system_lists.end()) {
@@ -301,12 +301,12 @@ namespace quark {
   }
 
   void destroy_state(const char* state_name) {
-    _states.erase(_states.find(hash_str_fast(state_name)));
+    _states.erase(_states.find((state_id)hash_str_fast(state_name)));
   }
 
   void change_state(const char* new_state, bool set_internal_state_changed_flag) {
     _previous_state = _current_state;
-    _current_state = hash_str_fast(new_state);
+    _current_state = (state_id)hash_str_fast(new_state);
 
     if(set_internal_state_changed_flag) {
       _changed_state = true;
@@ -333,7 +333,89 @@ namespace quark {
     run_system_list_id(_states.at(_current_state).deinit_system_list);
   }
 
-  void set_state_changed(bool value) {
-    _changed_state = value;
+  LinearAllocator _tempstr_scratch = create_linear_allocator(1024 * 1024); // 1 MB
+
+  tempstr create_tempstr() {
+    reset_alloc(&_tempstr_scratch);
+
+    return tempstr {
+      .data = (char*)alloc(&_tempstr_scratch, 0),
+      .length = 0,
+    };
+  }
+
+  void append_tempstr(tempstr* s, const char* data) {
+    usize len = strlen(data);
+    memcpy(s->data + s->length, data, len);
+    alloc(&_tempstr_scratch, len);
+    s->length += len;
+  }
+
+  void print_tempstr(tempstr s) {
+    fwrite(s.data, 1, s.length, stdout);
+  }
+
+  void eprint_tempstr(tempstr s) {
+    fwrite(s.data, 1, s.length, stderr);
+  }
+
+  tempstr operator +(tempstr s, const char* data) {
+    append_tempstr(&s, data);
+    return s;
+  }
+
+  tempstr operator +(tempstr s, f32 data) {
+    usize len = sprintf(s.data + s.length, "%.4f", data);
+    alloc(&_tempstr_scratch, len);
+    s.length += len;
+    return s;
+  }
+
+  tempstr operator +(tempstr s, f64 data);
+
+  tempstr operator +(tempstr s, i32 data) {
+    usize len = sprintf(s.data + s.length, "%d", data);
+    alloc(&_tempstr_scratch, len);
+    s.length += len;
+    return s;
+  }
+
+  tempstr operator +(tempstr s, i64 data);
+  tempstr operator +(tempstr s, u32 data);
+  tempstr operator +(tempstr s, u64 data);
+  tempstr operator +(tempstr s, vec2 data);
+  tempstr operator +(tempstr s, vec3 data);
+  tempstr operator +(tempstr s, vec4 data);
+
+  tempstr operator +(tempstr s, ivec2 data) {
+    return s + "(x: " + data.x + ", y: " + data.y + ")";
+  }
+
+  tempstr operator +(tempstr s, ivec3 data);
+  tempstr operator +(tempstr s, ivec4 data);
+  tempstr operator +(tempstr s, uvec2 data);
+  tempstr operator +(tempstr s, uvec3 data);
+  tempstr operator +(tempstr s, uvec4 data);
+
+  tempstr operator +=(tempstr s, const char* data);
+  tempstr operator +=(tempstr s, f32 data);
+  tempstr operator +=(tempstr s, f64 data);
+  tempstr operator +=(tempstr s, i32 data);
+  tempstr operator +=(tempstr s, i64 data);
+  tempstr operator +=(tempstr s, u32 data);
+  tempstr operator +=(tempstr s, u64 data);
+  tempstr operator +=(tempstr s, vec2 data);
+  tempstr operator +=(tempstr s, vec3 data);
+  tempstr operator +=(tempstr s, vec4 data);
+  tempstr operator +=(tempstr s, ivec2 data);
+  tempstr operator +=(tempstr s, ivec3 data);
+  tempstr operator +=(tempstr s, ivec4 data);
+  tempstr operator +=(tempstr s, uvec2 data);
+  tempstr operator +=(tempstr s, uvec3 data);
+  tempstr operator +=(tempstr s, uvec4 data);
+
+  [[noreturn]] void panic(tempstr s) {
+    eprint_tempstr(s);
+    exit(-1);
   }
 };

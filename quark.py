@@ -151,16 +151,17 @@ def build_internal(mode):
     for i in range(0, len(plugin_dirs)):
         plugin_dirs[i] = plugin_dirs[i][len("plugins/"):][:-1]
 
+    timestamps_curr_cpps = {}
+    timestamps_prev_cpps = {}
+
+    # build and check timestamp cache
     for p in plugin_dirs:
         print("-- Building plugin: ", p)
 
         glob_cpps = glob.glob("plugins/" + p + "/" + p +"/**/*.cpp", recursive=True)
 
-        curr_cpps = {}
         for cpp in glob_cpps:
-            curr_cpps[cpp] = str(os.path.getmtime(cpp)) + "\n"
-
-        prev_cpps = {}
+            timestamps_curr_cpps[cpp] = str(os.path.getmtime(cpp)) + "\n"
 
         cache_path = ".quark/tracked/" + p + ".txt"
         if os.path.exists(cache_path):
@@ -169,21 +170,21 @@ def build_internal(mode):
             lines = tracked_cache_f.readlines()
             for line in lines:
                 (file, timestamp) = line.split(",")
-                prev_cpps[file] = timestamp
+                timestamps_prev_cpps[file] = timestamp
 
             tracked_cache_f.close()
         else:
-            should_reinit = write_tracking(cache_path, curr_cpps)
+            should_reinit = write_tracking(cache_path, timestamps_curr_cpps)
 
-        if set(curr_cpps.keys()) != set(prev_cpps.keys()):
-            should_reinit = write_tracking(cache_path, curr_cpps)
+        if set(timestamps_curr_cpps.keys()) != set(timestamps_prev_cpps.keys()):
+            should_reinit = write_tracking(cache_path, timestamps_curr_cpps)
 
-        if set(curr_cpps.values()) != set(prev_cpps.values()):
-            write_tracking(cache_path, curr_cpps)
+        if set(timestamps_curr_cpps.values()) != set(timestamps_prev_cpps.values()):
+            write_tracking(cache_path, timestamps_curr_cpps)
             changed_set.add(p)
 
-        print("curr: ", curr_cpps)
-        print("prev: ", prev_cpps)
+        print("curr: ", timestamps_curr_cpps)
+        print("prev: ", timestamps_prev_cpps)
 
     # if the files changed for any plugin, you need to rebuild the whole cmake project
     #

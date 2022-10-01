@@ -179,14 +179,17 @@ namespace quark {
   //   f32 zoom;
   // };
 
-  using system_id = u32;
-  using system_list_id = u32;
+  enum class system_id : u32 {};
+  enum class system_list_id : u32 {};
+  //using system_id = u32;
+  //using system_list_id = u32;
 
   struct SystemListInfo {
-    std::vector<u32> systems;
+    std::vector<system_id> systems;
   };
 
-  using state_id = u32;
+  enum class state_id : u32 {};
+  //using state_id = u32;
 
   struct StateInfo {
     system_list_id init_system_list;
@@ -255,32 +258,55 @@ namespace quark {
   struct engine_api tempstr {
     char* data;
     usize length;
+
+    tempstr() = delete;
   }; 
 
   // No cleanup required, create_tempstr automatically resets the internal buffer
-  tempstr create_tempstr();
-  void append_tempstr(tempstr* s, const char* data);
-  void print_tempstr(tempstr s);
+  engine_api tempstr create_tempstr();
+  engine_api void append_tempstr(tempstr* s, const char* data);
+  engine_api void print_tempstr(tempstr s);
+  engine_api void eprint_tempstr(tempstr s);
 
   // Operators for
   // `create_tempstr() + "Something" + " " + 3.0`
   // semantics
-  tempstr operator +(tempstr s, const char* data);
-  tempstr operator +(tempstr s, f32 data);
-  tempstr operator +(tempstr s, f64 data);
-  tempstr operator +(tempstr s, i32 data);
-  tempstr operator +(tempstr s, i64 data);
-  tempstr operator +(tempstr s, u32 data);
-  tempstr operator +(tempstr s, u64 data);
-  tempstr operator +(tempstr s, vec2 data);
-  tempstr operator +(tempstr s, vec3 data);
-  tempstr operator +(tempstr s, vec4 data);
-  tempstr operator +(tempstr s, ivec2 data);
-  tempstr operator +(tempstr s, ivec3 data);
-  tempstr operator +(tempstr s, ivec4 data);
-  tempstr operator +(tempstr s, uvec2 data);
-  tempstr operator +(tempstr s, uvec3 data);
-  tempstr operator +(tempstr s, uvec4 data);
+  engine_api tempstr operator +(tempstr s, const char* data);
+  engine_api tempstr operator +(tempstr s, f32 data);
+  engine_api tempstr operator +(tempstr s, f64 data);
+  engine_api tempstr operator +(tempstr s, i32 data);
+  engine_api tempstr operator +(tempstr s, i64 data);
+  engine_api tempstr operator +(tempstr s, u32 data);
+  engine_api tempstr operator +(tempstr s, u64 data);
+  engine_api tempstr operator +(tempstr s, vec2 data);
+  engine_api tempstr operator +(tempstr s, vec3 data);
+  engine_api tempstr operator +(tempstr s, vec4 data);
+  engine_api tempstr operator +(tempstr s, ivec2 data);
+  engine_api tempstr operator +(tempstr s, ivec3 data);
+  engine_api tempstr operator +(tempstr s, ivec4 data);
+  engine_api tempstr operator +(tempstr s, uvec2 data);
+  engine_api tempstr operator +(tempstr s, uvec3 data);
+  engine_api tempstr operator +(tempstr s, uvec4 data);
+
+  engine_api tempstr operator +=(tempstr s, const char* data);
+  engine_api tempstr operator +=(tempstr s, f32 data);
+  engine_api tempstr operator +=(tempstr s, f64 data);
+  engine_api tempstr operator +=(tempstr s, i32 data);
+  engine_api tempstr operator +=(tempstr s, i64 data);
+  engine_api tempstr operator +=(tempstr s, u32 data);
+  engine_api tempstr operator +=(tempstr s, u64 data);
+  engine_api tempstr operator +=(tempstr s, vec2 data);
+  engine_api tempstr operator +=(tempstr s, vec3 data);
+  engine_api tempstr operator +=(tempstr s, vec4 data);
+  engine_api tempstr operator +=(tempstr s, ivec2 data);
+  engine_api tempstr operator +=(tempstr s, ivec3 data);
+  engine_api tempstr operator +=(tempstr s, ivec4 data);
+  engine_api tempstr operator +=(tempstr s, uvec2 data);
+  engine_api tempstr operator +=(tempstr s, uvec3 data);
+  engine_api tempstr operator +=(tempstr s, uvec4 data);
+
+  // Nicer to use panic
+  [[noreturn]] void panic(tempstr s);
 
   // Global resource API
   template <typename T>
@@ -313,7 +339,20 @@ namespace quark {
 
   // Component view API
   template <typename... T>
+  struct Exclude {};
+
+  template <typename... T>
+  struct Include {};
+
+  template <typename... T>
   struct View {};
+
+  // struct Seq {};
+  // struct Par {};
+  // void myfunc(Par p, View<float, int, char> fic_view, Resource<float> _res);
+  // void myfunc(Seq s, View<float, int, char> fic_view, Resource<float> _res);
+
+  // void myfunc(View<float, int, char> fic_view, Resource<float> _res);
 
   //template <typename... T>
   //struct Exclude {};
@@ -321,5 +360,104 @@ namespace quark {
   using entity_id = entt::entity;
   using Registry = entt::basic_registry<entity_id>;
 
+  template <typename... T>
+  struct Handle {
+    entity_id entity;
+  };
+
   declare_resource(engine_var, Registry);
+
+  template <typename... T>
+  void clear_registry();
+
+  template <typename... T>
+  void compact_resgistry();
+
+  template <typename... T>
+  auto get_registry_storage();
+
+  template <typename... T, typename... B>
+  decltype(auto) get_registry_each(View<Include<T...>, Exclude<B...>> view) {
+    return get_resource(Resource<Registry> {})->view<T...>(entt::exclude<B...>).each();
+  }
+
+  template <typename... T>
+  decltype(auto) get_registry_each(View<Include<T...>> view) {
+    return get_resource(Resource<Registry> {})->view<T...>().each();
+  }
+
+  template <typename... T>
+  decltype(auto) get_entity_comp(View<T...> view, entity_id e) {
+    return get_resource(Resource<Registry> {})->get<T...>(e);
+  }
+
+  template <typename... T, typename... I>
+  decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>) {
+    // check that I... is a subset of T...
+    return get_resource(Resource<Registry> {})->get<I...>(e);
+  }
+
+  template <typename... T, typename... V>
+  decltype(auto) get_handle_comp(Handle<T...> handle, View<V...> view) {
+    static_assert("get_handle_comp not supported yet!\n");
+    //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
+  }
+
+  engine_api void begin_entity();
+
+  // for this view check that none of T... are const
+  template <typename... T>
+  void add_entity_comp(View<T...> view, T... ts);
+
+  engine_api void end_entity();
+
+  static entity_id create_entity() {
+    return get_resource(Resource<Registry> {})->create();
+  }
+
+  template <typename... T>
+  void add_entity_comp(View<T...> view, entity_id e, T... ts) {
+    (get_resource(Resource<Registry> {})->emplace<T>(e, ts),...); // emplace for each T in T...
+  }
+
+  template <typename... T, typename... S>
+  void add_entity_comp(View<T...> view, entity_id e, S... ss) {
+    static_assert(template_is_subset<T..., S...>(), "Components added must be a subset of the view");
+    (get_resource(Resource<Registry> {})->emplace<S>(e, ss),...); // emplace for each T in T...
+  }
+
+  template <typename... T>
+  entity_id create_entity_add_comp(View<T...> view, T... ts) {
+    Registry* registry = get_resource(Resource<Registry> {});
+    entity_id e = registry->create();
+    (registry->emplace<T>(e, ts),...); // emplace for each T in T...
+    return e;
+  }
+
+  template <typename... T, typename... S>
+  entity_id create_entity_add_comp(View<T...> view, S... ss) {
+    static_assert(template_is_subset<T..., S...>(), "Components added must be a subset of the view");
+
+    Registry* registry = get_resource(Resource<Registry> {});
+    entity_id e = registry->create();
+    (registry->emplace<S>(e, ss),...); // emplace for each T in T...
+    return e;
+  }
+
+  // template <typename... T, typename... S, typename... E>
+  // View<S...> get_view_subset(View<T...> view, Exclude<E...> exclude);
+
+  // template <typename... T, typename... S, typename... E>
+  // View<S...> get_view_subset(View<T...> view, Include<E...> exclude);
 };
+
+// TODO: Thread Safety
+// Mutex lock:
+//   - Actions (create, destroy, binding)
+//   - Systems (create, destroy, adding)
+//   - Scratch buffer allocator
+// Unique per-thread:
+//   - Tempstr api
+//
+// Resource<PtrToArr>
+// Resource<const PtrToArr>

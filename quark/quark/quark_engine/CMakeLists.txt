@@ -1,10 +1,6 @@
 add_library(quark_engine SHARED
-  str.cpp
   global.cpp
-  registry.cpp
-  entity.cpp
   component.cpp
-  reflect.cpp
   asset.cpp
   quark_engine.cpp
   render.cpp

@@ -51,11 +51,11 @@ namespace quark {
     i32 bits;
   };
 
-  constexpr i32 make_raw_input_id(u16 type, u16 value) {
+  constexpr input_id make_raw_input_id(u16 type, u16 value) {
     u32 t = (((u32)type) & 0x0000FFFF) << 16;
     u32 v = ((u32)value) & 0x0000FFFF;
 
-    return (i32)(t | v);
+    return (input_id)(t | v);
   }
 
   namespace_enum(InputState, i32,
@@ -71,7 +71,7 @@ namespace quark {
     GamepadAxis    = 4,
   );
 
-  namespace_enum(KeyCode, i32,
+  namespace_enum(KeyCode, input_id,
     Apostrophe      = make_raw_input_id(InputType::Key, GLFW_KEY_APOSTROPHE),
     Comma           = make_raw_input_id(InputType::Key, GLFW_KEY_COMMA),
     Minus           = make_raw_input_id(InputType::Key, GLFW_KEY_MINUS),
@@ -134,7 +134,7 @@ namespace quark {
     LeftShift       = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_SHIFT),
   );
 
-  namespace_enum(MouseButtonCode, i32,
+  namespace_enum(MouseButtonCode, input_id,
     Button1         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_1),
     Button2         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_2),
     Button3         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_3),
@@ -149,7 +149,7 @@ namespace quark {
     MiddleButton    = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_MIDDLE),
   );
 
-  namespace_enum(GamepadButtonCode, i32,
+  namespace_enum(GamepadButtonCode, input_id,
     A               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_A),
     B               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_B),
     X               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_X),
@@ -167,7 +167,7 @@ namespace quark {
     DPadRight       = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT),
   );
 
-  namespace_enum(MouseAxisCode, i32,
+  namespace_enum(MouseAxisCode, input_id,
     MoveUp          = make_raw_input_id(InputType::MouseAxis, 0),
     MoveDown        = make_raw_input_id(InputType::MouseAxis, 1),
     MoveLeft        = make_raw_input_id(InputType::MouseAxis, 2),
@@ -179,7 +179,7 @@ namespace quark {
     ScrollRight     = make_raw_input_id(InputType::MouseAxis, 7),
   );
 
-  namespace_enum(GamepadAxisCode, i32,
+  namespace_enum(GamepadAxisCode, input_id,
     LeftStickUp     = make_raw_input_id(InputType::GamepadAxis, 0),
     LeftStickDown   = make_raw_input_id(InputType::GamepadAxis, 1),
     LeftStickLeft   = make_raw_input_id(InputType::GamepadAxis, 2),

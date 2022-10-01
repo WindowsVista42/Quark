@@ -1,9 +1,7 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "global.hpp"
-#include "reflect.hpp"
 #include "render.hpp"
 #include "asset.hpp"
-#include "str.hpp"
 #include "quark_engine.hpp"
 
 #include "../quark_platform/module.hpp"
@@ -21,8 +19,8 @@ namespace quark::engine::global {
   void init_global_alloc() {
     SCRATCH = create_linear_allocator(100 * MB);
     //SCRATCH.init(100 * MB);
-    str::alloc = create_linear_allocator(10 * KB);
-    str::alloc_head = alloc(&str::alloc, 0);
+    //str::alloc = create_linear_allocator(10 * KB);
+    //str::alloc_head = alloc(&str::alloc, 0);
   }
 
   void add_asset_types() {
