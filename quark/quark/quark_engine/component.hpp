@@ -5,6 +5,8 @@
 #include <vulkan/vulkan.h>
 
 namespace quark::engine::component {
+  enum class mesh_id : u32 {};
+
   // Position (vec3) + Rotation (quat)
   //
   // This stores the positional and rotational information of an entity

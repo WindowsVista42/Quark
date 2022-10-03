@@ -1,9 +1,14 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 #include <unordered_map>
+#include "render.hpp"
+#include <filesystem>
+#include <tiny_obj_loader.h>
+#include <iostream>
 
 namespace quark {
   define_resource(Registry, {});
+  define_resource(AssetServer, {});
 
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
@@ -417,5 +422,194 @@ namespace quark {
   [[noreturn]] void panic(tempstr s) {
     eprint_tempstr(s);
     exit(-1);
+  }
+
+  std::unordered_map<u32, AssetFileLoader> _asset_ext_loaders;
+  std::unordered_map<u32, AssetFileUnloader> _asset_ext_unloaders;
+
+  void add_asset_file_loader(const char* file_extension, AssetFileLoader loader, AssetFileUnloader unloader) {
+    u32 ext_hash = hash_str_fast(file_extension);
+
+    if(_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
+      panic(create_tempstr() + "Tried to add an asset file loader for a file extension that has already been added!\n");
+    }
+
+    _asset_ext_loaders.insert(std::make_pair(ext_hash, loader));
+
+    // TODO: add unloader
+  }
+
+  void load_asset_path(const std::filesystem::path& path) {
+    std::string path_s = path.u8string();
+
+    std::string filename = path.filename().u8string();
+    auto first_dot = filename.find_first_of('.');
+  
+    std::string extension = filename.substr(first_dot, filename.size());
+    filename = filename.substr(0, first_dot);
+  
+    u32 ext_hash = hash_str_fast(extension.c_str());
+
+    if (_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
+      _asset_ext_loaders.at(ext_hash)(path_s.c_str(), filename.c_str());
+      printf("Loaded: %s%s\n", filename.c_str(), extension.c_str());
+    }
+  }
+
+  void load_asset_folder(const char* folder_path) {
+    // TODO: multithreading?
+
+    using std::filesystem::recursive_directory_iterator;
+    for (recursive_directory_iterator it(folder_path), end; it != end; it++) {
+      if (!std::filesystem::is_directory(it->path())) {
+        load_asset_path(it->path());
+      }
+    }
+  }
+
+  void load_obj_file(const char* path, const char* name) {
+    using namespace engine::render;
+    using namespace internal;
+
+    // TODO(sean): load obj model using tinyobjloader
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+  
+    std::string warn;
+    std::string err;
+  
+    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path, 0);
+  
+    if (!warn.empty()) {
+      std::cout << "OBJ WARN: " << warn << std::endl;
+    }
+  
+    if (!err.empty()) {
+      std::cerr << err << std::endl;
+      exit(1);
+    }
+  
+    usize size = 0;
+    for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
+  
+    usize memsize = size * sizeof(VertexPNT);
+    VertexPNT* data = (VertexPNT*)alloc(&_render_alloc, memsize);
+    usize count = 0;
+  
+    vec3 max_ext = {0.0f, 0.0f, 0.0f};
+    vec3 min_ext = {0.0f, 0.0f, 0.0f};
+  
+    for_every(s, shapes.size()) {
+      isize index_offset = 0;
+      for_every(f, shapes[s].mesh.num_face_vertices.size()) {
+        isize fv = 3;
+  
+        for_every(v, fv) {
+          // access to vertex
+          tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+  
+          // vertex position
+          f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
+          f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
+          f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
+          // vertex normal
+          f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
+          f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
+          f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
+  
+          f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
+          f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
+  
+          // copy it into our vertex
+          VertexPNT new_vert;
+          new_vert.position.x = vx;
+          new_vert.position.y = vy;
+          new_vert.position.z = vz;
+  
+          new_vert.normal.x = nx;
+          new_vert.normal.y = ny;
+          new_vert.normal.z = nz;
+  
+          new_vert.texture.x = tx;
+          new_vert.texture.y = ty;
+  
+          if (new_vert.position.x > max_ext.x) {
+            max_ext.x = new_vert.position.x;
+          }
+          if (new_vert.position.y > max_ext.y) {
+            max_ext.y = new_vert.position.y;
+          }
+          if (new_vert.position.z > max_ext.z) {
+            max_ext.z = new_vert.position.z;
+          }
+  
+          if (new_vert.position.x < min_ext.x) {
+            min_ext.x = new_vert.position.x;
+          }
+          if (new_vert.position.y < min_ext.y) {
+            min_ext.y = new_vert.position.y;
+          }
+          if (new_vert.position.z < min_ext.z) {
+            min_ext.z = new_vert.position.z;
+          }
+  
+          // normalize vertex positions to -1, 1
+          // f32 current_distance = length(new_vert.position) / sqrt_3;
+          // if(current_distance > largest_distance) {
+          //  largest_distance = current_distance;
+          //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
+          //}
+  
+          data[count] = new_vert;
+          count += 1;
+        }
+  
+        index_offset += fv;
+      }
+    }
+  
+    vec3 ext;
+    ext.x = (max_ext.x - min_ext.x);
+    ext.y = (max_ext.y - min_ext.y);
+    ext.z = (max_ext.z - min_ext.z);
+  
+    // f32 largest_side = 0.0f;
+    // if(ext.x > largest_side) { largest_side = ext.x; }
+    // if(ext.y > largest_side) { largest_side = ext.y; }
+    // if(ext.z > largest_side) { largest_side = ext.z; }
+  
+    //auto path_path = std::filesystem::path(*path);
+    //_mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
+    //print("extents: ", ext);
+  
+    // normalize vertex positions to -1, 1
+    for (usize i = 0; i < size; i += 1) {
+      data[i].position /= (ext * 0.5f);
+    }
+  
+    // add mesh to _gpu_meshes
+    u32 mesh_id2 = _gpu_mesh_count;
+    _gpu_mesh_count += 1;
+
+    struct MeshScale : vec3 {};
+
+    //add_asset(name, _gpu_meshes[mesh_id], MeshScale { normalize_max_length(ext, 2.0f) });
+    //add_asset(, name);
+
+    //AllocatedMesh* mesh = &;//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
+    _gpu_meshes[mesh_id2] = create_mesh(data, size, sizeof(VertexPNT));
+    _gpu_mesh_scales[mesh_id2] = normalize_max_length(ext, 2.0f);
+
+    add_asset(name, (mesh_id)mesh_id2);
+  }
+
+  void load_png_file(const char* path, const char* name) {
+  }
+
+  void load_vert_shader(const char* path, const char* name) {
+  }
+
+  void load_frag_shader(const char* path, const char* name) {
   }
 };

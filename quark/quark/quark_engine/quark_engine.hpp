@@ -2,6 +2,7 @@
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
 #include <entt/entt.hpp>
+#include "component.hpp"
 
 namespace quark {
 #if 0
@@ -482,35 +483,56 @@ namespace quark {
   //   u32 id;
   // };
 
-  template <typename T>
-  using AssetFileLoader = void (*)(const char* path, const char* name);
-
-  template <typename T>
-  struct Asset {
-    u32 id;
-    // u32 gen;
-    //
-  };
+  //template <typename T>
+  //struct Asset {
+  //  u32 id;
+  //  // u32 gen;
+  //  //
+  //};
 
   enum class asset_id : u32 {};
 
-  template <typename... T>
-  void add_asset(const char* name, T... data);
+  struct AssetServer {
+    std::unordered_map<type_hash, std::unordered_map<u32, u8>> data;
+  };
+
+  declare_resource(engine_var, AssetServer);
+
+  // Assets are JUST files loaded from disk
 
   template <typename T>
-  const T* get_asset(const char* name);
+  void add_asset(const char* name, T data) {
+    AssetServer* server = get_resource(Resource<AssetServer> {});
+
+    if(server->data.find(get_type_hash<T>()) == server->data.end()) {
+      ((std::unordered_map<type_hash, std::unordered_map<u32, T>>*)&server->data)->insert(std::make_pair(get_type_hash<T>(), std::unordered_map<u32, T>()));
+    }
+
+    std::unordered_map<u32, T>* map = (std::unordered_map<u32, T>*)&server->data.at(get_type_hash<T>());
+
+
+    map->insert(std::make_pair(hash_str_fast(name), data));
+  }
 
   template <typename T>
-  const T* get_asset(asset_id id);
+  T* get_asset(const char* name) {
+    AssetServer* server = get_resource(Resource<AssetServer> {});
+    std::unordered_map<u32, T>* map = (std::unordered_map<u32, T>*)&server->data.at(get_type_hash<T>());
 
-  template <typename T>
-  asset_id get_asset_id(const char* name);
+    return &map->at(hash_str_fast(name));
+  }
 
-  template <typename T>
-  void add_asset_file_loader(const char* file_extension, AssetFileLoader<T> loader);
+  using AssetFileLoader = void (*)(const char* path, const char* name);
+  using AssetFileUnloader = void (*)(const char* path, const char* name, asset_id id);
 
-  template <typename T>
-  std::vector<T>* get_asset_storage();
+  void add_asset_file_loader(const char* file_extension, AssetFileLoader loader, AssetFileUnloader unloader = 0);
+  void load_asset_folder(const char* folder_path);
+
+  void load_obj_file(const char* path, const char* name);
+  void load_png_file(const char* path, const char* name);
+
+  void load_vert_shader(const char* path, const char* name);
+  void load_frag_shader(const char* path, const char* name);
 };
 
 // TODO: Thread Safety

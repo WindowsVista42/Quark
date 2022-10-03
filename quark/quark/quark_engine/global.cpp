@@ -24,11 +24,17 @@ namespace quark::engine::global {
   }
 
   void add_asset_types() {
+    //add_asset_file_loader(".vert.spv", load_vert_shader);
+    //add_asset_file_loader(".frag.spv", load_frag_shader);
+
+    add_asset_file_loader(".obj", load_obj_file);
+    //add_asset_file_loader(".png", load_png_file);
+
     asset::add_type(render::internal::load_vert_shader, render::internal::unload_shader, ".vert.spv");
     asset::add_type(render::internal::load_frag_shader, render::internal::unload_shader, ".frag.spv");
 
     //asset::add_type(render::internal::load_obj_mesh,    render::internal::unload_mesh, ".obj");
-    asset::add_id_loader<render::internal::AllocatedMesh>(render::internal::load_obj_mesh, ".obj");
+    //asset::add_id_loader<render::internal::AllocatedMesh>(render::internal::load_obj_mesh, ".obj");
 
     asset::add_type(render::internal::load_png_texture, render::internal::unload_texture, ".png");
   }
@@ -39,6 +45,7 @@ namespace quark::engine::global {
 
   void load_meshes() {
     asset::load_directory("quark/models");
+    load_asset_folder("quark/models");
   }
 
   void load_images() {

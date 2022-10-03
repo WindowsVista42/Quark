@@ -2,6 +2,7 @@
 #include "component.hpp"
 #include "render.hpp"
 #include "asset.hpp"
+#include "quark_engine.hpp"
 
 namespace quark::engine::component {
   const VertexInputDescription<1, 3> VertexPNT::input_description = {
@@ -26,7 +27,7 @@ namespace quark::engine::component {
   }
 
   Model Model::from_name_scale(const char* mesh_name, vec3 scale) {
-    u32 asset_id = asset::get_id<render::internal::AllocatedMesh>(mesh_name);
+    u32 asset_id = (u32)*get_asset<mesh_id>(mesh_name);//asset::get_id<render::internal::AllocatedMesh>(mesh_name);
 
     return Model {
       (scale / 2.0f) * render::internal::_gpu_mesh_scales[asset_id],
@@ -37,7 +38,7 @@ namespace quark::engine::component {
   Model Model::from_name_half_extents(const char* mesh_name, vec3 half_extents) {
     return Model {
       half_extents,
-      asset::get_id<render::internal::AllocatedMesh>(mesh_name)
+      (u32)*get_asset<mesh_id>(mesh_name)
     };
   }
 

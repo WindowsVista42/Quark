@@ -811,6 +811,11 @@ void something3() {
   printf("Hello from something3!\n");
 }
 
+struct A {
+  float a;
+  float b;
+};
+
 mod_main() {
   set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
 
@@ -830,6 +835,16 @@ mod_main() {
 
   print_system_list("init");
   print_system_list("update");
+
+  A harold = A {.a = 1.0f, .b = 2.0f};
+  A carol = {2.0f, 3.0f};
+  A john = {3.0f, 4.0f};
+  A james = {4.0f, 5.0f};
+
+  add_asset("harold", harold);
+  add_asset("carol",  carol);
+  add_asset("john",   john);
+  add_asset("james",  james);
 }
 
 // struct Paddle {};
