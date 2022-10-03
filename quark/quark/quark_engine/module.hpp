@@ -11,7 +11,7 @@
 // #include "registry.hpp"
 // #include "entity.hpp"
 // #include "reflect.hpp"
-#include "asset.hpp"
+// #include "asset.hpp"
 //
 
 // Common components

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
@@ -533,6 +535,17 @@ namespace quark {
 
   void load_vert_shader(const char* path, const char* name);
   void load_frag_shader(const char* path, const char* name);
+
+  struct ScratchAllocator : LinearAllocator {};
+  declare_resource(engine_var, ScratchAllocator);
+
+  struct VertexShaderModule {
+    VkShaderModule module;
+  };
+
+  struct FragmentShaderModule {
+    VkShaderModule module;
+  };
 };
 
 // TODO: Thread Safety

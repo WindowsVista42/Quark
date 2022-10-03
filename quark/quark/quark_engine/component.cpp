@@ -1,7 +1,7 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "component.hpp"
 #include "render.hpp"
-#include "asset.hpp"
+//#include "asset.hpp"
 #include "quark_engine.hpp"
 
 namespace quark::engine::component {

@@ -1033,7 +1033,7 @@ namespace quark::engine::effect {
     VkPipelineShaderStageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    info.module = asset::get<VkVertexShader>(this->vertex_shader.c_str());
+    info.module = *(VkShaderModule*)get_asset<VertexShaderModule>(this->vertex_shader.c_str());
     info.pName = entry_name;
 
     return info;
@@ -1043,7 +1043,7 @@ namespace quark::engine::effect {
     VkPipelineShaderStageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    info.module = asset::get<VkFragmentShader>(this->vertex_shader.c_str());
+    info.module = *(VkShaderModule*)get_asset<FragmentShaderModule>(this->fragment_shader.c_str());
     info.pName = entry_name;
 
     return info;

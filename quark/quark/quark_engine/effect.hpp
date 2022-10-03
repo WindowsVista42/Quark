@@ -2,10 +2,11 @@
 
 #include "api.hpp"
 #include "render.hpp"
-#include "asset.hpp"
+//#include "asset.hpp"
 #include <unordered_set>
 #include <vulkan/vulkan_core.h>
 #include <array>
+#include "quark_engine.hpp"
 
 namespace quark::engine::effect {
   inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;

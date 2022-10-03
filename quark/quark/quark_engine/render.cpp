@@ -10,7 +10,6 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "api.hpp"
 #include "component.hpp"
-#include "asset.hpp"
 #include "global.hpp"
 
 #define VMA_IMPLEMENTATION
@@ -1647,7 +1646,7 @@ namespace quark::engine::render {
       // if(ext.y > largest_side) { largest_side = ext.y; }
       // if(ext.z > largest_side) { largest_side = ext.z; }
     
-      auto path_path = std::filesystem::path(*path);
+      //auto path_path = std::filesystem::path(*path);
       //_mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
       //print("extents: ", ext);
     
@@ -1864,14 +1863,14 @@ namespace quark::engine::render {
     
     void deinit_buffers_and_images() {
       // Destroy vma buffers
-      asset::unload_all(".obj");
+      //asset::unload_all(".obj");
     
       for_every(i, _FRAME_OVERLAP) { vmaDestroyBuffer(_gpu_alloc, _world_data_buf[i].buffer, _world_data_buf[i].alloc); }
     }
     
     void deinit_shaders() {
-      asset::unload_all(".vert.spv");
-      asset::unload_all(".frag.spv");
+      //asset::unload_all(".vert.spv");
+      //asset::unload_all(".frag.spv");
     }
     
     void deinit_allocators() {
