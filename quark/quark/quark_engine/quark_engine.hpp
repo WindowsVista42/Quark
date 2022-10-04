@@ -291,22 +291,22 @@ namespace quark {
   engine_api tempstr operator +(tempstr s, uvec3 data);
   engine_api tempstr operator +(tempstr s, uvec4 data);
 
-  engine_api tempstr operator +=(tempstr s, const char* data);
-  engine_api tempstr operator +=(tempstr s, f32 data);
-  engine_api tempstr operator +=(tempstr s, f64 data);
-  engine_api tempstr operator +=(tempstr s, i32 data);
-  engine_api tempstr operator +=(tempstr s, i64 data);
-  engine_api tempstr operator +=(tempstr s, u32 data);
-  engine_api tempstr operator +=(tempstr s, u64 data);
-  engine_api tempstr operator +=(tempstr s, vec2 data);
-  engine_api tempstr operator +=(tempstr s, vec3 data);
-  engine_api tempstr operator +=(tempstr s, vec4 data);
-  engine_api tempstr operator +=(tempstr s, ivec2 data);
-  engine_api tempstr operator +=(tempstr s, ivec3 data);
-  engine_api tempstr operator +=(tempstr s, ivec4 data);
-  engine_api tempstr operator +=(tempstr s, uvec2 data);
-  engine_api tempstr operator +=(tempstr s, uvec3 data);
-  engine_api tempstr operator +=(tempstr s, uvec4 data);
+  engine_api void operator +=(tempstr& s, const char* data);
+  engine_api void operator +=(tempstr& s, f32 data);
+  engine_api void operator +=(tempstr& s, f64 data);
+  engine_api void operator +=(tempstr& s, i32 data);
+  engine_api void operator +=(tempstr& s, i64 data);
+  engine_api void operator +=(tempstr& s, u32 data);
+  engine_api void operator +=(tempstr& s, u64 data);
+  engine_api void operator +=(tempstr& s, vec2 data);
+  engine_api void operator +=(tempstr& s, vec3 data);
+  engine_api void operator +=(tempstr& s, vec4 data);
+  engine_api void operator +=(tempstr& s, ivec2 data);
+  engine_api void operator +=(tempstr& s, ivec3 data);
+  engine_api void operator +=(tempstr& s, ivec4 data);
+  engine_api void operator +=(tempstr& s, uvec2 data);
+  engine_api void operator +=(tempstr& s, uvec3 data);
+  engine_api void operator +=(tempstr& s, uvec4 data);
 
   // Nicer to use panic
   [[noreturn]] engine_api void panic(tempstr s);
@@ -318,8 +318,8 @@ namespace quark {
   };
 
   // Declare a resource in a header file
-  #define declare_resource(api_var_decl, type) \
-  api_var_decl type type##_RESOURCE; \
+  #define declare_resource(var_decl, type) \
+  var_decl type type##_RESOURCE; \
   template<> inline type* quark::Resource<type>::value = &type##_RESOURCE; \
   template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
 
@@ -546,6 +546,136 @@ namespace quark {
   struct FragmentShaderModule {
     VkShaderModule module;
   };
+
+  // Sean: for now this doesn't really work so I'm not going to support it until i feel like fixing it
+  // template <typename T>
+  // struct ParIterCtx {
+  //   usize work_head;
+  //   usize work_tail;
+  //   atomic_usize working_count;
+  //   std::vector<T> work_data = {};
+  //   std::mutex work_m = std::mutex();
+  //   std::mutex driver_m = std::mutex();
+  //   std::condition_variable driver_c = std::condition_variable();
+  //   void (*func)(T*);
+  // };
+
+  // struct MyData {float a;};
+
+  // static void my_data_func(MyData* m) {
+  //   printf("%f\n", m->a);
+  // };
+
+  // #define untemplate_it(T, S) using T##_##S = T<S>
+
+  // using ParIterCtxTypeMap = std::unordered_map<type_hash, ParIterCtx<u8>>;
+  // declare_resource(engine_var, ParIterCtxTypeMap);
+
+  // template <typename T>
+  // void __par_iter_thread_work() {
+  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(get_type_hash<T>());
+
+  //   ctx->work_m.lock();
+  //   ctx->working_count.fetch_add(1);
+  //   while(ctx->work_head < ctx->work_tail) {
+  //     T* val = &ctx->work_data[ctx->work_head];
+  //     ctx->work_head += 1;
+  //     ctx->work_m.unlock();
+
+  //     ctx->func(val);
+
+  //     ctx->work_m.lock();
+  //   }
+  //   ctx->working_count.fetch_sub(1);
+  //   ctx->work_m.unlock();
+
+  //   ctx->driver_c.notify_all();
+  // }
+
+  // template <typename T>
+  // void add_par_iter_data(T t) {
+  //   ParIterCtxTypeMap* map = get_resource(Resource<ParIterCtxTypeMap> {});
+  //   type_hash th = get_type_hash<T>();
+
+  //   if(map->find(th) == map->end()) {
+  //     std::unordered_map<type_hash, ParIterCtx<T>>* map2 = (std::unordered_map<type_hash, ParIterCtx<T>>*)map;
+  //     map2->emplace(std::piecewise_construct, std::forward_as_tuple(th), std::forward_as_tuple());
+  //   }
+
+  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(th);
+
+  //   ctx->work_data.push_back(t);
+  //   ctx->work_tail += 1;
+  // }
+
+  // template <typename T>
+  // void join_par_iter(void (*f)(T* t)) {
+  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(get_type_hash<T>());
+  //   ctx->func = f;
+
+  //   for_every(i, min(get_threadpool_thread_count(), ctx->work_tail)) {
+  //     add_threadpool_work(__par_iter_thread_work<T>);
+  //   }
+
+  //   start_threadpool();
+
+  //   std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(ctx->driver_m, std::defer_lock);
+  //   lock.lock();
+  //   while(ctx->working_count > 0) {
+  //     ctx->driver_c.wait(lock);
+  //   }
+
+  //   ctx->work_head = 0;
+  //   ctx->work_tail = 0;
+
+  //   lock.unlock();
+  // }
+
+  // static void a2() {
+  //   add_par_iter_data(MyData { 1.0f });
+  //   add_par_iter_data(MyData { 2.0f });
+  //   add_par_iter_data(MyData { 3.0f });
+
+  //   join_par_iter(my_data_func);
+  // }
+
+  // template <typename... T>
+  // struct IterInfo {
+  //   using iterator_t = typeof(get_resource(Resource<Registry> {})->view<T...>().each().begin());
+  //   iterator_t _begin;
+  //   iterator_t _end;
+
+  //   iterator_t begin() { return _begin; }
+  //   iterator_t end() { return _end; }
+  // };
+  // 
+  // template <typename... T, typename... R>
+  // void par_iter_view(View<Include<T...>, R...> v, void (*f)(IterInfo<T...>* info), usize n) {
+  //   auto each = get_registry_each(v);
+  //   auto true_begin = each.begin();
+  //   auto true_end = each.end();
+  //   auto locl_begin = true_begin;
+  //   bool ex = false;
+  //   while(!ex) {
+  //     auto begin = locl_begin;
+  //     auto end = locl_begin;
+
+  //     for(usize i = 0; i < n; i += 1) {
+  //       end++;
+  //       if(end == true_end) {
+  //         ex = true;
+  //       }
+  //     }
+
+  //     locl_begin = end;
+
+  //     add_par_iter_data(IterInfo<T...> { begin, end });
+  //     //ParIter<IterInfo, apply_view<F>>::push(IterInfo{begin, end});
+  //   }
+
+  //   join_par_iter(f);
+  //   //ParIter<IterInfo, apply_view<F>>::join();
+  // }
 };
 
 // TODO: Thread Safety

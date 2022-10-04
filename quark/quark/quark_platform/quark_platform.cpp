@@ -315,11 +315,11 @@ namespace quark {
     _threadpool.push(work_func);
   }
 
-  void set_threadpool_start() {
+  void start_threadpool() {
     _threadpool.start();
   }
 
-  void wait_threadpool_finished() {
+  void join_threadpool() {
     _threadpool.join();
   }
 

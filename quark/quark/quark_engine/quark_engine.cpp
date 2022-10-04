@@ -17,6 +17,7 @@ namespace quark {
   define_resource(Registry, {});
   define_resource(AssetServer, {});
   define_resource(ScratchAllocator, force_type<ScratchAllocator>(create_linear_allocator(8 * MB)));
+  // define_resource(ParIterCtxTypeMap, {});
 
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
@@ -410,22 +411,22 @@ namespace quark {
   tempstr operator +(tempstr s, uvec3 data);
   tempstr operator +(tempstr s, uvec4 data);
 
-  tempstr operator +=(tempstr s, const char* data);
-  tempstr operator +=(tempstr s, f32 data);
-  tempstr operator +=(tempstr s, f64 data);
-  tempstr operator +=(tempstr s, i32 data);
-  tempstr operator +=(tempstr s, i64 data);
-  tempstr operator +=(tempstr s, u32 data);
-  tempstr operator +=(tempstr s, u64 data);
-  tempstr operator +=(tempstr s, vec2 data);
-  tempstr operator +=(tempstr s, vec3 data);
-  tempstr operator +=(tempstr s, vec4 data);
-  tempstr operator +=(tempstr s, ivec2 data);
-  tempstr operator +=(tempstr s, ivec3 data);
-  tempstr operator +=(tempstr s, ivec4 data);
-  tempstr operator +=(tempstr s, uvec2 data);
-  tempstr operator +=(tempstr s, uvec3 data);
-  tempstr operator +=(tempstr s, uvec4 data);
+  void operator +=(tempstr& s, const char* data);
+  void operator +=(tempstr& s, f32 data);
+  void operator +=(tempstr& s, f64 data);
+  void operator +=(tempstr& s, i32 data);
+  void operator +=(tempstr& s, i64 data);
+  void operator +=(tempstr& s, u32 data);
+  void operator +=(tempstr& s, u64 data);
+  void operator +=(tempstr& s, vec2 data);
+  void operator +=(tempstr& s, vec3 data);
+  void operator +=(tempstr& s, vec4 data);
+  void operator +=(tempstr& s, ivec2 data);
+  void operator +=(tempstr& s, ivec3 data);
+  void operator +=(tempstr& s, ivec4 data);
+  void operator +=(tempstr& s, uvec2 data);
+  void operator +=(tempstr& s, uvec3 data);
+  void operator +=(tempstr& s, uvec4 data);
 
   [[noreturn]] void panic(tempstr s) {
     eprint_tempstr(s);

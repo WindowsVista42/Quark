@@ -1138,7 +1138,7 @@ namespace quark::engine::render {
       auto t0 = std::chrono::high_resolution_clock::now();
       add_threadpool_work([]() {RenderEffect::create("color_fill"); });
       add_threadpool_work([]() {RenderEffect::create("color_line"); });
-      wait_threadpool_finished();
+      join_threadpool();
       //threadpool::internal::_thread_pool.push();
       //threadpool::internal::_thread_pool.push();
       //threadpool::internal::_thread_pool.join();

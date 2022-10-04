@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #define COMMON_IMPLEMENTATION
 #include "common.hpp"
 
@@ -221,10 +220,10 @@ namespace common {
   //template <> Input* Resource<Input>::value = &global_input;
   
   void init(View<Transform, Color, Tag, Iden> view0, View<Transform, Color> view1) {
-    for_every(i, 1) {
+    for_every(i, 10) {
       //create_entity_add_comp(view0, Transform {.position = {0.0f, 0.0f, 2.0f}}, Color {}, Tag {}, Iden {Iden::global_value});
       entity_id e = create_entity();
-      add_entity_comp(view0, e, {.position = {0.0f, 0.0f, 2.0f}}, {}, {}, {Iden::global_value});
+      add_entity_comp(view0, e, {.position = {0.0f, i * 1.0f, 2.0f}}, {}, {}, {Iden::global_value});
       //add_entity_comp(view0, e, Tag {}, Iden {Iden::global_value});
       //begin_entity();
       //add_entity_comp(view0, Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
@@ -268,17 +267,21 @@ namespace common {
     bind_action("look_down",  MouseAxisCode::MoveDown,  0, 1.0f / 64.0f);
   }
 
-  void update0(View<Include<Color, const Transform, const Tag>> view, Resource<Camera3D> res) {
+  static f32 T = 0.0f;
+
+  void update0(View<Include<Color, Transform, const Tag>> view, Resource<Camera3D> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
-      static f32 T = 0.0f;
       f32 ctr = 0.0f;
+
       for (auto [e, color, transform] : get_registry_each(view)) {
         // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
         // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
         // ctr += 0.25f;
         // printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+
+        transform.position.z = sinf(T + transform.position.y);
   
         color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
         color.y = 0.0f;

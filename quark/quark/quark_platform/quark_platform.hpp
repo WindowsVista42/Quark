@@ -259,8 +259,8 @@ namespace quark {
   // Threadpool handling
   platform_api thread_id get_main_thread_id();
   platform_api void add_threadpool_work(WorkFunction work_func);
-  platform_api void set_threadpool_start();
-  platform_api void wait_threadpool_finished();
+  platform_api void start_threadpool();
+  platform_api void join_threadpool();
   platform_api bool get_threadpool_finished();
 
   platform_api isize get_threadpool_thread_count();
