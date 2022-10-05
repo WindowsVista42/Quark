@@ -4,7 +4,6 @@
 namespace common {
   void exit_on_esc() {
     if(get_action("ui_exit").just_down) {
-      printf("here!\n");
       MouseMode::Enum mouse_mode = get_mouse_mode();
 
       if(mouse_mode == MouseMode::Hidden || mouse_mode == MouseMode::Visible) {
@@ -797,11 +796,7 @@ namespace common {
   auto instantiate_batch() {
     if(batches.find(get_type_hash<T>()) == batches.end()) {
       auto b = (std::unordered_map<type_hash, Batch<T>>*)&batches;
-      b->insert(std::make_pair(get_type_hash<T>(), Batch<T> { {}, {}, {} }));
-
-      b->at(get_type_hash<T>()).data = {};
-      b->at(get_type_hash<T>()).size = sizeof(T);
-      b->at(get_type_hash<T>()).count = 0;
+      b->insert(std::make_pair(get_type_hash<T>(), Batch<T> { {}, sizeof(T), 0 }));
     }
 
     auto b = (std::unordered_map<type_hash, Batch<T>>*)&batches;
@@ -811,9 +806,9 @@ namespace common {
 
   template <typename T>
   void add_to_draw_batch(BatchInfo<T> info) {
-    static Batch<T>* b = instantiate_batch<T>();
-    b->data.push_back(info);
-    b->count += 1;
+    static auto* batch = create_cached_type_map<T>(&batches, Batch<T> {{}, sizeof(T), 0});
+    batch->data.push_back(info);
+    batch->count += 1;
   }
 
   std::unordered_map<type_hash, std::string> instance_type_to_effect = { };

@@ -511,27 +511,35 @@ namespace quark {
 
   declare_resource(engine_var, AssetServer);
 
+  // c++ unordered map does not invalidate references (ie pointers)
+  // whenever it relocates something in memory
+  //
+  // This is *very* convenient since it allows us
+  // to not need to update the pointer to the map!
+  // Which further allows us to cache the result of
+  // a lookup into a map!
+  template <typename T, typename AB, typename Z>
+  auto create_cached_type_map(Z* m, AB&& initial_value) {
+    if(m->find(get_type_hash<T>()) == m->end()) {
+      ((std::unordered_map<type_hash, AB>*)m)->insert(std::make_pair(get_type_hash<T>(), initial_value));
+    }
+
+    AB* map = (AB*)&m->at(get_type_hash<T>());
+
+    return map;
+  }
+
   // Assets are JUST files loaded from disk
 
   template <typename T>
   void add_asset(const char* name, T data) {
-    AssetServer* server = get_resource(Resource<AssetServer> {});
-
-    if(server->data.find(get_type_hash<T>()) == server->data.end()) {
-      ((std::unordered_map<type_hash, std::unordered_map<u32, T>>*)&server->data)->insert(std::make_pair(get_type_hash<T>(), std::unordered_map<u32, T>()));
-    }
-
-    std::unordered_map<u32, T>* map = (std::unordered_map<u32, T>*)&server->data.at(get_type_hash<T>());
-
-
+    static auto* map = create_cached_type_map<T>(&get_resource(Resource<AssetServer> {})->data, std::unordered_map<u32, T>());
     map->insert(std::make_pair(hash_str_fast(name), data));
   }
 
   template <typename T>
   T* get_asset(const char* name) {
-    AssetServer* server = get_resource(Resource<AssetServer> {});
-    std::unordered_map<u32, T>* map = (std::unordered_map<u32, T>*)&server->data.at(get_type_hash<T>());
-
+    static auto* map = create_cached_type_map<T>(&get_resource(Resource<AssetServer> {})->data, std::unordered_map<u32, T>());
     return &map->at(hash_str_fast(name));
   }
 
