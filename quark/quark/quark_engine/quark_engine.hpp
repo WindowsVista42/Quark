@@ -5,6 +5,7 @@
 #include "../quark_platform/module.hpp"
 #include <entt/entt.hpp>
 #include "component.hpp"
+#include "effect.hpp"
 
 namespace quark {
 #if 0
@@ -94,7 +95,7 @@ namespace quark {
     f32 emission_strength;
   };
   
-  struct PbrPushData {
+  struct PbrMaterialPushData {
     f32 position_x;
     f32 position_y;
     f32 position_z;
@@ -138,6 +139,15 @@ namespace quark {
     f32 emission_strength;
   };
 #endif
+
+  struct ColorMaterial {
+    vec4 color;
+  };
+
+  struct ColorMaterialInstanceData {
+    mat4 world_view_projection;
+    vec4 color;
+  };
 
   struct ActionProperties {
     std::vector<input_id> input_ids;
@@ -281,6 +291,7 @@ namespace quark {
   engine_api tempstr operator +(tempstr s, i64 data);
   engine_api tempstr operator +(tempstr s, u32 data);
   engine_api tempstr operator +(tempstr s, u64 data);
+  engine_api tempstr operator +(tempstr s, usize  data);
   engine_api tempstr operator +(tempstr s, vec2 data);
   engine_api tempstr operator +(tempstr s, vec3 data);
   engine_api tempstr operator +(tempstr s, vec4 data);

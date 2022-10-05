@@ -397,6 +397,13 @@ namespace quark {
   tempstr operator +(tempstr s, i64 data);
   tempstr operator +(tempstr s, u32 data);
   tempstr operator +(tempstr s, u64 data);
+  tempstr operator +(tempstr s, usize data) {
+    usize len = sprintf(s.data + s.length, "%llu", data);
+    alloc(&_tempstr_scratch, len);
+    s.length += len;
+    return s;
+  }
+
   tempstr operator +(tempstr s, vec2 data);
   tempstr operator +(tempstr s, vec3 data);
   tempstr operator +(tempstr s, vec4 data);
@@ -478,7 +485,7 @@ namespace quark {
 
   void load_obj_file(const char* path, const char* name) {
     using namespace engine::render;
-    using namespace internal;
+    using namespace render::internal;
 
     // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
@@ -615,7 +622,7 @@ namespace quark {
 
   void load_png_file(const char* path, const char* name) {
     using namespace engine::render;
-    using namespace internal;
+    using namespace render::internal;
 
     int width, height, channels;
     stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);

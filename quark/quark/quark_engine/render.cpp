@@ -1037,14 +1037,13 @@ namespace quark::engine::render {
         .store_modes = {StoreMode::Store},
         .next_usage_modes = {ImageUsage::RenderTarget},
       };
-
       RenderTarget::create(info, "forward_pass_depth_prepass");
 
       info = {
-        .image_resources = {"forward_pass_color", "forward_pass_depth"},
-        .load_modes = {LoadMode::Clear, LoadMode::Clear},
-        .store_modes = {StoreMode::Store, StoreMode::Store},
-        .next_usage_modes = {ImageUsage::Src, ImageUsage::RenderTarget},
+        .image_resources =  {"forward_pass_color", "forward_pass_depth"},
+        .load_modes =       {LoadMode::Clear,      LoadMode::Clear},
+        .store_modes =      {StoreMode::Store,     StoreMode::Store},
+        .next_usage_modes = {ImageUsage::Src,      ImageUsage::RenderTarget},
       };
       RenderTarget::create(info, "forward_pass");
 
@@ -1084,19 +1083,19 @@ namespace quark::engine::render {
     }
    
     void init_pipelines() {
-      PushConstant::Info pc_info = {};
-      pc_info = {
+      PushConstant::Info color_pc_info = {};
+      color_pc_info = {
         .size = 80,
       };
-      PushConstant::create(pc_info, "color");
+      PushConstant::create(color_pc_info, "color");
 
-      ResourceBundle::Info info = {};
-      info = {
+      ResourceBundle::Info color_rb_info = {};
+      color_rb_info = {
         .resource_groups = {},
         .push_constant = "color",
       };
 
-      ResourceBundle::create(info, "color");
+      ResourceBundle::create(color_rb_info, "color");
 
       RenderMode::Info rm_info = {};
 
