@@ -126,7 +126,7 @@ namespace quark::engine::render {
     WorldData* world_data = (WorldData*)ptr;
   
     u32 count = 0;
-    for (auto [e, transform, color, light] : get_registry_each(View<Include<const Transform, const Color, const PointLight>> {})) {
+    for (auto [e, transform, color, light] : get_view_each(View<Include<const Transform, const Color, const PointLight>> {})) {
       world_data->point_lights[count].position = transform.position;
       world_data->point_lights[count].falloff = light.falloff;
       world_data->point_lights[count].color = swizzle(color, 0, 1, 2);
@@ -136,7 +136,7 @@ namespace quark::engine::render {
     world_data->point_light_count = count;
   
     count = 0;
-    for (auto [e, transform, color, light] : get_registry_each(View<Include<const Transform, const Color, const DirectionalLight>> {})) {
+    for (auto [e, transform, color, light] : get_view_each(View<Include<const Transform, const Color, const DirectionalLight>> {})) {
       world_data->directional_lights[count].position = transform.position;
       world_data->directional_lights[count].falloff = light.falloff;
       world_data->directional_lights[count].direction = forward(transform.rotation);
@@ -252,7 +252,7 @@ namespace quark::engine::render {
   }
 
   void draw_shadow_things() {
-    for (auto [e, transform, model] : get_registry_each(View<Include<const Transform, const Model>, Exclude<Effect::NoShadowPass, Effect::Transparent>> {})) {
+    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>, Exclude<Effect::NoShadowPass, Effect::Transparent>> {})) {
       // NOTE(sean): frustum culling temporarily removed because it is culling
       // using the MAIN_CAMERA instead of the SUN_CAMERA
       //if (box_in_frustum(transform.pos, scl)) {
@@ -305,7 +305,7 @@ namespace quark::engine::render {
   }
 
   void draw_depth_prepass_things() {
-    for (auto [e, transform, model] : get_registry_each(View<Include<const Transform, const Model>, Exclude<Effect::Transparent>> {})) {
+    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>, Exclude<Effect::Transparent>> {})) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_depth(transform, model);
       }
@@ -367,7 +367,7 @@ namespace quark::engine::render {
   
   void draw_lit_pass_things() {
     for (auto [e, transform, model, texture] :
-    get_registry_each(View<Include<const Transform, const Model, const Texture, const Effect::LitTextureFill>, Exclude<Effect::Transparent>> {})) {
+    get_view_each(View<Include<const Transform, const Model, const Texture, const Effect::LitTextureFill>, Exclude<Effect::Transparent>> {})) {
     //registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_lit(transform, model, texture);
@@ -399,7 +399,7 @@ namespace quark::engine::render {
   
   void draw_solid_pass_things() {
     for (auto [e, transform, model, color] :
-    get_registry_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorFill>, Exclude<Effect::Transparent>> {})) {
+    get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorFill>, Exclude<Effect::Transparent>> {})) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }
@@ -418,7 +418,7 @@ namespace quark::engine::render {
 
   void draw_wireframe_pass_things() {
     for (auto [e, transform, model, color] :
-    get_registry_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorLines>, Exclude<Effect::Transparent>> {})) {
+    get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorLines>, Exclude<Effect::Transparent>> {})) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_color(transform, model, color);
       }

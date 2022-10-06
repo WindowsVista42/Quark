@@ -111,6 +111,9 @@ namespace quark::engine::global {
       create_system("update_tag", 0);
       create_system("update_cameras", render::update_cameras);
       create_system("begin_frame", render::begin_frame);
+      create_system("draw_batches", draw_batches);
+      create_system("reset_draw_batches", reset_draw_batches);
+      create_system("end_effects", end_effects);
       create_system("end_frame", render::end_frame);
     }
 
@@ -141,6 +144,9 @@ namespace quark::engine::global {
       add_system("update", "update_tag", "", -1);
       add_system("update", "update_cameras", "", -1);
       add_system("update", "begin_frame", "", -1);
+      add_system("update", "draw_batches", "", -1);
+      add_system("update", "reset_draw_batches", "", -1);
+      add_system("update", "end_effects", "", -1);
       add_system("update", "end_frame", "", -1);
     }
 

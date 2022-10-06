@@ -144,7 +144,7 @@ namespace quark {
     vec4 color;
   };
 
-  struct ColorMaterialInstanceData {
+  struct ColorMaterialInstance {
     mat4 world_view_projection;
     vec4 color;
   };
@@ -209,18 +209,123 @@ namespace quark {
     system_list_id update_system_list;
     system_list_id deinit_system_list;
   };
+
+  // Global resource API
+  template <typename T>
+  struct Resource {
+    static T* value;
+  };
+
+  // Component view API
+  template <typename... T>
+  struct Exclude {};
+
+  template <typename... T>
+  struct Include {};
+
+  template <typename... T>
+  struct View {};
+
+  using entity_id = entt::entity;
+  using Registry = entt::basic_registry<entity_id>;
+
+  template <typename... T>
+  struct Handle {
+    entity_id entity;
+  };
+
+  enum class asset_id : u32 {};
+
+  struct AssetServer {
+    std::unordered_map<type_hash, std::unordered_map<u32, u8>> data;
+  };
+
+  struct VertexShaderModule {
+    VkShaderModule module;
+  };
+
+  struct FragmentShaderModule {
+    VkShaderModule module;
+  };
+
+  struct DrawBatchInstanceInfo {
+    Transform transform;
+    Model model;
+
+    bool draw_shadows;
+    bool is_transparent;
+  };
+
+  template <typename T>
+  struct DrawBatch {
+    std::vector<DrawBatchInstanceInfo> instance_info;
+    std::vector<T> instance_data;
+    u32 instance_data_size;
+    u32 count;
+  };
   
 #if 0
   // Global control
   engine_api void init_quark();
   engine_api void deinit_quark();
 #endif
+
+//
+// Mod Main
+//
+
+  #if defined(_WIN32) || defined(_WIN64)
+    #define mod_main() extern "C" __declspec(dllexport) void mod_main()
+  #else
+    #define mod_main() extern "C" void mod_main()
+  #endif
+
+//
+// Resource API
+//
+
+  // Declare a resource in a header file
+  #define declare_resource(var_decl, type) \
+  var_decl type type##_RESOURCE; \
+  template<> inline type* quark::Resource<type>::value = &type##_RESOURCE; \
+  template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
+
+  // Define the resource in a cpp file
+  #define define_resource(type, val) \
+  type type##_RESOURCE = val
+
+  // Take a resource handle and get the resource value from it
+  //#define get_resource(resource_handle) resource_handle.value
+  template <typename T>
+  T* get_resource(Resource<T> res) {
+    return res.value;
+  }
+
+  // Take a resource handle and set the resource value in it
+  template <typename T>
+  void set_resource(Resource<T> res, T value) {
+    res.value = value;
+  }
+
+//
+// Resource Declaration
+//
+
+  struct ScratchAllocator : LinearAllocator {};
+  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
+
+  declare_resource(engine_var, Registry);
+  declare_resource(engine_var, ScratchAllocator);
+  declare_resource(engine_var, AssetServer);
+  declare_resource(engine_var, DrawBatchPool);
   
-  // Action control
+//
+// Action API
+//
+
   engine_api void init_actions();
   engine_api void deinit_actions();
   
-  // Action handling
   engine_api void create_action(const char* action_name, f32 max_value = 1.0f);
   engine_api void destroy_action(const char* action_name);
 
@@ -235,11 +340,13 @@ namespace quark {
   engine_api ActionProperties* get_action_properties(const char* action_name);
   engine_api ActionState get_action_state(const char* action_name);
 
-  // Scheduler control
+//
+// Scheduler API
+//
+
   engine_api void init_systems();
   engine_api void deinit_systems();
 
-  // System list handling
   engine_api void create_system_list(const char* system_list_name);
   engine_api void destroy_system_list(const char* system_list_name);
   engine_api void run_system_list(const char* system_list_name);
@@ -247,19 +354,19 @@ namespace quark {
   engine_api void run_system_list_id(system_list_id system_list);
   engine_api void print_system_list(const char* system_list_name);
 
-  // System handling
   engine_api void create_system(const char* system_name, WorkFunction system_func);
   engine_api void destroy_system(const char* system_name);
 
-  // system --> system list handling
   engine_api void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position);
   engine_api void remove_system(const char* list_name, const char* system_name);
 
-  // States control
+//
+// States API
+//
+
   engine_api void init_states();
   engine_api void deinit_states();
 
-  // States handling
   engine_api void create_state(const char* state_name, const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
   engine_api void destroy_state(const char* state_name);
   engine_api void change_state(const char* new_state, bool set_internal_state_changed_flag = true);
@@ -267,7 +374,10 @@ namespace quark {
   engine_api void run_state_init();
   engine_api void run_state_deinit();
 
-  // Temp str
+//
+// Tempstr API
+//
+
   struct engine_api tempstr {
     char* data;
     usize length;
@@ -319,48 +429,30 @@ namespace quark {
   engine_api void operator +=(tempstr& s, uvec3 data);
   engine_api void operator +=(tempstr& s, uvec4 data);
 
-  // Nicer to use panic
+//
+// Better panic
+//
+
   [[noreturn]] engine_api void panic(tempstr s);
 
-  // Global resource API
-  template <typename T>
-  struct Resource {
-    static T* value;
-  };
+//
+// Registry API
+//
 
-  // Declare a resource in a header file
-  #define declare_resource(var_decl, type) \
-  var_decl type type##_RESOURCE; \
-  template<> inline type* quark::Resource<type>::value = &type##_RESOURCE; \
-  template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
+  template <typename T> decltype(auto) get_registry_storage();
 
-  // Define the resource in a cpp file
-  #define define_resource(type, val) \
-  type type##_RESOURCE = val
+  template <typename... T> void clear_registry();
+  template <typename... T> void compact_resgistry();
 
-  // Take a resource handle and get the resource value from it
-  //#define get_resource(resource_handle) resource_handle.value
-  template <typename T>
-  T* get_resource(Resource<T> res) {
-    return res.value;
-  }
+  template <typename... T> decltype(auto) get_view_each(View<Include<T...>> view);
+  template <typename... T> decltype(auto) get_entity_comp(View<T...> view, entity_id e);
 
-  // Take a resource handle and set the resource value in it
-  template <typename T>
-  void set_resource(Resource<T> res, T value) {
-    res.value = value;
-  }
+  template <typename... I, typename... E> decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view);
+  template <typename... T, typename... I> decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>);
 
-  // Component view API
-  template <typename... T>
-  struct Exclude {};
+  template <typename... T, typename... V> decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle);
 
-  template <typename... T>
-  struct Include {};
-
-  template <typename... T>
-  struct View {};
-
+  // Possible API additions
   // struct Seq {};
   // struct Par {};
   // void myfunc(Par p, View<float, int, char> fic_view, Resource<float> _res);
@@ -368,35 +460,86 @@ namespace quark {
 
   // void myfunc(View<float, int, char> fic_view, Resource<float> _res);
 
-  //template <typename... T>
-  //struct Exclude {};
+//
+// Entity API
+//
 
-  using entity_id = entt::entity;
-  using Registry = entt::basic_registry<entity_id>;
+  static entity_id create_entity();
 
-  template <typename... T>
-  struct Handle {
-    entity_id entity;
-  };
+  template <typename... T> entity_id create_entity_add_comp(View<T...> view, T... comps);
+  template <typename... T> void add_entity_comp(View<T...> view, entity_id e, T... comps);
 
-  declare_resource(engine_var, Registry);
+  template <typename... T, typename... C> entity_id create_entity_add_comp(View<T...> view, C... comps);
+  template <typename... T, typename... C> void add_entity_comp(View<T...> view, entity_id e, C... comps);
 
-  template <typename... T>
-  void clear_registry();
+//
+// Asset API
+//
 
-  template <typename... T>
-  void compact_resgistry();
+  template <typename T> void add_asset(const char* name, T data);
+  template <typename T> T* get_asset(const char* name);
 
-  template <typename... T>
-  auto get_registry_storage();
+  using AssetFileLoader = void (*)(const char* path, const char* name);
+  using AssetFileUnloader = void (*)(const char* path, const char* name, asset_id id);
 
-  template <typename... T, typename... B>
-  decltype(auto) get_registry_each(View<Include<T...>, Exclude<B...>> view) {
-    return get_resource(Resource<Registry> {})->view<T...>(entt::exclude<B...>).each();
+  engine_api void add_asset_file_loader(const char* file_extension, AssetFileLoader loader, AssetFileUnloader unloader = 0);
+  engine_api void load_asset_folder(const char* folder_path);
+
+  engine_api void load_obj_file(const char* path, const char* name);
+  engine_api void load_png_file(const char* path, const char* name);
+
+  engine_api void load_vert_shader(const char* path, const char* name);
+  engine_api void load_frag_shader(const char* path, const char* name);
+
+//
+// Effect API
+//
+
+  engine_api std::string get_type_effect(type_hash t);
+  engine_api void add_type_effect(type_hash t, const char* effect_name);
+
+//
+// Draw Batch API
+//
+
+  template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
+
+  engine_api void draw_batches();
+  engine_api void reset_draw_batches();
+  engine_api void end_effects();
+
+//
+// Template API Definitions
+//
+
+  // c++ unordered map does not invalidate references (ie pointers)
+  // whenever it relocates something in memory
+  //
+  // This is *very* convenient since it allows us
+  // to not need to update the pointer to the map!
+  // Which further allows us to cache the result of
+  // a lookup into a map!
+  // Sean: LOOK INTO POSSIBLE CONCURRENCY ISSUE?
+  template <typename T, typename V, typename M>
+  auto create_cached_type_map(M* map, V&& initial_value) {
+    if(map->find(get_type_hash<T>()) == map->end()) {
+      ((std::unordered_map<type_hash, V>*)map)->insert(std::make_pair(get_type_hash<T>(), initial_value));
+    }
+
+    return (V*)&map->at(get_type_hash<T>());
+  }
+
+  template <typename T> decltype(auto) get_registry_storage() {
+    return get_resource(Resource<Registry> {})->storage<T>();
+  }
+
+  template <typename... I, typename... E>
+  decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view) {
+    return get_resource(Resource<Registry> {})->view<I...>(entt::exclude<E...>).each();
   }
 
   template <typename... T>
-  decltype(auto) get_registry_each(View<Include<T...>> view) {
+  decltype(auto) get_view_each(View<Include<T...>> view) {
     return get_resource(Resource<Registry> {})->view<T...>().each();
   }
 
@@ -417,119 +560,38 @@ namespace quark {
     //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
   }
 
-  engine_api void begin_entity();
-
-  // for this view check that none of T... are const
-  template <typename... T>
-  void add_entity_comp(View<T...> view, T... ts);
-
-  engine_api void end_entity();
-
   static entity_id create_entity() {
     return get_resource(Resource<Registry> {})->create();
   }
 
   template <typename... T>
-  void add_entity_comp(View<T...> view, entity_id e, T... ts) {
-    (get_resource(Resource<Registry> {})->emplace<T>(e, ts),...); // emplace for each T in T...
+  void add_entity_comp(View<T...> view, entity_id e, T... comps) {
+    (get_resource(Resource<Registry> {})->emplace<T>(e, comps),...); // emplace for each T in T...
   }
 
-  template <typename... T, typename... S>
-  void add_entity_comp(View<T...> view, entity_id e, S... ss) {
-    static_assert(template_is_subset<T..., S...>(), "Components added must be a subset of the view");
-    (get_resource(Resource<Registry> {})->emplace<S>(e, ss),...); // emplace for each T in T...
+  template <typename... T, typename... C>
+  void add_entity_comp(View<T...> view, entity_id e, C... comps) {
+    static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
+    (get_resource(Resource<Registry> {})->emplace<C>(e, comps),...); // emplace for each T in T...
   }
 
   template <typename... T>
-  entity_id create_entity_add_comp(View<T...> view, T... ts) {
+  entity_id create_entity_add_comp(View<T...> view, T... comps) {
     Registry* registry = get_resource(Resource<Registry> {});
     entity_id e = registry->create();
-    (registry->emplace<T>(e, ts),...); // emplace for each T in T...
+    (registry->emplace<T>(e, comps),...); // emplace for each T in T...
     return e;
   }
 
-  template <typename... T, typename... S>
-  entity_id create_entity_add_comp(View<T...> view, S... ss) {
-    static_assert(template_is_subset<T..., S...>(), "Components added must be a subset of the view");
+  template <typename... T, typename... C>
+  entity_id create_entity_add_comp(View<T...> view, C... comps) {
+    static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
 
     Registry* registry = get_resource(Resource<Registry> {});
     entity_id e = registry->create();
-    (registry->emplace<S>(e, ss),...); // emplace for each T in T...
+    (registry->emplace<C>(e, comps),...); // emplace for each T in T...
     return e;
   }
-
-  // template <typename... T, typename... S, typename... E>
-  // View<S...> get_view_subset(View<T...> view, Exclude<E...> exclude);
-
-  // template <typename... T, typename... S, typename... E>
-  // View<S...> get_view_subset(View<T...> view, Include<E...> exclude);
-
-  // Asset API
-  // This api provides two options for storing assets:
-  //   Option one:
-  //     Asset data is stored internally and fetched when requested
-  //   Option two:
-  //     Asset data is not stored internally, and instead names are associated with asset "ids"
-  //     An asset "id" is just a number that can then be used externally to fetch some data
-  //
-  //  Example usage:
-  //    Option one:
-  //      EnemyConfig config = get_asset("my_enemy_config");
-  //    Option two:
-  //      model_id id = (model_id)get_asset_id("suzanne");
-  //      Model model = get_model(id);
-
-  // template <typename T>
-  // T* get_asset(const char* name);
-
-  // template <typename T>
-  // usize get_asset_id(const char* name);
-
-  // template <typename T>
-  // T* try_get_asset(const char* name);
-
-  // template <typename T>
-  // usize get_asset_count();
-
-  // template <typename T>
-  // struct Asset {
-  //   u32 id;
-  // };
-
-  //template <typename T>
-  //struct Asset {
-  //  u32 id;
-  //  // u32 gen;
-  //  //
-  //};
-
-  enum class asset_id : u32 {};
-
-  struct AssetServer {
-    std::unordered_map<type_hash, std::unordered_map<u32, u8>> data;
-  };
-
-  declare_resource(engine_var, AssetServer);
-
-  // c++ unordered map does not invalidate references (ie pointers)
-  // whenever it relocates something in memory
-  //
-  // This is *very* convenient since it allows us
-  // to not need to update the pointer to the map!
-  // Which further allows us to cache the result of
-  // a lookup into a map!
-  template <typename T, typename AB, typename Z>
-  auto create_cached_type_map(Z* m, AB&& initial_value) {
-    if(m->find(get_type_hash<T>()) == m->end()) {
-      ((std::unordered_map<type_hash, AB>*)m)->insert(std::make_pair(get_type_hash<T>(), initial_value));
-    }
-
-    AB* map = (AB*)&m->at(get_type_hash<T>());
-
-    return map;
-  }
-
-  // Assets are JUST files loaded from disk
 
   template <typename T>
   void add_asset(const char* name, T data) {
@@ -543,28 +605,85 @@ namespace quark {
     return &map->at(hash_str_fast(name));
   }
 
-  using AssetFileLoader = void (*)(const char* path, const char* name);
-  using AssetFileUnloader = void (*)(const char* path, const char* name, asset_id id);
+  template <typename T>
+  void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data) {
+    static auto* batch = create_cached_type_map<T>(get_resource(Resource<DrawBatchPool> {}), DrawBatch<T> {{}, {}, sizeof(T), 0});
+    batch->instance_info.push_back(instance_info);
+    batch->instance_data.push_back(instance_data);
+    batch->count += 1;
+  }
+};
 
-  void add_asset_file_loader(const char* file_extension, AssetFileLoader loader, AssetFileUnloader unloader = 0);
-  void load_asset_folder(const char* folder_path);
+// TODO: Thread Safety
+// Mutex lock:
+//   - Actions (create, destroy, binding)
+//   - Systems (create, destroy, adding)
+//   - Scratch buffer allocator
+//   - add_asset
+// Unique per-thread:
+//   - Tempstr api
+// Should be threadsafe just warn:
+//
+// Resource<PtrToArr>
+// Resource<const PtrToArr>
+//
+//
+  // using TypeEffectMap = std::unordered_map<type_hash, std::string>;
+  // declare_resource(engine_var, TypeEffectMap);
 
-  void load_obj_file(const char* path, const char* name);
-  void load_png_file(const char* path, const char* name);
+  // template <typename T>
+  // struct DrawBatchInfo {
+  //   Transform transform;
+  //   Model model;
 
-  void load_vert_shader(const char* path, const char* name);
-  void load_frag_shader(const char* path, const char* name);
+  //   bool draw_shadows;
+  //   bool is_transparent;
 
-  struct ScratchAllocator : LinearAllocator {};
-  declare_resource(engine_var, ScratchAllocator);
+  //   T instance_data;
+  // };
 
-  struct VertexShaderModule {
-    VkShaderModule module;
-  };
+  // struct DrawBatchInfo2 {
+  //   Transform transform;
+  //   Model model;
+  //   bool draw_shadows;
+  //   bool is_transparent;
+  // };
 
-  struct FragmentShaderModule {
-    VkShaderModule module;
-  };
+  // vec3 get_mesh_scale(mesh_id id) {
+  //   return engine::render::internal::_gpu_mesh_scales[(u32)id];
+  // }
+
+  // DrawBatchInfo<ColorMaterialInstanceData> get_batch_info(Transform t, Model m, ColorMaterial material) {
+  //   return DrawBatchInfo<ColorMaterialInstanceData> {
+  //     .transform = t,
+  //     .model = m,
+  //     .draw_shadows = true,
+  //     .is_transparent = material.color.w != 1.0f,
+  //     .instance_data = ColorMaterialInstanceData {
+  //       .world_view_projection = engine::render::internal::_main_view_projection * transform_mat4(t.position, t.rotation, get_mesh_scale((mesh_id)m.id)),
+  //       .color = material.color,
+  //     },
+  //   };
+  // }
+
+  // struct ColorMaterial {
+  //   vec4 color;
+  // };
+
+  // struct ColorMaterialInstance {
+  //   mat4 world_view_projection;
+  //   vec4 color;
+  // };
+
+  // template <typename T>
+  // struct DrawBatch {
+  //   std::vector<DrawBatchInfo2> batch_instance_info;
+  //   std::vector<T> batch_instance_data;
+  //   u32 size;
+  //   u32 count;
+  // };
+
+  // std::unordered_map<type_hash, DrawBatch<u8>> batches;
 
   // Sean: for now this doesn't really work so I'm not going to support it until i feel like fixing it
   // template <typename T>
@@ -695,17 +814,3 @@ namespace quark {
   //   join_par_iter(f);
   //   //ParIter<IterInfo, apply_view<F>>::join();
   // }
-};
-
-// TODO: Thread Safety
-// Mutex lock:
-//   - Actions (create, destroy, binding)
-//   - Systems (create, destroy, adding)
-//   - Scratch buffer allocator
-//   - add_asset
-// Unique per-thread:
-//   - Tempstr api
-// Should be threadsafe just warn:
-//
-// Resource<PtrToArr>
-// Resource<const PtrToArr>

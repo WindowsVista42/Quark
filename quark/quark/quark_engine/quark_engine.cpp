@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <stb_image.h>
+#include "effect.hpp"
 
 namespace quark {
   template <typename A, typename B>
@@ -18,6 +19,7 @@ namespace quark {
   define_resource(AssetServer, {});
   define_resource(ScratchAllocator, force_type<ScratchAllocator>(create_linear_allocator(8 * MB)));
   // define_resource(ParIterCtxTypeMap, {});
+  define_resource(DrawBatchPool, {});
 
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
@@ -775,5 +777,51 @@ namespace quark {
       .module = create_shader_module(path),
     };
     add_asset(name, frag_module);
+  }
+
+  std::unordered_map<type_hash, std::string> type_effect_map = {};
+
+  std::string get_type_effect(type_hash t) {
+    return type_effect_map.at(t);
+  }
+
+  void add_type_effect(type_hash t, const char* effect_name) {
+    type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
+  }
+
+  void draw_batches() {
+    auto* batches = get_resource(Resource<DrawBatchPool> {});
+    for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
+      DrawBatch<u8>* batch = &ty_batch->second;
+      u8* instance_data_ptr = (u8*)batch->instance_data.data();
+
+      engine::effect::begin(get_type_effect(ty_batch->first).c_str());
+      for_every(i, batch->count) {
+        DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
+        void* instance_data = instance_data_ptr;
+
+        using namespace engine::render::internal;
+
+        vkCmdPushConstants(_main_cmd_buf[_frame_index],
+          internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
+        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[instance_info->model.id].size, 1, _gpu_meshes[instance_info->model.id].offset, 0);
+
+        instance_data_ptr += batch->instance_data_size;
+      }
+    }
+  }
+
+  void reset_draw_batches() {
+    auto* batches = get_resource(Resource<DrawBatchPool> {});
+    for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
+      DrawBatch<u8>* batch = &ty_batch->second;
+      batch->instance_info.clear();
+      batch->instance_data.clear();
+      batch->count = 0;
+    }
+  }
+
+  void end_effects() {
+    engine::effect::end_everything();
   }
 };

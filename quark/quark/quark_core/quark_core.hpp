@@ -30,7 +30,11 @@
 // are the same across different use cases
 
 namespace quark {
-  // Number types
+
+//
+// Number Types
+//
+
   using f32   = float;
   using f64   = double;
   
@@ -46,7 +50,9 @@ namespace quark {
   using u64   = uint64_t;
   using usize = uintptr_t;
   
-  // Atomic types
+//
+// Atomic Types
+//
   
   using atomic_bool  = std::atomic_bool;
   using atomic_char  = std::atomic_char;
@@ -67,7 +73,9 @@ namespace quark {
   using cvar  = std::condition_variable;
   using thread_id = std::thread::id;
   
-  // Math types
+//
+// Linear Algebra Types
+//
   
   struct vec2;
   struct vec3;
@@ -89,11 +97,13 @@ namespace quark {
   struct mat3;
   struct mat4;
   
-  // Math functions
+// Linear Algebra Functions
   
   #define swizzle(v, i...) swizzle_internal<i>(v)
   
-  // vec2
+//
+// vec2
+//
   
   f32 dot(vec2 a, vec2 b);
   f32 length(vec2 a);
@@ -107,7 +117,9 @@ namespace quark {
   
   vec2 as_vec2(eul2 a);
   
-  // vec3
+//
+// vec3
+//
   
   f32 dot(vec3 a, vec3 b);
   f32 length(vec3 a);
@@ -124,8 +136,10 @@ namespace quark {
   
   vec3 as_vec3(vec2 xy, f32 z);
   vec3 as_vec3(f32 x, vec2 yz);
-  
-  // vec4
+
+//
+// vec4
+//
   
   f32 dot(vec4 a, vec4 b);
   f32 length(vec4 a);
@@ -145,7 +159,9 @@ namespace quark {
   vec4 as_vec4(vec2 xy, vec2 zw);
   vec4 as_vec4(vec3 xyz, f32 w);
   
-  // eul2
+//
+// eul2
+//
   
   vec3 forward(eul2 a);
   vec3 right(eul2 a);
@@ -153,7 +169,9 @@ namespace quark {
   
   eul2 as_eul2(vec2 a);
   
-  // eul3
+//
+// eul3
+//
   
   vec3 forward(eul3 a);
   vec3 right(eul3 a);
@@ -161,7 +179,9 @@ namespace quark {
   
   eul3 as_eul3(vec3 a);
   
-  // quat
+//
+// quat
+//
   
   vec3 forward(quat a);
   vec3 right(quat a);
@@ -178,15 +198,21 @@ namespace quark {
   
   quat as_quat(vec4 a);
   
-  // mat2
+//
+// mat2
+//
   
   mat2 transpose(mat2 a);
   
-  // mat3
+//
+// mat3
+//
   
   mat3 transpose(mat3 a);
   
-  // mat4
+//
+// mat4
+//
   
   mat4 transpose(mat4 a);
   
@@ -204,7 +230,9 @@ namespace quark {
   mat4 scale_mat4(vec3 scale);
   mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
   
-  // utility
+//
+// Math utility
+//
   
   f32 rad(f32 deg);
   f32 deg(f32 rad);
@@ -230,7 +258,9 @@ namespace quark {
   f32 atan(f32 t);
   f32 atan2(f32 y, f32 x);
 
-  // Builtin C++ reflection
+//
+// C++ Reflection
+//
   
   using type_info = std::type_info;
   using type_hash = std::size_t;
@@ -257,7 +287,10 @@ namespace quark {
     return hash;
   }
 
-  // C++ template helpers
+//
+// C++ Template Helpers
+//
+
   template<typename T, typename... Ts>
   constexpr bool template_contains() {
     return std::disjunction_v<std::is_same<T, Ts>...>;
@@ -268,31 +301,39 @@ namespace quark {
     return (template_contains<B, A...>() && ...);
   }
   
-  // Units
+//
+// Units
+//
   
   constexpr usize KB = 1024lu;
   constexpr usize MB = 1024lu * 1024lu;
   constexpr usize GB = 1024lu * 1024lu * 1024lu;
   
-  // Range-based for loops
+//
+// Range-Based For Loops
+//
   
   #define for_every(name, end) for (usize name = 0; name < end; name += 1)
   #define for_range(name, start, end) for (usize name = start; name < end; name += 1)
   #define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
   
-  // Convenience function decl
-  
-  //#define noreturn [[noreturn]]
-  
-  // Type def helpers
+//
+// Typedef Helpers
+//
   
   #define namespace_enum(name, int_type, members...) namespace name { enum Enum : int_type { members }; }
   
+//
+// Array Count Of
+//
+
   // Get the number of elements in an array
   template<typename T, size_t size>
   constexpr size_t count_of(T(&)[size]) { return size; };
   
-  // Math defs
+//
+// Linear Algebra Type Definitions
+//
   
   struct vec2 {
     f32 x, y;
@@ -369,9 +410,13 @@ namespace quark {
     vec4& operator [](usize i);
   };
   
-  // Math operators
+//
+// Linear Algebra Type Operators
+//
   
-  // vec2
+//
+// vec2
+//
   
   vec2 operator -(vec2 a);
   
@@ -403,7 +448,9 @@ namespace quark {
   bool operator ==(vec2 a, vec2 b);
   bool operator !=(vec2 a, vec2 b);
   
-  // vec3
+//
+// vec3
+//
   
   vec3 operator -(vec3 a);
   
@@ -438,7 +485,9 @@ namespace quark {
   bool operator ==(vec3 a, vec3 b);
   bool operator !=(vec3 a, vec3 b);
   
-  // vec4
+//
+// vec4
+//
   
   vec4 operator -(vec4 a);
   
@@ -473,7 +522,9 @@ namespace quark {
   bool operator ==(vec4 a, vec4 b);
   bool operator !=(vec4 a, vec4 b);
   
-  // euler2
+//
+// euler2
+//
   
   eul2 operator -(eul2 a);
   
@@ -490,7 +541,9 @@ namespace quark {
   bool operator ==(eul2 a, eul2 b);
   bool operator !=(eul2 a, eul2 b);
   
-  // eul3
+//
+// eul3
+//
   
   eul3 operator -(eul3 a);
   
@@ -507,7 +560,9 @@ namespace quark {
   bool operator ==(eul3 a, eul3 b);
   bool operator !=(eul3 a, eul3 b);
   
-  // quat
+//
+// quat
+//
   
   quat operator *(f32 a, quat b);
   quat operator *(quat a, f32 b);
@@ -521,7 +576,9 @@ namespace quark {
   bool operator ==(quat a, quat b);
   bool operator !=(quat a, quat b);
   
-  // ivec2
+//
+// ivec2
+//
   
   ivec2 operator -(ivec2 a);
   
@@ -556,7 +613,9 @@ namespace quark {
   bool operator ==(ivec2 a, ivec2 b);
   bool operator !=(ivec2 a, ivec2 b);
   
-  // ivec3
+//
+// ivec3
+//
   
   ivec3 operator -(ivec3 a);
   
@@ -591,7 +650,9 @@ namespace quark {
   bool operator ==(ivec3 a, ivec3 b);
   bool operator !=(ivec3 a, ivec3 b);
   
-  // ivec4
+//
+// ivec4
+//
   
   ivec4 operator -(ivec4 a);
   
@@ -626,7 +687,9 @@ namespace quark {
   bool operator ==(ivec4 a, ivec4 b);
   bool operator !=(ivec4 a, ivec4 b);
   
-  // uvec2
+//
+// uvec2
+//
   
   uvec2 operator +(uvec2 a, u32 b);
   uvec2 operator -(uvec2 a, u32 b);
@@ -659,7 +722,9 @@ namespace quark {
   bool operator ==(uvec2 a, uvec2 b);
   bool operator !=(uvec2 a, uvec2 b);
   
-  // uvec3
+//
+// uvec3
+//
   
   uvec3 operator +(uvec3 a, u32 b);
   uvec3 operator -(uvec3 a, u32 b);
@@ -692,7 +757,9 @@ namespace quark {
   bool operator ==(uvec3 a, uvec3 b);
   bool operator !=(uvec3 a, uvec3 b);
   
-  // uvec4
+//
+// uvec4
+//
   
   uvec4 operator +(uvec4 a, u32 b);
   uvec4 operator -(uvec4 a, u32 b);
@@ -725,7 +792,9 @@ namespace quark {
   bool operator ==(uvec4 a, uvec4 b);
   bool operator !=(uvec4 a, uvec4 b);
   
-  // mat2
+//
+// mat2
+//
   
   mat2 operator +(mat2 a, mat2 b);
   mat2 operator -(mat2 a, mat2 b);
@@ -738,7 +807,9 @@ namespace quark {
   bool operator ==(mat2 a, mat2 b);
   bool operator !=(mat2 a, mat2 b);
   
-  // mat3
+//
+// mat3
+//
   
   mat3 operator +(mat3 a, mat3 b);
   mat3 operator -(mat3 a, mat3 b);
@@ -751,7 +822,9 @@ namespace quark {
   bool operator ==(mat3 a, mat3 b);
   bool operator !=(mat3 a, mat3 b);
   
-  // mat4
+//
+// mat4
+//
   
   mat4 operator +(mat4 a, mat4 b);
   mat4 operator -(mat4 a, mat4 b);
@@ -764,7 +837,10 @@ namespace quark {
   bool operator ==(mat4 a, mat4 b);
   bool operator !=(mat4 a, mat4 b);
   
-  // Math consts
+//
+// Math Constants
+//
+
   static constexpr f32 F32_DECIMAL_DIG = 9;                        // # of decimal digits of rounding precision
   static constexpr f32 F32_DIG         = 6;                        // # of decimal digits of precision
   static constexpr f32 F32_EPSILON     = 1.192092896e-07F;         // smallest such that 1.0+FLT_EPSILON != 1.0
@@ -792,6 +868,10 @@ namespace quark {
   static constexpr f32 F32_2_SQRTPI    = 1.12837916709551257390;   // 2/sqrt(pi)
   static constexpr f32 F32_SQRT2       = 1.41421356237309504880;   // sqrt(2)
   static constexpr f32 F32_SQRT1_2     = 0.707106781186547524401;  // 1/sqrt(2)
+
+//
+// Linear Algebra Constants
+//
   
   static constexpr vec2 VEC2_ZERO   = vec2 { 0.0f, 0.0f };
   static constexpr vec2 VEC2_ONE    = vec2 { 1.0f, 1.0f };
@@ -865,7 +945,7 @@ namespace quark {
     vec4 { 0, 0, 0, 1 },
   };
 
-// SPAGHETTI SWIZZLE
+// Vector Swizzle Definition
 // This secion defines swizzles for all vector types
 
 #define USING_EXT_VEC_TYPES \
@@ -1010,20 +1090,3 @@ namespace quark {
 #undef MAKE_SWIZZLE_4_3
 #undef MAKE_SWIZZLE_4_4
 };
-
-// should be defined in platform
-//  #if defined(_WIN32) || defined(_WIN64)
-//    #define mod_main() extern "C" __declspec(dllexport) void mod_main()
-//  #else
-//    #define mod_main() extern "C" void mod_main()
-//  #endif
-//
-//  #define panic(message)                                                                                                                               \
-//    fprintf(stderr, "Panicked at message: \"%s\" : %d : %s\n", message, __LINE__, __FILE__);                                                           \
-//    exit(-1);
-//    //char* a = 0;                                                                                                                                       \
-//    //*a = 0
-//  
-//  #define panic2(s) \
-//    str::print(str() + "\nPanicked at message:\n" + s + "\n" + __LINE__ + " : " + __FILE__ + "\n"); \
-//    exit(-1) \

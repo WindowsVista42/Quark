@@ -12,34 +12,25 @@
 #endif
 
 namespace quark {
-  // Timing
-  struct Timestamp {
-    f64 value;
-  };
+//
+// Window API
+//
 
-  // Threadpool
-  using WorkFunction = void (*)();
+  platform_api void init_window();
+  platform_api void deinit_window();
 
-  // Shared library
-  struct Library;
+  platform_api GLFWwindow* get_window_ptr();
+  platform_api std::string get_window_name();
+  platform_api ivec2 get_window_dimensions();
+  platform_api bool get_window_should_close();
 
-#if defined(_WIN32) || defined(_WIN64)
-  struct Library {
-    HINSTANCE hinstlib;
-  };
-#endif
+  platform_api void set_window_name(const char* window_name);
+  platform_api void set_window_dimensions(ivec2 window_dimensions);
+  platform_api void set_window_should_close();
 
-  // Allocators
-  struct LinearAllocator {
-    u8* data;
-    usize size;
-    usize capacity;
-  };
-
-  struct LinearAllocationTracker {
-    usize size;
-    usize capacity;
-  };
+//
+// Input API
+//
 
   using input_id = i32;
 
@@ -59,16 +50,16 @@ namespace quark {
   }
 
   namespace_enum(InputState, i32,
-    Press          = GLFW_PRESS,
-    Release        = GLFW_RELEASE,
+    Press           = GLFW_PRESS,
+    Release         = GLFW_RELEASE,
   );
 
   namespace_enum(InputType, u16,
-    Key            = 0,
-    MouseButton    = 1,
-    GamepadButton  = 2,
-    MouseAxis      = 3,
-    GamepadAxis    = 4,
+    Key             = 0,
+    MouseButton     = 1,
+    GamepadButton   = 2,
+    MouseAxis       = 3,
+    GamepadAxis     = 4,
   );
 
   namespace_enum(KeyCode, input_id,
@@ -200,21 +191,10 @@ namespace quark {
     Captured = GLFW_CURSOR_DISABLED,
   );
 
-  // Window control
-  platform_api void init_window();
-  platform_api void deinit_window();
+  //
+  //
+  //
 
-  // Window handling
-  platform_api GLFWwindow* get_window_ptr();
-  platform_api std::string get_window_name();
-  platform_api ivec2 get_window_dimensions();
-  platform_api bool get_window_should_close();
-
-  platform_api void set_window_name(const char* window_name);
-  platform_api void set_window_dimensions(ivec2 window_dimensions);
-  platform_api void set_window_should_close();
-
-  // Window input handling
   platform_api InputState::Enum get_input_state(input_id input, u32 source_id = 0);
   platform_api f32 get_input_value(input_id input, u32 source_id = 0);
 
@@ -245,18 +225,32 @@ namespace quark {
   platform_api vec2 get_scroll_position();
   platform_api vec2 get_scroll_delta();
 
-  // Window input updating 
+//
+// Window Input Updating
+//
+
   platform_api void update_window_inputs();
 
-  // Timing
+//
+// Timing API
+//
+
+  struct Timestamp {
+    f64 value;
+  };
+
   platform_api Timestamp get_timestamp();
   platform_api f64 get_timestamp_difference(Timestamp t0, Timestamp t1);
 
-  // Threadpool control
+//
+// Threadpool API
+//
+
+  using WorkFunction = void (*)();
+
   platform_api void init_threadpool();
   platform_api void deinit_threadpool();
 
-  // Threadpool handling
   platform_api thread_id get_main_thread_id();
   platform_api void add_threadpool_work(WorkFunction work_func);
   platform_api void start_threadpool();
@@ -265,28 +259,47 @@ namespace quark {
 
   platform_api isize get_threadpool_thread_count();
 
-  // Library handling
+//
+// Shared Library API
+//
+
+  #if defined(_WIN32) || defined(_WIN64)
+
+    struct Library {
+      HINSTANCE hinstlib;
+    };
+
+  #endif
+
   platform_api Library load_library(const char* library_path);
   platform_api void unload_library(Library* library);
   platform_api WorkFunction get_library_function(Library* library, const char* function_name);
   platform_api void run_library_function(Library* library, const char* function_name);
   platform_api bool check_library_has_function(Library* library, const char* function_name);
 
-  // Allocator control
+//
+// Allocator API
+//
+
+  struct LinearAllocator {
+    u8* data;
+    usize size;
+    usize capacity;
+  };
+
+  struct LinearAllocationTracker {
+    usize size;
+    usize capacity;
+  };
+
   platform_api LinearAllocator create_linear_allocator(usize capacity);
   platform_api LinearAllocationTracker create_linear_allocation_tracker(usize capacity);
 
   platform_api void destroy_linear_allocator(LinearAllocator* allocator);
   platform_api void destroy_linear_allocation_tracker(LinearAllocationTracker* allocator);
 
-  // Allocator handling
   platform_api u8* alloc(LinearAllocator* allocator, usize size);
   platform_api usize alloc(LinearAllocationTracker* allocator, usize size);
-
-  // Named versions of alloc()
-  // Useful if you have an allocator named "alloc"
-  static u8* (*alloc_la)(LinearAllocator* allocator, usize size) = alloc;
-  static usize (*alloc_lat)(LinearAllocationTracker* allocator, usize size) = alloc;
 
   platform_api void reset_alloc(LinearAllocator* allocator);
   platform_api void reset_alloc(LinearAllocationTracker* allocator);
@@ -296,22 +309,9 @@ namespace quark {
   platform_api usize get_alloc_unused(LinearAllocator* allocator);
   platform_api usize get_alloc_unused(LinearAllocationTracker* allocator);
 
+//
+// Panic API
+//
+
   [[noreturn]] platform_api void panic(const char* message);
-
-  #if defined(_WIN32) || defined(_WIN64)
-    #define mod_main() extern "C" __declspec(dllexport) void mod_main()
-  #else
-    #define mod_main() extern "C" void mod_main()
-  #endif
-
-  // #define panic(message)                                                                                                                               \
-  //   fprintf(stderr, "Panicked at message: \"%s\" : %d : %s\n", message, __LINE__, __FILE__);                                                           \
-  //   exit(-1);
-  //   //char* a = 0;                                                                                                                                       \
-  //   //*a = 0
-  
-  #define panic2(s) \
-    str::print(str() + "\nPanicked at message:\n" + s + "\n" + __LINE__ + " : " + __FILE__ + "\n"); \
-    exit(-1)
-
 };

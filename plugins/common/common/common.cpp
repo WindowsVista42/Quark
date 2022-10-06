@@ -273,7 +273,7 @@ namespace common {
     if(!get_action("pause").down) {
       f32 ctr = 0.0f;
 
-      for (auto [e, color, transform, material] : get_registry_each(view)) {
+      for (auto [e, color, transform, material] : get_view_each(view)) {
         // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
         // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
         // ctr += 0.25f;
@@ -679,243 +679,117 @@ namespace common {
     printf("fcount: %d\n", (i32)count_of(usage_arr));
   }
 
-  void set_effect(const char* effect_name) {
-    engine::effect::begin(effect_name);
-  }
+  // void set_effect(const char* effect_name) {
+  //   engine::effect::begin(effect_name);
+  // }
 
-  void end_effect_all() {
-    engine::effect::end_everything();
-  }
+  // void end_effect_all() {
+  //   engine::effect::end_everything();
+  // }
 
   //template <typename... T>
   //decltype(auto) get_view_each(View<T...> view) {
   //  return registry::view<T...>().each();
   //}
 
-  template <typename PushConstant>
-  void draw_effect_ptr(Model model, PushConstant* push_constant) {
-    engine::effect::draw(model, *push_constant);
-  }
+  // template <typename PushConstant>
+  // void draw_effect_ptr(Model model, PushConstant* push_constant) {
+  //   engine::effect::draw(model, *push_constant);
+  // }
 
 
-  template <typename PushConstant>
-  inline void set_effect_pushc(PushConstant push_constant) {
-    using namespace render::internal;
+  // template <typename PushConstant>
+  // inline void set_effect_pushc(PushConstant push_constant) {
+  //   using namespace render::internal;
 
-    vkCmdPushConstants(_main_cmd_buf[_frame_index],
-      engine::effect::internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      0, sizeof(PushConstant), &push_constant);
-  }
+  //   vkCmdPushConstants(_main_cmd_buf[_frame_index],
+  //     engine::effect::internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+  //     0, sizeof(PushConstant), &push_constant);
+  // }
 
-  inline void draw_effect(Model model) {
-    using namespace render::internal;
+  // inline void draw_effect(Model model) {
+  //   using namespace render::internal;
 
 
-    auto get_model_mesh_info = [&](u32 model_id) {
-      return MeshInfo {
-        .internal_offset = _gpu_meshes[model.id].offset,
-        .internal_count = _gpu_meshes[model.id].size,
-      };
-    };
+  //   auto get_model_mesh_info = [&](u32 model_id) {
+  //     return MeshInfo {
+  //       .internal_offset = _gpu_meshes[model.id].offset,
+  //       .internal_count = _gpu_meshes[model.id].size,
+  //     };
+  //   };
 
-    auto get_model_scale = [&](u32 model_id) {
-      return render::internal::_gpu_mesh_scales[model_id];
-    };
+  //   auto get_model_scale = [&](u32 model_id) {
+  //     return render::internal::_gpu_mesh_scales[model_id];
+  //   };
 
-    MeshInfo model_draw_info = get_model_mesh_info(model.id);
+  //   MeshInfo model_draw_info = get_model_mesh_info(model.id);
 
-    vec3 model_scale = get_model_scale(model.id);
+  //   vec3 model_scale = get_model_scale(model.id);
 
-    vkCmdDraw(_main_cmd_buf[_frame_index], model_draw_info.internal_count, 1, model_draw_info.internal_offset, 0);
-  }
+  //   vkCmdDraw(_main_cmd_buf[_frame_index], model_draw_info.internal_count, 1, model_draw_info.internal_offset, 0);
+  // }
 
-  template <typename PushConstant>
-  void draw_effect_pushc(Model model, PushConstant push_constant) {
-    static_assert(!std::is_pointer_v<PushConstant>, "Use draw_effect_ptr() instead");
-    engine::effect::draw(model, push_constant);
-  }
+  // template <typename PushConstant>
+  // void draw_effect_pushc(Model model, PushConstant push_constant) {
+  //   static_assert(!std::is_pointer_v<PushConstant>, "Use draw_effect_ptr() instead");
+  //   engine::effect::draw(model, push_constant);
+  // }
 
   //template <typename... T>
   //decltype(auto) get_view_each(View<T...> view) {
   //  return get_resource(Resource<Registry> {})->view<T...>(entt::exclude<>).each();
   //}
 
-  template <typename... T>
-  decltype(auto) get_view_each(View<T...> view) {
-    return get_resource(Resource<Registry> {})->view<T...>().each();
-  }
+  // template <typename... T>
+  // decltype(auto) get_view_each(View<T...> view) {
+  //   return get_resource(Resource<Registry> {})->view<T...>().each();
+  // }
 
-  template <typename PushConst>
-  void draw_model_material(Model model, PushConst mat_pc) {
-    using namespace engine::render::internal;
+  // template <typename PushConst>
+  // void draw_model_material(Model model, PushConst mat_pc) {
+  //   using namespace engine::render::internal;
 
-    vkCmdPushConstants(_main_cmd_buf[_frame_index],
-      internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      0, sizeof(PushConstant), &mat_pc);
-    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[model.id].size, 1, _gpu_meshes[model.id].offset, 0);
-  }
+  //   vkCmdPushConstants(_main_cmd_buf[_frame_index],
+  //     internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+  //     0, sizeof(PushConstant), &mat_pc);
+  //   vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[model.id].size, 1, _gpu_meshes[model.id].offset, 0);
+  // }
 
-  template <typename T>
-  struct BatchInfo {
-    Transform transform;
-    Model model;
+  // // //
+  //
+  // std::unordered_map<type_hash, std::string> instance_type_to_effect = { };
 
-    bool draw_shadows;
-    bool is_transparent;
-
-    T instance_data;
-  };
+  // std::string get_type_effect(type_hash t) {
+  //   return instance_type_to_effect.at(t);
+  // }
+  //
+  // // //
 
   vec3 get_mesh_scale(mesh_id id) {
     return engine::render::internal::_gpu_mesh_scales[(u32)id];
   }
 
-  BatchInfo<ColorMaterialInstanceData> get_batch_info(Transform t, Model m, ColorMaterial material) {
-    return BatchInfo<ColorMaterialInstanceData> {
-      .transform = t,
-      .model = m,
+  ColorMaterialInstance get_material_instance(Transform transform, Model model, ColorMaterial material) {
+    return ColorMaterialInstance {
+      .world_view_projection = engine::render::internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),
+      .color = material.color,
+    };
+  }
+
+  DrawBatchInstanceInfo get_batch_instance_info(Transform transform, Model model, ColorMaterial material) {
+    return DrawBatchInstanceInfo {
+      .transform = transform,
+      .model = model,
       .draw_shadows = true,
       .is_transparent = material.color.w != 1.0f,
-      .instance_data = ColorMaterialInstanceData {
-        .world_view_projection = engine::render::internal::_main_view_projection * transform_mat4(t.position, t.rotation, get_mesh_scale((mesh_id)m.id)),
-        .color = material.color,
-      },
     };
-  }
-
-  template <typename T>
-  struct Batch {
-    std::vector<BatchInfo<T>> data;
-    u32 size;
-    u32 count;
-  };
-
-  std::unordered_map<type_hash, Batch<u8>> batches;
-
-  template <typename T>
-  auto instantiate_batch() {
-    if(batches.find(get_type_hash<T>()) == batches.end()) {
-      auto b = (std::unordered_map<type_hash, Batch<T>>*)&batches;
-      b->insert(std::make_pair(get_type_hash<T>(), Batch<T> { {}, sizeof(T), 0 }));
-    }
-
-    auto b = (std::unordered_map<type_hash, Batch<T>>*)&batches;
-
-    return &b->at(get_type_hash<T>());
-  }
-
-  template <typename T>
-  void add_to_draw_batch(BatchInfo<T> info) {
-    static auto* batch = create_cached_type_map<T>(&batches, Batch<T> {{}, sizeof(T), 0});
-    batch->data.push_back(info);
-    batch->count += 1;
-  }
-
-  std::unordered_map<type_hash, std::string> instance_type_to_effect = { };
-
-  std::string get_type_effect(type_hash t) {
-    return instance_type_to_effect.at(t);
-  }
-
-  void draw_batches() {
-    struct BatchInstless {
-      Transform t;
-      Model m;
-      bool a;
-      bool b;
-    };
-
-    for(auto ty_batch = batches.begin(); ty_batch != batches.end(); ty_batch++) {
-      Batch<u8>* b = &ty_batch->second;
-
-      u32 s = (sizeof(BatchInstless) + b->size); // Sean: do this --> get_align(48 + size)
-
-      u8* ptr = (u8*)b->data.data();
-      u8* end = (u8*)b->data.data() + (b->count * (48 + b->size));
-
-      set_effect(get_type_effect(ty_batch->first).c_str());
-      while(ptr != end) {
-        BatchInstless* ba = (BatchInstless*)ptr;
-        void* inst_data = ptr + sizeof(BatchInstless);
-
-        using namespace engine::render::internal;
-
-        vkCmdPushConstants(_main_cmd_buf[_frame_index],
-          internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, b->size, inst_data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[ba->m.id].size, 1, _gpu_meshes[ba->m.id].offset, 0);
-
-        ptr += s;
-      }
-
-      b->data.clear();
-      b->count = 0;
-    }
   }
   
   void render_things() {
-    // Model model = Model::from_name_scale("suzanne", {4.0f, 1.0f, 1.0f});
-  
-    struct PushC {
-      mat4 mat;
-      vec4 color;
-    };
-  
-    //engine::effect::begin("color_line");
-  
-    //for(auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
-    //   PushC c = {};
-    //   c.mat = engine::render::internal::_main_view_projection * mat4::transform(transform.position, transform.rotation,
-    //   engine::render::internal::_gpu_mesh_scales[model.id] * 1.1f); c.color = vec4 {1.0f, 1.0f, 1.0f, 1.0f};
-  
-    //  engine::effect::draw(model, c);
-    //}
-  
-    //engine::effect::begin("color_fill");
-  
-    //for (auto [e, transform, color] : registry::view<Transform, Color, Tag>().each()) {
-    //  PushC c = {};
-    //  c.mat =
-    //      engine::render::internal::_main_view_projection *
-    //      mat4::transform(transform.position, transform.rotation, engine::render::internal::_gpu_mesh_scales[model.id]);
-    //  c.color = color;
-  
-    //  engine::effect::draw(model, c);
-    //}
-  
-    //engine::effect::end_everything();
-
-    auto& MAIN_VIEW_PROJECTION = engine::render::internal::_main_view_projection;
-    auto& GPU_MESH_SCALES = engine::render::internal::_gpu_mesh_scales;
-
-    // set_effect("color_fill");
-    // View<Transform, Model, ColorMaterial> renderables = {};
-    // for(auto [e, transform, model, material] : get_view_each(renderables)) {
-    //   PushC c = {
-    //     .mat = MAIN_VIEW_PROJECTION * transform_mat4(transform.position, transform.rotation, GPU_MESH_SCALES[model.id]),
-    //     .color = material.color,
-    //   };
-  
-    //   draw_effect_ptr(model, &c);
-    // }
-
-    // set_draw_material("color");
-    View<Transform, Model, ColorMaterial> renderables2 = {};
+    View<Include<Transform, Model, ColorMaterial>> renderables2 = {};
     for(auto [e, transform, model, material] : get_view_each(renderables2)) {
-      add_to_draw_batch(get_batch_info(transform, model, material));
+      add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
     }
-
-    draw_batches();
-
-    // View<Transform, Model, ColorMaterial> renderables2 = {};
-    // for(auto [e, transform, model, mat] : get_view_each(renderables2)) {
-    //   ColorMaterialPushConstant pc = create_push_constant(transform, model, mat);
-    //   // add_model_to_batch(model, &pc);
-    //   draw_model_material(model, &pc);
-    //   //draw_effect_ptr(model, &pc);
-    // }
-
-    end_effect_all();
-    //end_effect();
   }
 }; // namespace common
 
@@ -972,7 +846,8 @@ mod_main() {
   add_asset("john",   john);
   add_asset("james",  james);
 
-  common::instance_type_to_effect.insert(std::make_pair(get_type_hash<ColorMaterialInstanceData>(), "color_fill"));
+  add_type_effect(get_type_hash<ColorMaterialInstance>(), "color_fill");
+  // common::instance_type_to_effect.insert(std::make_pair(get_type_hash<ColorMaterialInstance>(), "color_fill"));
 }
 
 // struct Paddle {};

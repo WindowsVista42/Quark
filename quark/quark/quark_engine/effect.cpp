@@ -1132,6 +1132,7 @@ namespace quark::engine::effect {
   }
 
   static std::unordered_set<std::string> initialized_images = {};
+  static bool started_render_pass = false;
 
   void begin(std::string name) {
     RenderEffect& re = RenderEffect::cache.get(name);
@@ -1183,6 +1184,7 @@ namespace quark::engine::effect {
 
       // init render pass
       vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+      started_render_pass = true;
 
       // set layouts of images
       for_every(i, re.image_resources.size()) {
@@ -1213,7 +1215,10 @@ namespace quark::engine::effect {
   }
 
   void end_everything() {
-    vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+    if(started_render_pass) {
+      started_render_pass = false;
+      vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+    }
 
     for_every(i, internal::current_re.image_resources.size()) {
       auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
