@@ -192,47 +192,7 @@ namespace quark {
   //   f32 zoom;
   // };
 
-  enum class system_id : u32 {};
-  enum class system_list_id : u32 {};
-  //using system_id = u32;
-  //using system_list_id = u32;
-
-  struct SystemListInfo {
-    std::vector<system_id> systems;
-  };
-
-  enum class state_id : u32 {};
-  //using state_id = u32;
-
-  struct StateInfo {
-    system_list_id init_system_list;
-    system_list_id update_system_list;
-    system_list_id deinit_system_list;
-  };
-
-  // Global resource API
-  template <typename T>
-  struct Resource {
-    static T* value;
-  };
-
   // Component view API
-  template <typename... T>
-  struct Exclude {};
-
-  template <typename... T>
-  struct Include {};
-
-  template <typename... T>
-  struct View {};
-
-  using entity_id = entt::entity;
-  using Registry = entt::basic_registry<entity_id>;
-
-  template <typename... T>
-  struct Handle {
-    entity_id entity;
-  };
 
   enum class asset_id : u32 {};
 
@@ -284,6 +244,11 @@ namespace quark {
 // Resource API
 //
 
+  template <typename T>
+  struct Resource {
+    static T* value;
+  };
+
   // Declare a resource in a header file
   #define declare_resource(var_decl, type) \
   var_decl type type##_RESOURCE; \
@@ -306,18 +271,6 @@ namespace quark {
   void set_resource(Resource<T> res, T value) {
     res.value = value;
   }
-
-//
-// Resource Declaration
-//
-
-  struct ScratchAllocator : LinearAllocator {};
-  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
-
-  declare_resource(engine_var, Registry);
-  declare_resource(engine_var, ScratchAllocator);
-  declare_resource(engine_var, AssetServer);
-  declare_resource(engine_var, DrawBatchPool);
   
 //
 // Action API
@@ -341,8 +294,15 @@ namespace quark {
   engine_api ActionState get_action_state(const char* action_name);
 
 //
-// Scheduler API
+// Systems API
 //
+
+  enum class system_id : u32 {};
+  enum class system_list_id : u32 {};
+
+  struct SystemListInfo {
+    std::vector<system_id> systems;
+  };
 
   engine_api void init_systems();
   engine_api void deinit_systems();
@@ -363,6 +323,14 @@ namespace quark {
 //
 // States API
 //
+
+  enum class state_id : u32 {};
+
+  struct StateInfo {
+    system_list_id init_system_list;
+    system_list_id update_system_list;
+    system_list_id deinit_system_list;
+  };
 
   engine_api void init_states();
   engine_api void deinit_states();
@@ -439,6 +407,23 @@ namespace quark {
 // Registry API
 //
 
+  using entity_id = entt::entity;
+  using Registry = entt::basic_registry<entity_id>;
+
+  template <typename... T>
+  struct Exclude {};
+
+  template <typename... T>
+  struct Include {};
+
+  template <typename... T>
+  struct View {};
+
+  template <typename... T>
+  struct Handle {
+    entity_id entity;
+  };
+
   template <typename T> decltype(auto) get_registry_storage();
 
   template <typename... T> void clear_registry();
@@ -502,11 +487,28 @@ namespace quark {
 // Draw Batch API
 //
 
+  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
+
   template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
 
   engine_api void draw_batches();
   engine_api void reset_draw_batches();
   engine_api void end_effects();
+
+//
+// Scratch Allocator API
+//
+
+  struct ScratchAllocator : LinearAllocator {};
+
+//
+// Resource Declaration
+//
+
+  declare_resource(engine_var, Registry);
+  declare_resource(engine_var, ScratchAllocator);
+  declare_resource(engine_var, AssetServer);
+  declare_resource(engine_var, DrawBatchPool);
 
 //
 // Template API Definitions
