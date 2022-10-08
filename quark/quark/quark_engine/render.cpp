@@ -9,17 +9,13 @@
 
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "api.hpp"
-#include "component.hpp"
 #include "global.hpp"
 
 #define VMA_IMPLEMENTATION
-#include "render.hpp"
-
-#include "effect.hpp"
+#include "quark_engine.hpp"
 
 #include "../quark_core/module.hpp"
 
-#include "quark_engine.hpp"
 
 //lkjlkjlkjlkj
 
@@ -32,7 +28,7 @@
     }                                                                                                                                                \
   } while (0)
 
-namespace quark::engine::render {
+namespace quark {
   using namespace internal;
 
   Camera Camera::from_spherical(vec2 dir) {
@@ -126,21 +122,21 @@ namespace quark::engine::render {
     WorldData* world_data = (WorldData*)ptr;
   
     u32 count = 0;
-    for (auto [e, transform, color, light] : get_view_each(View<Include<const Transform, const Color, const PointLight>> {})) {
+    for (auto [e, transform, light] : get_view_each(View<Include<const Transform, const PointLight>> {})) {
       world_data->point_lights[count].position = transform.position;
       world_data->point_lights[count].falloff = light.falloff;
-      world_data->point_lights[count].color = swizzle(color, 0, 1, 2);
+      world_data->point_lights[count].color = swizzle(light.color, 0, 1, 2);
       world_data->point_lights[count].directionality = light.directionality;
       count += 1;
     }
     world_data->point_light_count = count;
   
     count = 0;
-    for (auto [e, transform, color, light] : get_view_each(View<Include<const Transform, const Color, const DirectionalLight>> {})) {
+    for (auto [e, transform, light] : get_view_each(View<Include<const Transform, const DirectionalLight>> {})) {
       world_data->directional_lights[count].position = transform.position;
       world_data->directional_lights[count].falloff = light.falloff;
       world_data->directional_lights[count].direction = forward(transform.rotation);
-      world_data->directional_lights[count].color = swizzle(color, 0, 1, 2);
+      world_data->directional_lights[count].color = swizzle(light.color, 0, 1, 2);
       world_data->directional_lights[count].directionality = light.directionality;
       count += 1;
     }
@@ -210,7 +206,7 @@ namespace quark::engine::render {
   
     vk_check(vkBeginCommandBuffer(_main_cmd_buf[_frame_index], &command_begin_info));
 
-    effect::internal::current_re = {};
+    quark::internal::current_re = {};
   }
   
   void begin_shadow_rendering() {
@@ -240,7 +236,7 @@ namespace quark::engine::render {
   }
   
   void draw_shadow(Transform transform, Model model) {
-    AllocatedMesh mesh = _gpu_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
@@ -252,7 +248,7 @@ namespace quark::engine::render {
   }
 
   void draw_shadow_things() {
-    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>, Exclude<Effect::NoShadowPass, Effect::Transparent>> {})) {
+    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
       // NOTE(sean): frustum culling temporarily removed because it is culling
       // using the MAIN_CAMERA instead of the SUN_CAMERA
       //if (box_in_frustum(transform.pos, scl)) {
@@ -293,7 +289,7 @@ namespace quark::engine::render {
   }
 
   void draw_depth(Transform transform, Model model) {
-    AllocatedMesh mesh = _gpu_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
@@ -305,7 +301,7 @@ namespace quark::engine::render {
   }
 
   void draw_depth_prepass_things() {
-    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>, Exclude<Effect::Transparent>> {})) {
+    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
       if (box_in_frustum(transform.position, model.half_extents)) {
         draw_depth(transform, model);
       }
@@ -354,11 +350,11 @@ namespace quark::engine::render {
   }
   
   void draw_lit(Transform transform, Model model, Texture texture) {
-    AllocatedMesh mesh = _gpu_meshes[model.id];
+    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
     DefaultPushConstant dpc;
     dpc.MODEL_POSITION = transform.position;
-    dpc.TEXTURE_INDEX = texture.id;
+    dpc.TEXTURE_INDEX = (u32)texture.id;
     dpc.MODEL_ROTATION = as_vec4(transform.rotation);
     dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
 
@@ -366,66 +362,66 @@ namespace quark::engine::render {
   }
   
   void draw_lit_pass_things() {
-    for (auto [e, transform, model, texture] :
-    get_view_each(View<Include<const Transform, const Model, const Texture, const Effect::LitTextureFill>, Exclude<Effect::Transparent>> {})) {
+    for (auto [e, transform, model, material] :
+    get_view_each(View<Include<const Transform, const Model, const BasicMaterial>> {})) {
     //registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
       if (box_in_frustum(transform.position, model.half_extents)) {
-        draw_lit(transform, model, texture);
+        draw_lit(transform, model, material.albedo);
       }
     }
   }
   
   void end_lit_pass() {}
   
-  void draw_color(Transform transform, Model model, Color color) {
-    AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
+  // void draw_color(Transform transform, Model model, Color color) {
+  //   AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
 
-    ColorPushConstant pcd;
-    pcd.MODEL_POSITION = as_vec4(transform.position, 1.0f);
-    pcd.MODEL_ROTATION = as_vec4(transform.rotation);
-    pcd.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-    pcd.color = color;
+  //   ColorPushConstant pcd;
+  //   pcd.MODEL_POSITION = as_vec4(transform.position, 1.0f);
+  //   pcd.MODEL_ROTATION = as_vec4(transform.rotation);
+  //   pcd.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
+  //   pcd.color = color;
 
-    _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
-  }
+  //   _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
+  // }
   
-  void begin_solid_pass() {
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
-  
-  void draw_solid_pass_things() {
-    for (auto [e, transform, model, color] :
-    get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorFill>, Exclude<Effect::Transparent>> {})) {
-      if (box_in_frustum(transform.position, model.half_extents)) {
-        draw_color(transform, model, color);
-      }
-    }
-  }
-  
-  void end_solid_pass() {}
-  
-  void begin_wireframe_pass() {
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
+  // void begin_solid_pass() {
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
+  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
+  // 
+  // void draw_solid_pass_things() {
+  //   for (auto [e, transform, model, color] :
+  //   get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorFill>, Exclude<Effect::Transparent>> {})) {
+  //     if (box_in_frustum(transform.position, model.half_extents)) {
+  //       draw_color(transform, model, color);
+  //     }
+  //   }
+  // }
+  // 
+  // void end_solid_pass() {}
+  // 
+  // void begin_wireframe_pass() {
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
+  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
 
-  void draw_wireframe_pass_things() {
-    for (auto [e, transform, model, color] :
-    get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorLines>, Exclude<Effect::Transparent>> {})) {
-      if (box_in_frustum(transform.position, model.half_extents)) {
-        draw_color(transform, model, color);
-      }
-    }
-  }
+  // void draw_wireframe_pass_things() {
+  //   for (auto [e, transform, model, color] :
+  //   get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorLines>, Exclude<Effect::Transparent>> {})) {
+  //     if (box_in_frustum(transform.position, model.half_extents)) {
+  //       draw_color(transform, model, color);
+  //     }
+  //   }
+  // }
 
-  void end_wireframe_pass() {}
+  // void end_wireframe_pass() {}
   
   void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
@@ -1134,10 +1130,17 @@ namespace quark::engine::render {
       re_info.render_mode = "default_line";
       RenderEffect::Info::cache.add("color_line", re_info);
 
+      printf("here!\n");
+
       auto t0 = std::chrono::high_resolution_clock::now();
-      add_threadpool_work([]() {RenderEffect::create("color_fill"); });
-      add_threadpool_work([]() {RenderEffect::create("color_line"); });
-      join_threadpool();
+      // add_threadpool_work([]() {RenderEffect::create("color_fill"); });
+      // add_threadpool_work([]() {RenderEffect::create("color_line"); });
+      // join_threadpool();
+
+      RenderEffect::create("color_fill");
+      RenderEffect::create("color_line");
+
+      printf("here!\n");
       //threadpool::internal::_thread_pool.push();
       //threadpool::internal::_thread_pool.push();
       //threadpool::internal::_thread_pool.join();
@@ -1446,75 +1449,6 @@ namespace quark::engine::render {
       return true;
     }
     
-    // Shader loading
-    VkVertexShader* load_vert_shader(std::string* path) {
-      FILE* fp = fopen(path->c_str(), "rb");
-    
-      fseek(fp, 0, SEEK_END);
-      int size = ftell(fp);
-      rewind(fp);
-    
-      u8* buffer = (u8*)alloc(&SCRATCH, size * sizeof(u8));
-    
-      fread(buffer, size, 1, fp);
-    
-      fclose(fp);
-    
-      VkShaderModuleCreateInfo module_create_info = {};
-      module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      module_create_info.codeSize = size;
-      module_create_info.pCode = (u32*)buffer;
-      module_create_info.pNext = 0;
-    
-      VkVertexShader* vert_shader = (VkVertexShader*)alloc(&_render_alloc, sizeof(VkVertexShader));
-      vk_check(vkCreateShaderModule(_device, &module_create_info, 0, &vert_shader->_));
-    
-      // printf("Loaded shader: %s\n", path->c_str());
-    
-      reset_alloc(&SCRATCH);
-    
-      // assets.add_raw_data<".vert.spv", VkShaderModule>(name,
-      // vert_shaders[vert_shader_count - 1]);
-      //
-      // assets.add_raw_data<MeshInstance>(name, MeshInstance { some_data });
-      //
-      // assets.add_raw_data<MesIndex>(name, mesh_count);
-      // mesh_count += 1;
-    
-      return vert_shader;
-    }
-    
-    VkFragmentShader* load_frag_shader(std::string* path) {
-      FILE* fp = fopen(path->c_str(), "rb");
-    
-      fseek(fp, 0, SEEK_END);
-      int size = ftell(fp);
-      rewind(fp);
-    
-      u8* buffer = (u8*)alloc(&SCRATCH, size * sizeof(u8));
-    
-      fread(buffer, size, 1, fp);
-    
-      fclose(fp);
-    
-      VkShaderModuleCreateInfo module_create_info = {};
-      module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      module_create_info.codeSize = size;
-      module_create_info.pCode = (u32*)buffer;
-      module_create_info.pNext = 0;
-    
-      VkFragmentShader* frag_shader = (VkFragmentShader*)alloc(&_render_alloc, sizeof(VkFragmentShader));
-      vk_check(vkCreateShaderModule(_device, &module_create_info, 0, &frag_shader->_));
-    
-      // printf("Loaded shader: %s\n", path->c_str());
-    
-      reset_alloc(&SCRATCH);
-    
-      return frag_shader;
-    }
-    
-    void unload_shader(VkShaderModule* shader) { vkDestroyShaderModule(_device, *shader, 0); }
-    
     // Mesh loading
     AllocatedMesh create_mesh(void* data, usize size, usize elemsize) {
       AllocatedMesh mesh = {};
@@ -1818,7 +1752,7 @@ namespace quark::engine::render {
     
       //TODO(sean): store our AllocatedImage in the global textures array and 
       Texture* texture = (Texture*)alloc(&_render_alloc, sizeof(Texture));
-      texture->id = _global_constants_layout_info[2].count;
+      texture->id = (image_id)_global_constants_layout_info[2].count;
     
       _gpu_images[_global_constants_layout_info[2].count] = alloc_image;
       _global_constants_layout_info[2].count += 1;
@@ -1832,7 +1766,7 @@ namespace quark::engine::render {
     }
     
     void unload_texture(Texture* texture) {
-      AllocatedImage* alloc_image = &_gpu_images[texture->id];
+      AllocatedImage* alloc_image = &_gpu_images[(u32)texture->id];
       vkDestroyImageView(_device, alloc_image->view, 0);
       vmaDestroyImage(_gpu_alloc, alloc_image->image, alloc_image->alloc);
     

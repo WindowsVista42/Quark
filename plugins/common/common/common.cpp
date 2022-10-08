@@ -23,7 +23,7 @@ namespace common {
   }
 };
 
-struct Camera3D : render::Camera {};
+struct Camera3D : Camera {};
 
 declare_resource(common_var, Camera3D);
 define_resource(Camera3D, {});
@@ -217,11 +217,11 @@ namespace common {
   //static Input global_input = {};
   //template <> Input* Resource<Input>::value = &global_input;
   
-  void init(View<Transform, Color, Model, Tag, ColorMaterial, Iden> view0, View<Transform, Color> view1) {
+  void init(View<Transform, Model, Tag, ColorMaterial, Iden> view0, View<Transform> view1) {
     for_every(i, 10) {
       //create_entity_add_comp(view0, Transform {.position = {0.0f, 0.0f, 2.0f}}, Color {}, Tag {}, Iden {Iden::global_value});
       entity_id e = create_entity();
-      add_entity_comp(view0, e, {.position = {0.0f, i * 1.0f, 2.0f}}, {}, Model::from_name_scale("suzanne", VEC3_ONE), {}, ColorMaterial {}, {Iden::global_value});
+      add_entity_comp(view0, e, {.position = {0.0f, i * 1.0f, 2.0f}, .rotation = quat{0,0,0,1}}, create_model("suzanne", VEC3_ONE), {}, ColorMaterial {}, {Iden::global_value});
       //add_entity_comp(view0, e, Tag {}, Iden {Iden::global_value});
       //begin_entity();
       //add_entity_comp(view0, Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
@@ -267,25 +267,23 @@ namespace common {
 
   static f32 T = 0.0f;
 
-  void update0(View<Include<Color, Transform, ColorMaterial, const Tag>> view, Resource<Camera3D> res) {
+  void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<Camera3D> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
       f32 ctr = 0.0f;
 
-      for (auto [e, color, transform, material] : get_view_each(view)) {
+      for (auto [e, transform, material] : get_view_each(view)) {
         // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
         // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
         // ctr += 0.25f;
         // printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
 
         transform.position.z = sinf(T + transform.position.y);
-  
-        color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-        color.y = 0.0f;
-        color.z = 0.0f;
 
-        material.color = color;
+        material.color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        material.color.y = 0.0f;
+        material.color.z = 0.0f;
       }
       T += DT;
     }
@@ -309,7 +307,7 @@ namespace common {
       //Resource<render::Camera> main_camera_res = {};
       //render::Camera* main_camera = main_camera_res.value;
       //resource(Camera3D) main_camera_res;
-      render::Camera* main_camera = get_resource(res);
+      Camera* main_camera = get_resource(res);
 
       vec2 move_dir = {0.0f, 0.0f};
 
@@ -368,7 +366,7 @@ namespace common {
     }
   }
   
-  void update1(Resource<render::Camera> main_camera) {
+  void update1(Resource<Camera> main_camera) {
     vec2 move_dir = {0.0f, 0.0f};
   
     //move_dir.x += get_action("d").value;
@@ -766,12 +764,12 @@ namespace common {
   // // //
 
   vec3 get_mesh_scale(mesh_id id) {
-    return engine::render::internal::_gpu_mesh_scales[(u32)id];
+    return internal::_gpu_mesh_scales[(u32)id];
   }
 
   ColorMaterialInstance get_material_instance(Transform transform, Model model, ColorMaterial material) {
     return ColorMaterialInstance {
-      .world_view_projection = engine::render::internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),
+      .world_view_projection = internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),
       .color = material.color,
     };
   }
@@ -784,13 +782,49 @@ namespace common {
       .is_transparent = material.color.w != 1.0f,
     };
   }
+
+// template <typename... T>
+// struct Access {};
+// 
+// template <typename... T, typename... A>
+// decltype(auto) get_view_each2(Access<A...>&) {
+//   return get_view_each(View<Include<T...>> {});
+// }
+// 
+// template <typename... T, typename... A>
+// decltype(auto) get_comp2(Access<A...>&, entity_id e) {
+//   return get_entity_comp(View<T...> {}, e);
+// }
+// 
+// template <typename... T, typename... A>
+// decltype(auto) get_handle2(Access<A...>&, Handle<T...> h) {
+//   return get_entity_comp(View<T...> {}, h.entity);
+// }
+// 
+// #define get_view3(types...) get_view_each2<types>(access)
+// 
+// #define get_comp3(e, types...) get_comp2<types>(access, e)
+// 
+// #define get_handle3(handle) get_handle2(access, handle)
+
   
   void render_things() {
-    View<Include<Transform, Model, ColorMaterial>> renderables2 = {};
-    for(auto [e, transform, model, material] : get_view_each(renderables2)) {
+    for(auto [e, transform, model, material] : get_view_each(View<Include<const Transform, const Model, const ColorMaterial>> {})) {
       add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
     }
   }
+
+  // void render_things(View<Include<const Transform, const Model, const ColorMaterial>> renderables2) {
+  //   for(auto [e, transform, model, material] : get_view_each(renderables2)) {
+  //     add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
+  //   }
+  // }
+
+  // void render_things(Access<const Transform, const Model, const ColorMaterial> access) {
+  //   for(auto [e, transform, model, material] : get_view_each2<const Transform, const Model, const ColorMaterial>(access)) {
+  //     add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
+  //   }
+  // }
 }; // namespace common
 
 static const char* SYSTEM_LIST_CURRENT;
@@ -815,6 +849,19 @@ struct A {
   float a;
   float b;
 };
+
+// more convenient
+// less fine-grained
+
+// struct MainCamera {};
+// void do_thing(Access<Transform, Model, ColorMaterial, MainCamera> access) {
+//   for(auto [e, transform, model] : get_view3(Transform, Model)) {
+//     auto m = get_comp3(e, ColorMaterial);//<ColorMaterial>(access, e);
+//     auto z = get_handle3(Handle<Model> { e });
+//   }
+// 
+//   // get_resource2(MainCamera);
+// }
 
 mod_main() {
   set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});

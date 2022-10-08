@@ -1,6 +1,6 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "global.hpp"
-#include "render.hpp"
+// #include "render.hpp"
 //#include "asset.hpp"
 #include "quark_engine.hpp"
 
@@ -29,28 +29,17 @@ namespace quark::engine::global {
 
     add_asset_file_loader(".obj", load_obj_file);
     add_asset_file_loader(".png", load_png_file);
-
-    //add_asset_file_loader(".vert.spv", render::internal::load_vert_shader, render::internal::unload_shader);
-    //add_asset_file_loader(".vert.spv", render::internal::load_frag_shader, render::internal::unload_shader);
-
-    //asset::add_type(render::internal::load_obj_mesh,    render::internal::unload_mesh, ".obj");
-    //asset::add_id_loader<render::internal::AllocatedMesh>(render::internal::load_obj_mesh, ".obj");
-
-    //asset::add_type(render::internal::load_png_texture, render::internal::unload_texture, ".png");
   }
 
   void load_shaders() {
-    //asset::load_directory("quark/shaders");
     load_asset_folder("quark/shaders");
   }
 
   void load_meshes() {
-    //asset::load_directory("quark/models");
     load_asset_folder("quark/models");
   }
 
   void load_images() {
-    //asset::load_directory("quark/textures");
     load_asset_folder("quark/textures");
   }
 
@@ -91,30 +80,30 @@ namespace quark::engine::global {
       create_system("init_global_alloc", init_global_alloc);
       create_system("add_asset_types", add_asset_types);
       create_system("init_window", init_window);
-      create_system("init_vulkan", render::internal::init_vulkan);
-      create_system("init_mesh_buffer", render::internal::init_mesh_buffer);
-      create_system("init_command_pools_and_buffers", render::internal::init_command_pools_and_buffers);
+      create_system("init_vulkan", internal::init_vulkan);
+      create_system("init_mesh_buffer", internal::init_mesh_buffer);
+      create_system("init_command_pools_and_buffers", internal::init_command_pools_and_buffers);
       create_system("load_shaders", load_shaders);
       create_system("load_meshes", load_meshes);
-      create_system("init_swapchain", render::internal::init_swapchain);
-      create_system("init_render_passes", render::internal::init_render_passes);
-      create_system("init_framebuffers", render::internal::init_framebuffers);
-      create_system("init_sync_objects", render::internal::init_sync_objects);
-      create_system("init_sampler", render::internal::init_sampler);
-      create_system("copy_meshes_to_gpu", render::internal::copy_meshes_to_gpu); // NOTE(sean): add meshes before this!
-      create_system("init_pipelines", render::internal::init_pipelines); // NOTE(sean): add shaders before this!
+      create_system("init_swapchain", internal::init_swapchain);
+      create_system("init_render_passes", internal::init_render_passes);
+      create_system("init_framebuffers", internal::init_framebuffers);
+      create_system("init_sync_objects", internal::init_sync_objects);
+      create_system("init_sampler", internal::init_sampler);
+      create_system("copy_meshes_to_gpu", internal::copy_meshes_to_gpu); // NOTE(sean): add meshes before this!
+      create_system("init_pipelines", internal::init_pipelines); // NOTE(sean): add shaders before this!
 
       // Update
-      create_system("print_performance_statistics", render::internal::print_performance_statistics);
+      create_system("print_performance_statistics", internal::print_performance_statistics);
       create_system("update_window_inputs", update_window_inputs);
       create_system("update_all_actions", update_all_actions);
       create_system("update_tag", 0);
-      create_system("update_cameras", render::update_cameras);
-      create_system("begin_frame", render::begin_frame);
+      create_system("update_cameras", update_cameras);
+      create_system("begin_frame", begin_frame);
       create_system("draw_batches", draw_batches);
       create_system("reset_draw_batches", reset_draw_batches);
       create_system("end_effects", end_effects);
-      create_system("end_frame", render::end_frame);
+      create_system("end_frame", end_frame);
     }
 
     // Add systems to system lists

@@ -15,7 +15,7 @@
 //
 
 // Common components
-#include "component.hpp"
+// #include "component.hpp"
 
 // IO
 // #include "input.hpp"

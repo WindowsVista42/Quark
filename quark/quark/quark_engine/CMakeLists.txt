@@ -1,6 +1,5 @@
 add_library(quark_engine SHARED
   global.cpp
-  component.cpp
   quark_engine.cpp
   render.cpp
   effect.cpp

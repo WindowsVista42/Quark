@@ -5,8 +5,8 @@
 
 #include <iostream>
 
-namespace quark::engine::effect {
-  using namespace render::internal;
+namespace quark {
+  using namespace internal;
 
   #define vk_check(x)                                                                                                                                  \
     do {                                                                                                                                               \
@@ -372,8 +372,6 @@ namespace quark::engine::effect {
   };
 
   void ImageResource::blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode) {
-    using namespace render::internal;
-
     ImageResource& src_res = ImageResource::get(src_name, src_index);
     ImageResource& dst_res = ImageResource::get(dst_name, dst_index);
 
@@ -509,7 +507,7 @@ namespace quark::engine::effect {
     auto sampler_info = this->_sampler_info();
 
     SamplerResource res = {};
-    vk_check(vkCreateSampler(render::internal::_device, &sampler_info, 0, &res.sampler));
+    vk_check(vkCreateSampler(internal::_device, &sampler_info, 0, &res.sampler));
 
     return res;
   }
@@ -917,9 +915,9 @@ namespace quark::engine::effect {
     VkPipelineVertexInputStateCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     info.vertexBindingDescriptionCount = 1;
-    info.pVertexBindingDescriptions = VertexPNT::input_description.bindings;
+    info.pVertexBindingDescriptions = get_vertex_pnt_input_description()->bindings;//VertexPNT::input_description.bindings;
     info.vertexAttributeDescriptionCount = 3;
-    info.pVertexAttributeDescriptions = VertexPNT::input_description.attributes;
+    info.pVertexAttributeDescriptions = get_vertex_pnt_input_description()->attributes; //VertexPNT::input_description.attributes;
 
     return info;
   }
@@ -1026,7 +1024,7 @@ namespace quark::engine::effect {
 
     RenderMode::Info::cache.add(name, info);
 
-    print_tempstr(create_tempstr() + "Created RenderMode!\n");
+    print_tempstr(create_tempstr() + "Created RenderMode: " + name.c_str() + "!\n");
   }
 
   VkPipelineShaderStageCreateInfo RenderEffect::Info::_vertex_stage(const char* entry_name) {
@@ -1055,6 +1053,7 @@ namespace quark::engine::effect {
     auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
     auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
     auto& render_target = RenderTarget::cache.get(this->render_target);
+
 
     RenderEffect render_effect = {};
     render_effect.render_pass = render_target.render_pass;
@@ -1112,17 +1111,23 @@ namespace quark::engine::effect {
     info.layout = render_effect.layout;
     info.renderPass = render_effect.render_pass;
 
+    printf("here b\n");
     vk_check(vkCreateGraphicsPipelines(_device, 0, 1, &info, 0, &render_effect.pipeline));
 
     return render_effect;
   }
 
   void RenderEffect::create(std::string name) {
+
+    printf("here2!\n");
     auto info = Info::cache.get(name);
+    printf("here3!\n");
 
     auto render_effect = info._create();
+    printf("here4!\n");
 
     RenderEffect::_mutex.lock();
+    printf("here5!\n");
 
     RenderEffect::cache.add(name, render_effect);
 

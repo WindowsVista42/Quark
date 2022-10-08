@@ -21,6 +21,15 @@ namespace quark {
   // define_resource(ParIterCtxTypeMap, {});
   define_resource(DrawBatchPool, {});
 
+  Model create_model(const char* mesh_name, vec3 scale) {
+    mesh_id id = *get_asset<mesh_id>(mesh_name);
+
+    return Model {
+      .half_extents = (scale / 2.0f) * internal::_gpu_mesh_scales[(u32)id],
+      .id = id,
+    };
+  }
+
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
 
@@ -181,8 +190,9 @@ namespace quark {
       // Optionally log/time the functions being run
       WorkFunction system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
-        //print_tempstr(create_tempstr() + "Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
+        // print_tempstr(create_tempstr() + "Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
         system();
+        // print_tempstr(create_tempstr() + "Finished: " + _system_names.at(list->systems[i]).c_str() + "\n");
       }
     }
   }
@@ -486,8 +496,7 @@ namespace quark {
   }
 
   void load_obj_file(const char* path, const char* name) {
-    using namespace engine::render;
-    using namespace render::internal;
+    using namespace internal;
 
     // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
@@ -623,8 +632,7 @@ namespace quark {
   }
 
   void load_png_file(const char* path, const char* name) {
-    using namespace engine::render;
-    using namespace render::internal;
+    using namespace internal;
 
     int width, height, channels;
     stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
@@ -717,7 +725,7 @@ namespace quark {
     //TODO(sean): store our AllocatedImage in the global textures array and 
     static int texture_id = 0;
     Texture texture = {}; //(Texture*)alloc(&_render_alloc, sizeof(Texture));
-    texture.id = texture_id;//_global_constants_layout_info[2].count;
+    texture.id = (image_id)texture_id;//_global_constants_layout_info[2].count;
   
     _gpu_images[texture_id] = alloc_image;
     texture_id += 1;
@@ -756,7 +764,7 @@ namespace quark {
     module_create_info.pCode = (u32*)buffer;
   
     VkShaderModule module = {};
-    if(vkCreateShaderModule(engine::render::internal::_device, &module_create_info, 0, &module) != VK_SUCCESS) {
+    if(vkCreateShaderModule(internal::_device, &module_create_info, 0, &module) != VK_SUCCESS) {
       panic("create shader module!\n");
     };
   
@@ -795,16 +803,16 @@ namespace quark {
       DrawBatch<u8>* batch = &ty_batch->second;
       u8* instance_data_ptr = (u8*)batch->instance_data.data();
 
-      engine::effect::begin(get_type_effect(ty_batch->first).c_str());
+      begin(get_type_effect(ty_batch->first).c_str());
       for_every(i, batch->count) {
         DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
         void* instance_data = instance_data_ptr;
 
-        using namespace engine::render::internal;
+        using namespace internal;
 
         vkCmdPushConstants(_main_cmd_buf[_frame_index],
           internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[instance_info->model.id].size, 1, _gpu_meshes[instance_info->model.id].offset, 0);
+        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)instance_info->model.id].size, 1, _gpu_meshes[(u32)instance_info->model.id].offset, 0);
 
         instance_data_ptr += batch->instance_data_size;
       }
@@ -822,6 +830,6 @@ namespace quark {
   }
 
   void end_effects() {
-    engine::effect::end_everything();
+    end_everything();
   }
 };
