@@ -31,72 +31,18 @@
 namespace quark {
   using namespace internal;
 
-  MainCamera MainCamera_INITIAL_VALUE = MainCamera {{
+  define_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, F32_PI_2, 0},
     .fov = 90.0f,
     .z_near = 0.01f,
     .z_far = 10000.0f,
     .projection_type = ProjectionType::Perspective,
-  }};
-  define_resource(MainCamera, MainCamera_INITIAL_VALUE);
-
+  }});
   define_resource(UICamera, {});
-
   define_resource(SunCamera, {});
 
-  mat4 forward_up_mat4(vec3 forward, vec3 up) {
-    vec3 f = normalize(-forward);
-    vec3 s = normalize(cross(up, f));
-    vec3 u = cross(s, f);
-  
-    return mat4 {
-      vec4 { s.x, u.x, f.x, 0.0f },
-      vec4 { s.y, u.y, f.y, 0.0f },
-      vec4 { s.z, u.z, f.z, 0.0f },
-      vec4 { 0.0f, 0.0f, 0.0f, 1.0f },
-    };
-  }
-  
-  mat4 get_camera3d_view(const Camera3D* camera) {
-    mat4 look_dir = forward_up_mat4(forward(camera->rotation), VEC3_UNIT_Z);
-    mat4 rotation = axis_angle_mat4(forward(camera->rotation), camera->rotation.roll);
-    mat4 translation = translate_mat4(-camera->position);
-    
-    return look_dir * rotation * translation;
-  }
-
-  mat4 get_camera3d_projection(const Camera3D* camera, f32 aspect) {
-    if(camera->projection_type == ProjectionType::Perspective) {
-      return perspective(rad(camera->fov), aspect, camera->z_near, camera->z_far);
-    } else {
-      panic("get_camera3d_projection currently does not support orthographic projections!");
-    }
-  }
-
-  mat4 get_camera3d_view_projection(const Camera3D* camera, f32 aspect) {
-    return get_camera3d_projection(camera, aspect) * get_camera3d_view(camera);
-  }
-
-  // mat4 update_matrices(Camera camera, int width, int height, i32 projection_type) {
-  //   mat4 view_projection = MAT4_IDENTITY;
-  // 
-  //   f32 aspect = (f32)width / (f32)height;
-  //   mat4 projection, view;
-  // 
-  //   if (projection_type == PERSPECTIVE_PROJECTION) {
-  //     projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
-  //   } else if (projection_type == ORTHOGRAPHIC_PROJECTION) {
-  //     //projection = mat4::orthographic(5.0f, 5.0f, 5.0f, 5.0f, camera.znear, camera.zfar);
-  //     projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
-  //   } else {
-  //     projection = perspective(rad(camera.fov), aspect, camera.znear, camera.zfar);
-  //   }
-  // 
-  //   view = look_dir_mat4(camera.pos, camera.dir, VEC3_UNIT_Z);
-  //   view_projection = projection * view;
-  
-    // Calculate updated frustum
+    // NOTE: Calculate frustum culling data
     // NOTE: Dont get rid of this!!
     // NOTE: Dont get rid of this!!
     // NOTE: Dont get rid of this!!
@@ -132,9 +78,6 @@ namespace quark {
     //     _cull_planes[5] = m[3] - m[2];
     //   }
     // }
-  
-  //   return view_projection;
-  // }
 
   void update_cameras() {
     // MAIN_CAMERA.dir = forward(MAIN_CAMERA.spherical_dir);
@@ -212,11 +155,11 @@ namespace quark {
     vmaUnmapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc);
   }
 
-  template <typename T>
-  void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
-    vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
-    vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
-  }
+  // template <typename T>
+  // void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
+  //   vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
+  //   vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
+  // }
 
   void begin_frame() {
     // TODO Sean: dont block the thread
@@ -245,170 +188,169 @@ namespace quark {
 
     quark::internal::current_re = {};
   }
-  
-  void begin_shadow_rendering() {
-    VkClearValue depth_clear;
-    depth_clear.depthStencil.depth = 1.0f;
-  
-    VkClearValue clear_values[1] = {depth_clear};
-  
-    VkRenderPassBeginInfo render_pass_begin_info = {};
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.renderPass = _depth_only_render_pass;
-    render_pass_begin_info.renderArea.offset.x = 0;
-    render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.extent.width = 2048;
-    render_pass_begin_info.renderArea.extent.height = 2048;
-    render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
-    render_pass_begin_info.clearValueCount = 1;
-    render_pass_begin_info.pClearValues = clear_values;
-    render_pass_begin_info.pNext = 0;
-  
-    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
-  
-  void draw_shadow(Transform transform, Model model) {
-    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
+  // void begin_shadow_rendering() {
+  //   VkClearValue depth_clear;
+  //   depth_clear.depthStencil.depth = 1.0f;
+  // 
+  //   VkClearValue clear_values[1] = {depth_clear};
+  // 
+  //   VkRenderPassBeginInfo render_pass_begin_info = {};
+  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  //   render_pass_begin_info.renderPass = _depth_only_render_pass;
+  //   render_pass_begin_info.renderArea.offset.x = 0;
+  //   render_pass_begin_info.renderArea.offset.y = 0;
+  //   render_pass_begin_info.renderArea.extent.width = 2048;
+  //   render_pass_begin_info.renderArea.extent.height = 2048;
+  //   render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
+  //   render_pass_begin_info.clearValueCount = 1;
+  //   render_pass_begin_info.pClearValues = clear_values;
+  //   render_pass_begin_info.pNext = 0;
+  // 
+  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
+  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
+  // 
+  // void draw_shadow(Transform transform, Model model) {
+  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
-    DefaultPushConstant dpc;
-    dpc.MODEL_POSITION = transform.position;
-    dpc.TEXTURE_INDEX = 2;
-    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-  
-    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  }
+  //   DefaultPushConstant dpc;
+  //   dpc.MODEL_POSITION = transform.position;
+  //   dpc.TEXTURE_INDEX = 2;
+  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
+  // 
+  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
+  // }
 
-  void draw_shadow_things() {
-    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
-      // NOTE(sean): frustum culling temporarily removed because it is culling
-      // using the MAIN_CAMERA instead of the SUN_CAMERA
-      //if (box_in_frustum(transform.pos, scl)) {
-        draw_shadow(transform, model);
-      //}
-    }
-  }
+  // void draw_shadow_things() {
+  //   for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
+  //     // NOTE(sean): frustum culling temporarily removed because it is culling
+  //     // using the MAIN_CAMERA instead of the SUN_CAMERA
+  //     //if (box_in_frustum(transform.pos, scl)) {
+  //       draw_shadow(transform, model);
+  //     //}
+  //   }
+  // }
 
-  void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
+  // void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
 
-  void begin_depth_prepass_rendering() {
-    // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
-    // window_h);
-  
-    VkClearValue depth_clear;
-    depth_clear.depthStencil.depth = 1.0f;
-  
-    VkClearValue clear_values[1] = {depth_clear};
-  
-    VkRenderPassBeginInfo render_pass_begin_info = {};
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.renderPass = _depth_prepass_render_pass;
-    render_pass_begin_info.renderArea.offset.x = 0;
-    render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
-    render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
-    render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
-    render_pass_begin_info.clearValueCount = 1;
-    render_pass_begin_info.pClearValues = clear_values;
-    render_pass_begin_info.pNext = 0;
-  
-    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
+  // void begin_depth_prepass_rendering() {
+  //   // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
+  //   // window_h);
+  // 
+  //   VkClearValue depth_clear;
+  //   depth_clear.depthStencil.depth = 1.0f;
+  // 
+  //   VkClearValue clear_values[1] = {depth_clear};
+  // 
+  //   VkRenderPassBeginInfo render_pass_begin_info = {};
+  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  //   render_pass_begin_info.renderPass = _depth_prepass_render_pass;
+  //   render_pass_begin_info.renderArea.offset.x = 0;
+  //   render_pass_begin_info.renderArea.offset.y = 0;
+  //   render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
+  //   render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
+  //   render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
+  //   render_pass_begin_info.clearValueCount = 1;
+  //   render_pass_begin_info.pClearValues = clear_values;
+  //   render_pass_begin_info.pNext = 0;
+  // 
+  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
+  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
 
-  void draw_depth(Transform transform, Model model) {
-    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
+  // void draw_depth(Transform transform, Model model) {
+  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
-    DefaultPushConstant dpc;
-    dpc.MODEL_POSITION = transform.position;
-    dpc.TEXTURE_INDEX = 2;
-    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-  
-    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  }
+  //   DefaultPushConstant dpc;
+  //   dpc.MODEL_POSITION = transform.position;
+  //   dpc.TEXTURE_INDEX = 2;
+  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
+  // 
+  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
+  // }
 
-  void draw_depth_prepass_things() {
-    for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
-      if (box_in_frustum(transform.position, model.half_extents)) {
-        draw_depth(transform, model);
-      }
-    }
-  }
+  // void draw_depth_prepass_things() {
+  //   for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
+  //     if (box_in_frustum(transform.position, model.half_extents)) {
+  //       draw_depth(transform, model);
+  //     }
+  //   }
+  // }
 
-  void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-  
-  void begin_forward_rendering() {
-    VkClearValue color_clear;
-    color_clear.color.float32[0] = 0.0f;
-    color_clear.color.float32[1] = 0.0f;
-    color_clear.color.float32[2] = 0.0f;
-    color_clear.color.float32[3] = 1.0f;
-  
-    VkClearValue depth_clear;
-    depth_clear.depthStencil.depth = 1.0f;
-  
-    VkClearValue clear_values[2] = {color_clear, depth_clear};
-  
-    VkRenderPassBeginInfo render_pass_begin_info = {};
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.renderPass = _default_render_pass;
-    render_pass_begin_info.renderArea.offset.x = 0;
-    render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
-    render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
-    render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
-    render_pass_begin_info.clearValueCount = 2;
-    render_pass_begin_info.pClearValues = clear_values;
-    render_pass_begin_info.pNext = 0;
-  
-    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
-  
-  void begin_lit_pass() {
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  }
-  
-  void draw_lit(Transform transform, Model model, Texture texture) {
-    AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
+  // void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
+  // 
+  // void begin_forward_rendering() {
+  //   VkClearValue color_clear;
+  //   color_clear.color.float32[0] = 0.0f;
+  //   color_clear.color.float32[1] = 0.0f;
+  //   color_clear.color.float32[2] = 0.0f;
+  //   color_clear.color.float32[3] = 1.0f;
+  // 
+  //   VkClearValue depth_clear;
+  //   depth_clear.depthStencil.depth = 1.0f;
+  // 
+  //   VkClearValue clear_values[2] = {color_clear, depth_clear};
+  // 
+  //   VkRenderPassBeginInfo render_pass_begin_info = {};
+  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  //   render_pass_begin_info.renderPass = _default_render_pass;
+  //   render_pass_begin_info.renderArea.offset.x = 0;
+  //   render_pass_begin_info.renderArea.offset.y = 0;
+  //   render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
+  //   render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
+  //   render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
+  //   render_pass_begin_info.clearValueCount = 2;
+  //   render_pass_begin_info.pClearValues = clear_values;
+  //   render_pass_begin_info.pNext = 0;
+  // 
+  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
+  // 
+  // void begin_lit_pass() {
+  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
+  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
+  // 
+  //   VkDeviceSize offset = 0;
+  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+  // }
+  // 
+  // void draw_lit(Transform transform, Model model, Texture texture) {
+  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
 
-    DefaultPushConstant dpc;
-    dpc.MODEL_POSITION = transform.position;
-    dpc.TEXTURE_INDEX = (u32)texture.id;
-    dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-    dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
+  //   DefaultPushConstant dpc;
+  //   dpc.MODEL_POSITION = transform.position;
+  //   dpc.TEXTURE_INDEX = (u32)texture.id;
+  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
+  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
 
-    _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  }
-  
-  void draw_lit_pass_things() {
-    for (auto [e, transform, model, material] :
-    get_view_each(View<Include<const Transform, const Model, const BasicMaterial>> {})) {
-    //registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
-      if (box_in_frustum(transform.position, model.half_extents)) {
-        draw_lit(transform, model, material.albedo);
-      }
-    }
-  }
-  
-  void end_lit_pass() {}
+  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
+  // }
+  // 
+  // void draw_lit_pass_things() {
+  //   for (auto [e, transform, model, material] :
+  //   get_view_each(View<Include<const Transform, const Model, const BasicMaterial>> {})) {
+  //   //registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
+  //     if (box_in_frustum(transform.position, model.half_extents)) {
+  //       draw_lit(transform, model, material.albedo);
+  //     }
+  //   }
+  // }
+  // 
+  // void end_lit_pass() {}
   
   // void draw_color(Transform transform, Model model, Color color) {
   //   AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];

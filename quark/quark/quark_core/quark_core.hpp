@@ -223,6 +223,7 @@ namespace quark {
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
   
   // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
+  mat4 forward_up_mat4(vec3 forward, vec3 up);
   mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
   mat4 axis_angle_mat4(vec3 axis, f32 angle);
   mat4 translate_mat4(vec3 position);
@@ -318,10 +319,18 @@ namespace quark {
   #define for_iter(ty, name, start, end) for (ty name = start; name != end; name++)
   
 //
-// Typedef Helpers
+// Enum Helpers
 //
   
-  #define namespace_enum(name, int_type, members...) namespace name { enum Enum : int_type { members }; }
+#define declare_enum(name, int_type, members...) \
+  enum struct name : int_type { members }; \
+  inline name operator|(name a, name b) { return (name)((int_type)a | (int_type)b); } \
+  inline name operator&(name a, name b) { return (name)((int_type)a & (int_type)b); } \
+  inline name operator^(name a, name b) { return (name)((int_type)a ^ (int_type)b); } \
+  inline name operator+(name a, name b) { return (name)((int_type)a + (int_type)b); } \
+  inline name operator-(name a, name b) { return (name)((int_type)a - (int_type)b); } \
+  inline void operator+=(name& a, name b) { a = a + b; } \
+  inline void operator-=(name& a, name b) { a = a - b; } \
   
 //
 // Array Count Of

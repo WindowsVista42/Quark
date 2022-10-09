@@ -70,6 +70,7 @@ namespace quark {
 //
 
   engine_api Model create_model(const char* mesh_name, vec3 scale);
+  engine_api Texture create_texture(const char* texture_name);
 
 //
 // Material Types
@@ -262,7 +263,7 @@ namespace quark {
   template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
 
   // Define the resource in a cpp file
-  #define define_resource(type, val) \
+  #define define_resource(type, val...) \
   type type##_RESOURCE = val
 
   // Take a resource handle and get the resource value from it
@@ -883,59 +884,78 @@ namespace quark {
     engine_var VkPhysicalDevice _physical_device;
     engine_var VkDevice _device;
     engine_var VkSurfaceKHR _surface;
+
+    engine_var VkSwapchainKHR _swapchain; //
+    engine_var std::vector<VkImage> _swapchain_images; //
+    engine_var std::vector<VkImageView> _swapchain_image_views; //
+    engine_var VkFormat _swapchain_format; //
     
-    engine_var VkSwapchainKHR _swapchain;
-    engine_var std::vector<VkImage> _swapchain_images;
-    engine_var std::vector<VkImageView> _swapchain_image_views;
-    engine_var VkFormat _swapchain_format;
-    
-    engine_var AllocatedImage _global_depth_image;
-    engine_var AllocatedImage _sun_depth_image;
-    
+    engine_var AllocatedImage _global_depth_image; //
+    engine_var AllocatedImage _sun_depth_image; //
+
+    struct GraphicsContext {
+      VkInstance instance;
+      VkDebugUtilsMessengerEXT debug_messenger;
+      VkPhysicalDevice physical_device;
+      VkDevice device;
+      VkSurfaceKHR surface;
+
+      VkQueue graphics_queue;
+      VkQueue transfer_queue;
+      VkQueue present_queue;
+                                 
+      u32 graphics_queue_family;
+      u32 transfer_queue_family;
+      u32 present_queue_family;
+    };
+
+    engine_api const GraphicsContext* get_graphics_context();
+
     engine_var VkQueue _graphics_queue;
     engine_var VkQueue _transfer_queue;
     engine_var VkQueue _present_queue;
-    
+
     engine_var u32 _graphics_queue_family;
     engine_var u32 _transfer_queue_family;
     engine_var u32 _present_queue_family;
-    
+
     engine_var VkCommandPool _transfer_cmd_pool;
-    
+
+    // update to per thread resource using api
     engine_var VkCommandPool _graphics_cmd_pool[_FRAME_OVERLAP];
     engine_var VkCommandBuffer _main_cmd_buf[_FRAME_OVERLAP];
     engine_var VkSemaphore _present_semaphore[_FRAME_OVERLAP];
     engine_var VkSemaphore _render_semaphore[_FRAME_OVERLAP];
     engine_var VkFence _render_fence[_FRAME_OVERLAP];
     
-    engine_var VkSampler _default_sampler;
-    
+    engine_var VkSampler _default_sampler; //
+
     // mesh data
     engine_var usize _gpu_mesh_count;
     engine_var AllocatedMesh _gpu_meshes[1024]; // hot data
     engine_var vec3 _gpu_mesh_scales[1024]; // cold data
     engine_var LinearAllocationTracker _gpu_vertices_tracker;
     // this buffer starts out as being a 
-    engine_var AllocatedBuffer _gpu_vertices;
+    engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
     
     // image data
-    engine_var AllocatedImage _gpu_images[1024];
+    engine_var AllocatedImage _gpu_images[1024]; // wont be used in the future
 
-    engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP];
+    engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP]; // wont be used in the future
 
-    engine_var DescriptorLayoutInfo _global_cosntants_layout_info[];
-    engine_var VkDescriptorPoolSize _global_descriptor_pool_sizes[];
-    engine_var VkDescriptorPool _global_descriptor_pool;
-    engine_var VkDescriptorSetLayout _global_constants_layout;
+    engine_var DescriptorLayoutInfo _global_cosntants_layout_info[]; //
+    engine_var VkDescriptorPoolSize _global_descriptor_pool_sizes[]; //
+    engine_var VkDescriptorPool _global_descriptor_pool; //
+    engine_var VkDescriptorSetLayout _global_constants_layout; //
     
-    engine_var VkDescriptorSet _global_constants_sets[_FRAME_OVERLAP];
+    engine_var VkDescriptorSet _global_constants_sets[_FRAME_OVERLAP]; //
     
-    engine_var VkPipelineLayout _lit_pipeline_layout;
-    engine_var VkPipelineLayout _color_pipeline_layout;
-    engine_var VkPipeline _lit_pipeline;
-    engine_var VkPipeline _solid_pipeline;
-    engine_var VkPipeline _wireframe_pipeline;
-    engine_var VkRenderPass _default_render_pass;
+    engine_var VkPipelineLayout _lit_pipeline_layout; //
+    engine_var VkPipelineLayout _color_pipeline_layout; //
+    engine_var VkPipeline _lit_pipeline; //
+    engine_var VkPipeline _solid_pipeline; //
+    engine_var VkPipeline _wireframe_pipeline; //
+    engine_var VkRenderPass _default_render_pass; //
 
     //engine_var RenderEffect _depth_prepass_effect;
     //engine_var RenderEffect _shadowmap_effect;
@@ -943,32 +963,32 @@ namespace quark {
     //engine_var RenderEffect _solid_effect;
     //engine_var RenderEffect _wireframe_effect;
 
-    engine_var VkPipelineLayout _depth_only_pipeline_layout;
-    engine_var VkPipeline _depth_only_pipeline;
-    engine_var VkRenderPass _depth_only_render_pass;
+    engine_var VkPipelineLayout _depth_only_pipeline_layout; //
+    engine_var VkPipeline _depth_only_pipeline; //
+    engine_var VkRenderPass _depth_only_render_pass; //
 
-    engine_var VkPipelineLayout _depth_prepass_pipeline_layout;
-    engine_var VkPipeline _depth_prepass_pipeline;
-    engine_var VkRenderPass _depth_prepass_render_pass;
+    engine_var VkPipelineLayout _depth_prepass_pipeline_layout; //
+    engine_var VkPipeline _depth_prepass_pipeline; //
+    engine_var VkRenderPass _depth_prepass_render_pass; //
 
-    engine_var VkFramebuffer* _global_framebuffers;
-    engine_var VkFramebuffer* _depth_prepass_framebuffers;
-    engine_var VkFramebuffer* _sun_shadow_framebuffers;
+    engine_var VkFramebuffer* _global_framebuffers; //
+    engine_var VkFramebuffer* _depth_prepass_framebuffers; //
+    engine_var VkFramebuffer* _sun_shadow_framebuffers; //
 
     engine_var usize _frame_count;
     engine_var u32 _frame_index;
     engine_var u32 _swapchain_image_index;
+
+    engine_var bool _pause_frustum_culling; // make function
+
+    engine_var mat4 _main_view_projection; //
+    engine_var mat4 _sun_view_projection; //
     
-    engine_var bool _pause_frustum_culling;
+    engine_var CullData _cull_data; //
+    engine_var vec4 _cull_planes[6]; //
     
-    engine_var mat4 _main_view_projection;
-    engine_var mat4 _sun_view_projection;
-    
-    engine_var CullData _cull_data;
-    engine_var vec4 _cull_planes[6];
-    
-    engine_var LinearAllocator _render_alloc;
-    engine_var VmaAllocator _gpu_alloc;
+    engine_var LinearAllocator _render_alloc; // Move into func calls
+    engine_var VmaAllocator _gpu_alloc; // Move into func calls
 
     // FUNCTIONS
 
@@ -979,6 +999,12 @@ namespace quark {
     engine_api void end_quick_commands(VkCommandBuffer command_buffer);
     engine_api AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
     engine_api AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
+
+    // IDEA: put in description info, then at a later stage all descriptions
+    // get constructed into their things?
+    //
+    // PROBLEM: Inter-dependencies of resources might be problematic?
+    // SOLUTION: Probably not since each layer of resource is not inter-dependant, only different layers up the chain
 
     // All shaders must be loaded after the call to this function
     engine_api void init_vulkan();
@@ -1004,26 +1030,13 @@ namespace quark {
     // All shaders must be loaded before the call to this function
     engine_api void init_pipelines();
 
-    engine_api bool sphere_in_frustum(vec3 pos, quat rot, vec3 scl);
-    engine_api bool box_in_frustum(vec3 pos, vec3 Scl);
+    engine_api bool sphere_in_frustum(vec3 pos, quat rot, vec3 scl); // refactor
+    engine_api bool box_in_frustum(vec3 pos, vec3 Scl); // refactor
 
-    // Shader loading
-    // engine_api VkVertexShader* load_vert_shader(std::string* path);
-    // engine_api VkFragmentShader* load_frag_shader(std::string* path);
-    // engine_api void unload_shader(VkShaderModule* shader);
-
-    // Mesh loading
     engine_api AllocatedMesh create_mesh(void* data, usize size, usize memsize);
-    // engine_api u32 load_obj_mesh(std::string* path);
-    // // TODO(sean): do some kind of better file checking
-    // engine_api u32 load_vbo_mesh(std::string* path);
-    // engine_api void unload_mesh(AllocatedMesh* mesh);
 
     // Texture loading
     engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
-    engine_api Texture* load_png_texture(std::string* path);
-    engine_api Texture* load_qoi_texture(std::string* path);
-    engine_api void unload_texture(Texture* texture);
 
     engine_api void deinit_sync_objects();
     engine_api void deinit_descriptors();
@@ -1039,14 +1052,14 @@ namespace quark {
     engine_api void deinit_vulkan();
     engine_api void deinit_window();
 
-    engine_api void update_descriptor_sets();
+    // engine_api void update_descriptor_sets();
     engine_api void resize_swapchain();
 
     engine_api void print_performance_statistics();
 
-    engine_api void add_to_render_batch(Transform transform, Model model);
-    template <typename F>
-    void flush_render_batch(F f);
+    // engine_api void add_to_render_batch(Transform transform, Model model);
+    // template <typename F>
+    // void flush_render_batch(F f);
   };
 };
 
@@ -1056,7 +1069,41 @@ namespace quark {
 };
 
 namespace quark {
-  // inline constexpr auto& _FRAME_OVERLAP = render::internal::_FRAME_OVERLAP;
+  enum struct ImageFormat {
+    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
+    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+
+    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
+
+    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
+    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
+
+    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
+    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
+  };
+
+  // namespace_enum(ImageUsage, u32,
+  //   Unknown           = 0x00,
+  //   Src               = 0x01,
+  //   Dst               = 0x02,
+  //   Texture           = 0x04,
+  //   Storage           = 0x08,
+  //   RenderTarget      = 0x10, // implicit depth stored
+  //   // RenderTargetDepth = 0x20,
+  //   Present           = 0x40,
+  // );
+
+  declare_enum(ImageUsage, u32,
+    Unknown           = 0x00,
+    Src               = 0x01,
+    Dst               = 0x02,
+    Texture           = 0x04,
+    Storage           = 0x08,
+    RenderTarget      = 0x10, // implicit depth stored
+    // RenderTargetDepth = 0x20,
+    Present           = 0x40,
+  );
 
   template <typename T>
   class engine_api ItemCache {
@@ -1088,29 +1135,9 @@ namespace quark {
     }
   };
 
-  enum struct ImageFormat {
-    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
-    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT,
-    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+  template <typename T>
+  using RenderResourceCache = std::unordered_map<u32, T>;
 
-    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
-
-    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
-    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
-
-    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
-    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
-  };
-
-  namespace ImageUsage { enum {
-    Unknown      = 0x00,
-    Src          = 0x01,
-    Dst          = 0x02,
-    Texture      = 0x04,
-    Storage      = 0x08,
-    RenderTarget = 0x10, // implicit depth stored
-    Present      = 0x40,
-  }; using Bits = u32; };
   
   enum struct ImageSamples {
     One     = VK_SAMPLE_COUNT_1_BIT,
@@ -1178,7 +1205,7 @@ namespace quark {
   struct engine_api ImageResource {
     struct Info {
       ImageFormat format;
-      ImageUsage::Bits usage;
+      ImageUsage usage;
       ivec2 resolution;
       ImageSamples samples = ImageSamples::One;
 
@@ -1203,7 +1230,7 @@ namespace quark {
     ImageFormat format;
     ivec2 resolution;
     ImageSamples samples;
-    ImageUsage::Bits current_usage;
+    ImageUsage current_usage;
 
     inline bool is_color() {
       return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
@@ -1215,7 +1242,7 @@ namespace quark {
 
     static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
 
-    static void transition(std::string name, u32 index, ImageUsage::Bits next_usage);
+    static void transition(std::string name, u32 index, ImageUsage next_usage);
     //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
     static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
 
@@ -1296,7 +1323,7 @@ namespace quark {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<LoadMode> load_modes;
       std::vector<StoreMode> store_modes;
-      std::vector<ImageUsage::Bits> next_usage_modes;
+      std::vector<ImageUsage> next_usage_modes;
 
       void _validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
@@ -1422,7 +1449,7 @@ namespace quark {
 
     ivec2 resolution;
     std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
-    std::vector<ImageUsage::Bits> next_usage_modes;
+    std::vector<ImageUsage> next_usage_modes;
     std::vector<std::string> image_resources;
 
     std::array<std::array<VkDescriptorSet, 4>, internal::_FRAME_OVERLAP> descriptor_sets;
@@ -1507,7 +1534,7 @@ namespace quark {
 
 namespace quark {
   namespace internal {
-    static VkImageLayout image_usage_vk_layout(ImageUsage::Bits bits, bool is_color) {
+    static VkImageLayout image_usage_vk_layout(ImageUsage bits, bool is_color) {
       auto one_hot_to_binary = [](u32 value) {
         value = (value == 0) ? 1 : value << 1;
         return __builtin_ctz(value);

@@ -445,6 +445,19 @@ namespace quark {
       vec4 { -dot(position, s), -dot(position, u), -dot(position, f), 1.0f },
     };
   }
+
+  mat4 forward_up_mat4(vec3 forward, vec3 up) {
+    vec3 f = normalize(-forward);
+    vec3 s = normalize(cross(up, f));
+    vec3 u = cross(s, f);
+  
+    return mat4 {
+      vec4 { s.x, u.x, f.x, 0.0f },
+      vec4 { s.y, u.y, f.y, 0.0f },
+      vec4 { s.z, u.z, f.z, 0.0f },
+      vec4 { 0.0f, 0.0f, 0.0f, 1.0f },
+    };
+  }
   
   mat4 look_at_mat4(vec3 position, vec3 target, vec3 up) {
     vec3 direction = target - position;

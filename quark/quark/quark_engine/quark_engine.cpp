@@ -28,6 +28,26 @@ namespace quark {
     };
   }
 
+  mat4 get_camera3d_view(const Camera3D* camera) {
+    mat4 look_dir = forward_up_mat4(forward(camera->rotation), VEC3_UNIT_Z);
+    mat4 rotation = axis_angle_mat4(forward(camera->rotation), camera->rotation.roll);
+    mat4 translation = translate_mat4(-camera->position);
+    
+    return look_dir * rotation * translation;
+  }
+
+  mat4 get_camera3d_projection(const Camera3D* camera, f32 aspect) {
+    if(camera->projection_type == ProjectionType::Perspective) {
+      return perspective(rad(camera->fov), aspect, camera->z_near, camera->z_far);
+    } else {
+      panic("get_camera3d_projection currently does not support orthographic projections!");
+    }
+  }
+
+  mat4 get_camera3d_view_projection(const Camera3D* camera, f32 aspect) {
+    return get_camera3d_projection(camera, aspect) * get_camera3d_view(camera);
+  }
+
   std::unordered_map<std::string, ActionProperties> _action_properties_map = {};
   std::unordered_map<std::string, ActionState> _action_state_map = {};
 

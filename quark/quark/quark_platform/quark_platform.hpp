@@ -50,12 +50,12 @@ namespace quark {
     return (input_id)(t | v);
   }
 
-  namespace_enum(InputState, i32,
+  declare_enum(InputState, i32,
     Press           = GLFW_PRESS,
     Release         = GLFW_RELEASE,
   );
 
-  namespace_enum(InputType, u16,
+  declare_enum(InputType, u16,
     Key             = 0,
     MouseButton     = 1,
     GamepadButton   = 2,
@@ -63,130 +63,130 @@ namespace quark {
     GamepadAxis     = 4,
   );
 
-  namespace_enum(KeyCode, input_id,
-    Apostrophe      = make_raw_input_id(InputType::Key, GLFW_KEY_APOSTROPHE),
-    Comma           = make_raw_input_id(InputType::Key, GLFW_KEY_COMMA),
-    Minus           = make_raw_input_id(InputType::Key, GLFW_KEY_MINUS),
-    Period          = make_raw_input_id(InputType::Key, GLFW_KEY_PERIOD),
-    Slash           = make_raw_input_id(InputType::Key, GLFW_KEY_SLASH),
-    Semicolon       = make_raw_input_id(InputType::Key, GLFW_KEY_SEMICOLON),
-    Equal           = make_raw_input_id(InputType::Key, GLFW_KEY_EQUAL),
-    LeftBracket     = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_BRACKET),
-    Backslash       = make_raw_input_id(InputType::Key, GLFW_KEY_BACKSLASH),
-    RightBracket    = make_raw_input_id(InputType::Key, GLFW_KEY_RIGHT_BRACKET),
-    GraveAccent     = make_raw_input_id(InputType::Key, GLFW_KEY_GRAVE_ACCENT),
-    Escape          = make_raw_input_id(InputType::Key, GLFW_KEY_ESCAPE),
+  declare_enum(KeyCode, input_id,
+    Apostrophe      = make_raw_input_id((u16)InputType::Key, GLFW_KEY_APOSTROPHE),
+    Comma           = make_raw_input_id((u16)InputType::Key, GLFW_KEY_COMMA),
+    Minus           = make_raw_input_id((u16)InputType::Key, GLFW_KEY_MINUS),
+    Period          = make_raw_input_id((u16)InputType::Key, GLFW_KEY_PERIOD),
+    Slash           = make_raw_input_id((u16)InputType::Key, GLFW_KEY_SLASH),
+    Semicolon       = make_raw_input_id((u16)InputType::Key, GLFW_KEY_SEMICOLON),
+    Equal           = make_raw_input_id((u16)InputType::Key, GLFW_KEY_EQUAL),
+    LeftBracket     = make_raw_input_id((u16)InputType::Key, GLFW_KEY_LEFT_BRACKET),
+    Backslash       = make_raw_input_id((u16)InputType::Key, GLFW_KEY_BACKSLASH),
+    RightBracket    = make_raw_input_id((u16)InputType::Key, GLFW_KEY_RIGHT_BRACKET),
+    GraveAccent     = make_raw_input_id((u16)InputType::Key, GLFW_KEY_GRAVE_ACCENT),
+    Escape          = make_raw_input_id((u16)InputType::Key, GLFW_KEY_ESCAPE),
 
-    Space           = make_raw_input_id(InputType::Key, GLFW_KEY_SPACE),
+    Space           = make_raw_input_id((u16)InputType::Key, GLFW_KEY_SPACE),
 
-    Num0            = make_raw_input_id(InputType::Key, GLFW_KEY_0),
-    Num1            = make_raw_input_id(InputType::Key, GLFW_KEY_1),
-    Num2            = make_raw_input_id(InputType::Key, GLFW_KEY_2),
-    Num3            = make_raw_input_id(InputType::Key, GLFW_KEY_3),
-    Num4            = make_raw_input_id(InputType::Key, GLFW_KEY_4),
-    Num5            = make_raw_input_id(InputType::Key, GLFW_KEY_5),
-    Num6            = make_raw_input_id(InputType::Key, GLFW_KEY_6),
-    Num7            = make_raw_input_id(InputType::Key, GLFW_KEY_7),
-    Num8            = make_raw_input_id(InputType::Key, GLFW_KEY_8),
-    Num9            = make_raw_input_id(InputType::Key, GLFW_KEY_9),
+    Num0            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_0),
+    Num1            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_1),
+    Num2            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_2),
+    Num3            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_3),
+    Num4            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_4),
+    Num5            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_5),
+    Num6            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_6),
+    Num7            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_7),
+    Num8            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_8),
+    Num9            = make_raw_input_id((u16)InputType::Key, GLFW_KEY_9),
 
-    A               = make_raw_input_id(InputType::Key, GLFW_KEY_A),
-    B               = make_raw_input_id(InputType::Key, GLFW_KEY_B),
-    C               = make_raw_input_id(InputType::Key, GLFW_KEY_C),
-    D               = make_raw_input_id(InputType::Key, GLFW_KEY_D),
-    E               = make_raw_input_id(InputType::Key, GLFW_KEY_E),
-    F               = make_raw_input_id(InputType::Key, GLFW_KEY_F),
-    G               = make_raw_input_id(InputType::Key, GLFW_KEY_G),
-    H               = make_raw_input_id(InputType::Key, GLFW_KEY_H),
-    I               = make_raw_input_id(InputType::Key, GLFW_KEY_I),
-    J               = make_raw_input_id(InputType::Key, GLFW_KEY_J),
-    K               = make_raw_input_id(InputType::Key, GLFW_KEY_K),
-    L               = make_raw_input_id(InputType::Key, GLFW_KEY_L),
-    M               = make_raw_input_id(InputType::Key, GLFW_KEY_M),
-    N               = make_raw_input_id(InputType::Key, GLFW_KEY_N),
-    O               = make_raw_input_id(InputType::Key, GLFW_KEY_O),
-    P               = make_raw_input_id(InputType::Key, GLFW_KEY_P),
-    Q               = make_raw_input_id(InputType::Key, GLFW_KEY_Q),
-    R               = make_raw_input_id(InputType::Key, GLFW_KEY_R),
-    S               = make_raw_input_id(InputType::Key, GLFW_KEY_S),
-    T               = make_raw_input_id(InputType::Key, GLFW_KEY_T),
-    U               = make_raw_input_id(InputType::Key, GLFW_KEY_U),
-    V               = make_raw_input_id(InputType::Key, GLFW_KEY_V),
-    W               = make_raw_input_id(InputType::Key, GLFW_KEY_W),
-    X               = make_raw_input_id(InputType::Key, GLFW_KEY_X),
-    Y               = make_raw_input_id(InputType::Key, GLFW_KEY_Y),
-    Z               = make_raw_input_id(InputType::Key, GLFW_KEY_Z),
+    A               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_A),
+    B               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_B),
+    C               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_C),
+    D               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_D),
+    E               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_E),
+    F               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_F),
+    G               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_G),
+    H               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_H),
+    I               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_I),
+    J               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_J),
+    K               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_K),
+    L               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_L),
+    M               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_M),
+    N               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_N),
+    O               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_O),
+    P               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_P),
+    Q               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_Q),
+    R               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_R),
+    S               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_S),
+    T               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_T),
+    U               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_U),
+    V               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_V),
+    W               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_W),
+    X               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_X),
+    Y               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_Y),
+    Z               = make_raw_input_id((u16)InputType::Key, GLFW_KEY_Z),
 
-    UpArrow         = make_raw_input_id(InputType::Key, GLFW_KEY_UP),
-    DownArrow       = make_raw_input_id(InputType::Key, GLFW_KEY_DOWN),
-    LeftArrow       = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT),
-    RightArrow      = make_raw_input_id(InputType::Key, GLFW_KEY_RIGHT),
+    UpArrow         = make_raw_input_id((u16)InputType::Key, GLFW_KEY_UP),
+    DownArrow       = make_raw_input_id((u16)InputType::Key, GLFW_KEY_DOWN),
+    LeftArrow       = make_raw_input_id((u16)InputType::Key, GLFW_KEY_LEFT),
+    RightArrow      = make_raw_input_id((u16)InputType::Key, GLFW_KEY_RIGHT),
 
-    LeftControl     = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_CONTROL),
-    LeftShift       = make_raw_input_id(InputType::Key, GLFW_KEY_LEFT_SHIFT),
+    LeftControl     = make_raw_input_id((u16)InputType::Key, GLFW_KEY_LEFT_CONTROL),
+    LeftShift       = make_raw_input_id((u16)InputType::Key, GLFW_KEY_LEFT_SHIFT),
   );
 
-  namespace_enum(MouseButtonCode, input_id,
-    Button1         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_1),
-    Button2         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_2),
-    Button3         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_3),
-    Button4         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_4),
-    Button5         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_5),
-    Button6         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_6),
-    Button7         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_7),
-    Button8         = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_8),
+  declare_enum(MouseButtonCode, input_id,
+    Button1         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_1),
+    Button2         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_2),
+    Button3         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_3),
+    Button4         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_4),
+    Button5         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_5),
+    Button6         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_6),
+    Button7         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_7),
+    Button8         = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_8),
 
-    LeftButton      = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_LEFT),
-    RightButton     = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_RIGHT ),
-    MiddleButton    = make_raw_input_id(InputType::MouseButton, GLFW_MOUSE_BUTTON_MIDDLE),
+    LeftButton      = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_LEFT),
+    RightButton     = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_RIGHT ),
+    MiddleButton    = make_raw_input_id((u16)InputType::MouseButton, GLFW_MOUSE_BUTTON_MIDDLE),
   );
 
-  namespace_enum(GamepadButtonCode, input_id,
-    A               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_A),
-    B               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_B),
-    X               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_X),
-    Y               = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_Y),
+  declare_enum(GamepadButtonCode, input_id,
+    A               = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_A),
+    B               = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_B),
+    X               = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_X),
+    Y               = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_Y),
 
-    LeftBumper      = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_BUMPER),
-    RightBumper     = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER),
+    LeftBumper      = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_BUMPER),
+    RightBumper     = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER),
 
-    LeftThumb       = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_THUMB),
-    RightThumb      = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_THUMB),
+    LeftThumb       = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_LEFT_THUMB),
+    RightThumb      = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_RIGHT_THUMB),
 
-    DPadUp          = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_UP),
-    DPadDown        = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_DOWN),
-    DPadLeft        = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_LEFT),
-    DPadRight       = make_raw_input_id(InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT),
+    DPadUp          = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_UP),
+    DPadDown        = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_DOWN),
+    DPadLeft        = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_LEFT),
+    DPadRight       = make_raw_input_id((u16)InputType::GamepadButton, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT),
   );
 
-  namespace_enum(MouseAxisCode, input_id,
-    MoveUp          = make_raw_input_id(InputType::MouseAxis, 0),
-    MoveDown        = make_raw_input_id(InputType::MouseAxis, 1),
-    MoveLeft        = make_raw_input_id(InputType::MouseAxis, 2),
-    MoveRight       = make_raw_input_id(InputType::MouseAxis, 3),
+  declare_enum(MouseAxisCode, input_id,
+    MoveUp          = make_raw_input_id((u16)InputType::MouseAxis, 0),
+    MoveDown        = make_raw_input_id((u16)InputType::MouseAxis, 1),
+    MoveLeft        = make_raw_input_id((u16)InputType::MouseAxis, 2),
+    MoveRight       = make_raw_input_id((u16)InputType::MouseAxis, 3),
 
-    ScrollUp        = make_raw_input_id(InputType::MouseAxis, 4),
-    ScrollDown      = make_raw_input_id(InputType::MouseAxis, 5),
-    ScrollLeft      = make_raw_input_id(InputType::MouseAxis, 6),
-    ScrollRight     = make_raw_input_id(InputType::MouseAxis, 7),
+    ScrollUp        = make_raw_input_id((u16)InputType::MouseAxis, 4),
+    ScrollDown      = make_raw_input_id((u16)InputType::MouseAxis, 5),
+    ScrollLeft      = make_raw_input_id((u16)InputType::MouseAxis, 6),
+    ScrollRight     = make_raw_input_id((u16)InputType::MouseAxis, 7),
   );
 
-  namespace_enum(GamepadAxisCode, input_id,
-    LeftStickUp     = make_raw_input_id(InputType::GamepadAxis, 0),
-    LeftStickDown   = make_raw_input_id(InputType::GamepadAxis, 1),
-    LeftStickLeft   = make_raw_input_id(InputType::GamepadAxis, 2),
-    LeftStickRight  = make_raw_input_id(InputType::GamepadAxis, 3),
+  declare_enum(GamepadAxisCode, input_id,
+    LeftStickUp     = make_raw_input_id((u16)InputType::GamepadAxis, 0),
+    LeftStickDown   = make_raw_input_id((u16)InputType::GamepadAxis, 1),
+    LeftStickLeft   = make_raw_input_id((u16)InputType::GamepadAxis, 2),
+    LeftStickRight  = make_raw_input_id((u16)InputType::GamepadAxis, 3),
 
-    RightStickUp    = make_raw_input_id(InputType::GamepadAxis, 4),
-    RightStickDown  = make_raw_input_id(InputType::GamepadAxis, 5),
-    RightStickLeft  = make_raw_input_id(InputType::GamepadAxis, 6),
-    RightStickRight = make_raw_input_id(InputType::GamepadAxis, 7),
+    RightStickUp    = make_raw_input_id((u16)InputType::GamepadAxis, 4),
+    RightStickDown  = make_raw_input_id((u16)InputType::GamepadAxis, 5),
+    RightStickLeft  = make_raw_input_id((u16)InputType::GamepadAxis, 6),
+    RightStickRight = make_raw_input_id((u16)InputType::GamepadAxis, 7),
 
-    LeftTrigger     = make_raw_input_id(InputType::GamepadAxis, 8),
-    RightTrigger    = make_raw_input_id(InputType::GamepadAxis, 9),
+    LeftTrigger     = make_raw_input_id((u16)InputType::GamepadAxis, 8),
+    RightTrigger    = make_raw_input_id((u16)InputType::GamepadAxis, 9),
   );
 
-  namespace_enum(MouseMode, i32,
+  declare_enum(MouseMode, i32,
     Visible  = GLFW_CURSOR_NORMAL,
     Hidden   = GLFW_CURSOR_HIDDEN,
     Captured = GLFW_CURSOR_DISABLED,
@@ -196,29 +196,29 @@ namespace quark {
   //
   //
 
-  platform_api InputState::Enum get_input_state(input_id input, u32 source_id = 0);
+  platform_api InputState get_input_state(input_id input, u32 source_id = 0);
   platform_api f32 get_input_value(input_id input, u32 source_id = 0);
 
   platform_api bool get_input_down(input_id input, u32 source_id = 0);
   platform_api bool get_input_up(input_id input, u32 source_id = 0);
 
-  platform_api InputState::Enum get_key_state(KeyCode::Enum key);
-  platform_api InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button);
-  platform_api InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button);
+  platform_api InputState get_key_state(KeyCode key);
+  platform_api InputState get_mouse_button_state(MouseButtonCode mouse_button);
+  platform_api InputState get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode gamepad_button);
 
-  platform_api bool get_key_down(KeyCode::Enum key);
-  platform_api bool get_mouse_button_down(MouseButtonCode::Enum key);
-  platform_api bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode::Enum key);
+  platform_api bool get_key_down(KeyCode key);
+  platform_api bool get_mouse_button_down(MouseButtonCode key);
+  platform_api bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode key);
 
-  platform_api bool get_key_up(KeyCode::Enum key);
-  platform_api bool get_mouse_button_up(MouseButtonCode::Enum key);
-  platform_api bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode::Enum key);
+  platform_api bool get_key_up(KeyCode key);
+  platform_api bool get_mouse_button_up(MouseButtonCode key);
+  platform_api bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode key);
 
-  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis);
-  platform_api f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis);
+  platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode gamepad_axis);
+  platform_api f32 get_mouse_axis(MouseAxisCode mouse_axis);
 
-  platform_api MouseMode::Enum get_mouse_mode();
-  platform_api void set_mouse_mode(MouseMode::Enum mouse_mode);
+  platform_api MouseMode get_mouse_mode();
+  platform_api void set_mouse_mode(MouseMode mouse_mode);
 
   platform_api vec2 get_mouse_delta();
   platform_api vec2 get_mouse_position();

@@ -362,16 +362,17 @@ namespace common {
 
       static f32 strength = 1.0f;
       if(get_key_down(KeyCode::B)) {
-        main_camera->rotation.pitch += ((f32)(rand() % 100000) / 100000.0f) * strength;
-        main_camera->rotation.yaw   += ((f32)(rand() % 100000) / 100000.0f) * strength;
-        main_camera->rotation.roll  += ((f32)(rand() % 100000) / 100000.0f) * strength;
-        strength -= delta() * 2.0f;
+        dir.roll += delta();
+        // main_camera->rotation.pitch += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        // main_camera->rotation.yaw   += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        // main_camera->rotation.roll  += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        // strength -= delta() * 2.0f;
       } else {
-        main_camera->rotation.roll = 0.0f;
-        strength += delta() * 10.0f;
+        // main_camera->rotation.roll = 0.0f;
+        // strength += delta() * 10.0f;
       }
 
-      strength = clamp(strength, 0.0f, 1.0f);
+      // strength = clamp(strength, 0.0f, 1.0f);
 
       //if(get_key_down(KeyCode::B)) {
       //  main_camera->rotation.roll += 1.0f * delta();

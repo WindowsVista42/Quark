@@ -105,8 +105,8 @@ namespace quark {
     return glfwWindowShouldClose(_window_ptr) == GLFW_TRUE;
   }
 
-  MouseMode::Enum get_mouse_mode() {
-    return (MouseMode::Enum)glfwGetInputMode(_window_ptr, GLFW_CURSOR);
+  MouseMode get_mouse_mode() {
+    return (MouseMode)glfwGetInputMode(_window_ptr, GLFW_CURSOR);
   }
 
   void set_window_name(const char* window_name) {
@@ -121,31 +121,32 @@ namespace quark {
     glfwSetWindowShouldClose(_window_ptr, GLFW_TRUE);
   }
 
-  void set_mouse_mode(MouseMode::Enum mouse_mode) {
-    glfwSetInputMode(_window_ptr, GLFW_CURSOR, mouse_mode);
+  void set_mouse_mode(MouseMode mouse_mode) {
+    glfwSetInputMode(_window_ptr, GLFW_CURSOR, (i32)mouse_mode);
   }
 
-  InputState::Enum get_input_state(input_id input, u32 source_id) {
+  InputState get_input_state(input_id input, u32 source_id) {
     RawInputId raw = { .bits = input };
+    InputType raw_type = (InputType)raw.type;
 
-    if(raw.type == InputType::Key) {
-      return get_key_state((KeyCode::Enum)input);
+    if(raw_type == InputType::Key) {
+      return get_key_state((KeyCode)input);
     }
 
-    if(raw.type == InputType::MouseButton) {
-      return get_mouse_button_state((MouseButtonCode::Enum)input);
+    if(raw_type == InputType::MouseButton) {
+      return get_mouse_button_state((MouseButtonCode)input);
     }
 
-    if(raw.type == InputType::GamepadButton) {
-      return get_gamepad_button_state(source_id, (GamepadButtonCode::Enum)input);
+    if(raw_type == InputType::GamepadButton) {
+      return get_gamepad_button_state(source_id, (GamepadButtonCode)input);
     }
 
-    if(raw.type == InputType::MouseAxis) {
-      return get_mouse_axis((MouseAxisCode::Enum)input) != 0.0f ? InputState::Press : InputState::Release;
+    if(raw_type == InputType::MouseAxis) {
+      return get_mouse_axis((MouseAxisCode)input) != 0.0f ? InputState::Press : InputState::Release;
     }
 
-    if(raw.type == InputType::GamepadAxis) {
-      return get_gamepad_axis(source_id, (GamepadAxisCode::Enum)input) != 0.0f ? InputState::Press : InputState::Release;
+    if(raw_type == InputType::GamepadAxis) {
+      return get_gamepad_axis(source_id, (GamepadAxisCode)input) != 0.0f ? InputState::Press : InputState::Release;
     }
 
     return InputState::Release;
@@ -153,25 +154,26 @@ namespace quark {
 
   f32 get_input_value(input_id input, u32 source_id) {
     RawInputId raw = { .bits = input };
+    InputType raw_type = (InputType)raw.type;
 
-    if(raw.type == InputType::Key) {
-      return get_key_state((KeyCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    if(raw_type == InputType::Key) {
+      return get_key_state((KeyCode)input) == InputState::Press ? 1.0f : 0.0f;
     }
 
-    if(raw.type == InputType::MouseButton) {
-      return get_mouse_button_state((MouseButtonCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    if(raw_type == InputType::MouseButton) {
+      return get_mouse_button_state((MouseButtonCode)input) == InputState::Press ? 1.0f : 0.0f;
     }
 
-    if(raw.type == InputType::GamepadButton) {
-      return get_gamepad_button_state(source_id, (GamepadButtonCode::Enum)input) == InputState::Press ? 1.0f : 0.0f;
+    if(raw_type == InputType::GamepadButton) {
+      return get_gamepad_button_state(source_id, (GamepadButtonCode)input) == InputState::Press ? 1.0f : 0.0f;
     }
 
-    if(raw.type == InputType::MouseAxis) {
-      return get_mouse_axis((MouseAxisCode::Enum)input);
+    if(raw_type == InputType::MouseAxis) {
+      return get_mouse_axis((MouseAxisCode)input);
     }
 
-    if(raw.type == InputType::GamepadAxis) {
-      return get_gamepad_axis(source_id, (GamepadAxisCode::Enum)input);
+    if(raw_type == InputType::GamepadAxis) {
+      return get_gamepad_axis(source_id, (GamepadAxisCode)input);
     }
 
     return 0.0f;
@@ -185,50 +187,50 @@ namespace quark {
     return get_input_state(input, source_id) == InputState::Release;
   }
 
-  InputState::Enum get_key_state(KeyCode::Enum key) {
-    int code = RawInputId { .bits = key }.value;
-    return (InputState::Enum)glfwGetKey(_window_ptr, code);
+  InputState get_key_state(KeyCode key) {
+    int code = RawInputId { .bits = (i32)key }.value;
+    return (InputState)glfwGetKey(_window_ptr, code);
   }
 
-  InputState::Enum get_mouse_button_state(MouseButtonCode::Enum mouse_button) {
-    int code = RawInputId { .bits = mouse_button }.value;
-    return (InputState::Enum)glfwGetMouseButton(_window_ptr, code);
+  InputState get_mouse_button_state(MouseButtonCode mouse_button) {
+    int code = RawInputId { .bits = (i32)mouse_button }.value;
+    return (InputState)glfwGetMouseButton(_window_ptr, code);
   }
 
-  InputState::Enum get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button) {
+  InputState get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode gamepad_button) {
     panic("get_gamepad_button_state() called!");
     //return (InputState::Enum)glfwGetKey(_window_ptr, (int)gamepad_button);
   }
 
-  bool get_key_down(KeyCode::Enum key) {
+  bool get_key_down(KeyCode key) {
     return get_key_state(key) == InputState::Press;
   }
 
-  bool get_mouse_button_down(MouseButtonCode::Enum mouse_button) {
+  bool get_mouse_button_down(MouseButtonCode mouse_button) {
     return get_mouse_button_state(mouse_button) == InputState::Press;
   }
 
-  bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button) {
+  bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode gamepad_button) {
     return get_gamepad_button_state(gamepad_id, gamepad_button) == InputState::Press;
   }
 
-  bool get_key_up(KeyCode::Enum key) {
+  bool get_key_up(KeyCode key) {
     return get_key_state(key) == InputState::Release;
   }
 
-  bool get_mouse_button_up(MouseButtonCode::Enum mouse_button) {
+  bool get_mouse_button_up(MouseButtonCode mouse_button) {
     return get_mouse_button_state(mouse_button) == InputState::Release;
   }
 
-  bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode::Enum gamepad_button) {
+  bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode gamepad_button) {
     return get_gamepad_button_state(gamepad_id, gamepad_button) == InputState::Release;
   }
 
-  f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode::Enum gamepad_axis) {
+  f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode gamepad_axis) {
     panic("get_gamepad_axis() called!");
   }
 
-  f32 get_mouse_axis(MouseAxisCode::Enum mouse_axis) {
+  f32 get_mouse_axis(MouseAxisCode mouse_axis) {
     if(mouse_axis == MouseAxisCode::MoveUp) {
       return max(get_mouse_delta().y, 0.0f);
     }
