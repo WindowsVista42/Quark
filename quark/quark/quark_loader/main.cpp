@@ -1,6 +1,7 @@
 #include "../module.hpp"
 #include <filesystem>
 #include <unordered_set>
+
 using namespace quark;
 
 #if defined(_WIN32) || defined(_WIN64)

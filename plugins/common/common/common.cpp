@@ -23,11 +23,6 @@ namespace common {
   }
 };
 
-struct Camera3D : Camera {};
-
-declare_resource(common_var, Camera3D);
-define_resource(Camera3D, {});
-
 //
 
 //#include "../../../quark/src/module.hpp"
@@ -267,7 +262,7 @@ namespace common {
 
   static f32 T = 0.0f;
 
-  void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<Camera3D> res) {
+  void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<MainCamera> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
@@ -281,11 +276,11 @@ namespace common {
 
         transform.position.z = sinf(T + transform.position.y);
 
-        material.color.x = powf(((sinf(TT * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
         material.color.y = 0.0f;
         material.color.z = 0.0f;
       }
-      T += DT;
+      T += delta();
     }
 
     //for_every(i, 1000) {
@@ -307,9 +302,10 @@ namespace common {
       //Resource<render::Camera> main_camera_res = {};
       //render::Camera* main_camera = main_camera_res.value;
       //resource(Camera3D) main_camera_res;
-      Camera* main_camera = get_resource(res);
+      Camera3D* main_camera = (Camera3D*)get_resource(res);
 
       vec2 move_dir = {0.0f, 0.0f};
+      static eul3 dir = main_camera->rotation;
 
       //move_dir.x += get_action("move_right").value;
       //move_dir.x -= get_action("move_left").value;
@@ -346,27 +342,50 @@ namespace common {
       //main_camera->spherical_dir.y += get_input_value(KeyCode::I) / 64.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y -= get_input_value(KeyCode::K) / 64.0f;//as_eul2(get_mouse_delta());
 
-      main_camera->spherical_dir += as_eul2(get_action_vec2("look_right", "look_left", "look_up", "look_down"));
+      dir += as_eul3(as_vec3(get_action_vec2("look_right", "look_left", "look_up", "look_down"), 0));
       //main_camera->spherical_dir.x += get_action("look_right").value;//get_input_value(MouseAxisCode::MoveRight) / 128.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.x -= get_action("look_left").value;//get_input_value(MouseAxisCode::MoveLeft) / 128.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y += get_action("look_up").value;//get_input_value(MouseAxisCode::MoveUp) / 128.0f;//as_eul2(get_mouse_delta());
       //main_camera->spherical_dir.y -= get_action("look_down").value;//get_input_value(MouseAxisCode::MoveDown) / 128.0f;//as_eul2(get_mouse_delta());
 
-      main_camera->spherical_dir.pitch = clamp(main_camera->spherical_dir.pitch, 0.01f, F32_PI - 0.01f);
+      dir.pitch = clamp(dir.pitch, 0.01f, F32_PI - 0.01f);
 
-      move_dir = rotate_point(move_dir, main_camera->spherical_dir.yaw);
+      main_camera->rotation = dir;
 
-      main_camera->pos.x += move_dir.x * DT;
-      main_camera->pos.y += move_dir.y * DT;
+      move_dir = rotate_point(move_dir, main_camera->rotation.yaw);
+
+      main_camera->position.x += move_dir.x * delta();
+      main_camera->position.y += move_dir.y * delta();
   
-      main_camera->pos.z += get_action("up").value * DT;
-      main_camera->pos.z -= get_action("down").value * DT;
+      main_camera->position.z += get_action("up").value * delta();
+      main_camera->position.z -= get_action("down").value * delta();
 
-      MAIN_CAMERA = *main_camera;//Resource<render::Camera>::value;
+      static f32 strength = 1.0f;
+      if(get_key_down(KeyCode::B)) {
+        main_camera->rotation.pitch += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        main_camera->rotation.yaw   += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        main_camera->rotation.roll  += ((f32)(rand() % 100000) / 100000.0f) * strength;
+        strength -= delta() * 2.0f;
+      } else {
+        main_camera->rotation.roll = 0.0f;
+        strength += delta() * 10.0f;
+      }
+
+      strength = clamp(strength, 0.0f, 1.0f);
+
+      //if(get_key_down(KeyCode::B)) {
+      //  main_camera->rotation.roll += 1.0f * delta();
+      //}
+
+      //if(get_key_down(KeyCode::N)) {
+      //  main_camera->rotation.roll -= 1.0f * delta();
+      //}
+
+      // MAIN_CAMERA = *main_camera;//Resource<render::Camera>::value;
     }
   }
   
-  void update1(Resource<Camera> main_camera) {
+  void update1(Resource<MainCamera> main_camera) {
     vec2 move_dir = {0.0f, 0.0f};
   
     //move_dir.x += get_action("d").value;

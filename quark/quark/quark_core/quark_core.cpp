@@ -206,7 +206,7 @@ namespace quark {
     return vec3 {
        cos(a.yaw) * sin(a.pitch),
        sin(a.yaw) * sin(a.pitch),
-      -cos(a.pitch),           
+      -cos(a.pitch),
     };
   }
   
@@ -225,8 +225,12 @@ namespace quark {
   
   // eul3
   
-  vec3 forward(eul3 a);
+  vec3 forward(eul3 a) {
+    return forward(*(eul2*)&a);
+  }
+
   vec3 right(eul3 a);
+
   vec3 up(eul3 a);
   
   eul3 as_eul3(vec3 a) {
@@ -244,24 +248,27 @@ namespace quark {
   }
   
   vec3 up(quat a) {
-    return rotate_point(VEC3_UNIT_X, a);
+    return rotate_point(VEC3_UNIT_Z, a);
   }
 
-  quat rotate_quat(eul3 rotation) {
-    f32 cos_yaw   = cos(rotation.yaw * 0.5);
-    f32 sin_yaw   = sin(rotation.yaw * 0.5);
-    f32 cos_pitch = cos(rotation.pitch * 0.5);
-    f32 sin_pitch = sin(rotation.pitch * 0.5);
-    f32 cos_roll  = cos(rotation.roll * 0.5);
-    f32 sin_roll  = sin(rotation.roll * 0.5);
+  // Yaw X, Pitch Y, Roll Z
+  quat rotate_quat(eul3 rotation);
+  // {
+  //   f32 cos_yaw  = cos(rotation.pitch * 0.5);
+  //   f32 sin_yaw  = sin(rotation.pitch * 0.5);
+  //   f32 cos_pitch = cos(rotation.yaw * 0.5);
+  //   f32 sin_pitch = sin(rotation.yaw * 0.5);
 
-    return quat {
-      .x = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw,
-      .y = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw,
-      .z = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw,
-      .w = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw,
-    };
-  }
+  //   f32 cos_roll   = cos(rotation.roll * 0.5);
+  //   f32 sin_roll   = sin(rotation.roll * 0.5);
+
+  //   return quat {
+  //     .x = sin_yaw * cos_pitch * cos_roll - cos_yaw * sin_pitch * sin_roll,
+  //     .y = cos_yaw * sin_pitch * cos_roll + sin_yaw * cos_pitch * sin_roll,
+  //     .z = cos_yaw * cos_pitch * sin_roll - sin_yaw * sin_pitch * cos_roll,
+  //     .w = cos_yaw * cos_pitch * cos_roll + sin_yaw * sin_pitch * sin_roll,
+  //   };
+  // }
   
   quat rotate_quat(mat3 rotation) {
     return rotation_axes_quat(rotation.xs, rotation.ys, rotation.zs);
@@ -425,7 +432,6 @@ namespace quark {
       vec4 {    x,    y,    z, 1.0f },
     };
   }
-  
   
   mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up) {
     vec3 f = normalize(-direction);

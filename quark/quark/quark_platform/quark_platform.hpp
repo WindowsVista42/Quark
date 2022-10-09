@@ -22,6 +22,7 @@ namespace quark {
   platform_api GLFWwindow* get_window_ptr();
   platform_api std::string get_window_name();
   platform_api ivec2 get_window_dimensions();
+  platform_api f32 get_window_aspect();
   platform_api bool get_window_should_close();
 
   platform_api void set_window_name(const char* window_name);

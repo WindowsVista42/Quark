@@ -1,26 +1,17 @@
 #define QUARK_ENGINE_IMPLEMENTATION
-#include "global.hpp"
-// #include "render.hpp"
-//#include "asset.hpp"
+#include "context.hpp"
 #include "quark_engine.hpp"
 
-#include "../quark_platform/module.hpp"
+namespace quark {
+  f32 _delta = 0.0f;
+  f32 _time = 0.0f;
 
-namespace quark::engine::global {
-  // Delta time between frames
-  f32 DT = 1.0f / 60.0f;
+  f32 delta() {
+    return _delta;
+  }
 
-  // Total time the program has been running
-  f32 TT = 0.0f;
-
-  // Scratch linear allocator, this gets reset every frame
-  LinearAllocator SCRATCH = LinearAllocator {};
-
-  void init_global_alloc() {
-    SCRATCH = create_linear_allocator(100 * MB);
-    //SCRATCH.init(100 * MB);
-    //str::alloc = create_linear_allocator(10 * KB);
-    //str::alloc_head = alloc(&str::alloc, 0);
+  f32 time() {
+    return _time;
   }
 
   void add_asset_types() {
@@ -43,19 +34,19 @@ namespace quark::engine::global {
     load_asset_folder("quark/textures");
   }
 
-  static std::chrono::steady_clock::time_point frame_begin_time;
+  Timestamp frame_begin_time;
+  Timestamp frame_end_time;
 
   void begin_frame_timer() {
-    frame_begin_time = std::chrono::high_resolution_clock::now();
+    frame_begin_time = get_timestamp();
   }
 
   void end_frame_timer() {
-    auto frame_end_time = std::chrono::high_resolution_clock::now();
-    DT = std::chrono::duration<f32>(frame_end_time - frame_begin_time).count();
-    TT += DT;
-  }
+    frame_end_time = get_timestamp();
 
-  void update_tag() {}
+    _delta = (f32)get_timestamp_difference(frame_begin_time, frame_end_time);
+    _time = (f32)frame_end_time.value;
+  }
 
   void init() {
     // Create builtin system lists
@@ -63,11 +54,13 @@ namespace quark::engine::global {
       // quark_init and quark_deinit are special
       // They get run when the engine inits and deinits
       //
-      // This is a good place to load something like a settings file
+      // quark_init is a good place to load something like a settings file
       // or load global resources like images!
       create_system_list("quark_init");
       create_system_list("quark_deinit");
 
+      // Default init - update - deinit pipeline
+      // Feel free to create more systems lists if you need them!
       create_system_list("init");
       create_system_list("update");
       create_system_list("deinit");
@@ -77,7 +70,6 @@ namespace quark::engine::global {
     {
       // Quark init
       create_system("init_threadpool", init_threadpool);
-      create_system("init_global_alloc", init_global_alloc);
       create_system("add_asset_types", add_asset_types);
       create_system("init_window", init_window);
       create_system("init_vulkan", internal::init_vulkan);
@@ -85,6 +77,7 @@ namespace quark::engine::global {
       create_system("init_command_pools_and_buffers", internal::init_command_pools_and_buffers);
       create_system("load_shaders", load_shaders);
       create_system("load_meshes", load_meshes);
+      create_system("load_images", load_images);
       create_system("init_swapchain", internal::init_swapchain);
       create_system("init_render_passes", internal::init_render_passes);
       create_system("init_framebuffers", internal::init_framebuffers);
@@ -110,7 +103,6 @@ namespace quark::engine::global {
     {
       // Quark init
       add_system("quark_init", "init_threadpool", "", -1);
-      add_system("quark_init", "init_global_alloc", "", -1);
       add_system("quark_init", "add_asset_types", "", -1);
       add_system("quark_init", "init_window", "", -1);
       add_system("quark_init", "init_vulkan", "", -1);
@@ -118,6 +110,7 @@ namespace quark::engine::global {
       add_system("quark_init", "init_command_pools_and_buffers", "", -1);
       add_system("quark_init", "load_shaders", "", -1);
       add_system("quark_init", "load_meshes", "", -1);
+      add_system("quark_init", "load_images", "", -1);
       add_system("quark_init", "init_swapchain", "", -1);
       add_system("quark_init", "init_render_passes", "", -1);
       add_system("quark_init", "init_framebuffers", "", -1);
@@ -133,10 +126,24 @@ namespace quark::engine::global {
       add_system("update", "update_tag", "", -1);
       add_system("update", "update_cameras", "", -1);
       add_system("update", "begin_frame", "", -1);
-      add_system("update", "draw_batches", "", -1);
-      add_system("update", "reset_draw_batches", "", -1);
+      // Quark 3D Pipeline
+        // add_system("update", "draw_sun_shadow", "", -1);
+        // add_system("update", "draw_depth_prepass", "", -1);
+        add_system("update", "draw_batches", "", -1);
+        add_system("update", "reset_draw_batches", "", -1);
       add_system("update", "end_effects", "", -1);
       add_system("update", "end_frame", "", -1);
+
+      // Quark 3D Pipeline
+      //
+      // //
+      // // Quark UI Pipeline
+      //   add_system("update", "draw_sun_shadow", "", -1);
+      //   add_system("update", "draw_depth_prepass", "", -1);
+      //   add_system("update", "draw_batches", "", -1);
+      //   add_system("update", "reset_draw_batches", "", -1);
+      // //
+
     }
 
     // Add states
@@ -154,7 +161,7 @@ namespace quark::engine::global {
       Timestamp t0 = get_timestamp();
       run_state();
       Timestamp t1 = get_timestamp();
-      DT = get_timestamp_difference(t0, t1);
+      _delta = get_timestamp_difference(t0, t1);
     }
 
     run_state_deinit();

@@ -97,6 +97,10 @@ namespace quark {
     return _window_dimensions;
   }
 
+  f32 get_window_aspect() {
+    return (f32)_window_dimensions.x / (f32)_window_dimensions.y;
+  }
+
   bool get_window_should_close() {
     return glfwWindowShouldClose(_window_ptr) == GLFW_TRUE;
   }

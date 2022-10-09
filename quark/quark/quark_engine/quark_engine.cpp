@@ -1,13 +1,11 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 #include <unordered_map>
-#include "render.hpp"
 #include <filesystem>
 #include <tiny_obj_loader.h>
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <stb_image.h>
-#include "effect.hpp"
 
 namespace quark {
   template <typename A, typename B>
@@ -60,15 +58,6 @@ namespace quark {
 
   void bind_action(const char* action_name, input_id input, u32 source_id, f32 strength) {
     //TODO(sean): check for invalid input binds?
-
-    // add new input vector if not exist
-    //if(_action_properties_map.find(action_name) == _action_properties_map.end()) {
-    //  _action_properties_map.insert(std::make_pair(std::string(action_name), std::vector<i32>()));
-    //}
-
-    //if(_action_state_map.find(action_name) == _action_state_map.end()) {
-    //  _action_state_map.insert(std::make_pair(std::string(action_name), ActionState{0.0f, 0.0f}));
-    //}
 
     // add new input
     _action_properties_map.at(action_name).input_ids.push_back(input);

@@ -8,35 +8,6 @@
 #include <array>
 
 namespace quark {
-  struct ResourceAccess {
-    i32 resource_id;
-    bool const_access;
-  };
-  
-  // new camera tech
-  
-  // struct Camera2 {
-  //   vec3 position;
-  //   eul3 rotation;
-  //   f32 fov;
-  //   f32 znear;
-  //   f32 zfar;
-  //   u32 projection_type;
-  // };
-  
-  // struct Camera2d {
-  //   vec2 position;
-  //   f32 rotation;
-  //   f32 zoom;
-  // };
-
-  // Component view API
-  
-#if 0
-  // Global control
-  engine_api void init_quark();
-  engine_api void deinit_quark();
-#endif
 
 //
 // Component Types
@@ -243,15 +214,37 @@ namespace quark {
     VkShaderModule module;
   };
 
-//
-// Mod Main
+// 
+// Camera Types
 //
 
-  #if defined(_WIN32) || defined(_WIN64)
-    #define mod_main() extern "C" __declspec(dllexport) void mod_main()
-  #else
-    #define mod_main() extern "C" void mod_main()
-  #endif
+  enum class ProjectionType {
+    Perspective,
+    Orthographic,
+  };
+  
+  struct Camera3D {
+    vec3 position;
+    eul3 rotation;
+    f32 fov;
+    f32 z_near;
+    f32 z_far;
+    ProjectionType projection_type;
+  };
+  
+  struct Camera2D {
+    vec2 position;
+    f32 rotation;
+    f32 zoom;
+  };
+
+  struct MainCamera : Camera3D {};
+  struct UICamera : Camera2D {};
+  struct SunCamera : Camera3D {};
+
+  mat4 get_camera3d_view(const Camera3D* camera);
+  mat4 get_camera3d_projection(const Camera3D* camera, f32 aspect);
+  mat4 get_camera3d_view_projection(const Camera3D* camera, f32 aspect);
 
 //
 // Resource API
@@ -336,6 +329,11 @@ namespace quark {
 
   struct SystemListInfo {
     std::vector<system_id> systems;
+  };
+
+  struct SystemResourceAccess {
+    i32 resource_id;
+    bool const_access;
   };
 
   engine_api void init_systems();
@@ -557,6 +555,8 @@ namespace quark {
 
   struct ScratchAllocator : LinearAllocator {};
 
+  engine_api u8* alloc_scratch(usize count);
+
 //
 // Resource Declaration
 //
@@ -565,13 +565,17 @@ namespace quark {
   declare_resource(engine_var, ScratchAllocator);
   declare_resource(engine_var, AssetServer);
   declare_resource(engine_var, DrawBatchPool);
+  
+  declare_resource(engine_var, MainCamera);
+  declare_resource(engine_var, UICamera);
+  declare_resource(engine_var, SunCamera);
 
 //
 // Template API Definitions
 //
 
   // c++ unordered map does not invalidate references (ie pointers)
-  // whenever it relocates something in memory
+  // whenever it needs more memory
   //
   // This is *very* convenient since it allows us
   // to not need to update the pointer to the map!
@@ -673,65 +677,40 @@ namespace quark {
 };
 
 namespace quark {
-  // TYPES
-
-  struct engine_api Camera {
-    eul2 spherical_dir;
-    vec3 pos;
-    vec3 dir;
-    f32 znear = 0.01;
-    f32 zfar = 10000.0;
-    f32 fov = 90.0;
-
-    Camera from_spherical(vec2 dir);
-    Camera from_transform(Transform transform);
-  };
-
-  // VARIABLES
-
-  engine_var Camera MAIN_CAMERA;
-  engine_var Camera SUN_CAMERA;
-
-  // FUNCTIONS
-
-  enum PROJECTION_TYPE { PERSPECTIVE_PROJECTION, ORTHOGRAPHIC_PROJECTION, };
-  engine_api mat4 update_matrices(Camera camera, int width, int height, i32 projection_type = PERSPECTIVE_PROJECTION);
-
   engine_api void update_cameras();
   engine_api void update_world_data();
 
   engine_api void begin_frame();
+  engine_api void end_frame();
 
-  engine_api void begin_shadow_rendering();
-  engine_api void draw_shadow(Transform transform, Model model);
-  engine_api void draw_shadow_things();
-  engine_api void end_shadow_rendering();
+  // engine_api void begin_shadow_rendering();
+  // engine_api void draw_shadow(Transform transform, Model model);
+  // engine_api void draw_shadow_things();
+  // engine_api void end_shadow_rendering();
 
-  engine_api void begin_depth_prepass_rendering();
-  engine_api void draw_depth(Transform transform, Model model);
-  engine_api void draw_depth_prepass_things();
-  engine_api void end_depth_prepass_rendering();
+  // engine_api void begin_depth_prepass_rendering();
+  // engine_api void draw_depth(Transform transform, Model model);
+  // engine_api void draw_depth_prepass_things();
+  // engine_api void end_depth_prepass_rendering();
 
-  engine_api void begin_forward_rendering();
+  // engine_api void begin_forward_rendering();
 
-  engine_api void begin_lit_pass();
-  engine_api void draw_lit(Transform transform, Model model, Texture texture);
-  engine_api void draw_lit_pass_things();
-  engine_api void end_lit_pass();
+  // engine_api void begin_lit_pass();
+  // engine_api void draw_lit(Transform transform, Model model, Texture texture);
+  // engine_api void draw_lit_pass_things();
+  // engine_api void end_lit_pass();
 
   // engine_api void draw_color(Transform transform, Model model, Color color);
 
-  engine_api void begin_solid_pass();
-  engine_api void draw_solid_pass_things();
-  engine_api void end_solid_pass();
+  // engine_api void begin_solid_pass();
+  // engine_api void draw_solid_pass_things();
+  // engine_api void end_solid_pass();
 
-  engine_api void begin_wireframe_pass();
-  engine_api void draw_wireframe_pass_things();
-  engine_api void end_wireframe_pass();
+  // engine_api void begin_wireframe_pass();
+  // engine_api void draw_wireframe_pass_things();
+  // engine_api void end_wireframe_pass();
 
-  engine_api void end_forward_rendering();
-
-  engine_api void end_frame();
+  // engine_api void end_forward_rendering();
   
   namespace internal {
     struct AllocatedBuffer {
@@ -993,7 +972,7 @@ namespace quark {
 
     // FUNCTIONS
 
-    engine_api void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
+    // engine_api void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
     engine_api void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
     engine_api VkCommandBuffer begin_quick_commands();
@@ -1029,16 +1008,16 @@ namespace quark {
     engine_api bool box_in_frustum(vec3 pos, vec3 Scl);
 
     // Shader loading
-    engine_api VkVertexShader* load_vert_shader(std::string* path);
-    engine_api VkFragmentShader* load_frag_shader(std::string* path);
-    engine_api void unload_shader(VkShaderModule* shader);
+    // engine_api VkVertexShader* load_vert_shader(std::string* path);
+    // engine_api VkFragmentShader* load_frag_shader(std::string* path);
+    // engine_api void unload_shader(VkShaderModule* shader);
 
     // Mesh loading
     engine_api AllocatedMesh create_mesh(void* data, usize size, usize memsize);
-    engine_api u32 load_obj_mesh(std::string* path);
-    // TODO(sean): do some kind of better file checking
-    engine_api u32 load_vbo_mesh(std::string* path);
-    engine_api void unload_mesh(AllocatedMesh* mesh);
+    // engine_api u32 load_obj_mesh(std::string* path);
+    // // TODO(sean): do some kind of better file checking
+    // engine_api u32 load_vbo_mesh(std::string* path);
+    // engine_api void unload_mesh(AllocatedMesh* mesh);
 
     // Texture loading
     engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
