@@ -4,7 +4,7 @@
 namespace common {
   void exit_on_esc() {
     if(get_action("ui_exit").just_down) {
-      MouseMode::Enum mouse_mode = get_mouse_mode();
+      MouseMode mouse_mode = get_mouse_mode();
 
       if(mouse_mode == MouseMode::Hidden || mouse_mode == MouseMode::Visible) {
         set_mouse_mode(MouseMode::Captured);
@@ -254,10 +254,10 @@ namespace common {
     bind_action("pause", KeyCode::P);
     bind_action("ui_exit", KeyCode::Escape);
 
-    bind_action("look_right", MouseAxisCode::MoveRight, 0, 1.0f / 64.0f);
-    bind_action("look_left",  MouseAxisCode::MoveLeft,  0, 1.0f / 64.0f);
-    bind_action("look_up",    MouseAxisCode::MoveUp,    0, 1.0f / 64.0f);
-    bind_action("look_down",  MouseAxisCode::MoveDown,  0, 1.0f / 64.0f);
+    bind_action("look_right", MouseAxisCode::MoveRight, 1.0f / 64.0f);
+    bind_action("look_left",  MouseAxisCode::MoveLeft,  1.0f / 64.0f);
+    bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 64.0f);
+    bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 64.0f);
   }
 
   static f32 T = 0.0f;

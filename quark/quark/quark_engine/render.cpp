@@ -2100,7 +2100,7 @@ namespace quark {
     res.format = this->format;
     res.resolution = this->resolution;
     res.samples = this->samples;
-    res.current_usage = VK_IMAGE_LAYOUT_UNDEFINED;
+    res.current_usage = (ImageUsage)VK_IMAGE_LAYOUT_UNDEFINED;
 
     return res;
   }
@@ -2162,7 +2162,7 @@ namespace quark {
     return;
   }
 
-  void ImageResource::transition(std::string name, u32 index, ImageUsage::Bits next_usage) {
+  void ImageResource::transition(std::string name, u32 index, ImageUsage next_usage) {
     ImageResource& res = ImageResource::get(name, index);
 
     auto old_layout = internal::image_usage_vk_layout(res.current_usage, res.is_color());
@@ -2315,12 +2315,12 @@ namespace quark {
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     info.size = this->size;
 
-    u32 usage_copy = this->usage;
+    u32 usage_copy = (u32)this->usage;
 
-    usage_copy = bit_replace_if(usage_copy, BufferUsage::CpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    usage_copy = bit_replace_if(usage_copy, BufferUsage::CpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    usage_copy = bit_replace_if(usage_copy, BufferUsage::GpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::CpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::CpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::GpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::GpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
     info.usage = internal::buffer_usage_vk_usage(this->usage);//usage_copy;
 
@@ -2506,7 +2506,7 @@ namespace quark {
       auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
 
       // validate all images are render targets
-      if ((res.usage & ImageUsage::RenderTarget) == 0) {
+      if ((res.usage & ImageUsage::RenderTarget) == (ImageUsage)0) {
         panic(create_tempstr() + "Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
              + "Did you forget to add this flag?\n");
       }
@@ -2580,7 +2580,7 @@ namespace quark {
     return attachment_desc;
   }
 
-  void transition(const char* name, ImageUsage::Bits next_usage_mode) {
+  void transition(const char* name, ImageUsage next_usage_mode) {
   }
 
   std::vector<VkAttachmentReference> RenderTarget::Info::_color_attachment_refs() {

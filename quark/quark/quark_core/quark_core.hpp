@@ -324,14 +324,10 @@ namespace quark {
   
 #define declare_enum(name, int_type, members...) \
   enum struct name : int_type { members }; \
-  inline name operator|(name a, name b) { return (name)((int_type)a | (int_type)b); } \
-  inline name operator&(name a, name b) { return (name)((int_type)a & (int_type)b); } \
-  inline name operator^(name a, name b) { return (name)((int_type)a ^ (int_type)b); } \
-  inline name operator+(name a, name b) { return (name)((int_type)a + (int_type)b); } \
-  inline name operator-(name a, name b) { return (name)((int_type)a - (int_type)b); } \
-  inline void operator+=(name& a, name b) { a = a + b; } \
-  inline void operator-=(name& a, name b) { a = a - b; } \
-  
+  inline name operator |(name a, name b) { return (name)((int_type)a | (int_type)b); } \
+  inline name operator &(name a, name b) { return (name)((int_type)a & (int_type)b); } \
+  inline name operator ^(name a, name b) { return (name)((int_type)a ^ (int_type)b); } \
+
 //
 // Array Count Of
 //

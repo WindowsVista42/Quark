@@ -76,6 +76,26 @@ namespace quark {
     ));
   }
 
+  void bind_action(const char* action_name, KeyCode input) {
+    bind_action(action_name, (input_id)input, 0, 1.0f);
+  }
+
+  void bind_action(const char* action_name, MouseButtonCode input) {
+    bind_action(action_name, (input_id)input, 0, 1.0f);
+  }
+
+  void bind_action(const char* action_name, GamepadButtonCode input, u32 source_id) {
+    bind_action(action_name, (input_id)input, source_id, 1.0f);
+  }
+
+  void bind_action(const char* action_name, MouseAxisCode input, f32 strength) {
+    bind_action(action_name, (input_id)input, 0, strength);
+  }
+
+  void bind_action(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength) {
+    bind_action(action_name, (input_id)input, source_id, strength);
+  }
+
   void bind_action(const char* action_name, input_id input, u32 source_id, f32 strength) {
     //TODO(sean): check for invalid input binds?
 
