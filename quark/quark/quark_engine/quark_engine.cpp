@@ -19,6 +19,8 @@ namespace quark {
   // define_resource(ParIterCtxTypeMap, {});
   define_resource(DrawBatchPool, {});
 
+  const GraphicsContext* _context = get_graphics_context();
+
   Model create_model(const char* mesh_name, vec3 scale) {
     mesh_id id = *get_asset<mesh_id>(mesh_name);
 
@@ -793,7 +795,7 @@ namespace quark {
     module_create_info.pCode = (u32*)buffer;
   
     VkShaderModule module = {};
-    if(vkCreateShaderModule(internal::_device, &module_create_info, 0, &module) != VK_SUCCESS) {
+    if(vkCreateShaderModule(_context->device, &module_create_info, 0, &module) != VK_SUCCESS) {
       panic("create shader module!\n");
     };
   

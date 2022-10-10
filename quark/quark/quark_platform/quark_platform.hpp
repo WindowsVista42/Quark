@@ -302,6 +302,8 @@ namespace quark {
   platform_api u8* alloc(LinearAllocator* allocator, usize size);
   platform_api usize alloc(LinearAllocationTracker* allocator, usize size);
 
+  platform_api u8* alloc_copy(LinearAllocator* allocator, void* data, usize size);
+
   platform_api void reset_alloc(LinearAllocator* allocator);
   platform_api void reset_alloc(LinearAllocationTracker* allocator);
 

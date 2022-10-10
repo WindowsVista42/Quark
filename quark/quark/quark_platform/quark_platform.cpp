@@ -438,6 +438,12 @@ namespace quark {
     return offset;
   }
 
+  u8* alloc_copy(LinearAllocator* allocator, void* data, usize size) {
+    u8* ptr = alloc(allocator, size);
+    memcpy(ptr, data, size);
+    return ptr;
+  }
+
   void reset_alloc(LinearAllocator* allocator) {
     allocator->size = 0;
   }

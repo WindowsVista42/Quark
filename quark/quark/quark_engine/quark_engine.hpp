@@ -700,10 +700,35 @@ namespace quark {
 
 namespace quark {
   engine_api void update_cameras();
-  engine_api void update_world_data();
+  // engine_api void update_world_data();
 
   engine_api void begin_frame();
   engine_api void end_frame();
+
+  struct GraphicsContext {
+    VkInstance instance;
+    VkDebugUtilsMessengerEXT debug_messenger;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+    VkSurfaceKHR surface;
+
+    VkQueue graphics_queue;
+    VkQueue transfer_queue;
+    VkQueue present_queue;
+                               
+    u32 graphics_queue_family;
+    u32 transfer_queue_family;
+    u32 present_queue_family;
+
+    VkSwapchainKHR swapchain;
+    VkFormat swapchain_format;
+
+    u32 swapchain_image_count;
+    VkImage* swapchain_images;
+    VkImageView* swapchain_image_views;
+  };
+
+  engine_api const GraphicsContext* get_graphics_context();
 
   // engine_api void begin_shadow_rendering();
   // engine_api void draw_shadow(Transform transform, Model model);
@@ -735,62 +760,62 @@ namespace quark {
   // engine_api void end_forward_rendering();
   
   namespace internal {
-    struct AllocatedBuffer {
-      VmaAllocation alloc;
-      VkBuffer buffer;
-      usize size;
-    };
+    // struct AllocatedBuffer {
+    //   VmaAllocation alloc;
+    //   VkBuffer buffer;
+    //   usize size;
+    // };
      
-    struct AllocatedImage {
-      VmaAllocation alloc;
-      VkImage image;
-      VkImageView view;
-      VkFormat format;
-      ivec2 dimensions;
-    };
+    // struct AllocatedImage {
+    //   VmaAllocation alloc;
+    //   VkImage image;
+    //   VkImageView view;
+    //   VkFormat format;
+    //   ivec2 dimensions;
+    // };
 
-    struct AllocatedMesh {
-      u32 size = 0;
-      u32 offset = 0;
-    };
+    // struct AllocatedMesh {
+    //   u32 size = 0;
+    //   u32 offset = 0;
+    // };
 
-    struct PointLightData {
-      vec3 position;
-      f32 falloff;
-      vec3 color;
-      f32 directionality;
-    };
-    
-    struct DirectionalLightData {
-      vec3 position;
-      f32 falloff;
-      vec3 direction;
-      f32 directionality;
-      vec3 color;
-      u32 _pad0;
-    };
-    
-    struct SunLightData {
-      vec3 direction;
-      f32 directionality;
-      vec3 color;
-      u32 _pad0;
-    };
-    
-    struct CameraData {
-      vec3 pos;
-      u32 _pad0;
-      vec3 dir;
-      f32 fov;
-      vec2 spherical_dir;
-      f32 znear;
-      f32 zfar;
-    };
-    
-    struct TimeData {
-      f32 tt;
-      f32 dt;
-    };
+    // struct PointLightData {
+    //   vec3 position;
+    //   f32 falloff;
+    //   vec3 color;
+    //   f32 directionality;
+    // };
+    // 
+    // struct DirectionalLightData {
+    //   vec3 position;
+    //   f32 falloff;
+    //   vec3 direction;
+    //   f32 directionality;
+    //   vec3 color;
+    //   u32 _pad0;
+    // };
+    // 
+    // struct SunLightData {
+    //   vec3 direction;
+    //   f32 directionality;
+    //   vec3 color;
+    //   u32 _pad0;
+    // };
+    // 
+    // struct CameraData {
+    //   vec3 pos;
+    //   u32 _pad0;
+    //   vec3 dir;
+    //   f32 fov;
+    //   vec2 spherical_dir;
+    //   f32 znear;
+    //   f32 zfar;
+    // };
+    // 
+    // struct TimeData {
+    //   f32 tt;
+    //   f32 dt;
+    // };
     
     // Frustum culling data
     struct CullData {
@@ -824,19 +849,19 @@ namespace quark {
       Model model;
     };
     
-    struct WorldData {
-      PointLightData point_lights[512];
-      DirectionalLightData directional_lights[512];
-      u32 point_light_count;
-      u32 directional_light_count;
-      f32 TT;
-      f32 DT;
-      CameraData main_camera;
-      CameraData sun_camera;
-      SunLightData sun_light;
-      mat4 main_view_projection;
-      mat4 sun_view_projection;
-    };
+    // struct WorldData {
+    //   PointLightData point_lights[512];
+    //   DirectionalLightData directional_lights[512];
+    //   u32 point_light_count;
+    //   u32 directional_light_count;
+    //   f32 TT;
+    //   f32 DT;
+    //   CameraData main_camera;
+    //   CameraData sun_camera;
+    //   SunLightData sun_light;
+    //   mat4 main_view_projection;
+    //   mat4 sun_view_projection;
+    // };
     
     //struct RenderEffectMeta {
     //  u32 width;
@@ -896,49 +921,29 @@ namespace quark {
     static constexpr usize _OP_TIMEOUT = 1000000000; // one second
     static constexpr usize _FRAME_OVERLAP = 2;
     
-    //engine_var i32 WINDOW_W; // Current window width
-    //engine_var i32 WINDOW_H; // Current window height
     engine_var bool _framebuffer_resized; // framebuffer resizing should be --automatically handled--
     
-    engine_var VkInstance _instance;
-    engine_var VkDebugUtilsMessengerEXT _debug_messenger;
-    engine_var VkPhysicalDevice _physical_device;
-    engine_var VkDevice _device;
-    engine_var VkSurfaceKHR _surface;
+    // move into graphics context
+    // engine_var VkInstance _instance;
+    // engine_var VkDebugUtilsMessengerEXT _debug_messenger;
+    // engine_var VkPhysicalDevice _physical_device;
+    // engine_var VkDevice _device;
+    // engine_var VkSurfaceKHR _surface;
 
-    engine_var VkSwapchainKHR _swapchain; //
-    engine_var std::vector<VkImage> _swapchain_images; //
-    engine_var std::vector<VkImageView> _swapchain_image_views; //
-    engine_var VkFormat _swapchain_format; //
-    
-    engine_var AllocatedImage _global_depth_image; //
-    engine_var AllocatedImage _sun_depth_image; //
+    // engine_var VkSwapchainKHR _swapchain; //
+    // engine_var std::vector<VkImage> _swapchain_images; //
+    // engine_var std::vector<VkImageView> _swapchain_image_views; //
+    // engine_var VkFormat _swapchain_format; //
 
-    struct GraphicsContext {
-      VkInstance instance;
-      VkDebugUtilsMessengerEXT debug_messenger;
-      VkPhysicalDevice physical_device;
-      VkDevice device;
-      VkSurfaceKHR surface;
+    // // move into graphics context
+    // engine_var VkQueue _graphics_queue;
+    // engine_var VkQueue _transfer_queue;
+    // engine_var VkQueue _present_queue;
 
-      VkQueue graphics_queue;
-      VkQueue transfer_queue;
-      VkQueue present_queue;
-                                 
-      u32 graphics_queue_family;
-      u32 transfer_queue_family;
-      u32 present_queue_family;
-    };
-
-    engine_api const GraphicsContext* get_graphics_context();
-
-    engine_var VkQueue _graphics_queue;
-    engine_var VkQueue _transfer_queue;
-    engine_var VkQueue _present_queue;
-
-    engine_var u32 _graphics_queue_family;
-    engine_var u32 _transfer_queue_family;
-    engine_var u32 _present_queue_family;
+    // // move into graphics context
+    // engine_var u32 _graphics_queue_family;
+    // engine_var u32 _transfer_queue_family;
+    // engine_var u32 _present_queue_family;
 
     engine_var VkCommandPool _transfer_cmd_pool;
 
@@ -949,7 +954,7 @@ namespace quark {
     engine_var VkSemaphore _render_semaphore[_FRAME_OVERLAP];
     engine_var VkFence _render_fence[_FRAME_OVERLAP];
     
-    engine_var VkSampler _default_sampler; //
+    // engine_var VkSampler _default_sampler; //
 
     // mesh data
     engine_var usize _gpu_mesh_count;
@@ -961,40 +966,6 @@ namespace quark {
     
     // image data
     engine_var AllocatedImage _gpu_images[1024]; // wont be used in the future
-
-    engine_var AllocatedBuffer _world_data_buf[_FRAME_OVERLAP]; // wont be used in the future
-
-    engine_var DescriptorLayoutInfo _global_cosntants_layout_info[]; //
-    engine_var VkDescriptorPoolSize _global_descriptor_pool_sizes[]; //
-    engine_var VkDescriptorPool _global_descriptor_pool; //
-    engine_var VkDescriptorSetLayout _global_constants_layout; //
-    
-    engine_var VkDescriptorSet _global_constants_sets[_FRAME_OVERLAP]; //
-    
-    engine_var VkPipelineLayout _lit_pipeline_layout; //
-    engine_var VkPipelineLayout _color_pipeline_layout; //
-    engine_var VkPipeline _lit_pipeline; //
-    engine_var VkPipeline _solid_pipeline; //
-    engine_var VkPipeline _wireframe_pipeline; //
-    engine_var VkRenderPass _default_render_pass; //
-
-    //engine_var RenderEffect _depth_prepass_effect;
-    //engine_var RenderEffect _shadowmap_effect;
-    //engine_var RenderEffect _lit_shadow_effect;
-    //engine_var RenderEffect _solid_effect;
-    //engine_var RenderEffect _wireframe_effect;
-
-    engine_var VkPipelineLayout _depth_only_pipeline_layout; //
-    engine_var VkPipeline _depth_only_pipeline; //
-    engine_var VkRenderPass _depth_only_render_pass; //
-
-    engine_var VkPipelineLayout _depth_prepass_pipeline_layout; //
-    engine_var VkPipeline _depth_prepass_pipeline; //
-    engine_var VkRenderPass _depth_prepass_render_pass; //
-
-    engine_var VkFramebuffer* _global_framebuffers; //
-    engine_var VkFramebuffer* _depth_prepass_framebuffers; //
-    engine_var VkFramebuffer* _sun_shadow_framebuffers; //
 
     engine_var usize _frame_count;
     engine_var u32 _frame_index;
@@ -1060,18 +1031,17 @@ namespace quark {
     engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
 
     engine_api void deinit_sync_objects();
-    engine_api void deinit_descriptors();
-    engine_api void deinit_sampler();
-    engine_api void deinit_buffers_and_images();
-    engine_api void deinit_shaders();
+    // engine_api void deinit_descriptors();
+    // engine_api void deinit_sampler();
+    // engine_api void deinit_buffers_and_images();
+    // engine_api void deinit_shaders();
     engine_api void deinit_allocators();
-    engine_api void deinit_pipelines();
-    engine_api void deinit_framebuffers();
-    engine_api void deinit_render_passes();
+    // engine_api void deinit_pipelines();
+    // engine_api void deinit_framebuffers();
+    // engine_api void deinit_render_passes();
     engine_api void deinit_command_pools_and_buffers();
     engine_api void deinit_swapchain();
     engine_api void deinit_vulkan();
-    engine_api void deinit_window();
 
     // engine_api void update_descriptor_sets();
     engine_api void resize_swapchain();
