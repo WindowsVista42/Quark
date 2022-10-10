@@ -417,7 +417,7 @@ namespace quark {
 
     // TODO: figure out how I want to conditional enable this
     if (new_length > allocator->capacity) {
-      panic("Failed to allocate to FixedBufferAllocator!");
+      panic("Failed to allocate to Linear Allocator!");
     }
 
     u8* ptr = (allocator->data + allocator->size);
@@ -430,7 +430,7 @@ namespace quark {
 
     // TODO: figure out how I want to conditional enable this
     if (new_length > allocator->capacity) {
-      panic("Failed to allocate to FixedBufferAllocator!");
+      panic("Failed to allocate to Linear Allocation Tracker!");
     }
 
     usize offset = allocator->size;

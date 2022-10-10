@@ -24,6 +24,7 @@
     VkResult err = x;                                                                                                                                \
     if (err) {                                                                                                                                       \
       std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
+      std::cout << "Line: " << __LINE__ << ", File: " << __FILE__ << "\n"; \
       panic("");                                                                                                                                     \
     }                                                                                                                                                \
   } while (0)
@@ -485,8 +486,7 @@ namespace quark {
     usize _gpu_mesh_count = 0;
     MeshInstance _gpu_meshes[1024] = {};
     vec3 _gpu_mesh_scales[1024] = {};
-    LinearAllocationTracker _gpu_vertices_tracker = {};
-    BufferResource _gpu_vertices = {};
+    LinearAllocationTracker _gpu_vertices_tracker = create_linear_allocation_tracker(100 * MB);
 
     ImageResource _gpu_images[1024] = {};
 
@@ -673,55 +673,55 @@ namespace quark {
       submit_info.commandBufferCount = 1;
       submit_info.pCommandBuffers = &command_buffer;
     
-      vkQueueSubmit(_context.transfer_queue, 1, &submit_info, 0);
+      vk_check(vkQueueSubmit(_context.transfer_queue, 1, &submit_info, 0));
       vkQueueWaitIdle(_context.transfer_queue);
     
       vkFreeCommandBuffers(_context.device, _transfer_cmd_pool, 1, &command_buffer);
     }
     
-    AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
-      AllocatedBuffer alloc_buffer = {};
-    
-      VkBufferCreateInfo buffer_info = {};
-      buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      buffer_info.size = size;
-      buffer_info.usage = vk_usage;
-    
-      VmaAllocationCreateInfo alloc_info = {};
-      alloc_info.usage = vma_usage;
-    
-      vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer.buffer, &alloc_buffer.alloc, 0));
-      alloc_buffer.size = size;
-    
-      return alloc_buffer;
-    }
-    
-    AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
-      AllocatedImage image = {};
-      image.format = format;
-      image.dimensions = {(i32)width, (i32)height};
-    
-      // Depth image creation
-      VkExtent3D img_ext = {
-          width,
-          height,
-          1,
-      };
-    
-      VkImageCreateInfo img_info = get_img_info(image.format, usage, img_ext);
-    
-      VmaAllocationCreateInfo alloc_info = {};
-      alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-      alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    
-      vmaCreateImage(_gpu_alloc, &img_info, &alloc_info, &image.image, &image.alloc, 0);
-    
-      VkImageViewCreateInfo view_info = get_img_view_info(image.format, image.image, aspect);
-    
-      vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.view));
-    
-      return image;
-    }
+    // AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
+    //   AllocatedBuffer alloc_buffer = {};
+    // 
+    //   VkBufferCreateInfo buffer_info = {};
+    //   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    //   buffer_info.size = size;
+    //   buffer_info.usage = vk_usage;
+    // 
+    //   VmaAllocationCreateInfo alloc_info = {};
+    //   alloc_info.usage = vma_usage;
+    // 
+    //   vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &alloc_buffer.buffer, &alloc_buffer.alloc, 0));
+    //   alloc_buffer.size = size;
+    // 
+    //   return alloc_buffer;
+    // }
+    // 
+    // AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect) {
+    //   AllocatedImage image = {};
+    //   image.format = format;
+    //   image.dimensions = {(i32)width, (i32)height};
+    // 
+    //   // Depth image creation
+    //   VkExtent3D img_ext = {
+    //       width,
+    //       height,
+    //       1,
+    //   };
+    // 
+    //   VkImageCreateInfo img_info = get_img_info(image.format, usage, img_ext);
+    // 
+    //   VmaAllocationCreateInfo alloc_info = {};
+    //   alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    //   alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    // 
+    //   vmaCreateImage(_gpu_alloc, &img_info, &alloc_info, &image.image, &image.alloc, 0);
+    // 
+    //   VkImageViewCreateInfo view_info = get_img_view_info(image.format, image.image, aspect);
+    // 
+    //   vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.view));
+    // 
+    //   return image;
+    // }
     
     void init_vulkan() {
       auto start = std::chrono::high_resolution_clock::now();
@@ -813,9 +813,9 @@ namespace quark {
 
     void init_mesh_buffer() {
       // Init staging buffer and allocation tracker
-      constexpr usize _BUFFER_SIZE = 100 * MB;
-      _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      _gpu_vertices_tracker = create_linear_allocation_tracker(_BUFFER_SIZE);
+      // constexpr usize _BUFFER_SIZE = 100 * MB;
+      // _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+      // _gpu_vertices_tracker = create_linear_allocation_tracker(_BUFFER_SIZE);
 
       BufferResource::Info info = {};
 
@@ -826,25 +826,33 @@ namespace quark {
       BufferResource::create_one(info, "staging_buffer");
 
       info = {
-        .usage = BufferUsage::GpuDst | BufferUsage::Vertex,
+        .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
         .size = 100 * MB,
       };
-      BufferResource::create_one(info, "global_vertex_buffer");
+      BufferResource::create_one(info, "main_vertex_buffer");
 
       info = {
-        .usage = BufferUsage::GpuDst | BufferUsage::Index,
+        .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Index,
         .size = 100 * MB,
       };
-      BufferResource::create_one(info, "global_index_buffer");
+      BufferResource::create_one(info, "main_index_buffer");
     }
     
     void copy_meshes_to_gpu() {
       // updates _gpu_vertex & _gpu_vertices_tracker to new data
-      AllocatedBuffer old_buffer = _gpu_vertices;
+      // AllocatedBuffer old_buffer = _gpu_vertices;
+      BufferResource old_buffer = BufferResource::cache_one.get("main_vertex_buffer");
       LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
-    
-      _gpu_vertices = create_allocated_buffer(
-          old_tracker.size * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+      BufferResource::Info info = {
+        .usage = BufferUsage::GpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
+        .size = old_tracker.size * sizeof(VertexPNT),
+      };
+
+      BufferResource new_buffer = info._create();
+
+      // _gpu_vertices = create_allocated_buffer(
+      //     old_tracker.size * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
       destroy_linear_allocation_tracker(&_gpu_vertices_tracker);
       _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
@@ -861,12 +869,14 @@ namespace quark {
         copy.dstOffset = 0;
         copy.srcOffset = 0;
         copy.size = _gpu_vertices_tracker.size * sizeof(VertexPNT);
-        vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
+        vkCmdCopyBuffer(cmd, old_buffer.buffer, new_buffer.buffer, 1, &copy);
     
         end_quick_commands(cmd);
       }
     
-      vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
+      vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.allocation);
+
+      BufferResource::cache_one.get("main_vertex_buffer") = new_buffer;
 
       //AllocatedBuffer old_buffer = _gpu_vertices;
       //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
@@ -1085,7 +1095,7 @@ namespace quark {
 
         .render_mode = "default_fill",
 
-        .vertex_buffer_resource = "global_vertex_buffer", //
+        .vertex_buffer_resource = "main_vertex_buffer", //
         .index_buffer_resource = "",
       };
       RenderEffect::Info::cache.add("color_fill", re_info);
@@ -1410,15 +1420,17 @@ namespace quark {
     }
     
     // Mesh loading
-    AllocatedMesh create_mesh(void* data, usize size, usize elemsize) {
-      AllocatedMesh mesh = {};
-      mesh.size = size;
+    MeshInstance create_mesh(void* data, usize size, usize elemsize) {
+      MeshInstance mesh = {};
+      mesh.count = size;
       mesh.offset = alloc(&_gpu_vertices_tracker, size);
+
+      BufferResource* gpu_verts = &BufferResource::cache_one.get("main_vertex_buffer");
     
       void* ptr;
-      vmaMapMemory(_gpu_alloc, _gpu_vertices.alloc, &ptr);
-      memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.size);
-      vmaUnmapMemory(_gpu_alloc, _gpu_vertices.alloc);
+      vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
+      memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
+      vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
 
       return mesh;
     }
@@ -1616,7 +1628,7 @@ namespace quark {
     //  return mesh;
     //}
     
-    void unload_mesh(AllocatedMesh* mesh) {}
+    // void unload_mesh(AllocatedMesh* mesh) {}
     
     // Texture loading
     void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
@@ -1768,7 +1780,7 @@ namespace quark {
     
     void deinit_allocators() {
       destroy_linear_allocator(&_render_alloc);
-      vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
+      // vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
       vmaDestroyAllocator(_gpu_alloc);
     }
     
@@ -2312,6 +2324,9 @@ namespace quark {
     VmaAllocationCreateInfo info = {};
     info.usage = internal::buffer_usage_vma_usage(this->usage);
     return info;
+  }
+
+  BufferResource2 create_buffer_resource(BufferResourceInfo2* info) {
   }
 
   BufferResource BufferResource::Info::_create() {
@@ -3091,7 +3106,7 @@ namespace quark {
     if (internal::current_re.vertex_buffer_resource != re.vertex_buffer_resource) {
       VkDeviceSize offset = 0;
       //vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &re.vertex_buffer_resource, &offset);
-      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &re.vertex_buffer_resource, &offset);
     }
 
     internal::current_re = re;

@@ -958,14 +958,14 @@ namespace quark {
 
     // mesh data
     engine_var usize _gpu_mesh_count;
-    engine_var AllocatedMesh _gpu_meshes[1024]; // hot data
+    engine_var MeshInstance _gpu_meshes[1024]; // hot data
     engine_var vec3 _gpu_mesh_scales[1024]; // cold data
     engine_var LinearAllocationTracker _gpu_vertices_tracker;
     // this buffer starts out as being a 
-    engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
+    // engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
     
     // image data
-    engine_var AllocatedImage _gpu_images[1024]; // wont be used in the future
+    // engine_var AllocatedImage _gpu_images[1024]; // wont be used in the future
 
     engine_var usize _frame_count;
     engine_var u32 _frame_index;
@@ -989,8 +989,8 @@ namespace quark {
 
     engine_api VkCommandBuffer begin_quick_commands();
     engine_api void end_quick_commands(VkCommandBuffer command_buffer);
-    engine_api AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
-    engine_api AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
+    // engine_api AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
+    // engine_api AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
     // IDEA: put in description info, then at a later stage all descriptions
     // get constructed into their things?
@@ -1025,7 +1025,7 @@ namespace quark {
     engine_api bool sphere_in_frustum(vec3 pos, quat rot, vec3 scl); // refactor
     engine_api bool box_in_frustum(vec3 pos, vec3 Scl); // refactor
 
-    engine_api AllocatedMesh create_mesh(void* data, usize size, usize memsize);
+    engine_api MeshInstance create_mesh(void* data, usize size, usize memsize);
 
     // Texture loading
     engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
@@ -1544,7 +1544,7 @@ namespace quark {
     vkCmdPushConstants(_main_cmd_buf[_frame_index],
       internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
       0, sizeof(PushConstant), &push_constant);
-    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)model.id].size, 1, _gpu_meshes[(u32)model.id].offset, 0);
+    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)model.id].count, 1, _gpu_meshes[(u32)model.id].offset, 0);
   }
 
   engine_api void end_everything();

@@ -663,106 +663,106 @@ namespace quark {
   }
 
   void load_png_file(const char* path, const char* name) {
-    using namespace internal;
+    // using namespace internal;
 
-    int width, height, channels;
-    stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+    // int width, height, channels;
+    // stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
 
-    if(!pixels) {
-      printf("Failed to load texture file \"%s\"\n", path);
-      panic("");
-    }
+    // if(!pixels) {
+    //   printf("Failed to load texture file \"%s\"\n", path);
+    //   panic("");
+    // }
 
-    // copy texture to cpu only memory
-    u64 image_size = width * height * 4;
+    // // copy texture to cpu only memory
+    // u64 image_size = width * height * 4;
 
-    AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    // AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-    void* data;
-    vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
-    memcpy(data, pixels, (isize)image_size);
-    vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
+    // void* data;
+    // vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
+    // memcpy(data, pixels, (isize)image_size);
+    // vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
 
-    stbi_image_free(pixels);
+    // stbi_image_free(pixels);
 
-    //TODO(sean): transfer to gpu only memory
-    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    AllocatedImage alloc_image = create_allocated_image(
-        width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, aspect);
+    // //TODO(sean): transfer to gpu only memory
+    // VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    // AllocatedImage alloc_image = create_allocated_image(
+    //     width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, aspect);
   
-    //TODO(sean): move this to the 
-    auto cmd = begin_quick_commands();
-    {
-      VkImageSubresourceRange range;
-  		range.aspectMask = aspect;
-  		range.baseMipLevel = 0;
-  		range.levelCount = 1;
-  		range.baseArrayLayer = 0;
-  		range.layerCount = 1;
+    // //TODO(sean): move this to the 
+    // auto cmd = begin_quick_commands();
+    // {
+    //   VkImageSubresourceRange range;
+  	// 	range.aspectMask = aspect;
+  	// 	range.baseMipLevel = 0;
+  	// 	range.levelCount = 1;
+  	// 	range.baseArrayLayer = 0;
+  	// 	range.layerCount = 1;
   
-  		VkImageMemoryBarrier barrier_to_writable = {};
-  		barrier_to_writable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  	// 	VkImageMemoryBarrier barrier_to_writable = {};
+  	// 	barrier_to_writable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   
-  		barrier_to_writable.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  		barrier_to_writable.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  		barrier_to_writable.image = alloc_image.image;
-  		barrier_to_writable.subresourceRange = range;
+  	// 	barrier_to_writable.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  	// 	barrier_to_writable.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  	// 	barrier_to_writable.image = alloc_image.image;
+  	// 	barrier_to_writable.subresourceRange = range;
   
-  		barrier_to_writable.srcAccessMask = 0;
-  		barrier_to_writable.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  	// 	barrier_to_writable.srcAccessMask = 0;
+  	// 	barrier_to_writable.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   
-  		vkCmdPipelineBarrier(cmd,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
-        0, 0, 
-        0, 0, 
-        1, &barrier_to_writable
-      );
+  	// 	vkCmdPipelineBarrier(cmd,
+    //     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
+    //     0, 0, 
+    //     0, 0, 
+    //     1, &barrier_to_writable
+    //   );
   
-      VkBufferImageCopy copy_region = {};
-      copy_region.bufferOffset = 0;
-      copy_region.bufferRowLength = 0;
-      copy_region.bufferImageHeight = 0;
+    //   VkBufferImageCopy copy_region = {};
+    //   copy_region.bufferOffset = 0;
+    //   copy_region.bufferRowLength = 0;
+    //   copy_region.bufferImageHeight = 0;
   
-      copy_region.imageSubresource.aspectMask = aspect;
-      copy_region.imageSubresource.mipLevel = 0;
-      copy_region.imageSubresource.baseArrayLayer = 0;
-      copy_region.imageSubresource.layerCount = 1;
-      copy_region.imageExtent = VkExtent3D{(u32)width, (u32)height, 1};
+    //   copy_region.imageSubresource.aspectMask = aspect;
+    //   copy_region.imageSubresource.mipLevel = 0;
+    //   copy_region.imageSubresource.baseArrayLayer = 0;
+    //   copy_region.imageSubresource.layerCount = 1;
+    //   copy_region.imageExtent = VkExtent3D{(u32)width, (u32)height, 1};
   
-      vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, alloc_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+    //   vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, alloc_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
   
-  		VkImageMemoryBarrier barrier_to_readable = {};
-  		barrier_to_readable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  	// 	VkImageMemoryBarrier barrier_to_readable = {};
+  	// 	barrier_to_readable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   
-  		barrier_to_readable.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  		barrier_to_readable.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  		barrier_to_readable.image = alloc_image.image;
-  		barrier_to_readable.subresourceRange = range;
+  	// 	barrier_to_readable.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  	// 	barrier_to_readable.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  	// 	barrier_to_readable.image = alloc_image.image;
+  	// 	barrier_to_readable.subresourceRange = range;
   
-  		barrier_to_readable.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  		barrier_to_readable.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  	// 	barrier_to_readable.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  	// 	barrier_to_readable.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
   
-  		vkCmdPipelineBarrier(cmd,
-        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
-        0, 0, 
-        0, 0, 
-        1, &barrier_to_readable
-      );
-    }
-    end_quick_commands(cmd);
+  	// 	vkCmdPipelineBarrier(cmd,
+    //     VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
+    //     0, 0, 
+    //     0, 0, 
+    //     1, &barrier_to_readable
+    //   );
+    // }
+    // end_quick_commands(cmd);
   
-    vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
+    // vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
   
-    //TODO(sean): store our AllocatedImage in the global textures array and 
-    static int texture_id = 0;
-    Texture texture = {}; //(Texture*)alloc(&_render_alloc, sizeof(Texture));
-    texture.id = (image_id)texture_id;//_global_constants_layout_info[2].count;
+    // //TODO(sean): store our AllocatedImage in the global textures array and 
+    // static int texture_id = 0;
+    // Texture texture = {}; //(Texture*)alloc(&_render_alloc, sizeof(Texture));
+    // texture.id = (image_id)texture_id;//_global_constants_layout_info[2].count;
   
-    _gpu_images[texture_id] = alloc_image;
-    texture_id += 1;
-    //printf("%llu\n", _global_constants_layout_info[2].count);
+    // _gpu_images[texture_id] = alloc_image;
+    // texture_id += 1;
+    // //printf("%llu\n", _global_constants_layout_info[2].count);
 
-    add_asset(name, texture);
+    // add_asset(name, texture);
   }
 
   struct Bytes {
@@ -843,7 +843,7 @@ namespace quark {
 
         vkCmdPushConstants(_main_cmd_buf[_frame_index],
           internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)instance_info->model.id].size, 1, _gpu_meshes[(u32)instance_info->model.id].offset, 0);
+        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)instance_info->model.id].count, 1, _gpu_meshes[(u32)instance_info->model.id].offset, 0);
 
         instance_data_ptr += batch->instance_data_size;
       }
