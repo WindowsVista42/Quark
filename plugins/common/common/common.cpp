@@ -783,10 +783,6 @@ namespace common {
   //
   // // //
 
-  vec3 get_mesh_scale(mesh_id id) {
-    return internal::_gpu_mesh_scales[(u32)id];
-  }
-
   ColorMaterialInstance get_material_instance(Transform transform, Model model, ColorMaterial material) {
     return ColorMaterialInstance {
       .world_view_projection = internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),

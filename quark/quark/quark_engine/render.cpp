@@ -42,6 +42,7 @@ namespace quark {
   }});
   define_resource(UICamera, {});
   define_resource(SunCamera, {});
+  define_resource(MeshRegistry, {});
 
   GraphicsContext _context = {};
 
@@ -483,9 +484,10 @@ namespace quark {
 
     // AllocatedBuffer _world_data_buf[_FRAME_OVERLAP] = {};
 
-    usize _gpu_mesh_count = 0;
-    MeshInstance _gpu_meshes[1024] = {};
-    vec3 _gpu_mesh_scales[1024] = {};
+    // usize _gpu_mesh_count = 0;
+    // MeshInstance _gpu_meshes[1024] = {};
+    // vec3 _gpu_mesh_scales[1024] = {};
+
     LinearAllocationTracker _gpu_vertices_tracker = create_linear_allocation_tracker(100 * MB);
 
     ImageResource _gpu_images[1024] = {};
@@ -820,36 +822,45 @@ namespace quark {
       BufferResource::Info info = {};
 
       info = {
-        .usage = BufferUsage::CpuSrc,
+        .type = BufferType::CpuToGpuStorage,
         .size = 10 * MB,
       };
       BufferResource::create_one(info, "staging_buffer");
 
-      info = {
-        .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
-        .size = 100 * MB,
+      // MeshPoolInfo info2 = {
+      // };
+      MeshPoolResourceInfo info2 = {
+        .usage = MeshPoolUsage::Gpu,
+        .vertex_size = sizeof(VertexPNT),
+        .vertex_count = 100 * 100 * 10,
       };
-      BufferResource::create_one(info, "main_vertex_buffer");
+      MeshPoolResource res = create_mesh_pool_resource(&info2);
+      add_mesh_pool_resource(res, "main_mesh_pool");
 
-      info = {
-        .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Index,
-        .size = 100 * MB,
-      };
-      BufferResource::create_one(info, "main_index_buffer");
+      //BufferResource::create_one(info, "main_vertex_buffer");
+
+      //info = {
+      //  .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Index,
+      //  .size = 100 * MB,
+      //};
+      //BufferResource::create_one(info, "main_index_buffer");
     }
     
     void copy_meshes_to_gpu() {
       // updates _gpu_vertex & _gpu_vertices_tracker to new data
       // AllocatedBuffer old_buffer = _gpu_vertices;
-      BufferResource old_buffer = BufferResource::cache_one.get("main_vertex_buffer");
+      // BufferResource old_buffer = BufferResource::cache_one.get("main_vertex_buffer");
       LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
 
-      BufferResource::Info info = {
-        .usage = BufferUsage::GpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
-        .size = old_tracker.size * sizeof(VertexPNT),
-      };
+      BufferResource staging = BufferResource::cache_one.get("staging_buffer");
+      const MeshPoolResource* mesh_pool = get_mesh_pool_resource("main_mesh_pool");
 
-      BufferResource new_buffer = info._create();
+      // BufferResource::Info info = {
+      //   .usage = BufferUsage::GpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
+      //   .size = old_tracker.size * sizeof(VertexPNT),
+      // };
+
+      // BufferResource new_buffer = info._create();
 
       // _gpu_vertices = create_allocated_buffer(
       //     old_tracker.size * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -862,6 +873,8 @@ namespace quark {
       //_gpu_vertices_tracker.alloc(old_tracker.size());
     
       // buffer copy
+      // copy_buffer_to_buffer(Resource* src, Resource* dst, u32 size);
+      // copy_buffer_to_buffer(const char* src, const char* dst, u32 size);
       {
         VkCommandBuffer cmd = begin_quick_commands();
     
@@ -869,14 +882,14 @@ namespace quark {
         copy.dstOffset = 0;
         copy.srcOffset = 0;
         copy.size = _gpu_vertices_tracker.size * sizeof(VertexPNT);
-        vkCmdCopyBuffer(cmd, old_buffer.buffer, new_buffer.buffer, 1, &copy);
+        vkCmdCopyBuffer(cmd, staging.buffer, mesh_pool->vertex_buffer, 1, &copy);
     
         end_quick_commands(cmd);
       }
     
-      vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.allocation);
+      // vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.allocation);
 
-      BufferResource::cache_one.get("main_vertex_buffer") = new_buffer;
+      // BufferResource::cache_one.get("main_vertex_buffer") = new_buffer;
 
       //AllocatedBuffer old_buffer = _gpu_vertices;
       //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
@@ -930,14 +943,14 @@ namespace quark {
       info = {
         .format = ImageFormat::LinearRgba16,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .resolution = get_window_dimensions() / 8,
+        .resolution = get_window_dimensions() / 2,
       };
       ImageResource::create_one_per_frame(info, "main_color");
 
       info = {
         .format = ImageFormat::LinearD24S8,
         .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .resolution = get_window_dimensions() / 8,
+        .resolution = get_window_dimensions() / 2,
       };
       ImageResource::create_one_per_frame(info, "main_depth");
     
@@ -1095,8 +1108,9 @@ namespace quark {
 
         .render_mode = "default_fill",
 
-        .vertex_buffer_resource = "main_vertex_buffer", //
-        .index_buffer_resource = "",
+        .mesh_pool = "main_mesh_pool",
+        // .vertex_buffer_resource = "main_vertex_buffer", //
+        // .index_buffer_resource = "",
       };
       RenderEffect::Info::cache.add("color_fill", re_info);
 
@@ -1129,141 +1143,141 @@ namespace quark {
       SamplerResource::create_one(info, "default_sampler");
     }
     
-    void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
-      constexpr auto layout_type = [](u32 old_layout, u32 new_layout) {
-        return (u64)old_layout | (u64)new_layout << 32;
-      };
+    // void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
+    //   constexpr auto layout_type = [](u32 old_layout, u32 new_layout) {
+    //     return (u64)old_layout | (u64)new_layout << 32;
+    //   };
+    // 
+    //   VkImageMemoryBarrier barrier = {};
+    //   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    //   barrier.oldLayout = old_layout;
+    //   barrier.newLayout = new_layout;
+    // 
+    //   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    //   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    // 
+    //   barrier.image = image;
+    //   barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    //   barrier.subresourceRange.baseMipLevel = 0;
+    //   barrier.subresourceRange.levelCount = 1;
+    //   barrier.subresourceRange.baseArrayLayer = 0;
+    //   barrier.subresourceRange.layerCount = 1;
+    // 
+    //   barrier.srcAccessMask = 0;
+    //   barrier.dstAccessMask = 0;
+    // 
+    //   VkPipelineStageFlags src_stage;
+    //   VkPipelineStageFlags dst_stage;
+    // 
+    //   switch(layout_type(old_layout, new_layout)) {
+    //   case(layout_type(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)): {
+    //     barrier.srcAccessMask = 0;
+    //     barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    //     src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    //     dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    //   } break;
+    //   case(layout_type(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
+    //     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    //     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    //     src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    //     dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    //   } break;
+    //   case(layout_type(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
+    //     barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    //     barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    //     src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    //     dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    //   } break;
+    //   }
+    // 
+    //   vkCmdPipelineBarrier(
+    //     commands,
+    //     src_stage, dst_stage, // src and dst stage masks
+    //     0,                    // dep flags
+    //     0, 0,                 // memory barrier
+    //     0, 0,                 // memory barrier
+    //     1, &barrier           // image barrier
+    //   );
+    // }
     
-      VkImageMemoryBarrier barrier = {};
-      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      barrier.oldLayout = old_layout;
-      barrier.newLayout = new_layout;
+    // template <auto C>
+    // VkDescriptorSetLayout create_desc_layout(DescriptorLayoutInfo (&layout_info)[C]) {
+    //   VkDescriptorSetLayoutBinding set_layout_binding[C] = {};
+    //   for_every(i, C) {
+    //     set_layout_binding[i].binding = i;
+    //     set_layout_binding[i].descriptorType = layout_info[i].descriptor_type;
+    //     set_layout_binding[i].descriptorCount = layout_info[i].count;
+    //     set_layout_binding[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    //   }
+    // 
+    //   VkDescriptorSetLayoutCreateInfo set_layout_info = {};
+    //   set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    //   set_layout_info.pNext = 0;
+    //   set_layout_info.bindingCount = C;
+    //   set_layout_info.flags = 0;
+    //   set_layout_info.pBindings = set_layout_binding;
+    // 
+    //   VkDescriptorSetLayout layout;
+    //   vk_check(vkCreateDescriptorSetLayout(_context.device, &set_layout_info, 0, &layout));
+    //   return layout;
+    // }
+    // 
+    // template <auto C>
+    // VkDescriptorPool create_desc_pool(VkDescriptorPoolSize (&sizes)[C]) {
+    //   VkDescriptorPoolCreateInfo pool_info = {};
+    //   pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    //   pool_info.flags = 0;
+    //   pool_info.maxSets = 10;
+    //   pool_info.poolSizeCount = C;
+    //   pool_info.pPoolSizes = sizes;
+    // 
+    //   VkDescriptorPool pool;
+    //   vkCreateDescriptorPool(_context.device, &pool_info, 0, &pool);
+    //   return pool;
+    // }
+    // 
+    // VkWriteDescriptorSet get_buffer_desc_write2(
+    //   u32 binding, VkDescriptorSet desc_set, VkDescriptorBufferInfo* buffer_info, u32 count = 1
+    // ) {
+    //   // write to image descriptor
+    //   VkWriteDescriptorSet desc_write = {};
+    //   desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //   desc_write.pNext = 0;
+    //   desc_write.dstBinding = binding;
+    //   desc_write.dstArrayElement = 0;
+    //   desc_write.dstSet = desc_set;
+    //   desc_write.descriptorCount = count;
+    //   desc_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //   desc_write.pBufferInfo = buffer_info;
+    // 
+    //   return desc_write;
+    // };
+    // 
+    // VkWriteDescriptorSet get_image_desc_write2(
+    //   u32 binding, VkDescriptorSet desc_set, VkDescriptorImageInfo* image_info, u32 count = 1
+    // ) {
+    //   // write to image descriptor
+    //   VkWriteDescriptorSet desc_write = {};
+    //   desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //   desc_write.pNext = 0;
+    //   desc_write.dstBinding = binding;
+    //   desc_write.dstArrayElement = 0;
+    //   desc_write.dstSet = desc_set;
+    //   desc_write.descriptorCount = count;
+    //   desc_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //   desc_write.pImageInfo = image_info;
+    // 
+    //   return desc_write;
+    // }
     
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    
-      barrier.image = image;
-      barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      barrier.subresourceRange.baseMipLevel = 0;
-      barrier.subresourceRange.levelCount = 1;
-      barrier.subresourceRange.baseArrayLayer = 0;
-      barrier.subresourceRange.layerCount = 1;
-    
-      barrier.srcAccessMask = 0;
-      barrier.dstAccessMask = 0;
-    
-      VkPipelineStageFlags src_stage;
-      VkPipelineStageFlags dst_stage;
-    
-      switch(layout_type(old_layout, new_layout)) {
-      case(layout_type(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)): {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-      } break;
-      case(layout_type(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-      } break;
-      case(layout_type(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)): {
-        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-      } break;
-      }
-    
-      vkCmdPipelineBarrier(
-        commands,
-        src_stage, dst_stage, // src and dst stage masks
-        0,                    // dep flags
-        0, 0,                 // memory barrier
-        0, 0,                 // memory barrier
-        1, &barrier           // image barrier
-      );
-    }
-    
-    template <auto C>
-    VkDescriptorSetLayout create_desc_layout(DescriptorLayoutInfo (&layout_info)[C]) {
-      VkDescriptorSetLayoutBinding set_layout_binding[C] = {};
-      for_every(i, C) {
-        set_layout_binding[i].binding = i;
-        set_layout_binding[i].descriptorType = layout_info[i].descriptor_type;
-        set_layout_binding[i].descriptorCount = layout_info[i].count;
-        set_layout_binding[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-      }
-    
-      VkDescriptorSetLayoutCreateInfo set_layout_info = {};
-      set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-      set_layout_info.pNext = 0;
-      set_layout_info.bindingCount = C;
-      set_layout_info.flags = 0;
-      set_layout_info.pBindings = set_layout_binding;
-    
-      VkDescriptorSetLayout layout;
-      vk_check(vkCreateDescriptorSetLayout(_context.device, &set_layout_info, 0, &layout));
-      return layout;
-    }
-    
-    template <auto C>
-    VkDescriptorPool create_desc_pool(VkDescriptorPoolSize (&sizes)[C]) {
-      VkDescriptorPoolCreateInfo pool_info = {};
-      pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-      pool_info.flags = 0;
-      pool_info.maxSets = 10;
-      pool_info.poolSizeCount = C;
-      pool_info.pPoolSizes = sizes;
-    
-      VkDescriptorPool pool;
-      vkCreateDescriptorPool(_context.device, &pool_info, 0, &pool);
-      return pool;
-    }
-    
-    VkWriteDescriptorSet get_buffer_desc_write2(
-      u32 binding, VkDescriptorSet desc_set, VkDescriptorBufferInfo* buffer_info, u32 count = 1
-    ) {
-      // write to image descriptor
-      VkWriteDescriptorSet desc_write = {};
-      desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      desc_write.pNext = 0;
-      desc_write.dstBinding = binding;
-      desc_write.dstArrayElement = 0;
-      desc_write.dstSet = desc_set;
-      desc_write.descriptorCount = count;
-      desc_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      desc_write.pBufferInfo = buffer_info;
-    
-      return desc_write;
-    };
-    
-    VkWriteDescriptorSet get_image_desc_write2(
-      u32 binding, VkDescriptorSet desc_set, VkDescriptorImageInfo* image_info, u32 count = 1
-    ) {
-      // write to image descriptor
-      VkWriteDescriptorSet desc_write = {};
-      desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      desc_write.pNext = 0;
-      desc_write.dstBinding = binding;
-      desc_write.dstArrayElement = 0;
-      desc_write.dstSet = desc_set;
-      desc_write.descriptorCount = count;
-      desc_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      desc_write.pImageInfo = image_info;
-    
-      return desc_write;
-    }
-    
-    VkImageLayout format_to_read_layout2(VkFormat format) {
-      switch(format) {
-      case(VK_FORMAT_D32_SFLOAT): { return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; };
-      case(VK_FORMAT_R8G8B8A8_SRGB): { return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; };
-      default: { panic("The conversion between format to read layout is unknown for this format!"); };
-      };
-      return VK_IMAGE_LAYOUT_UNDEFINED;
-    }
+    // VkImageLayout format_to_read_layout2(VkFormat format) {
+    //   switch(format) {
+    //   case(VK_FORMAT_D32_SFLOAT): { return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; };
+    //   case(VK_FORMAT_R8G8B8A8_SRGB): { return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; };
+    //   default: { panic("The conversion between format to read layout is unknown for this format!"); };
+    //   };
+    //   return VK_IMAGE_LAYOUT_UNDEFINED;
+    // }
     
     // template <typename T>
     // T get_buffer_image(DescriptorLayoutInfo info, usize frame_index, usize desc_arr_index) {
@@ -1425,7 +1439,7 @@ namespace quark {
       mesh.count = size;
       mesh.offset = alloc(&_gpu_vertices_tracker, size);
 
-      BufferResource* gpu_verts = &BufferResource::cache_one.get("main_vertex_buffer");
+      BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
     
       void* ptr;
       vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
@@ -1435,12 +1449,12 @@ namespace quark {
       return mesh;
     }
 
-    template <typename T>
-    T* make(T&& t) {
-      T* ta = (T*)malloc(sizeof(T));
-      *ta = t;
-      return ta;
-    }
+    // template <typename T>
+    // T* make(T&& t) {
+    //   T* ta = (T*)malloc(sizeof(T));
+    //   *ta = t;
+    //   return ta;
+    // }
     
     // u32 load_obj_mesh(std::string* path) {
     //   // TODO(sean): load obj model using tinyobjloader
@@ -2303,30 +2317,57 @@ namespace quark {
     );
   }
 
-  VkBufferCreateInfo BufferResource::Info::_buf_info() {
+  VkBufferCreateInfo get_buffer_create_info(BufferType type, u32 size) {
     VkBufferCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    info.size = this->size;
+    info.size = size;
 
-    u32 usage_copy = (u32)this->usage;
+    u32 lookup[] = {
+      // Uniform
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 
-    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::CpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::CpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::GpuSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    usage_copy = bit_replace_if(usage_copy, (u32)BufferUsage::GpuDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+      // GpuStorage 
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-    info.usage = internal::buffer_usage_vk_usage(this->usage);//usage_copy;
+      // CpuToGpuStorage 
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
+      // GpuToCpuStorage 
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    };
+
+    info.usage = lookup[(u32)type];
+
+    return info;
+  }
+
+  VkBufferCreateInfo BufferResource::Info::_buf_info() {
+    return get_buffer_create_info(this->type, this->size);
+  }
+
+  VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type) {
+    VmaAllocationCreateInfo info = {};
+
+    VmaMemoryUsage lookup[] = {
+      // Uniform
+      VMA_MEMORY_USAGE_CPU_TO_GPU,
+
+      // GpuStorage 
+      VMA_MEMORY_USAGE_GPU_ONLY,
+
+      // CpuToGpuStorage 
+      VMA_MEMORY_USAGE_CPU_TO_GPU,
+
+      // GpuToCpuStorage 
+      VMA_MEMORY_USAGE_GPU_TO_CPU,
+    };
+
+    info.usage = lookup[(u32)type];
     return info;
   }
 
   VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
-    VmaAllocationCreateInfo info = {};
-    info.usage = internal::buffer_usage_vma_usage(this->usage);
-    return info;
-  }
-
-  BufferResource2 create_buffer_resource(BufferResourceInfo2* info) {
+    return get_buffer_alloc_info(type);
   }
 
   BufferResource BufferResource::Info::_create() {
@@ -2378,6 +2419,55 @@ namespace quark {
       BufferResource res = info._create();
       cache_one_per_frame.get(name)[index] = res;
     }
+  }
+
+  MeshPoolResource create_mesh_pool_resource(MeshPoolResourceInfo* info) {
+    u32 vertex_size = info->vertex_count * info->vertex_size;
+    u32 index_size = info->vertex_count * sizeof(u32);
+
+    VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    if(info->usage == MeshPoolUsage::Gpu) {
+      memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    } else if(info->usage == MeshPoolUsage::CpuToGpu) {
+      memory_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    } else {
+      panic(create_tempstr() + "Failed to create mesh pool resource: " + "Mesh resource type was not valid!");
+    }
+
+    VkBufferCreateInfo vertex_info = {};
+    vertex_info.size = vertex_size;
+    vertex_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+    VmaAllocationCreateInfo vertex_alloc_info = {};
+    vertex_alloc_info.usage = memory_usage;
+
+    // VkBufferCreateInfo index_info = {};
+    // index_info.size = index_size;
+    // index_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+    // VmaAllocationCreateInfo index_alloc_info = {};
+    // index_alloc_info.usage = memory_usage;
+
+    MeshPoolResource resource = {};
+    vk_check(vmaCreateBuffer(_gpu_alloc, &vertex_info, &vertex_alloc_info, &resource.vertex_buffer, &resource.vertex_allocation, 0));
+    // vk_check(vmaCreateBuffer(_gpu_alloc, &index_info, &index_alloc_info, &resource.index_buffer, &resource.index_allocation, 0));
+
+    resource.index_allocation = 0;
+    resource.index_buffer = 0;
+    resource.pool_index = get_resource(Resource<MeshRegistry> {})->pool_count;
+    get_resource(Resource<MeshRegistry> {})->pool_count += 1;
+
+    return resource;
+  }
+
+  std::unordered_map<std::string, MeshPoolResource> mesh_pools;
+
+  void add_mesh_pool_resource(MeshPoolResource resource, const char* name) {
+    mesh_pools.insert(std::make_pair(std::string(name), resource));
+  }
+
+  const MeshPoolResource* get_mesh_pool_resource(const char* name) {
+    return &mesh_pools.at(std::string(name));
   }
 
   VkSamplerCreateInfo SamplerResource::Info::_sampler_info() {
@@ -2970,10 +3060,11 @@ namespace quark {
     //  render_effect.descriptor_sets[index] = {};
     //}
 
-    render_effect.vertex_buffer_resource = BufferResource::cache_one[this->vertex_buffer_resource].buffer;
-    if(this->index_buffer_resource != "") {
-      render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
-    }
+    render_effect.vertex_buffer_resource = get_mesh_pool_resource(this->mesh_pool.c_str())->vertex_buffer;//BufferResource::cache_one[this->vertex_buffer_resource].buffer;
+    render_effect.index_buffer_resource = get_mesh_pool_resource(this->mesh_pool.c_str())->index_buffer;
+    // if(this->index_buffer_resource != "") {
+    //   render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
+    // }
 
     auto vertex_input_info = render_mode_info._vertex_input_info();
     auto input_assembly_info = render_mode_info._input_assembly_info();

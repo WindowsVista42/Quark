@@ -18,7 +18,10 @@ namespace quark {
     quat rotation;
   };
 
-  enum struct mesh_id : u32 {};
+  struct mesh_id {
+    u32 pool_index;
+    u32 index;
+  };
 
   struct Model {
     vec3 half_extents;
@@ -730,6 +733,22 @@ namespace quark {
 
   engine_api const GraphicsContext* get_graphics_context();
 
+  struct MeshRegistry {
+    u32 pool_count = 0;
+    u32 counts[8] = {};
+    MeshInstance instances[8][1024] = {}; // hot data
+    vec3 scales[8][1024] = {}; // cold data
+  };
+  declare_resource(engine_var, MeshRegistry);
+
+  inline MeshInstance get_mesh_instance(mesh_id id) {
+    return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
+  }
+
+  inline vec3 get_mesh_scale(mesh_id id) {
+    return get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index];
+  }
+
   // engine_api void begin_shadow_rendering();
   // engine_api void draw_shadow(Transform transform, Model model);
   // engine_api void draw_shadow_things();
@@ -829,25 +848,25 @@ namespace quark {
     };
     
     // Internal Types
-    struct DefaultPushConstant {
-      vec3 MODEL_POSITION;
-      u32 TEXTURE_INDEX;
-      vec4 MODEL_ROTATION;
-      vec4 MODEL_SCALE;
-    };
+    // struct DefaultPushConstant {
+    //   vec3 MODEL_POSITION;
+    //   u32 TEXTURE_INDEX;
+    //   vec4 MODEL_ROTATION;
+    //   vec4 MODEL_SCALE;
+    // };
+    // 
+    // struct ColorPushConstant {
+    //   vec4 MODEL_POSITION;
+    //   vec4 MODEL_ROTATION;
+    //   vec4 MODEL_SCALE;
+    //   vec4 color;
+    // };
     
-    struct ColorPushConstant {
-      vec4 MODEL_POSITION;
-      vec4 MODEL_ROTATION;
-      vec4 MODEL_SCALE;
-      vec4 color;
-    };
-    
-    struct RenderData {
-      vec3 position;
-      quat rotation;
-      Model model;
-    };
+    // struct RenderData {
+    //   vec3 position;
+    //   quat rotation;
+    //   Model model;
+    // };
     
     // struct WorldData {
     //   PointLightData point_lights[512];
@@ -885,36 +904,36 @@ namespace quark {
     //};
     
     // index in array is binding index
-    struct DescriptorLayoutInfo {
-      enum a: usize {
-        ONE,
-        ONE_PER_FRAME,
-        ARRAY,
-        ARRAY_PER_FRAME,
-      };
-    
-      enum w: usize {
-        WRITE_ON_RESIZE,
-        WRITE_ONCE,
-      };
-    
-      usize count;
-      VkDescriptorType descriptor_type;
-      void* buffers_and_images;
-      usize array_type;
-      usize write_type;
-    };
+    // struct DescriptorLayoutInfo {
+    //   enum a: usize {
+    //     ONE,
+    //     ONE_PER_FRAME,
+    //     ARRAY,
+    //     ARRAY_PER_FRAME,
+    //   };
+    // 
+    //   enum w: usize {
+    //     WRITE_ON_RESIZE,
+    //     WRITE_ONCE,
+    //   };
+    // 
+    //   usize count;
+    //   VkDescriptorType descriptor_type;
+    //   void* buffers_and_images;
+    //   usize array_type;
+    //   usize write_type;
+    // };
     
     // Define a transparent struct with the inner value being referenced as _
-    #define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
-      struct name {                                                                                                                                      \
-        inner _;                                                                                                                                         \
-        operator inner&() { return *(inner*)this; }                                                                                                      \
-      }
-    
-    // Vulkan Shader Types
-    OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
-    OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
+    // #define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
+    //   struct name {                                                                                                                                      \
+    //     inner _;                                                                                                                                         \
+    //     operator inner&() { return *(inner*)this; }                                                                                                      \
+    //   }
+    // 
+    // // Vulkan Shader Types
+    // OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
+    // OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
 
     // VARIABLES
 
@@ -957,9 +976,9 @@ namespace quark {
     // engine_var VkSampler _default_sampler; //
 
     // mesh data
-    engine_var usize _gpu_mesh_count;
-    engine_var MeshInstance _gpu_meshes[1024]; // hot data
-    engine_var vec3 _gpu_mesh_scales[1024]; // cold data
+    // engine_var u32 _gpu_mesh_count[8];
+    // engine_var MeshInstance _gpu_meshes[8][1024]; // hot data
+    // engine_var vec3 _gpu_mesh_scales[8][1024]; // cold data
     engine_var LinearAllocationTracker _gpu_vertices_tracker;
     // this buffer starts out as being a 
     // engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
@@ -1047,10 +1066,6 @@ namespace quark {
     engine_api void resize_swapchain();
 
     engine_api void print_performance_statistics();
-
-    // engine_api void add_to_render_batch(Transform transform, Model model);
-    // template <typename F>
-    // void flush_render_batch(F f);
   };
 };
 
@@ -1087,17 +1102,31 @@ namespace quark {
     Sixteen = VK_SAMPLE_COUNT_16_BIT,
   );
 
-  declare_enum(BufferUsage, u32,
-    CpuSrc  = 0x01,
-    CpuDst  = 0x02,
+  // declare_enum(BufferUsage, u32,
+  //   CpuSrc  = 0x01,
+  //   CpuDst  = 0x02,
 
-    GpuSrc  = 0x04,
-    GpuDst  = 0x08,
+  //   GpuSrc  = 0x04,
+  //   GpuDst  = 0x08,
 
-    Uniform = 0x10,
-    Storage = 0x20,
-    Index   = 0x40,
-    Vertex  = 0x80,
+  //   Uniform = 0x10,
+  //   Storage = 0x20,
+  //   Index   = 0x40,
+  //   Vertex  = 0x80,
+  // );
+
+  declare_enum(BufferType, u32,
+    Uniform = 0,
+    GpuStorage = 1,
+    CpuToGpuStorage = 2,
+    GpuToCpuStorage = 3,
+  );
+
+  declare_enum(MeshPoolUsage, u32,
+    Gpu,
+    CpuToGpu,
+    // VertexOnlyGpu,
+    // VertexOnlyCpuToGpu,
   );
 
   declare_enum(FilterMode, u32,
@@ -1165,7 +1194,7 @@ namespace quark {
   };
 
   struct BufferResourceInfo2 {
-    BufferUsage usage;
+    BufferType type;
     usize size;
   };
 
@@ -1175,8 +1204,22 @@ namespace quark {
     VkBuffer buffer;
 
     // Metadata
+    BufferType type;
     usize size;
-    BufferUsage current_usage;
+  };
+
+  struct Model2 {
+    vec3 scale;
+    u64 id; // u32 x, u32 y
+  };
+
+  struct MeshPoolResource2 {
+    // Resource handles
+    VmaAllocation allocation;
+    VkBuffer buffer;
+
+    // Metadata
+    usize size;
   };
 
   struct SamplerResourceInfo2 {
@@ -1230,6 +1273,30 @@ namespace quark {
   struct ResourceBundle2 {
     VkPipelineLayout layout;
   };
+
+  // struct EffectInfo2 {
+  //   render_target_id render_target;
+  //   resource_bundle_id resource_bundle;
+
+  //   shader_id shader;
+
+  //   render_mode_id render_mode;
+  //   mesh_pool_id mesh_pool;
+
+  //   type_hash material;
+  // };
+
+  // EffectInfo2 color_effect = {
+  //   .render_target = get_render_target_id("main"),
+  //   .resource_bundle = get_resource_bundle_id("main"),
+
+  //   .shader = get_shader_id("color"),
+
+  //   .render_mode = get_render_mode_id("main"),
+  //   .mesh_pool = get_mesh_pool_id("main"),
+
+  //   .material = get_type_hash<ColorMaterial>(),
+  // };
 
   template <typename T>
   class engine_api ItemCache {
@@ -1320,7 +1387,7 @@ namespace quark {
 
   struct engine_api BufferResource {
     struct Info {
-      BufferUsage usage;
+      BufferType type;
       usize size;
 
       VkBufferCreateInfo _buf_info();
@@ -1343,6 +1410,28 @@ namespace quark {
     static ItemCache<std::vector<BufferResource>> cache_array;
     static ItemCache<std::array<BufferResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
   };
+
+  struct MeshPoolResourceInfo {
+    MeshPoolUsage usage;
+    u32 vertex_size;
+    u32 vertex_count;
+  };
+
+  struct MeshPoolResource {
+    VmaAllocation vertex_allocation;
+    VkBuffer vertex_buffer;
+
+    VmaAllocation index_allocation;
+    VkBuffer index_buffer;
+
+    u32 vertex_size;
+    u32 count;
+    u32 pool_index;
+  };
+
+  MeshPoolResource create_mesh_pool_resource(MeshPoolResourceInfo* info);
+  void add_mesh_pool_resource(MeshPoolResource resource, const char* name);
+  const MeshPoolResource* get_mesh_pool_resource(const char* name);
 
   //struct engine_api MeshResource {
   //  struct CreateInfo {
@@ -1498,8 +1587,7 @@ namespace quark {
       std::string fragment_shader;
 
       std::string render_mode = "default";
-      std::string vertex_buffer_resource = "default_vertex_buffer";
-      std::string index_buffer_resource = "default_index_buffer";
+      std::string mesh_pool = "main_mesh_pool";
 
       VkPipelineShaderStageCreateInfo _vertex_stage(const char* entry_name);
       VkPipelineShaderStageCreateInfo _fragment_stage(const char* entry_name);
@@ -1538,14 +1626,14 @@ namespace quark {
   inline void draw(Model& model) {
   }
 
-  template <typename PushConstant>
-  inline void draw(Model& model, PushConstant& push_constant) {
-    using namespace internal;
-    vkCmdPushConstants(_main_cmd_buf[_frame_index],
-      internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      0, sizeof(PushConstant), &push_constant);
-    vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)model.id].count, 1, _gpu_meshes[(u32)model.id].offset, 0);
-  }
+  // template <typename PushConstant>
+  // inline void draw(Model& model, PushConstant& push_constant) {
+  //   using namespace internal;
+  //   vkCmdPushConstants(_main_cmd_buf[_frame_index],
+  //     internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+  //     0, sizeof(PushConstant), &push_constant);
+  //   vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)model.id].count, 1, _gpu_meshes[(u32)model.id].offset, 0);
+  // }
 
   engine_api void end_everything();
 
@@ -1668,43 +1756,43 @@ namespace quark {
       return (VkImageUsageFlagBits)flags;
     }
 
-    static VkBufferUsageFlagBits buffer_usage_vk_usage(BufferUsage usage_bits) {
-      u32 flags = {};
-      u32 bits = (u32)usage_bits;
+    // static VkBufferUsageFlagBits buffer_usage_vk_usage(BufferUsage usage_bits) {
+    //   u32 flags = {};
+    //   u32 bits = (u32)usage_bits;
 
-      auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
-        if (src & flag_read) {
-          (*dst) |= flag_write;
-        }
-      };
-      
-      write_bit(&flags, bits, (u32)BufferUsage::CpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::CpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::GpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::GpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    //   auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
+    //     if (src & flag_read) {
+    //       (*dst) |= flag_write;
+    //     }
+    //   };
+    //   
+    //   write_bit(&flags, bits, (u32)BufferUsage::CpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::CpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::GpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::GpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-      write_bit(&flags, bits, (u32)BufferUsage::Uniform, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::Storage, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::Index, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-      write_bit(&flags, bits, (u32)BufferUsage::Vertex, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::Uniform, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::Storage, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::Index, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    //   write_bit(&flags, bits, (u32)BufferUsage::Vertex, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
-      return (VkBufferUsageFlagBits)flags;
-    }
+    //   return (VkBufferUsageFlagBits)flags;
+    // }
 
-    static VmaMemoryUsage buffer_usage_vma_usage(BufferUsage bits) {
-      // likely a cpu -> gpu copy OR cpu -> gpu usage
-      if ((bits & (BufferUsage::CpuSrc | BufferUsage::Uniform)) != (BufferUsage)0) {
-        return VMA_MEMORY_USAGE_CPU_TO_GPU;
-      }
+    // static VmaMemoryUsage buffer_usage_vma_usage(BufferUsage bits) {
+    //   // likely a cpu -> gpu copy OR cpu -> gpu usage
+    //   if (((bits & BufferUsage::CpuSrc) | (bits & BufferUsage::Uniform)) != (BufferUsage)0) {
+    //     return VMA_MEMORY_USAGE_CPU_TO_GPU;
+    //   }
 
-      // likely a gpu -> cpu copy
-      if ((bits & BufferUsage::CpuDst) != (BufferUsage)0) {
-        return VMA_MEMORY_USAGE_GPU_TO_CPU;
-      }
+    //   // likely a gpu -> cpu copy
+    //   if ((bits & BufferUsage::CpuDst) != (BufferUsage)0) {
+    //     return VMA_MEMORY_USAGE_GPU_TO_CPU;
+    //   }
 
-      // likely a gpu -> gpu copy OR internal gpu usage
-      return VMA_MEMORY_USAGE_GPU_ONLY;
-    }
+    //   // likely a gpu -> gpu copy OR internal gpu usage
+    //   return VMA_MEMORY_USAGE_GPU_ONLY;
+    // }
 
     struct BlitInfo {
       VkOffset3D bottom_left;

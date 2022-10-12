@@ -25,7 +25,7 @@ namespace quark {
     mesh_id id = *get_asset<mesh_id>(mesh_name);
 
     return Model {
-      .half_extents = (scale / 2.0f) * internal::_gpu_mesh_scales[(u32)id],
+      .half_extents = (scale / 2.0f) * get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index],
       .id = id,
     };
   }
@@ -645,10 +645,15 @@ namespace quark {
     for (usize i = 0; i < size; i += 1) {
       data[i].position /= (ext * 0.5f);
     }
+
+    MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
   
     // add mesh to _gpu_meshes
-    u32 mesh_id2 = _gpu_mesh_count;
-    _gpu_mesh_count += 1;
+    mesh_id id = {
+      .pool_index = 0,
+      .index = meshes->counts[0],
+    };
+    meshes->counts[0] += 1;
 
     struct MeshScale : vec3 {};
 
@@ -656,10 +661,10 @@ namespace quark {
     //add_asset(, name);
 
     //AllocatedMesh* mesh = &;//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
-    _gpu_meshes[mesh_id2] = create_mesh(data, size, sizeof(VertexPNT));
-    _gpu_mesh_scales[mesh_id2] = normalize_max_length(ext, 2.0f);
+    meshes->instances[id.pool_index][id.index] = create_mesh(data, size, sizeof(VertexPNT));
+    meshes->scales[id.pool_index][id.index] = normalize_max_length(ext, 2.0f);
 
-    add_asset(name, (mesh_id)mesh_id2);
+    add_asset(name, id);
   }
 
   void load_png_file(const char* path, const char* name) {
@@ -838,12 +843,13 @@ namespace quark {
       for_every(i, batch->count) {
         DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
         void* instance_data = instance_data_ptr;
+        MeshInstance mesh_instance = get_mesh_instance(instance_info->model.id);
 
         using namespace internal;
 
         vkCmdPushConstants(_main_cmd_buf[_frame_index],
           internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)instance_info->model.id].count, 1, _gpu_meshes[(u32)instance_info->model.id].offset, 0);
+        vkCmdDraw(_main_cmd_buf[_frame_index], mesh_instance.count, 1, mesh_instance.offset, 0);
 
         instance_data_ptr += batch->instance_data_size;
       }
