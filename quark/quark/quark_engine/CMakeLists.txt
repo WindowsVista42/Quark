@@ -2,7 +2,6 @@ add_library(quark_engine SHARED
   context.cpp
   quark_engine.cpp
   render.cpp
-  effect.cpp
 )
 
 #target_precompile_headers(quark_engine PUBLIC
