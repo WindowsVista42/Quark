@@ -1116,15 +1116,16 @@ namespace quark {
   // );
 
   declare_enum(BufferType, u32,
-    Uniform = 0,
-    GpuStorage = 1,
+    Uniform         = 0,
+    GpuStorage      = 1,
     CpuToGpuStorage = 2,
     GpuToCpuStorage = 3,
+    DrawCommands    = 4,
   );
 
-  declare_enum(MeshPoolUsage, u32,
-    Gpu,
-    CpuToGpu,
+  declare_enum(MeshPoolType, u32,
+    Gpu      = 0,
+    CpuToGpu = 1,
     // VertexOnlyGpu,
     // VertexOnlyCpuToGpu,
   );
@@ -1385,39 +1386,103 @@ namespace quark {
     static ItemCache<std::array<ImageResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
   };
 
-  struct engine_api BufferResource {
-    struct Info {
-      BufferType type;
-      usize size;
+  declare_enum(ResourceType, u32,
+    Buffer,
+    BufferArray,
+    Image,
+    ImageArray,
+    Sampler,
+  );
 
-      VkBufferCreateInfo _buf_info();
-      VmaAllocationCreateInfo _alloc_info();
-      BufferResource _create();
+  struct ResourceHandle {
+    ResourceType resource_type;
+    u32 name_hash;
+  };
 
-      static ItemCache<BufferResource::Info> cache_one;
-      static ItemCache<std::vector<BufferResource::Info>> cache_array;
-      static ItemCache<BufferResource::Info> cache_one_per_frame;
-    };
+//
+// Buffer API
+//
 
+  struct BufferInfo {
+    BufferType type;
+    u32 size;
+  };
+
+  struct Buffer {
+    // Resource Handles
     VmaAllocation allocation;
     VkBuffer buffer;
 
-    static void create_one(BufferResource::Info& info, std::string name);
-    static void create_array(BufferResource::Info& info, std::string name);
-    static void create_one_per_frame(BufferResource::Info& info, std::string name);
-
-    static ItemCache<BufferResource> cache_one;
-    static ItemCache<std::vector<BufferResource>> cache_array;
-    static ItemCache<std::array<BufferResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
+    // Metadata
+    BufferType type;
+    u32 size;
   };
 
-  struct MeshPoolResourceInfo {
-    MeshPoolUsage usage;
+  Buffer create_buffer(BufferInfo* info);
+  void add_buffer(Buffer buffer, const char* name);
+  const Buffer* get_buffer(const char* name);
+
+  void* map_buffer(const char* name);
+  void unmap_buffer(const char* name);
+
+  void write_buffer(const char* buffer_dst, void* src, u32 size);
+  void copy_buffer(const char* buffer_dst, const char* buffer_src, u32 size);
+
+  void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
+  void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+
+//
+// Native Buffer API
+//
+
+  void* map_buffer_native(VmaAllocation allocation);
+  void unmap_buffer_native(VmaAllocation allocation);
+
+  void* map_buffer_native(VmaAllocation allocation);
+  void unmap_buffer_naitve(VmaAllocation allocation);
+
+  void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
+  void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size);
+
+//
+// Todo: Buffer Array API
+//
+
+  struct BufferArrayInfo {
+    BufferType type;
+    u32 size;
+    u32 count;
+  };
+
+  struct BufferArray {
+    // Resource Handles
+    VmaAllocation* allocation;
+    VkBuffer* buffer;
+
+    // Metadata
+    BufferType type;
+    u32 size;
+    u32 count;
+  };
+
+  BufferArray create_buffer_array(BufferArrayInfo* info);
+  void add_buffer(BufferArray buffer_array, const char* name);
+  const BufferArray* get_buffer_array(const char* name);
+
+//
+// Mesh Pool API
+//
+// Mesh pools are collections of meshes wrapped
+// into one global vertex and index array
+//
+
+  struct MeshPoolInfo {
+    MeshPoolType usage;
     u32 vertex_size;
     u32 vertex_count;
   };
 
-  struct MeshPoolResource {
+  struct MeshPool {
     VmaAllocation vertex_allocation;
     VkBuffer vertex_buffer;
 
@@ -1429,9 +1494,12 @@ namespace quark {
     u32 pool_index;
   };
 
-  MeshPoolResource create_mesh_pool_resource(MeshPoolResourceInfo* info);
-  void add_mesh_pool_resource(MeshPoolResource resource, const char* name);
-  const MeshPoolResource* get_mesh_pool_resource(const char* name);
+  MeshPool create_mesh_pool(MeshPoolInfo* info);
+  void add_mesh_pool(MeshPool resource, const char* name);
+  const MeshPool* get_mesh_pool(const char* name);
+
+  void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+  void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
 
   //struct engine_api MeshResource {
   //  struct CreateInfo {

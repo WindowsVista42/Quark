@@ -814,118 +814,43 @@ namespace quark {
     }
 
     void init_mesh_buffer() {
-      // Init staging buffer and allocation tracker
-      // constexpr usize _BUFFER_SIZE = 100 * MB;
-      // _gpu_vertices = create_allocated_buffer(_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-      // _gpu_vertices_tracker = create_linear_allocation_tracker(_BUFFER_SIZE);
-
-      BufferResource::Info info = {};
-
-      info = {
+      BufferInfo buffer_info = {
         .type = BufferType::CpuToGpuStorage,
         .size = 10 * MB,
       };
-      BufferResource::create_one(info, "staging_buffer");
 
-      // MeshPoolInfo info2 = {
-      // };
-      MeshPoolResourceInfo info2 = {
-        .usage = MeshPoolUsage::Gpu,
+      Buffer b = create_buffer(&buffer_info);
+      add_buffer(b, "staging_buffer");
+
+      MeshPoolInfo mesh_pool_info = {
+        .usage = MeshPoolType::Gpu,
         .vertex_size = sizeof(VertexPNT),
         .vertex_count = 100 * 100 * 10,
       };
-      MeshPoolResource res = create_mesh_pool_resource(&info2);
-      add_mesh_pool_resource(res, "main_mesh_pool");
 
-      //BufferResource::create_one(info, "main_vertex_buffer");
-
-      //info = {
-      //  .usage = BufferUsage::CpuSrc | BufferUsage::GpuDst | BufferUsage::Index,
-      //  .size = 100 * MB,
-      //};
-      //BufferResource::create_one(info, "main_index_buffer");
+      MeshPool res = create_mesh_pool(&mesh_pool_info);
+      add_mesh_pool(res, "main_mesh_pool");
     }
     
     void copy_meshes_to_gpu() {
-      // updates _gpu_vertex & _gpu_vertices_tracker to new data
-      // AllocatedBuffer old_buffer = _gpu_vertices;
-      // BufferResource old_buffer = BufferResource::cache_one.get("main_vertex_buffer");
       LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
-
-      BufferResource staging = BufferResource::cache_one.get("staging_buffer");
-      const MeshPoolResource* mesh_pool = get_mesh_pool_resource("main_mesh_pool");
-
-      // BufferResource::Info info = {
-      //   .usage = BufferUsage::GpuSrc | BufferUsage::GpuDst | BufferUsage::Vertex,
-      //   .size = old_tracker.size * sizeof(VertexPNT),
-      // };
-
-      // BufferResource new_buffer = info._create();
-
-      // _gpu_vertices = create_allocated_buffer(
-      //     old_tracker.size * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
       destroy_linear_allocation_tracker(&_gpu_vertices_tracker);
       _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
       alloc(&_gpu_vertices_tracker, old_tracker.size);
-      //_gpu_vertices_tracker.deinit();
-      //_gpu_vertices_tracker.init(old_tracker.size());
-      //_gpu_vertices_tracker.alloc(old_tracker.size());
-    
-      // buffer copy
-      // copy_buffer_to_buffer(Resource* src, Resource* dst, u32 size);
-      // copy_buffer_to_buffer(const char* src, const char* dst, u32 size);
-      {
-        VkCommandBuffer cmd = begin_quick_commands();
-    
-        VkBufferCopy copy = {};
-        copy.dstOffset = 0;
-        copy.srcOffset = 0;
-        copy.size = _gpu_vertices_tracker.size * sizeof(VertexPNT);
-        vkCmdCopyBuffer(cmd, staging.buffer, mesh_pool->vertex_buffer, 1, &copy);
-    
-        end_quick_commands(cmd);
-      }
-    
-      // vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.allocation);
 
-      // BufferResource::cache_one.get("main_vertex_buffer") = new_buffer;
-
-      //AllocatedBuffer old_buffer = _gpu_vertices;
-      //LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
-    
-      //_gpu_vertices = create_allocated_buffer(
-      //    _gpu_vertices_tracker.size() * sizeof(VertexPNT), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    
-      //_gpu_vertices_tracker.deinit();
-      //_gpu_vertices_tracker.init(old_tracker.size());
-      //_gpu_vertices_tracker.alloc(old_tracker.size());
-    
-      //// buffer copy
-      //{
-      //  VkCommandBuffer cmd = begin_quick_commands();
-    
-      //  VkBufferCopy copy = {};
-      //  copy.dstOffset = 0;
-      //  copy.srcOffset = 0;
-      //  copy.size = _gpu_vertices_tracker.size() * sizeof(VertexPNT);
-      //  vkCmdCopyBuffer(cmd, old_buffer.buffer, _gpu_vertices.buffer, 1, &copy);
-    
-      //  end_quick_commands(cmd);
-      //}
-    
-      //vmaDestroyBuffer(_gpu_alloc, old_buffer.buffer, old_buffer.alloc);
+      copy_mesh_pool_vertices("main_mesh_pool", 0, "staging_buffer", 0, old_tracker.size * sizeof(VertexPNT));
     }
     
     void init_swapchain() {
       // Swapchain creation
       vkb::SwapchainBuilder swapchain_builder{_context.physical_device, _context.device, _context.surface};
-    
+
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
       swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-    
+
       vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
     
       std::vector<VkImage> swapchain_images = vkb_swapchain.get_images().value();
@@ -1439,12 +1364,21 @@ namespace quark {
       mesh.count = size;
       mesh.offset = alloc(&_gpu_vertices_tracker, size);
 
-      BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
+      // BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
+      const Buffer* gpu_verts = get_buffer("staging_buffer");
     
-      void* ptr;
-      vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
-      memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
-      vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
+      // void* ptr = map_buffer("staging_buffer");
+      // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
+      // unmap_buffer("staging_buffer");
+
+      u32 dst_offset = elemsize * mesh.offset;
+      u32 src_size = elemsize * mesh.count;
+      write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
+
+      // void* ptr;
+      // vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
+      // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
+      // vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
 
       return mesh;
     }
@@ -1968,12 +1902,12 @@ namespace quark {
   ItemCache<std::array<ImageResource, _FRAME_OVERLAP>> ImageResource::cache_one_per_frame = {};
 
   // buffer cache
-  ItemCache<BufferResource::Info> BufferResource::Info::cache_one = {};
-  ItemCache<std::vector<BufferResource::Info>> BufferResource::Info::cache_array = {};
-  ItemCache<BufferResource::Info> BufferResource::Info::cache_one_per_frame = {};
-  ItemCache<BufferResource> BufferResource::cache_one = {};
-  ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
-  ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
+  // ItemCache<BufferResource::Info> BufferResource::Info::cache_one = {};
+  // ItemCache<std::vector<BufferResource::Info>> BufferResource::Info::cache_array = {};
+  // ItemCache<BufferResource::Info> BufferResource::Info::cache_one_per_frame = {};
+  // ItemCache<BufferResource> BufferResource::cache_one = {};
+  // ItemCache<std::vector<BufferResource>> BufferResource::cache_array = {};
+  // ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
   // sampler cache
   ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
@@ -2334,6 +2268,9 @@ namespace quark {
 
       // GpuToCpuStorage 
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+
+      // DrawCommands
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
     };
 
     info.usage = lookup[(u32)type];
@@ -2341,9 +2278,9 @@ namespace quark {
     return info;
   }
 
-  VkBufferCreateInfo BufferResource::Info::_buf_info() {
-    return get_buffer_create_info(this->type, this->size);
-  }
+  // VkBufferCreateInfo BufferResource::Info::_buf_info() {
+  //   return get_buffer_create_info(this->type, this->size);
+  // }
 
   VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type) {
     VmaAllocationCreateInfo info = {};
@@ -2360,75 +2297,162 @@ namespace quark {
 
       // GpuToCpuStorage 
       VMA_MEMORY_USAGE_GPU_TO_CPU,
+
+      // DrawCommands
+      VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
 
     info.usage = lookup[(u32)type];
     return info;
   }
 
-  VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
-    return get_buffer_alloc_info(type);
+  Buffer create_buffer(BufferInfo* info) {
+    VkBufferCreateInfo buffer_info = get_buffer_create_info(info->type, info->size);
+    VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
+
+    Buffer buffer = {};
+    vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
+
+    buffer.type = info->type;
+    buffer.size = info->size;
+
+    return buffer;
   }
 
-  BufferResource BufferResource::Info::_create() {
-    auto buf_info = this->_buf_info();
-    auto alloc_info = this->_alloc_info();
+  std::unordered_map<u32, Buffer> buffer_map;
 
-    BufferResource res = {};
-    vk_check(vmaCreateBuffer(_gpu_alloc, &buf_info, &alloc_info, &res.buffer, &res.allocation, 0));
-
-    return res;
+  void add_buffer(Buffer buffer, const char* name) {
+    buffer_map.insert(std::make_pair(hash_str_fast(name), buffer));
   }
 
-  void BufferResource::create_one(BufferResource::Info& info, std::string name) {
-    add_name_association(name, internal::ResourceType::BufferResourceOne);
-
-    BufferResource res = info._create();
-
-    cache_one.add(name, res);
-    Info::cache_one.add(name, info);
-
-    print_tempstr(create_tempstr() + "Created buffer res!\n");
+  const Buffer* get_buffer(const char* name) {
+    return &buffer_map.at(hash_str_fast(name));
   }
 
-  void BufferResource::create_array(BufferResource::Info& info, std::string name) {
-    add_name_association(name, internal::ResourceType::BufferResourceArray);
-
-    BufferResource res = info._create();
-
-    // append to list
-    if(Info::cache_array.has(name)) {
-      cache_array.get(name).push_back(res);
-      Info::cache_array.get(name).push_back(info);
-      return;
-    }
-
-    // create new list
-    cache_array.add(name, {res});
-    Info::cache_array.add(name, {info});
-    return;
+  void* map_buffer(const char* name) {
+    const Buffer* buffer = get_buffer(name);
+    return map_buffer_native(buffer->allocation);
   }
 
-  void BufferResource::create_one_per_frame(BufferResource::Info& info, std::string name) {
-    add_name_association(name, internal::ResourceType::BufferResourceOnePerFrame);
+  void unmap_buffer(const char* name) {
+    const Buffer* buffer = get_buffer(name);
 
-    cache_one_per_frame.add(name, {});
-    Info::cache_one_per_frame.add(name, info);
-
-    for_every(index, _FRAME_OVERLAP) {
-      BufferResource res = info._create();
-      cache_one_per_frame.get(name)[index] = res;
-    }
+    vmaUnmapMemory(_gpu_alloc, buffer->allocation);
   }
 
-  MeshPoolResource create_mesh_pool_resource(MeshPoolResourceInfo* info) {
+  void write_buffer(const char* dst, void* src, u32 size) {
+    write_buffer_adv(dst, 0, src, 0, size);
+  }
+
+  void copy_buffer(const char* dst, const char* src, u32 size) {
+    copy_buffer_adv(dst, 0, src, 0, size);
+  }
+
+  void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
+    const Buffer* dst_buf = get_buffer(buffer_dst);
+
+    write_buffer_native(dst_buf->allocation, dst_offset_bytes, src, src_offset_bytes, size);
+  }
+
+  void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size) {
+    const Buffer* dst_buf = get_buffer(buffer_dst);
+    const Buffer* src_buf = get_buffer(buffer_src);
+
+    copy_buffer_native(dst_buf->buffer, dst_offset_bytes, src_buf->buffer, src_offset_bytes, size);
+  }
+
+  void* map_buffer_native(VmaAllocation allocation) {
+    void* ptr;
+    vmaMapMemory(_gpu_alloc, allocation, &ptr);
+    return ptr;
+  }
+
+  void unmap_buffer_native(VmaAllocation allocation) {
+    vmaUnmapMemory(_gpu_alloc, allocation);
+  }
+
+  void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
+    void* ptr = map_buffer_native(dst);
+    memcpy((u8*)ptr + dst_offset_bytes, (u8*)src + src_offset_bytes, size);
+    unmap_buffer_native(dst);
+  }
+
+  void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size) {
+    VkCommandBuffer commands = begin_quick_commands();
+
+    VkBufferCopy copy_region = {};
+    copy_region.srcOffset = src_offset_bytes;
+    copy_region.dstOffset = dst_offset_bytes;
+    copy_region.size = size;
+
+    vkCmdCopyBuffer(commands, src, dst, 1, &copy_region);
+
+    end_quick_commands(commands);
+  }
+
+  // VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
+  //   return get_buffer_alloc_info(type);
+  // }
+
+  // BufferResource BufferResource::Info::_create() {
+  //   auto buf_info = this->_buf_info();
+  //   auto alloc_info = this->_alloc_info();
+
+  //   BufferResource res = {};
+  //   vk_check(vmaCreateBuffer(_gpu_alloc, &buf_info, &alloc_info, &res.buffer, &res.allocation, 0));
+
+  //   return res;
+  // }
+
+  // void BufferResource::create_one(BufferResource::Info& info, std::string name) {
+  //   add_name_association(name, internal::ResourceType::BufferResourceOne);
+
+  //   BufferResource res = info._create();
+
+  //   cache_one.add(name, res);
+  //   Info::cache_one.add(name, info);
+
+  //   print_tempstr(create_tempstr() + "Created buffer res!\n");
+  // }
+
+  // void BufferResource::create_array(BufferResource::Info& info, std::string name) {
+  //   add_name_association(name, internal::ResourceType::BufferResourceArray);
+
+  //   BufferResource res = info._create();
+
+  //   // append to list
+  //   if(Info::cache_array.has(name)) {
+  //     cache_array.get(name).push_back(res);
+  //     Info::cache_array.get(name).push_back(info);
+  //     return;
+  //   }
+
+  //   // create new list
+  //   cache_array.add(name, {res});
+  //   Info::cache_array.add(name, {info});
+  //   return;
+  // }
+
+  // void BufferResource::create_one_per_frame(BufferResource::Info& info, std::string name) {
+  //   add_name_association(name, internal::ResourceType::BufferResourceOnePerFrame);
+
+  //   cache_one_per_frame.add(name, {});
+  //   Info::cache_one_per_frame.add(name, info);
+
+  //   for_every(index, _FRAME_OVERLAP) {
+  //     BufferResource res = info._create();
+  //     cache_one_per_frame.get(name)[index] = res;
+  //   }
+  // }
+
+  MeshPool create_mesh_pool(MeshPoolInfo* info) {
     u32 vertex_size = info->vertex_count * info->vertex_size;
     u32 index_size = info->vertex_count * sizeof(u32);
 
     VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if(info->usage == MeshPoolUsage::Gpu) {
+    if(info->usage == MeshPoolType::Gpu) {
       memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    } else if(info->usage == MeshPoolUsage::CpuToGpu) {
+    } else if(info->usage == MeshPoolType::CpuToGpu) {
       memory_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     } else {
       panic(create_tempstr() + "Failed to create mesh pool resource: " + "Mesh resource type was not valid!");
@@ -2448,7 +2472,7 @@ namespace quark {
     // VmaAllocationCreateInfo index_alloc_info = {};
     // index_alloc_info.usage = memory_usage;
 
-    MeshPoolResource resource = {};
+    MeshPool resource = {};
     vk_check(vmaCreateBuffer(_gpu_alloc, &vertex_info, &vertex_alloc_info, &resource.vertex_buffer, &resource.vertex_allocation, 0));
     // vk_check(vmaCreateBuffer(_gpu_alloc, &index_info, &index_alloc_info, &resource.index_buffer, &resource.index_allocation, 0));
 
@@ -2460,14 +2484,29 @@ namespace quark {
     return resource;
   }
 
-  std::unordered_map<std::string, MeshPoolResource> mesh_pools;
+  std::unordered_map<std::string, MeshPool> mesh_pools;
 
-  void add_mesh_pool_resource(MeshPoolResource resource, const char* name) {
+  void add_mesh_pool(MeshPool resource, const char* name) {
+    mesh_pools.insert(std::make_pair(std::string(name), resource));
     mesh_pools.insert(std::make_pair(std::string(name), resource));
   }
 
-  const MeshPoolResource* get_mesh_pool_resource(const char* name) {
+  const MeshPool* get_mesh_pool(const char* name) {
     return &mesh_pools.at(std::string(name));
+  }
+
+  void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
+    const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
+    const Buffer* buffer = get_buffer(buffer_src);
+
+    copy_buffer_native(pool->vertex_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
+  }
+
+  void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
+    const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
+    const Buffer* buffer = get_buffer(buffer_src);
+
+    copy_buffer_native(pool->index_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
   }
 
   VkSamplerCreateInfo SamplerResource::Info::_sampler_info() {
@@ -3060,8 +3099,8 @@ namespace quark {
     //  render_effect.descriptor_sets[index] = {};
     //}
 
-    render_effect.vertex_buffer_resource = get_mesh_pool_resource(this->mesh_pool.c_str())->vertex_buffer;//BufferResource::cache_one[this->vertex_buffer_resource].buffer;
-    render_effect.index_buffer_resource = get_mesh_pool_resource(this->mesh_pool.c_str())->index_buffer;
+    render_effect.vertex_buffer_resource = get_mesh_pool(this->mesh_pool.c_str())->vertex_buffer;//BufferResource::cache_one[this->vertex_buffer_resource].buffer;
+    render_effect.index_buffer_resource = get_mesh_pool(this->mesh_pool.c_str())->index_buffer;
     // if(this->index_buffer_resource != "") {
     //   render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
     // }
