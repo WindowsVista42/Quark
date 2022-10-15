@@ -125,7 +125,7 @@ namespace quark {
     glfwSetInputMode(_window_ptr, GLFW_CURSOR, (i32)mouse_mode);
   }
 
-  InputState get_input_state(input_id input, u32 source_id) {
+  InputState get_input_state(InputId input, u32 source_id) {
     RawInputId raw = { .bits = input };
     InputType raw_type = (InputType)raw.type;
 
@@ -152,7 +152,7 @@ namespace quark {
     return InputState::Release;
   }
 
-  f32 get_input_value(input_id input, u32 source_id) {
+  f32 get_input_value(InputId input, u32 source_id) {
     RawInputId raw = { .bits = input };
     InputType raw_type = (InputType)raw.type;
 
@@ -179,11 +179,11 @@ namespace quark {
     return 0.0f;
   }
 
-  bool get_input_down(input_id input, u32 source_id) {
+  bool get_input_down(InputId input, u32 source_id) {
     return get_input_state(input, source_id) == InputState::Press;
   }
 
-  bool get_input_up(input_id input, u32 source_id) {
+  bool get_input_up(InputId input, u32 source_id) {
     return get_input_state(input, source_id) == InputState::Release;
   }
 

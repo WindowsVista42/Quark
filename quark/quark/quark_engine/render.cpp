@@ -863,49 +863,77 @@ namespace quark {
       _context.swapchain_images = (VkImage*)alloc_copy(&_render_alloc, swapchain_images.data(), swapchain_images.size() * sizeof(VkImage));
       _context.swapchain_image_views = (VkImageView*)alloc_copy(&_render_alloc, swapchain_image_views.data(), swapchain_image_views.size() * sizeof(VkImageView));
     
-      ImageResource::Info info;
 
-      info = {
+      RenderImageInfo main_color_info = {
+        .resolution = get_window_dimensions() / 4,
         .format = ImageFormat::LinearRgba16,
-        .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-        .resolution = get_window_dimensions() / 2,
+        .type = RenderImageType::RenderTarget,
+        .samples = ImageSamples::One,
       };
-      ImageResource::create_one_per_frame(info, "main_color");
 
-      info = {
-        .format = ImageFormat::LinearD24S8,
-        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-        .resolution = get_window_dimensions() / 2,
+      RenderImages main_color = create_render_images(&main_color_info);
+
+      RenderImageInfo main_depth_info = {
+        .resolution = get_window_dimensions() / 4,
+        .format = ImageFormat::LinearRgba16,
+        .type = RenderImageType::RenderTarget,
+        .samples = ImageSamples::One,
       };
-      ImageResource::create_one_per_frame(info, "main_depth");
-    
-      info = {
-        .format = ImageFormat::LinearD24S8,
-        .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+
+      RenderImages main_depth = create_render_images(&main_depth_info);
+
+      RenderImageInfo shadow_depth_info = {
         .resolution = {2048, 2048},
+        .format = ImageFormat::LinearRgba16,
+        .type = RenderImageType::RenderTarget,
+        .samples = ImageSamples::One,
       };
-      ImageResource::create_one_per_frame(info, "shadow_pass_depth");
 
-      for_every(index, _context.swapchain_image_count) {
-        ImageResource::Info s_info = {
-          .format = ImageFormat::LinearBgra8,
-          .usage = ImageUsage::Present | ImageUsage::Dst,
-          .resolution = get_window_dimensions(),
-          .samples = ImageSamples::One,
-        };
+      RenderImages shadow_depth = create_render_images(&shadow_depth_info);
 
-        ImageResource res = {
-          .allocation = 0,
-          .image = swapchain_images[index],
-          .view = swapchain_image_views[index],
-          .format = s_info.format,
-          .resolution = s_info.resolution,
-          .samples = s_info.samples,
-          .current_usage = ImageUsage::Unknown,
-        };
+      // ImageResource::Info info;
 
-        ImageResource::create_array_from_existing(s_info, res, "swapchain");
-      }
+      // info = {
+      //   .format = ImageFormat::LinearRgba16,
+      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
+      //   .resolution = get_window_dimensions() / 2,
+      // };
+      // ImageResource::create_one_per_frame(info, "main_color");
+
+      // info = {
+      //   .format = ImageFormat::LinearD24S8,
+      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+      //   .resolution = get_window_dimensions() / 2,
+      // };
+      // ImageResource::create_one_per_frame(info, "main_depth");
+    
+      // info = {
+      //   .format = ImageFormat::LinearD24S8,
+      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
+      //   .resolution = {2048, 2048},
+      // };
+      // ImageResource::create_one_per_frame(info, "shadow_pass_depth");
+
+      // for_every(index, _context.swapchain_image_count) {
+      //   ImageResource::Info s_info = {
+      //     .format = ImageFormat::LinearBgra8,
+      //     .usage = ImageUsage::Present | ImageUsage::Dst,
+      //     .resolution = get_window_dimensions(),
+      //     .samples = ImageSamples::One,
+      //   };
+
+      //   ImageResource res = {
+      //     .allocation = 0,
+      //     .image = swapchain_images[index],
+      //     .view = swapchain_image_views[index],
+      //     .format = s_info.format,
+      //     .resolution = s_info.resolution,
+      //     .samples = s_info.samples,
+      //     .current_usage = ImageUsage::Unknown,
+      //   };
+
+      //   ImageResource::create_array_from_existing(s_info, res, "swapchain");
+      // }
     }
     
     void init_command_pools_and_buffers() {
@@ -958,7 +986,7 @@ namespace quark {
         .image_resources = {"shadow_pass_depth"},
         .load_modes = {LoadMode::Clear},
         .store_modes = {StoreMode::Store},
-        .next_usage_modes = {ImageUsage::Texture},
+        .next_usage_modes = {ImageTYpe::Texture},
       };
       RenderTarget::create(info, "shadow_pass");
     }
@@ -1579,7 +1607,7 @@ namespace quark {
     // void unload_mesh(AllocatedMesh* mesh) {}
     
     // Texture loading
-    void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
+    // void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
     
     // Texture* load_png_texture(std::string* path) {
     //   int width, height, channels;
@@ -1681,9 +1709,9 @@ namespace quark {
     //   return texture;
     // }
     
-    Texture* load_qoi_texture(std::string* path) {
-      return 0;
-    }
+    // Texture* load_qoi_texture(std::string* path) {
+    //   return 0;
+    // }
     
     // void unload_texture(Texture* texture) {
     //   AllocatedImage* alloc_image = &_gpu_images[(u32)texture->id];
@@ -2041,7 +2069,7 @@ namespace quark {
     res.format = this->format;
     res.resolution = this->resolution;
     res.samples = this->samples;
-    res.current_usage = (ImageUsage)VK_IMAGE_LAYOUT_UNDEFINED;
+    res.current_usage = (ImageType)VK_IMAGE_LAYOUT_UNDEFINED;
 
     return res;
   }
@@ -2103,7 +2131,7 @@ namespace quark {
     return;
   }
 
-  void ImageResource::transition(std::string name, u32 index, ImageUsage next_usage) {
+  void ImageResource::transition(std::string name, u32 index, ImageType next_usage) {
     ImageResource& res = ImageResource::get(name, index);
 
     auto old_layout = internal::image_usage_vk_layout(res.current_usage, res.is_color());
@@ -2705,7 +2733,7 @@ namespace quark {
     return attachment_desc;
   }
 
-  void transition(const char* name, ImageUsage next_usage_mode) {
+  void transition(const char* name, ImageTYpe next_usage_mode) {
   }
 
   std::vector<VkAttachmentReference> RenderTarget::Info::_color_attachment_refs() {

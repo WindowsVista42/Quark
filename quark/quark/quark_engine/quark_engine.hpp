@@ -18,21 +18,17 @@ namespace quark {
     quat rotation;
   };
 
-  struct mesh_id {
-    u32 pool_index;
-    u32 index;
+  struct MeshId {
+    u16 pool_index;
+    u16 index;
   };
 
   struct Model {
     vec3 half_extents;
-    mesh_id id;
+    MeshId id;
   };
 
-  enum struct image_id : u32 {};
-
-  struct Texture {
-    image_id id;
-  };
+  enum struct ImageId : u32 {};
 
   // struct ImageProperties {
   //   u32 width;
@@ -73,7 +69,9 @@ namespace quark {
 //
 
   engine_api Model create_model(const char* mesh_name, vec3 scale);
-  engine_api Texture create_texture(const char* texture_name);
+  
+  engine_api ImageId get_image_id(const char* image_name);
+  // engine_api Texture create_texture(const char* texture_name);
 
 //
 // Material Types
@@ -84,23 +82,23 @@ namespace quark {
   };
 
   struct TextureMaterial {
-    Texture albedo;
+    ImageId albedo;
     vec4 tint;
   };
 
   struct BasicMaterial {
-    Texture albedo;
-    Texture specular;
+    ImageId albedo;
+    ImageId specular;
     vec4 tint;
   };
 
   struct PbrMaterial {
-    Texture albedo;
-    Texture metallic_roughness;
-    Texture normals;
-    Texture height;
-    Texture occlusion;
-    Texture emission;
+    ImageId albedo;
+    ImageId metallic_roughness;
+    ImageId normals;
+    ImageId height;
+    ImageId occlusion;
+    ImageId emission;
   
     vec2 tiling;
     vec2 offset;
@@ -287,7 +285,7 @@ namespace quark {
 //
 
   struct ActionProperties {
-    std::vector<input_id> input_ids;
+    std::vector<InputId> input_ids;
     std::vector<u32> source_ids;
     std::vector<f32> input_strengths;
     f32 max_value;
@@ -319,7 +317,7 @@ namespace quark {
   engine_api void bind_action(const char* action_name, MouseAxisCode input, f32 strength);
   engine_api void bind_action(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength);
 
-  engine_api void bind_action(const char* action_name, input_id input, u32 source_id = 0, f32 strength = 1.0f);
+  engine_api void bind_action(const char* action_name, InputId input, u32 source_id = 0, f32 strength = 1.0f);
 
   engine_api void unbind_action(const char* action_name);
   
@@ -741,11 +739,11 @@ namespace quark {
   };
   declare_resource(engine_var, MeshRegistry);
 
-  inline MeshInstance get_mesh_instance(mesh_id id) {
+  inline MeshInstance get_mesh_instance(MeshId id) {
     return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
   }
 
-  inline vec3 get_mesh_scale(mesh_id id) {
+  inline vec3 get_mesh_scale(MeshId id) {
     return get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index];
   }
 
@@ -1047,7 +1045,7 @@ namespace quark {
     engine_api MeshInstance create_mesh(void* data, usize size, usize memsize);
 
     // Texture loading
-    engine_api void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture);
+    // engine_api void create_image(void* data, usize width, usize height, VkFormat format, Image* image);
 
     engine_api void deinit_sync_objects();
     // engine_api void deinit_descriptors();
@@ -1070,37 +1068,16 @@ namespace quark {
 };
 
 namespace quark {
-  declare_enum(ImageFormat, u32,
-    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
-    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
-    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
 
-    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
-
-    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
-    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
-
-    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
-    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
-  );
-
-  declare_enum(ImageUsage, u32,
-    Unknown      = 0x00,
-    Src          = 0x01,
-    Dst          = 0x02,
-    Texture      = 0x04,
-    Storage      = 0x08,
-    RenderTarget = 0x10, // implicit depth stored // RenderTargetDepth = 0x20,
-    Present      = 0x40,
-  );
-
-  declare_enum(ImageSamples, u32,
-    One     = VK_SAMPLE_COUNT_1_BIT,
-    Two     = VK_SAMPLE_COUNT_2_BIT,
-    Four    = VK_SAMPLE_COUNT_4_BIT,
-    Eight   = VK_SAMPLE_COUNT_8_BIT,
-    Sixteen = VK_SAMPLE_COUNT_16_BIT,
-  );
+  // declare_enum(ImageUsage, u32,
+  //   Unknown      = 0x00,
+  //   Src          = 0x01,
+  //   Dst          = 0x02,
+  //   Texture      = 0x04,
+  //   Storage      = 0x08,
+  //   RenderTarget = 0x10, // implicit depth stored // RenderTargetDepth = 0x20,
+  //   Present      = 0x40,
+  // );
 
   // declare_enum(BufferUsage, u32,
   //   CpuSrc  = 0x01,
@@ -1115,21 +1092,6 @@ namespace quark {
   //   Vertex  = 0x80,
   // );
 
-  declare_enum(BufferType, u32,
-    Uniform         = 0,
-    GpuStorage      = 1,
-    CpuToGpuStorage = 2,
-    GpuToCpuStorage = 3,
-    DrawCommands    = 4,
-  );
-
-  declare_enum(MeshPoolType, u32,
-    Gpu      = 0,
-    CpuToGpu = 1,
-    // VertexOnlyGpu,
-    // VertexOnlyCpuToGpu,
-  );
-
   declare_enum(FilterMode, u32,
     Nearest = VK_FILTER_NEAREST,
     Linear  = VK_FILTER_LINEAR,
@@ -1141,17 +1103,6 @@ namespace quark {
     BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
     EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
     MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
-  );
-
-  declare_enum(LoadMode, u32,
-    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,
-    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-  );
-
-  declare_enum(StoreMode, u32,
-    Store     = VK_ATTACHMENT_STORE_OP_STORE,
-    DontStore = VK_ATTACHMENT_STORE_OP_DONT_CARE,
   );
 
   declare_enum(FillMode, u32,
@@ -1172,108 +1123,108 @@ namespace quark {
     Simple = 0x1,
   );
 
-  enum struct resource_id : u32 {};
+  // enum struct resource_id : u32 {};
 
-  struct ImageResourceInfo2 {
-    ImageFormat format;
-    ImageUsage usage;
-    ivec2 resolution;
-    ImageSamples samples;
-  };
+  // struct ImageResourceInfo2 {
+  //   ImageFormat format;
+  //   ImageType usage;
+  //   ivec2 resolution;
+  //   ImageSamples samples;
+  // };
 
-  struct ImageResource2 {
-    // Resource handles
-    VmaAllocation allocation;
-    VkImage image;
-    VkImageView view;
+  // struct ImageResource2 {
+  //   // Resource handles
+  //   VmaAllocation allocation;
+  //   VkImage image;
+  //   VkImageView view;
 
-    // Metadata
-    ImageFormat format;
-    ivec2 resolution;
-    ImageSamples samples;
-    ImageUsage current_usage;
-  };
+  //   // Metadata
+  //   ImageFormat format;
+  //   ivec2 resolution;
+  //   ImageSamples samples;
+  //   ImageType current_usage;
+  // };
 
-  struct BufferResourceInfo2 {
-    BufferType type;
-    usize size;
-  };
+  // struct BufferResourceInfo2 {
+  //   BufferType type;
+  //   usize size;
+  // };
 
-  struct BufferResource2 {
-    // Resource handles
-    VmaAllocation allocation;
-    VkBuffer buffer;
+  // struct BufferResource2 {
+  //   // Resource handles
+  //   VmaAllocation allocation;
+  //   VkBuffer buffer;
 
-    // Metadata
-    BufferType type;
-    usize size;
-  };
+  //   // Metadata
+  //   BufferType type;
+  //   usize size;
+  // };
 
-  struct Model2 {
-    vec3 scale;
-    u64 id; // u32 x, u32 y
-  };
+  // struct Model2 {
+  //   vec3 scale;
+  //   u64 id; // u32 x, u32 y
+  // };
 
-  struct MeshPoolResource2 {
-    // Resource handles
-    VmaAllocation allocation;
-    VkBuffer buffer;
+  // struct MeshPoolResource2 {
+  //   // Resource handles
+  //   VmaAllocation allocation;
+  //   VkBuffer buffer;
 
-    // Metadata
-    usize size;
-  };
+  //   // Metadata
+  //   usize size;
+  // };
 
-  struct SamplerResourceInfo2 {
-    FilterMode filter_mode;
-    WrapMode wrap_mode;
-  };
+  // struct SamplerResourceInfo2 {
+  //   FilterMode filter_mode;
+  //   WrapMode wrap_mode;
+  // };
 
-  struct SamplerResource2 {
-    // Resource handles
-    VkSampler sampler;
+  // struct SamplerResource2 {
+  //   // Resource handles
+  //   VkSampler sampler;
 
-    // Metadata
-    FilterMode filter_mode;
-    WrapMode wrap_mode;
-  };
+  //   // Metadata
+  //   FilterMode filter_mode;
+  //   WrapMode wrap_mode;
+  // };
 
-  struct RenderTargetRef {
-    resource_id image_resource;
-    LoadMode load_mode;
-    StoreMode store_mode;
-    ImageUsage next_usage_mode;
-  };
+  // struct RenderTargetRef {
+  //   resource_id image_resource;
+  //   LoadMode load_mode;
+  //   StoreMode store_mode;
+  //   ImageType next_usage_mode;
+  // };
 
-  struct RenderTargetInfo2 {
-    std::vector<RenderTargetRef> image_refs;
-  };
+  // struct RenderTargetInfo2 {
+  //   std::vector<RenderTargetRef> image_refs;
+  // };
 
-  struct RenderTarget2 {
-    VkRenderPass render_pass;
-    VkFramebuffer framebuffers[internal::_FRAME_OVERLAP];
-  };
+  // struct RenderTarget2 {
+  //   VkRenderPass render_pass;
+  //   VkFramebuffer framebuffers[internal::_FRAME_OVERLAP];
+  // };
 
-  struct ResourceGroup2 {
-    VkDescriptorSetLayout layout;
-    VkDescriptorSet sets[internal::_FRAME_OVERLAP];
-  };
+  // struct ResourceGroup2 {
+  //   VkDescriptorSetLayout layout;
+  //   VkDescriptorSet sets[internal::_FRAME_OVERLAP];
+  // };
 
-  struct engine_api ResourceGroupInfo2 {
-    std::vector<resource_id> resources;
-  };
+  // struct engine_api ResourceGroupInfo2 {
+  //   std::vector<resource_id> resources;
+  // };
 
-  struct PushConstantInfo2 {
-    u32 size;
-  };
+  // struct PushConstantInfo2 {
+  //   u32 size;
+  // };
 
-  struct ResourceBundleInfo2 {
-    std::array<resource_id, 4> resource_groups; // no more than 4
-    resource_id push_constant;
-  };
+  // struct ResourceBundleInfo2 {
+  //   std::array<resource_id, 4> resource_groups; // no more than 4
+  //   resource_id push_constant;
+  // };
 
-  struct ResourceBundle2 {
-    VkPipelineLayout layout;
-  };
+  // struct ResourceBundle2 {
+  //   VkPipelineLayout layout;
+  // };
 
   // struct EffectInfo2 {
   //   render_target_id render_target;
@@ -1338,7 +1289,7 @@ namespace quark {
   struct engine_api ImageResource {
     struct Info {
       ImageFormat format;
-      ImageUsage usage;
+      ImageType usage;
       ivec2 resolution;
       ImageSamples samples = ImageSamples::One;
 
@@ -1363,7 +1314,7 @@ namespace quark {
     ImageFormat format;
     ivec2 resolution;
     ImageSamples samples;
-    ImageUsage current_usage;
+    ImageType current_usage;
 
     inline bool is_color() {
       return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
@@ -1375,7 +1326,7 @@ namespace quark {
 
     static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
 
-    static void transition(std::string name, u32 index, ImageUsage next_usage);
+    static void transition(std::string name, u32 index, ImageType next_usage);
     //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
     static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
 
@@ -1386,22 +1337,17 @@ namespace quark {
     static ItemCache<std::array<ImageResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
   };
 
-  declare_enum(ResourceType, u32,
-    Buffer,
-    BufferArray,
-    Image,
-    ImageArray,
-    Sampler,
-  );
-
-  struct ResourceHandle {
-    ResourceType resource_type;
-    u32 name_hash;
-  };
-
 //
 // Buffer API
 //
+
+  declare_enum(BufferType, u32,
+    Uniform         = 0,
+    GpuStorage      = 1,
+    CpuToGpuStorage = 2,
+    GpuToCpuStorage = 3,
+    DrawCommands    = 4,
+  );
 
   struct BufferInfo {
     BufferType type;
@@ -1476,6 +1422,11 @@ namespace quark {
 // into one global vertex and index array
 //
 
+  declare_enum(MeshPoolType, u32,
+    Gpu      = 0,
+    CpuToGpu = 1,
+  );
+
   struct MeshPoolInfo {
     MeshPoolType usage;
     u32 vertex_size;
@@ -1500,6 +1451,141 @@ namespace quark {
 
   void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
   void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+
+//
+// Image API
+//
+
+  declare_enum(ImageType, u32,
+    Texture,
+    Storage,
+  );
+
+  declare_enum(ImageFormat, u32,
+    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
+    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+
+    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
+
+    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
+    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
+
+    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
+    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
+  );
+
+  declare_enum(ImageUsage, u32,
+    Unknown           = 0x00,
+    Src               = 0x01,
+    Dst               = 0x02,
+    Texture           = 0x04,
+    Storage           = 0x08,
+  );
+
+  struct ImageInfo {
+    ImageType type;
+    ImageFormat format;
+    ivec2 resolution;
+  };
+
+  struct Image {
+    VmaAllocation allocation;
+    VkImage image;
+    VkImageView view;
+
+    ImageType type;
+    ImageFormat format;
+    ivec2 resolution;
+  };
+
+//
+// Render Image API
+//
+
+  declare_enum(RenderImageType, u32,
+    RenderTarget,
+    Present,      // Special flag only used for swapchain
+  );
+
+  declare_enum(RenderImageUsage, u32,
+    Unknown,
+    Src,
+    Dst,
+    Texture,
+    Storage,
+    RenderTargetColor,
+    RenderTargetDepth,
+    Present,
+  );
+
+  declare_enum(RenderImageSamples, u32,
+    One     = VK_SAMPLE_COUNT_1_BIT,
+    Two     = VK_SAMPLE_COUNT_2_BIT,
+    Four    = VK_SAMPLE_COUNT_4_BIT,
+    Eight   = VK_SAMPLE_COUNT_8_BIT,
+    Sixteen = VK_SAMPLE_COUNT_16_BIT,
+  );
+
+  struct RenderImageInfo {
+    RenderImageType type;
+    ImageFormat format;
+    RenderImageSamples samples;
+    ivec2 resolution;
+  };
+
+  struct RenderImage {
+    VmaAllocation allocations[internal::_FRAME_OVERLAP];
+    VkImage images[internal::_FRAME_OVERLAP];
+    VkImageView views[internal::_FRAME_OVERLAP];
+  };
+
+  RenderImage create_render_image(RenderImageInfo* info);
+  void add_render_image(RenderImage resource, const char* name);
+  const RenderImage* get_render_image(const char* name);
+
+  enum struct RenderImageId : u32 {};
+
+//
+// Render Target API
+//
+
+  declare_enum(LoadOp, u32,
+    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,
+    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+  );
+
+  declare_enum(StoreOp, u32,
+    Store     = VK_ATTACHMENT_STORE_OP_STORE,
+    DontStore = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+  );
+
+  struct RenderTargetAttachment {
+    RenderImageId image;
+    LoadOp load_op;
+    StoreOp store_op;
+    RenderImageUsage next_usage;
+  };
+
+  struct RenderTargetInfo {
+    u32 depth_attachment_count;
+    RenderTargetAttachment depth_attachment;
+
+    u32 color_attachment_count;
+    RenderTargetAttachment color_attachments[8];
+  };
+
+  struct RenderTarget {
+    VkRenderPass render_pass;
+    VkFramebuffer framebuffers[internal::_FRAME_OVERLAP];
+
+    u32 depth_attachment_count;
+    RenderTargetAttachment depth_attachment;
+
+    u32 color_attachment_count;
+    RenderTargetAttachment color_attachments[8];
+  };
 
   //struct engine_api MeshResource {
   //  struct CreateInfo {
@@ -1545,7 +1631,7 @@ namespace quark {
       std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
       std::vector<LoadMode> load_modes;
       std::vector<StoreMode> store_modes;
-      std::vector<ImageUsage> next_usage_modes;
+      std::vector<ImageType> next_usage_modes;
 
       void _validate();
       std::vector<VkAttachmentDescription> _attachment_desc();
@@ -1574,6 +1660,34 @@ namespace quark {
 
     static ItemCache<RenderTarget> cache;
   };
+
+  declare_enum(ResourceType, u32,
+    Buffer,
+    BufferArray,
+    Image,
+    ImageArray,
+    Sampler,
+  );
+
+  struct ResourceHandle {
+    ResourceType resource_type;
+    union {
+      u32 buffer_name_hash;
+      u32 buffer_array_name_hash;
+      u32 image_name_hash;
+      u32 image_array_name_hash;
+      u32 sampler_name_hash;
+    };
+  };
+
+  struct ResourceGroup {
+    u32 resource_count;
+  };
+
+  void a() {
+    VkDescriptorSetLayoutBinding a {
+    }
+  }
 
   struct engine_api ResourceGroup {
     struct Info {
@@ -1633,7 +1747,7 @@ namespace quark {
       VkPipelineInputAssemblyStateCreateInfo _input_assembly_info();
       VkPipelineViewportStateCreateInfo _viewport_info(VkViewport* viewport, VkRect2D* scissor);
       VkPipelineRasterizationStateCreateInfo _rasterization_info();
-      VkPipelineMultisampleStateCreateInfo _multisample_info(ImageSamples samples);
+      VkPipelineMultisampleStateCreateInfo _multisample_info(RenderImageSamples samples);
       VkPipelineDepthStencilStateCreateInfo _depth_info();
 
       std::vector<VkPipelineColorBlendAttachmentState> _color_blend_attachments(u32 count);
@@ -1670,7 +1784,7 @@ namespace quark {
 
     ivec2 resolution;
     std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
-    std::vector<ImageUsage> next_usage_modes;
+    std::vector<ImageType> next_usage_modes;
     std::vector<std::string> image_resources;
 
     std::array<std::array<VkDescriptorSet, 4>, internal::_FRAME_OVERLAP> descriptor_sets;
@@ -1755,7 +1869,7 @@ namespace quark {
 
 namespace quark {
   namespace internal {
-    static VkImageLayout image_usage_vk_layout(ImageUsage usage_bits, bool is_color) {
+    static VkImageLayout image_usage_vk_layout(ImageType usage_bits, bool is_color) {
       auto one_hot_to_binary = [](u32 value) {
         value = (value == 0) ? 1 : value << 1;
         return __builtin_ctz(value);
@@ -1791,7 +1905,7 @@ namespace quark {
       //}
     }
 
-    static VkImageUsageFlagBits image_usage_vk_usage(ImageUsage usage_bits, bool is_color) {
+    static VkImageUsageFlagBits image_usage_vk_usage(ImageType usage_bits, bool is_color) {
       u32 flags = {};
       u32 bits = (u32)usage_bits;
 
@@ -1810,8 +1924,8 @@ namespace quark {
 
       write_bit(&flags, bits, (u32)ImageUsage::Src, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
       write_bit(&flags, bits, (u32)ImageUsage::Dst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-      write_bit(&flags, bits, (u32)ImageUsage::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
-      write_bit(&flags, bits, (u32)ImageUsage::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
+      write_bit(&flags, bits, (u32)ImageType::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
+      write_bit(&flags, bits, (u32)ImageType::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
 
       if (has_bit(bits, (u32)ImageUsage::RenderTarget)) {
         if (is_color) {
