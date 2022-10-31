@@ -1,7 +1,21 @@
 #define QUARK_PLATFORM_IMPLEMENTATION
 #include "quark_platform.hpp"
 
+// #if defined(_WIN64)
+// #define _AMD64_
+// #include <libloaderapi.h>
+// #undef max
+// #endif
+
+#ifdef _WIN64
+#include <windows.h>
+#endif
+
 namespace quark {
+//
+// Window API
+//
+
   GLFWwindow* _window_ptr;
   std::string _window_name;
   ivec2 _window_dimensions;
@@ -52,7 +66,7 @@ namespace quark {
   void init_window() {
     if(_window_ptr != 0) {
       panic("Attempted to create the window twice!");
-    };
+    }
 
     glfwInit();
 
@@ -124,6 +138,10 @@ namespace quark {
   void set_mouse_mode(MouseMode mouse_mode) {
     glfwSetInputMode(_window_ptr, GLFW_CURSOR, (i32)mouse_mode);
   }
+
+//
+// Input API Functions
+//
 
   InputState get_input_state(InputId input, u32 source_id) {
     RawInputId raw = { .bits = input };
@@ -286,6 +304,10 @@ namespace quark {
     return _scroll_position;
   }
 
+//
+// Window Input Updating
+//
+
   void update_window_inputs() {
     glfwPollEvents();
 
@@ -299,6 +321,10 @@ namespace quark {
     _mouse_accumulator = {0,0};
   }
 
+//
+// Timing API
+//
+
   Timestamp get_timestamp() {
     return Timestamp { .value = glfwGetTime() };
   }
@@ -306,6 +332,14 @@ namespace quark {
   f64 get_timestamp_difference(Timestamp t0, Timestamp t1) {
     return abs(t1.value - t0.value);
   }
+
+  f64 get_delta_time(Timestamp t0, Timestamp t1) {
+    return abs(t1.value - t0.value);
+  }
+
+//
+// Threadpool API
+//
 
   void init_threadpool() {
     _threadpool.init();
@@ -337,7 +371,16 @@ namespace quark {
     return _threadpool.thread_count();
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+//
+// Windows
+//
+
+#ifdef _WIN64
+
+//
+// Shared Library API
+//
+
   Library load_library(const char* library_path) {
     HINSTANCE hinstlib = LoadLibraryEx(
         TEXT(library_path),
@@ -378,7 +421,206 @@ namespace quark {
 
     return true;
   }
+
+//
+// Memory API
+//
+
+  u8* os_reserve_mem(usize size) {
+    return (u8*)VirtualAlloc(0, size, MEM_RESERVE | MEM_PHYSICAL | MEM_LARGE_PAGES, PAGE_NOACCESS);
+  }
+  
+  void os_release_mem(u8* ptr) {
+    VirtualFree(ptr, 0, MEM_RELEASE);
+  }
+  
+  void os_commit_mem(u8* ptr, usize size) {
+    VirtualAlloc(ptr, size, MEM_COMMIT | MEM_PHYSICAL | MEM_LARGE_PAGES, PAGE_READWRITE);
+  }
+  
+  void os_decommit_mem(u8* ptr, usize size) {
+    VirtualFree(ptr, size, MEM_DECOMMIT);
+  }
+
+//
+// Zero Mem API
+//
+
+  void zero_mem(void* ptr, usize count) {
+    ZeroMemory(ptr, count);
+  }
+
 #endif
+
+//
+// Arena API
+//
+
+  struct ArenaPool {
+    Arena arenas[16] = {};
+    i64 thread_locks[16] = {
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
+    };
+    bool allocated[16] = {};
+  };
+  
+  const usize alignment = 8;
+  const usize max_arena_count = 16;
+  const usize virtual_reserve_size = 16 * GB;
+  ArenaPool pool = {};
+  
+  #define CURRENT_THREAD_ID 1
+  
+  Arena* get_arena_internal(Arena** conflicts, usize conflict_count, int search_thread_id) {
+    Arena* arena = 0;
+  
+    for(int i = 0; i < max_arena_count; i += 1) {
+      if(pool.thread_locks[i] == search_thread_id || pool.thread_locks[i] == -1) {
+  
+        bool valid = true;
+  
+        // check if the selected pool is a conflicting pool
+        for(int j = 0; j < conflict_count; j += 1) {
+          if(&pool.arenas[i] == conflicts[j]) {
+            valid = false;
+            break;
+          }
+        }
+  
+        if (!valid) { continue; }
+  
+        // if we have no conflicts and are free, then use this pool
+        pool.thread_locks[i] = CURRENT_THREAD_ID;
+        arena = &pool.arenas[i];
+  
+        break;
+      }
+    }
+  
+    if(arena == 0) {
+      return arena;
+    }
+  
+    usize i = arena - pool.arenas;
+  
+    if(!pool.allocated[i]) {
+      arena->ptr = os_reserve_mem(virtual_reserve_size);
+      os_commit_mem(arena->ptr, 2 * MB);
+  
+      arena->pos = 0;
+      arena->commit_size = 2 * MB;
+    }
+  
+    pool.allocated[i] = true;
+  
+    return arena;
+  }
+  
+  Arena* get_arena() {
+    Arena* arena = get_arena_internal(0, 0, -1);
+  
+    if(arena == 0) {
+      panic("failed to allocate arena, max number allocated!\n");
+      exit(-1);
+    }
+  
+    return arena;
+  }
+  
+  void free_arena(Arena* arena) {
+    usize i = (arena - pool.arenas);
+  
+    pool.thread_locks[i] = -1;
+  
+    reset_arena(arena);
+  
+    // os_release_mem(arena->ptr);
+    // zero_struct(arena);
+  }
+  
+  u8* push_arena(Arena* arena, usize size) {
+    usize new_size = align_forward(arena->pos + size, alignment);
+  
+    u8* ptr = arena->ptr + arena->pos;
+    arena->pos = new_size;
+  
+    // lazy
+    while(arena->pos > arena->commit_size) {
+      os_commit_mem(arena->ptr + arena->commit_size, arena->commit_size);
+      arena->commit_size *= 2;
+    }
+  
+    return ptr;
+  }
+  
+  u8* push_zero_arena(Arena* arena, usize size) {
+    u8* ptr = push_arena(arena, size);
+    zero_mem(ptr, size);
+    return ptr;
+  }
+  
+  void pop_arena(Arena* arena, usize size) {
+    arena->pos -= size;
+    arena->pos = align_forward(arena->pos, alignment);
+  }
+  
+  usize get_arena_pos(Arena* arena) {
+    return arena->pos;
+  }
+  
+  void set_arena_pos(Arena* arena, usize size) {
+    arena->pos = size;
+    arena->pos = align_forward(arena->pos, alignment);
+  }
+  
+  void clear_arena(Arena* arena) {
+    arena->pos = 0;
+  }
+  
+  void clear_zero_arena(Arena* arena) {
+    zero_mem(arena->ptr, arena->pos);
+    arena->pos = 0;
+  }
+  
+  void reset_arena(Arena* arena) {
+    os_decommit_mem(arena->ptr + 2 * MB, arena->pos - 2 * MB);
+  
+    arena->pos = 0;
+    arena->commit_size = 2 * MB;
+    zero_mem(arena->ptr, arena->commit_size);
+  }
+  
+  TempStack begin_temp_stack(Arena* arena) {
+    return TempStack {
+      .arena = arena,
+      .restore_pos = get_arena_pos(arena),
+    };
+  }
+  
+  void end_temp_stack(TempStack stack) {
+    set_arena_pos(stack.arena, stack.restore_pos);
+  }
+  
+  TempStack begin_scratch(Arena** conflicts, usize conflict_count) {
+    Arena* arena = get_arena_internal(conflicts, conflict_count, CURRENT_THREAD_ID);
+  
+    if(arena == 0) {
+      panic("begin_scratch failed!\n");
+      exit(-1);
+    }
+  
+    return TempStack {
+      .arena = arena,
+      .restore_pos = get_arena_pos(arena),
+    };
+  }
+
+//
+// Allocator API
+//
 
   LinearAllocator create_linear_allocator(usize capacity) {
     u8* data = (u8*)malloc(capacity);
@@ -469,8 +711,21 @@ namespace quark {
     return allocator->capacity - allocator->size;
   }
 
-  void panic(const char* message) {
-    printf("Panicked at message: \"%s\"", message);
+//
+// Panic API
+//
+
+#ifdef _WIN64
+
+  void panic_real(const char* message, const char* file, usize line) {
+    void* backtrace;
+    ULONG hash;
+
+    CaptureStackBackTrace(0, 5, &backtrace, &hash);
+
+    printf("Panicked at message: \"%s\", %s:%llu", message, file, line);
     exit(-1);
   }
+
+#endif
 };

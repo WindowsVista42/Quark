@@ -22,7 +22,7 @@ namespace quark {
   const GraphicsContext* _context = get_graphics_context();
 
   Model create_model(const char* mesh_name, vec3 scale) {
-    mesh_id id = *get_asset<mesh_id>(mesh_name);
+    MeshId id = *get_asset<MeshId>(mesh_name);
 
     return Model {
       .half_extents = (scale / 2.0f) * get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index],
@@ -79,26 +79,26 @@ namespace quark {
   }
 
   void bind_action(const char* action_name, KeyCode input) {
-    bind_action(action_name, (input_id)input, 0, 1.0f);
+    bind_action(action_name, (InputId)input, 0, 1.0f);
   }
 
   void bind_action(const char* action_name, MouseButtonCode input) {
-    bind_action(action_name, (input_id)input, 0, 1.0f);
+    bind_action(action_name, (InputId)input, 0, 1.0f);
   }
 
   void bind_action(const char* action_name, GamepadButtonCode input, u32 source_id) {
-    bind_action(action_name, (input_id)input, source_id, 1.0f);
+    bind_action(action_name, (InputId)input, source_id, 1.0f);
   }
 
   void bind_action(const char* action_name, MouseAxisCode input, f32 strength) {
-    bind_action(action_name, (input_id)input, 0, strength);
+    bind_action(action_name, (InputId)input, 0, strength);
   }
 
   void bind_action(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength) {
-    bind_action(action_name, (input_id)input, source_id, strength);
+    bind_action(action_name, (InputId)input, source_id, strength);
   }
 
-  void bind_action(const char* action_name, input_id input, u32 source_id, f32 strength) {
+  void bind_action(const char* action_name, InputId input, u32 source_id, f32 strength) {
     //TODO(sean): check for invalid input binds?
 
     // add new input
@@ -478,10 +478,10 @@ namespace quark {
   void operator +=(tempstr& s, uvec3 data);
   void operator +=(tempstr& s, uvec4 data);
 
-  [[noreturn]] void panic(tempstr s) {
-    eprint_tempstr(s);
-    exit(-1);
-  }
+  // [[noreturn]] void panic(tempstr s) {
+  //   eprint_tempstr(s);
+  //   exit(-1);
+  // }
 
   std::unordered_map<u32, AssetFileLoader> _asset_ext_loaders;
   std::unordered_map<u32, AssetFileUnloader> _asset_ext_unloaders;
@@ -490,7 +490,7 @@ namespace quark {
     u32 ext_hash = hash_str_fast(file_extension);
 
     if(_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
-      panic(create_tempstr() + "Tried to add an asset file loader for a file extension that has already been added!\n");
+      panic((create_tempstr() + "Tried to add an asset file loader for a file extension that has already been added!\n").data);
     }
 
     _asset_ext_loaders.insert(std::make_pair(ext_hash, loader));
@@ -649,9 +649,9 @@ namespace quark {
     MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
   
     // add mesh to _gpu_meshes
-    mesh_id id = {
+    MeshId id = {
       .pool_index = 0,
-      .index = meshes->counts[0],
+      .index = (u16)meshes->counts[0],
     };
     meshes->counts[0] += 1;
 
@@ -774,6 +774,8 @@ namespace quark {
     u8* data;
     isize size;
   };
+
+  int read_file_bytes(Arena* arena, void** data, isize* size);
 
   Bytes read_file_bytes(const char* path) {
     FILE* fp = fopen(path, "rb");

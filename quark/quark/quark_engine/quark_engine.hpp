@@ -442,7 +442,7 @@ namespace quark {
 // Better panic
 //
 
-  [[noreturn]] engine_api void panic(tempstr s);
+  // [[noreturn]] engine_api void panic(tempstr s);
 
 //
 // Registry API
@@ -1286,56 +1286,56 @@ namespace quark {
   // struct ImageResourceInfo {
   // };
 
-  struct engine_api ImageResource {
-    struct Info {
-      ImageFormat format;
-      ImageType usage;
-      ivec2 resolution;
-      ImageSamples samples = ImageSamples::One;
+  // struct engine_api ImageResource {
+  //   struct Info {
+  //     ImageFormat format;
+  //     ImageType usage;
+  //     ivec2 resolution;
+  //     ImageSamples samples = ImageSamples::One;
 
-      VkExtent3D _ext();
-      VkImageCreateInfo _img_info();
-      VmaAllocationCreateInfo _alloc_info();
-      VkImageViewCreateInfo _view_info(VkImage image);
-      bool _is_color();
-      ImageResource _create();
+  //     VkExtent3D _ext();
+  //     VkImageCreateInfo _img_info();
+  //     VmaAllocationCreateInfo _alloc_info();
+  //     VkImageViewCreateInfo _view_info(VkImage image);
+  //     bool _is_color();
+  //     ImageResource _create();
 
-      static ItemCache<ImageResource::Info> cache_one;
-      static ItemCache<std::vector<ImageResource::Info>> cache_array;
-      static ItemCache<ImageResource::Info> cache_one_per_frame;
-    };
+  //     static ItemCache<ImageResource::Info> cache_one;
+  //     static ItemCache<std::vector<ImageResource::Info>> cache_array;
+  //     static ItemCache<ImageResource::Info> cache_one_per_frame;
+  //   };
 
-    // Resource handles
-    VmaAllocation allocation;
-    VkImage image;
-    VkImageView view;
+  //   // Resource handles
+  //   VmaAllocation allocation;
+  //   VkImage image;
+  //   VkImageView view;
 
-    // Metadata
-    ImageFormat format;
-    ivec2 resolution;
-    ImageSamples samples;
-    ImageType current_usage;
+  //   // Metadata
+  //   ImageFormat format;
+  //   ivec2 resolution;
+  //   ImageSamples samples;
+  //   ImageType current_usage;
 
-    inline bool is_color() {
-      return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
-    }
+  //   inline bool is_color() {
+  //     return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
+  //   }
 
-    static void create_one(ImageResource::Info& info, std::string name);
-    static void create_array(ImageResource::Info& info, std::string name);
-    static void create_one_per_frame(ImageResource::Info& info, std::string name);
+  //   static void create_one(ImageResource::Info& info, std::string name);
+  //   static void create_array(ImageResource::Info& info, std::string name);
+  //   static void create_one_per_frame(ImageResource::Info& info, std::string name);
 
-    static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
+  //   static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
 
-    static void transition(std::string name, u32 index, ImageType next_usage);
-    //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
-    static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
+  //   static void transition(std::string name, u32 index, ImageType next_usage);
+  //   //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
+  //   static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
 
-    static ImageResource& get(std::string name, u32 index = 0);
+  //   static ImageResource& get(std::string name, u32 index = 0);
 
-    static ItemCache<ImageResource> cache_one;
-    static ItemCache<std::vector<ImageResource>> cache_array;
-    static ItemCache<std::array<ImageResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
-  };
+  //   static ItemCache<ImageResource> cache_one;
+  //   static ItemCache<std::vector<ImageResource>> cache_array;
+  //   static ItemCache<std::array<ImageResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
+  // };
 
 //
 // Buffer API
@@ -1352,6 +1352,11 @@ namespace quark {
   struct BufferInfo {
     BufferType type;
     u32 size;
+
+    // Flag for whether this buffer is safe to share across frames or not.
+    //
+    // In most instances, this should be false.
+    bool shared;
   };
 
   struct Buffer {
@@ -1362,58 +1367,76 @@ namespace quark {
     // Metadata
     BufferType type;
     u32 size;
+    bool frame_shared;
   };
 
-  Buffer create_buffer(BufferInfo* info);
-  void add_buffer(Buffer buffer, const char* name);
-  const Buffer* get_buffer(const char* name);
+  engine_api Buffer create_buffer(BufferInfo* info);
+  engine_api void add_buffer(Buffer buffer, const char* name);
+  engine_api Buffer* get_buffer(const char* name);
 
-  void* map_buffer(const char* name);
-  void unmap_buffer(const char* name);
+  engine_api void* map_buffer(const char* name);
+  engine_api void unmap_buffer(const char* name);
 
-  void write_buffer(const char* buffer_dst, void* src, u32 size);
-  void copy_buffer(const char* buffer_dst, const char* buffer_src, u32 size);
+  engine_api void write_buffer(const char* buffer_dst, void* src, u32 size);
+  engine_api void copy_buffer(const char* buffer_dst, const char* buffer_src, u32 size);
 
-  void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
-  void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+  engine_api void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
 
 //
 // Native Buffer API
 //
 
-  void* map_buffer_native(VmaAllocation allocation);
-  void unmap_buffer_native(VmaAllocation allocation);
+  engine_api void* map_buffer_native(VmaAllocation allocation);
+  engine_api void unmap_buffer_native(VmaAllocation allocation);
 
-  void* map_buffer_native(VmaAllocation allocation);
-  void unmap_buffer_naitve(VmaAllocation allocation);
+  engine_api void* map_buffer_native(VmaAllocation allocation);
+  engine_api void unmap_buffer_naitve(VmaAllocation allocation);
 
-  void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
-  void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size);
+  engine_api void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size);
+
+  engine_api VkBufferCreateInfo get_buffer_create_info(BufferType type, u32 size);
+  engine_api VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type);
+
+//
+// Todo: Exclusive Buffer API
+//
 
 //
 // Todo: Buffer Array API
 //
 
   struct BufferArrayInfo {
-    BufferType type;
-    u32 size;
     u32 count;
+    BufferInfo* infos;
   };
 
   struct BufferArray {
-    // Resource Handles
-    VmaAllocation* allocation;
-    VkBuffer* buffer;
-
-    // Metadata
-    BufferType type;
-    u32 size;
     u32 count;
+    Buffer buffers[];
   };
 
-  BufferArray create_buffer_array(BufferArrayInfo* info);
-  void add_buffer(BufferArray buffer_array, const char* name);
-  const BufferArray* get_buffer_array(const char* name);
+  // struct BufferArrayInfo {
+  //   BufferType type;
+  //   u32 size;
+  //   u32 count;
+  // };
+
+  // struct BufferArray {
+  //   // Resource Handles
+  //   VmaAllocation* allocation;
+  //   VkBuffer* buffer;
+
+  //   // Metadata
+  //   BufferType type;
+  //   u32 size;
+  //   u32 count;
+  // };
+
+  // engine_api BufferArray create_buffer_array(BufferArrayInfo* info);
+  // engine_api void add_buffer(BufferArray buffer_array, const char* name);
+  // engine_api BufferArray* get_buffer_array(const char* name);
 
 //
 // Mesh Pool API
@@ -1445,12 +1468,12 @@ namespace quark {
     u32 pool_index;
   };
 
-  MeshPool create_mesh_pool(MeshPoolInfo* info);
-  void add_mesh_pool(MeshPool resource, const char* name);
-  const MeshPool* get_mesh_pool(const char* name);
+  engine_api MeshPool create_mesh_pool(MeshPoolInfo* info);
+  engine_api void add_mesh_pool(MeshPool resource, const char* name);
+  engine_api MeshPool* get_mesh_pool(const char* name);
 
-  void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
-  void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
 
 //
 // Image API
@@ -1499,6 +1522,42 @@ namespace quark {
     ivec2 resolution;
   };
 
+  // Create a single (readonly in shaders) image resource
+  Image create_image(ImageInfo* info);
+  engine_api void add_image(Image resource, const char* name);
+  engine_api Image* get_image(const char* name);
+
+//
+// Todo: Exclusive Image API
+//
+
+  struct ExclusiveImageInfo {
+    ImageType type;
+    ImageFormat format;
+    ivec2 resolution;
+  };
+
+  struct ExclusiveImage {
+    VmaAllocation allocation[internal::_FRAME_OVERLAP];
+    VkImage image[internal::_FRAME_OVERLAP];
+    VkImageView view[internal::_FRAME_OVERLAP];
+
+    ImageType type;
+    ImageFormat format;
+    ivec2 resolution;
+  };
+
+  // Create an image resource with one exclusive image for each frame of possible overlap.
+  //
+  // Since frames can overlap, normal images are considered read-only inside
+  // of rendering code.
+  //
+  // Exclusive images bypass this read-only requirement by creating
+  // a unique image for each frame of possible overlap.
+  // Meaning that at any point in time you are not
+  // writing and reading to an image in two separate overlapping frames.
+  ExclusiveImage create_exclusive_image(ExclusiveImageInfo* info);
+
 //
 // Render Image API
 //
@@ -1530,8 +1589,8 @@ namespace quark {
   struct RenderImageInfo {
     RenderImageType type;
     ImageFormat format;
-    RenderImageSamples samples;
     ivec2 resolution;
+    RenderImageSamples samples;
   };
 
   struct RenderImage {
@@ -1540,11 +1599,14 @@ namespace quark {
     VkImageView views[internal::_FRAME_OVERLAP];
   };
 
-  RenderImage create_render_image(RenderImageInfo* info);
-  void add_render_image(RenderImage resource, const char* name);
-  const RenderImage* get_render_image(const char* name);
+  // An exclusive image that can be rendered to
+  engine_api RenderImage create_render_image(RenderImageInfo* info);
+  engine_api void add_render_image(RenderImage resource, const char* name);
+  engine_api RenderImage* get_render_image(const char* name);
 
   enum struct RenderImageId : u32 {};
+  engine_api RenderImageId get_render_image_id(const char* name);
+  engine_api RenderImage* get_render_image_by_id(RenderImageId id);
 
 //
 // Render Target API
@@ -1562,7 +1624,7 @@ namespace quark {
   );
 
   struct RenderTargetAttachment {
-    RenderImageId image;
+    RenderImageId image_id;
     LoadOp load_op;
     StoreOp store_op;
     RenderImageUsage next_usage;
@@ -1573,7 +1635,7 @@ namespace quark {
     RenderTargetAttachment depth_attachment;
 
     u32 color_attachment_count;
-    RenderTargetAttachment color_attachments[8];
+    RenderTargetAttachment color_attachments[4];
   };
 
   struct RenderTarget {
@@ -1584,8 +1646,12 @@ namespace quark {
     RenderTargetAttachment depth_attachment;
 
     u32 color_attachment_count;
-    RenderTargetAttachment color_attachments[8];
+    RenderTargetAttachment color_attachments[4];
   };
+
+  engine_api RenderTarget create_render_target(RenderTargetInfo* info);
+  engine_api void add_render_target(RenderTarget resource, const char* name);
+  engine_api RenderTarget* get_render_target(const char* name);
 
   //struct engine_api MeshResource {
   //  struct CreateInfo {
@@ -1626,40 +1692,40 @@ namespace quark {
     static ItemCache<std::vector<SamplerResource>> cache_array;
   };
 
-  struct engine_api RenderTarget {
-    struct Info {
-      std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
-      std::vector<LoadMode> load_modes;
-      std::vector<StoreMode> store_modes;
-      std::vector<ImageType> next_usage_modes;
+  // struct engine_api RenderTarget {
+  //   struct Info {
+  //     std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
+  //     std::vector<LoadMode> load_modes;
+  //     std::vector<StoreMode> store_modes;
+  //     std::vector<ImageType> next_usage_modes;
 
-      void _validate();
-      std::vector<VkAttachmentDescription> _attachment_desc();
-      std::vector<VkAttachmentReference> _color_attachment_refs();
-      VkAttachmentReference _depth_attachment_ref();
-      VkSubpassDescription _subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref);
-      VkRenderPassCreateInfo _render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc);
+  //     void _validate();
+  //     std::vector<VkAttachmentDescription> _attachment_desc();
+  //     std::vector<VkAttachmentReference> _color_attachment_refs();
+  //     VkAttachmentReference _depth_attachment_ref();
+  //     VkSubpassDescription _subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref);
+  //     VkRenderPassCreateInfo _render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc);
 
-      std::vector<VkImageView> _image_views(usize index);
-      VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass);
+  //     std::vector<VkImageView> _image_views(usize index);
+  //     VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass);
 
-      RenderTarget _create();
+  //     RenderTarget _create();
 
-      VkViewport _viewport();
-      VkRect2D _scissor();
-      ImageSamples _samples();
-      ivec2 _resolution();
+  //     VkViewport _viewport();
+  //     VkRect2D _scissor();
+  //     ImageSamples _samples();
+  //     ivec2 _resolution();
 
-      static ItemCache<RenderTarget::Info> cache;
-    };
+  //     static ItemCache<RenderTarget::Info> cache;
+  //   };
 
-    VkRenderPass render_pass;
-    std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
+  //   VkRenderPass render_pass;
+  //   std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
 
-    static void create(RenderTarget::Info& info, std::string name);
+  //   static void create(RenderTarget::Info& info, std::string name);
 
-    static ItemCache<RenderTarget> cache;
-  };
+  //   static ItemCache<RenderTarget> cache;
+  // };
 
   declare_enum(ResourceType, u32,
     Buffer,
@@ -1684,25 +1750,20 @@ namespace quark {
     u32 resource_count;
   };
 
-  void a() {
-    VkDescriptorSetLayoutBinding a {
-    }
-  }
+  // struct engine_api ResourceGroup {
+  //   struct Info {
+  //     std::vector<std::string> resources;
 
-  struct engine_api ResourceGroup {
-    struct Info {
-      std::vector<std::string> resources;
+  //     VkPipelineLayoutCreateInfo _layout_info();
 
-      VkPipelineLayoutCreateInfo _layout_info();
+  //     ResourceGroup _create();
+  //   };
 
-      ResourceGroup _create();
-    };
+  //   VkDescriptorSetLayout layout;
+  //   std::array<VkDescriptorSet, internal::_FRAME_OVERLAP> sets;
 
-    VkDescriptorSetLayout layout;
-    std::array<VkDescriptorSet, internal::_FRAME_OVERLAP> sets;
-
-    static void create(ResourceGroup::Info& info, std::string name);
-  };
+  //   static void create(ResourceGroup::Info& info, std::string name);
+  // };
 
   struct PushConstant {
     struct Info {
@@ -1869,74 +1930,74 @@ namespace quark {
 
 namespace quark {
   namespace internal {
-    static VkImageLayout image_usage_vk_layout(ImageType usage_bits, bool is_color) {
-      auto one_hot_to_binary = [](u32 value) {
-        value = (value == 0) ? 1 : value << 1;
-        return __builtin_ctz(value);
-      };
+    // static VkImageLayout image_usage_vk_layout(ImageType usage_bits, bool is_color) {
+    //   auto one_hot_to_binary = [](u32 value) {
+    //     value = (value == 0) ? 1 : value << 1;
+    //     return __builtin_ctz(value);
+    //   };
 
-      u32 bits = (u32)usage_bits;
-      bits += (usage_bits == ImageUsage::RenderTarget && is_color) ? 1 : 0;
-      u32 index = one_hot_to_binary(bits);
+    //   u32 bits = (u32)usage_bits;
+    //   bits += (usage_bits == ImageUsage::RenderTarget && is_color) ? 1 : 0;
+    //   u32 index = one_hot_to_binary(bits);
 
-      VkImageLayout lookup[] = {
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-      };
+    //   VkImageLayout lookup[] = {
+    //     VK_IMAGE_LAYOUT_UNDEFINED,
+    //     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    //     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    //   };
 
-      return lookup[index];
+    //   return lookup[index];
 
-      //switch(bits) {
-      //  case(ImageUsage::Unknown):      return VK_IMAGE_LAYOUT_UNDEFINED;
-      //  case(ImageUsage::Src):          return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-      //  case(ImageUsage::Dst):          return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-      //  case(ImageUsage::Texture):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      //  case(ImageUsage::Storage):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      //  case(ImageUsage::RenderTarget): return is_color ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-      //                                                  : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-      //  case(ImageUsage::Present):      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      //  default:                        return VK_IMAGE_LAYOUT_UNDEFINED;
-      //}
-    }
+    //   //switch(bits) {
+    //   //  case(ImageUsage::Unknown):      return VK_IMAGE_LAYOUT_UNDEFINED;
+    //   //  case(ImageUsage::Src):          return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    //   //  case(ImageUsage::Dst):          return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    //   //  case(ImageUsage::Texture):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //   //  case(ImageUsage::Storage):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //   //  case(ImageUsage::RenderTarget): return is_color ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    //   //                                                  : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //   //  case(ImageUsage::Present):      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    //   //  default:                        return VK_IMAGE_LAYOUT_UNDEFINED;
+    //   //}
+    // }
 
-    static VkImageUsageFlagBits image_usage_vk_usage(ImageType usage_bits, bool is_color) {
-      u32 flags = {};
-      u32 bits = (u32)usage_bits;
+    // static VkImageUsageFlagBits image_usage_vk_usage(ImageType usage_bits, bool is_color) {
+    //   u32 flags = {};
+    //   u32 bits = (u32)usage_bits;
 
-      auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
-        if (src & flag_read) {
-          (*dst) |= flag_write;
-        }
-      };
+    //   auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
+    //     if (src & flag_read) {
+    //       (*dst) |= flag_write;
+    //     }
+    //   };
 
-      auto has_bit = [&](u32 src, u32 flag_read) {
-        return (src & flag_read) != 0;
-      };
+    //   auto has_bit = [&](u32 src, u32 flag_read) {
+    //     return (src & flag_read) != 0;
+    //   };
 
-      write_bit(&flags, bits, (u32)ImageUsage::Unknown, 0);
-      write_bit(&flags, bits, (u32)ImageUsage::Present, 0);
+    //   write_bit(&flags, bits, (u32)ImageUsage::Unknown, 0);
+    //   write_bit(&flags, bits, (u32)ImageUsage::Present, 0);
 
-      write_bit(&flags, bits, (u32)ImageUsage::Src, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-      write_bit(&flags, bits, (u32)ImageUsage::Dst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-      write_bit(&flags, bits, (u32)ImageType::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
-      write_bit(&flags, bits, (u32)ImageType::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
+    //   write_bit(&flags, bits, (u32)ImageUsage::Src, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    //   write_bit(&flags, bits, (u32)ImageUsage::Dst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    //   write_bit(&flags, bits, (u32)ImageType::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
+    //   write_bit(&flags, bits, (u32)ImageType::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
 
-      if (has_bit(bits, (u32)ImageUsage::RenderTarget)) {
-        if (is_color) {
-          flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        } else {
-          flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        }
-      }
+    //   if (has_bit(bits, (u32)ImageUsage::RenderTarget)) {
+    //     if (is_color) {
+    //       flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    //     } else {
+    //       flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    //     }
+    //   }
 
-      return (VkImageUsageFlagBits)flags;
-    }
+    //   return (VkImageUsageFlagBits)flags;
+    // }
 
     // static VkBufferUsageFlagBits buffer_usage_vk_usage(BufferUsage usage_bits) {
     //   u32 flags = {};
@@ -1976,13 +2037,13 @@ namespace quark {
     //   return VMA_MEMORY_USAGE_GPU_ONLY;
     // }
 
-    struct BlitInfo {
-      VkOffset3D bottom_left;
-      VkOffset3D top_right;
-      VkImageSubresourceLayers subresource;
-    };
+    // struct BlitInfo {
+    //   VkOffset3D bottom_left;
+    //   VkOffset3D top_right;
+    //   VkImageSubresourceLayers subresource;
+    // };
 
-    BlitInfo image_resource_blit_info(ImageResource& res);
+    // BlitInfo image_resource_blit_info(ImageResource& res);
   };
 };
 

@@ -783,21 +783,25 @@ namespace common {
   //
   // // //
 
-  ColorMaterialInstance get_material_instance(Transform transform, Model model, ColorMaterial material) {
-    return ColorMaterialInstance {
-      .world_view_projection = internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),
-      .color = material.color,
-    };
-  }
+  // UNDO WHEN WORKING
+  //
+  // ColorMaterialInstance get_material_instance(Transform transform, Model model, ColorMaterial material) {
+  //   return ColorMaterialInstance {
+  //     .world_view_projection = internal::_main_view_projection * transform_mat4(transform.position, transform.rotation, get_mesh_scale((mesh_id)model.id)),
+  //     .color = material.color,
+  //   };
+  // }
 
-  DrawBatchInstanceInfo get_batch_instance_info(Transform transform, Model model, ColorMaterial material) {
-    return DrawBatchInstanceInfo {
-      .transform = transform,
-      .model = model,
-      .draw_shadows = true,
-      .is_transparent = material.color.w != 1.0f,
-    };
-  }
+  // UNDO WHEN WORKING
+  //
+  // DrawBatchInstanceInfo get_batch_instance_info(Transform transform, Model model, ColorMaterial material) {
+  //   return DrawBatchInstanceInfo {
+  //     .transform = transform,
+  //     .model = model,
+  //     .draw_shadows = true,
+  //     .is_transparent = material.color.w != 1.0f,
+  //   };
+  // }
 
 // template <typename... T>
 // struct Access {};
@@ -824,11 +828,13 @@ namespace common {
 // #define get_handle3(handle) get_handle2(access, handle)
 
   
-  void render_things() {
-    for(auto [e, transform, model, material] : get_view_each(View<Include<const Transform, const Model, const ColorMaterial>> {})) {
-      add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
-    }
-  }
+  // UNDO WHEN WORKING
+  //
+  // void render_things() {
+  //   for(auto [e, transform, model, material] : get_view_each(View<Include<const Transform, const Model, const ColorMaterial>> {})) {
+  //     add_to_draw_batch(get_batch_instance_info(transform, model, material), get_material_instance(transform, model, material));
+  //   }
+  // }
 
   // void render_things(View<Include<const Transform, const Model, const ColorMaterial>> renderables2) {
   //   for(auto [e, transform, model, material] : get_view_each(renderables2)) {
@@ -886,14 +892,14 @@ mod_main() {
   create_system("create_thing_test", common::create_thing_test);
 
   create_system("update0", (void (*)())common::update0);
-  create_system("render_things", common::render_things);
+  // create_system("render_things", common::render_things);
   create_system("exit_on_esc", common::exit_on_esc);
 
   add_system("init", "common_init", "", -1);
   add_system("init", "create_thing_test", "", -1);
 
   add_system("update", "update0", "" , 4);
-  add_system("update", "render_things", "" , 7);
+  // add_system("update", "render_things", "" , 7);
   add_system("update", "exit_on_esc", "" , -1);
 
   print_system_list("init");
@@ -909,7 +915,7 @@ mod_main() {
   add_asset("john",   john);
   add_asset("james",  james);
 
-  add_type_effect(get_type_hash<ColorMaterialInstance>(), "color_fill");
+  // add_type_effect(get_type_hash<ColorMaterialInstance>(), "color_fill");
   // common::instance_type_to_effect.insert(std::make_pair(get_type_hash<ColorMaterialInstance>(), "color_fill"));
 }
 

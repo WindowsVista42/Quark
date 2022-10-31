@@ -5,9 +5,9 @@
 #include <GLFW/glfw3.h>
 #include <threadpool.hpp>
 
-#if defined(_WIN64)
+#ifdef _WIN64
 #define _AMD64_
-#include <libloaderapi.h>
+#include <minwindef.h>
 #undef max
 #endif
 
@@ -30,7 +30,7 @@ namespace quark {
   platform_api void set_window_should_close();
 
 //
-// Input API
+// Input API Types
 //
 
   using InputId = i32;
@@ -192,9 +192,9 @@ namespace quark {
     Captured = GLFW_CURSOR_DISABLED,
   );
 
-  //
-  //
-  //
+//
+// Input API Functions
+//
 
   platform_api InputState get_input_state(InputId input, u32 source_id = 0);
   platform_api f32 get_input_value(InputId input, u32 source_id = 0);
@@ -242,6 +242,7 @@ namespace quark {
 
   platform_api Timestamp get_timestamp();
   platform_api f64 get_timestamp_difference(Timestamp t0, Timestamp t1);
+  platform_api f64 get_delta_time(Timestamp t0, Timestamp t1);
 
 //
 // Threadpool API
@@ -264,19 +265,121 @@ namespace quark {
 // Shared Library API
 //
 
-  #if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN64
+  struct Library {
+    HINSTANCE hinstlib;
+  };
+#endif
 
-    struct Library {
-      HINSTANCE hinstlib;
-    };
-
-  #endif
 
   platform_api Library load_library(const char* library_path);
   platform_api void unload_library(Library* library);
   platform_api WorkFunction get_library_function(Library* library, const char* function_name);
   platform_api void run_library_function(Library* library, const char* function_name);
   platform_api bool check_library_has_function(Library* library, const char* function_name);
+
+//
+// OS Memory API
+//
+
+  u8* os_reserve_mem(usize size);
+  void os_release_mem(u8* ptr);
+  
+  void os_commit_mem(u8* ptr, usize size);
+  void os_decommit_mem(u8* ptr, usize size);
+
+//
+// Zero Memory API
+//
+
+  void zero_mem(void* ptr, usize count);
+  #define zero_struct(ptr) zero_mem((ptr), sizeof(*(ptr)))
+  #define zero_array(ptr, type, count) zero_mem((ptr), (count) * sizeof(type))
+
+//
+// Copy Memory API
+//
+
+  void copy_mem(void* dst, void* src, usize size);
+  #define copy_struct(dst, src) copy_mem((dst), (src), sizeof(*src))
+  #define copy_array(dst, src, type, count) copy_mem((dst), (src), (count) * sizeof(type))
+
+//
+// Arena API
+//
+
+  struct Arena {
+    u8* ptr;
+    usize pos;
+    usize commit_size;
+  };
+  
+  Arena* get_arena();
+  void free_arena(Arena* arena);
+  
+  u8* push_arena(Arena* arena, usize size);
+  u8* push_zero_arena(Arena* arena, usize size);
+  
+  #define push_array_arena(arena, type, count) push_arena((arena), (count) * sizeof(type))
+  #define push_array_zero_arena(arena, type, count) push_zero_arena((arena), (count) * sizeof(type))
+  
+  #define push_struct_arena(arena, type) push_arena((arena), sizeof(type))
+  #define push_struct_zero_arena(arena, type) push_zero_arena((arena), sizeof(type))
+  
+  void pop_arena(Arena* arena, usize size);
+  
+  usize get_arena_pos(Arena* arena);
+  void set_arena_pos(Arena* arena, usize size);
+  
+  void clear_arena(Arena* arena);
+  void clear_zero_arena(Arena* arena);
+  void reset_arena(Arena* arena);
+
+//
+// Temp Stack API
+//
+
+  struct TempStack {
+    Arena* arena;
+    usize restore_pos;
+  };
+  
+  TempStack begin_temp_stack(Arena* arena);
+  void end_temp_stack(TempStack stack);
+
+//
+// Local Stack API
+//
+
+  TempStack begin_scratch(Arena** conflicts, usize conflict_count);
+  #define end_scratch(stack) end_temp_stack(stack)
+
+//
+// Alignment Helpers
+//
+
+  inline bool is_power_of_two(usize x) {
+  	return (x & (x-1)) == 0;
+  }
+  
+  inline usize align_forward(usize ptr, size_t align) {
+    usize p, a, modulo;
+  
+    if(!is_power_of_two(align)) { return -1; }// panic("Align forward failed!"); }
+  
+    p = ptr;
+    a = (usize)align;
+    // Same as (p % a) but faster as 'a' is a power of two
+    modulo = p & (a-1);
+  
+    if (modulo != 0) {
+    	// If 'p' address is not aligned, push the address to the
+    	// next value which is aligned
+    	p += a - modulo;
+    }
+  
+    return p;
+  }
 
 //
 // Allocator API
@@ -316,5 +419,7 @@ namespace quark {
 // Panic API
 //
 
-  [[noreturn]] platform_api void panic(const char* message);
+  [[noreturn]] platform_api void panic_real(const char* message, const char* file, usize line);
+
+  #define panic(message) panic_real((message), __FILE__, __LINE__)
 };
