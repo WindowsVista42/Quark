@@ -543,8 +543,6 @@ namespace quark {
   
     pool.thread_locks[i] = -1;
   
-    reset_arena(arena);
-  
     // os_release_mem(arena->ptr);
     // zero_struct(arena);
   }

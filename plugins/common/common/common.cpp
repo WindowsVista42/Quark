@@ -225,48 +225,49 @@ namespace common {
       Iden::global_value += 1;
     }
 
-    auto thread_work = []() {
-      Arena* arena0 = get_arena();
-      Arena* arena1 = get_arena();
+    // auto thread_work = []() {
+    //   Arena* arena0 = get_arena();
+    //   Arena* arena1 = get_arena();
 
-      f64 avg = 0;
+    //   f64 avg = 0;
 
-      usize size = 10 * MB;
+    //   usize size = 10 * MB;
 
-      for(int i = 0; i < 100; i += 1) {
-        void* dst = push_zero_arena(arena0, size);
-        void* src = push_zero_arena(arena1, size);
+    //   for(int i = 0; i < 100; i += 1) {
+    //     void* dst = push_zero_arena(arena0, size);
+    //     void* src = push_zero_arena(arena1, size);
 
-        memset(src, 10, size);
+    //     memset(src, 10, size);
 
-        Timestamp t0 = get_timestamp();
-        copy_mem(dst, src, size);
-        Timestamp t1 = get_timestamp();
+    //     Timestamp t0 = get_timestamp();
+    //     copy_mem(dst, src, size);
+    //     Timestamp t1 = get_timestamp();
 
-        if(memcmp(src, dst, size) != 0) {
-          panic("failed to copy");
-        }
+    //     if(memcmp(src, dst, size) != 0) {
+    //       panic("failed to copy");
+    //     }
 
-        avg += get_timestamp_difference(t0, t1);
-      }
-      avg /= 100.0f;
+    //     avg += get_timestamp_difference(t0, t1);
+    //   }
+    //   avg /= 100.0f;
 
-      printf("Copy took: %f ms\n", (f32)avg * 1000.0f);
+    //   printf("Copy took: %f ms\n", (f32)avg * 1000.0f);
 
-      free_arena(arena0);
-      free_arena(arena1);
-    };
+    //   free_arena(arena0);
+    //   free_arena(arena1);
+    // };
 
-    // 1.2 -- 1 -- 10 MB --  8.33 MB/ms
-    // 1.7 -- 2 -- 20 MB -- 11.75 MB/ms
-    // 3.0 -- 4 -- 40 MB -- 13.33 MB/ms
+    // // 1.2 -- 1 -- 10 MB --  8.33 MB/ms
+    // // 1.7 -- 2 -- 20 MB -- 11.75 MB/ms
+    // // 3.0 -- 4 -- 40 MB -- 13.33 MB/ms
 
-    add_threadpool_work(thread_work);
     // add_threadpool_work(thread_work);
-    // add_threadpool_work(thread_work);
-    // add_threadpool_work(thread_work);
-    join_threadpool();
+    // // add_threadpool_work(thread_work);
+    // // add_threadpool_work(thread_work);
+    // // add_threadpool_work(thread_work);
+    // join_threadpool();
 
+    /*
 #define clz(number) __builtin_clzll(number)
 
     {
@@ -278,7 +279,7 @@ namespace common {
 
       Arena* arena0 = get_arena();
       usize capacity = 1024 * 4;
-      usize size = capacity / 8;
+      usize size = capacity;
 
       for(int z = 0; z < 10000; z += 1) {
         Type* reference = push_array_zero_arena(arena0, Type, capacity);
@@ -327,11 +328,11 @@ namespace common {
             valid_table[x] |= shift;
           }
 
-          if((rand() % 10) <= 0) {
+          if((rand() % 10) <= 8) {
             valid_table2[x] |= shift;
           }
 
-          if((rand() % 10) <= 0) {
+          if((rand() % 10) <= 8) {
             valid_table3[x] |= shift;
           }
         }
@@ -381,6 +382,7 @@ namespace common {
 
       free_arena(arena0);
     }
+  */
   
     //for_every(i, 10) {
     //  view1.create(Transform{}, Color{});
@@ -419,6 +421,414 @@ namespace common {
 
   static f32 T = 0.0f;
 
+  // void ecs_list_iter(EcsListCtx* ctx, void (*f)(void**)) {
+  //   for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) {
+  //     // get archetype for current bits
+  //     u32 archetype = ecs_bool_table[ctx->ids[0]][i]; 
+  //     for(u32 j = 1; j < ctx->count; j += 1) {
+  //       archetype &= ecs_bool_table[ctx->ids[j]][i]; 
+  //     }
+
+  //     u32 adj_i = i * 32;
+
+  //     // iterate all entities with archetype
+  //     while(archetype != 0) {
+  //       // bit walking logic
+  //       u32 loc_i = __builtin_ctz(archetype);
+  //       archetype ^= 1 << loc_i;
+
+  //       u32 entity_i = adj_i + loc_i;
+
+  //       void* ptrs[ctx->count];
+  //       for(u32 i = 0; i < ctx->count; i += 1) {
+  //         u8* comp_table = (u8*)ecs_comp_table[i];
+  //         ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[ctx->ids[i]]];
+  //       }
+
+  //       f(ptrs);
+  //     }
+  //   }
+
+  //   // if(valid_copy == 0) { continue; }
+
+  //   // for(u32 j = 0; j < (capacity / 32); j += 1) {
+  //   //   u32 valid_copy = valid_table[j] & valid_table2[j] & valid_table3[j];
+  //   //   if(valid_copy == 0) { continue; }
+
+  //   //   u32 jx = (j * 32);
+
+  //   //   while(valid_copy != 0) {
+  //   //     u32 i = __builtin_ctz(valid_copy);
+  //   //     valid_copy ^= 1 << i;
+  //   //   }
+  //   // }
+  // }
+
+#define for_archetype(comps, f...) { \
+  u32 c = sizeof(comps) / sizeof(comps[0]); \
+  for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) { \
+    u32 archetype = ecs_bool_table[comps[0]][i];  \
+    for(u32 j = 1; j < (c); j += 1) { \
+      archetype &= ecs_bool_table[comps[j]][i];  \
+    } \
+\
+    u32 adj_i = i * 32; \
+\
+    while(archetype != 0) { \
+      u32 loc_i = __builtin_ctz(archetype); \
+      archetype ^= 1 << loc_i; \
+\
+      u32 entity_i = adj_i + loc_i; \
+\
+      void* ptrs[(c)]; \
+      u32 inc = 0; \
+      for(u32 i = 0; i < (c); i += 1) { \
+        u8* comp_table = (u8*)ecs_comp_table[comps[i]]; \
+        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]]; \
+      } \
+ \
+      f \
+    } \
+  } \
+} \
+
+#define for_archetype2(start, end, comps, f...) { \
+  u32 c = sizeof(comps) / sizeof(comps[0]); \
+  for(u32 i = (start); i < (end); i += 1) { \
+    u32 archetype = ecs_bool_table[comps[0]][i];  \
+    for(u32 j = 1; j < (c); j += 1) { \
+      archetype &= ecs_bool_table[comps[j]][i];  \
+    } \
+\
+    u32 adj_i = i * 32; \
+\
+    while(archetype != 0) { \
+      u32 loc_i = __builtin_ctz(archetype); \
+      archetype ^= 1 << loc_i; \
+\
+      u32 entity_i = adj_i + loc_i; \
+\
+      void* ptrs[(c)]; \
+      u32 inc = 0; \
+      for(u32 i = 0; i < (c); i += 1) { \
+        u8* comp_table = (u8*)ecs_comp_table[comps[i]]; \
+        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]]; \
+      } \
+ \
+      f \
+    } \
+  } \
+} \
+
+#define comp2(type, name) \
+  type* name = &((type*)ecs_comp_table[comps[inc]])[entity_i]
+
+// template <typename... T, typename F = void (*)(void**)>
+// void for_archetype2(u32* comps, u32 comps_count, F f) {
+//   u32 c = comps_count;
+// 
+//   for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) {
+//     u32 archetype = ecs_bool_table[comps[0]][i];
+//     for(u32 j = 1; j < (c); j += 1) {
+//       archetype &= ecs_bool_table[comps[j]][i];
+//     }
+// 
+//     u32 adj_i = i * 32;
+// 
+//     while(archetype != 0) {
+//       u32 loc_i = __builtin_ctz(archetype);
+//       archetype ^= 1 << loc_i;
+// 
+//       u32 entity_i = adj_i + loc_i;
+// 
+//       void* ptrs[(c)];
+//       for(u32 i = 0; i < (c); i += 1) {
+//         u8* comp_table = (u8*)ecs_comp_table[i];
+//         ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]];
+//       }
+// 
+//       f(ptrs); // (Transform*)ptrs[0], (Model*)ptrs[1], (ColorMaterial*)ptrs[2]);
+//     }
+//   }
+// }
+
+// void for_archetype(comps, f...) {
+//   u32 c = sizeof(comps) / sizeof(comps[0]);
+//   for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) {
+//     u32 archetype = ecs_bool_table[comps[0]][i];
+//     for(u32 j = 1; j < (c); j += 1) {
+//       archetype &= ecs_bool_table[comps[j]][i];
+//     }
+// 
+//     u32 adj_i = i * 32;
+// 
+//     while(archetype != 0) {
+//       u32 loc_i = __builtin_ctz(archetype);
+//       archetype ^= 1 << loc_i;
+// 
+//       u32 entity_i = adj_i + loc_i;
+// 
+//       void* ptrs[(c)];
+//       for(u32 i = 0; i < (c); i += 1) {
+//         u8* comp_table = (u8*)ecs_comp_table[i];
+//         ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]];
+//       }
+// 
+//       f
+//     }
+//   }
+// }
+
+  u32 ecs_table_count = 0;
+  u32 ecs_table_capacity = 0;
+
+  u32 ecs_entity_count = 0;
+  u32 ecs_entity_capacity = 0;
+
+  void** ecs_comp_table = 0;
+  u32** ecs_bool_table = 0;
+  u32* ecs_comp_sizes = 0;
+
+u32 add_ecs_table(u32 component_size) {
+  if(ecs_comp_table == 0) {
+    ecs_entity_capacity = 128 * KB;
+    u32 size = 64 * KB;
+
+    ecs_comp_table = (void**)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs_comp_table, size);
+
+    ecs_bool_table = (u32**)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs_bool_table, size);
+
+    ecs_comp_sizes = (u32*)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs_comp_sizes, size);
+
+    ecs_table_capacity = size / sizeof(void*);
+  }
+
+  u32 i = ecs_table_count;
+  ecs_table_count += 1;
+
+  // if(ecs_table_count) // reserve ptrs for more tables
+
+  u32 vsize = 128 * MB;
+  ecs_comp_table[i] = (void*)os_reserve_mem(vsize);
+  os_commit_mem((u8*)ecs_comp_table[i], vsize);
+
+  u32 bt_size = 1024 * KB;
+  ecs_bool_table[i] = (u32*)os_reserve_mem(bt_size);
+  os_commit_mem((u8*)ecs_bool_table[i], bt_size);
+
+  ecs_comp_sizes[i] = component_size;
+
+  return i;
+}
+
+// u32 TRANSFORM_COMP_ID = add_ecs_table(sizeof(Transform));
+// u32 MODEL_COMP_ID = add_ecs_table(sizeof(Model));
+// u32 COLOR_MATERIAL_COMP_ID = add_ecs_table(sizeof(ColorMaterial));
+
+u32 Transform_COMP_ID = add_ecs_table(sizeof(Transform));
+u32 Model_COMP_ID = add_ecs_table(sizeof(Model));
+u32 ColorMaterial_COMP_ID = add_ecs_table(sizeof(ColorMaterial));
+
+#define define_component(name, x...) \
+  struct name x; \
+  u32 name##_COMP_ID = add_ecs_table(sizeof(name)); \
+  __make_reflection_maker(name); \
+  ReflectionInfo name##_REFLECTION_INFO = __make_reflection_info_##name() \
+
+define_component(Thing, {
+  u32 a, b;
+});
+
+#define comp(type, name) \
+  type name = (type)ptrs[inc]; \
+  inc += 1 \
+
+#define add_comp(id, type, x...) \
+{ \
+  type t = x; \
+  add_comp2(id, type##_COMP_ID, &t, sizeof(type)); \
+} \
+
+  void add_comp2(u32 id, u32 component_id, void* data, u32 data_size) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    ecs_bool_table[component_id][x] |= shift;
+
+    u8* comp_table = (u8*)ecs_comp_table[component_id];
+    void* dst = &comp_table[id * ecs_comp_sizes[component_id]];
+
+    copy_mem(dst, data, data_size);
+  }
+
+  void* get_comp(u32 id, u32 component_id) {
+    u8* comp_table = (u8*)ecs_comp_table[component_id];
+    return &comp_table[id * ecs_comp_sizes[component_id]];
+  }
+
+  void rem_comp(u32 id, u32 component_id) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    ecs_bool_table[component_id][x] &= ~shift;
+
+    u32 size = ecs_comp_sizes[component_id];
+
+    u8* comp_table = (u8*)ecs_comp_table[component_id];
+    zero_mem(&comp_table[id * ecs_comp_sizes[component_id]], size);
+  }
+
+  void init_ecs() {
+
+    static u32 x[16] = {};
+    for(int i = 0; i < 16; i += 1) {
+      x[i] = 0;
+    }
+
+    static f32 dt = delta();
+    {
+      static u32 offsets[17] = {};
+      offsets[0] = 0;
+      for(int i = 0; i <= 16; i += 1) {
+        offsets[i] = 0;
+      }
+      if(ecs_entity_count != 0) {
+      for(int i = 1; i < 16; i += 1) {
+        offsets[i] = (u32)((((f32)ecs_entity_count / 16.0f) * (f32)i) / 32.0f);
+        // printf("%d\n", offsets[i]);
+      }
+      offsets[16] = ecs_entity_count / 32 + 1;
+      }
+
+#define it(name, i0, i1) \
+      auto name = []() { \
+        u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID }; \
+        for_archetype2(offsets[i0], offsets[i1], comps, { \
+          comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c); \
+ \
+          x[i0] += 1; \
+          t->position.x += dt; \
+        }); \
+      }; \
+
+      it(a, 0, 1);
+      it(b, 1, 2);
+      it(c, 2, 3);
+      it(d, 3, 4);
+      it(e, 4, 5);
+      it(f, 5, 6);
+      it(g, 6, 7);
+      it(h, 7, 8);
+
+      it(i, 8, 9);
+      it(j, 9, 10);
+      it(k, 10, 11);
+      it(l, 11, 12);
+      it(m, 12, 13);
+      it(n, 13, 14);
+      it(o, 14, 15);
+      it(p, 15, 16);
+
+      add_threadpool_work(a);
+      add_threadpool_work(b);
+      add_threadpool_work(c);
+      add_threadpool_work(d);
+      add_threadpool_work(e);
+      add_threadpool_work(f);
+      add_threadpool_work(g);
+      add_threadpool_work(h);
+
+      add_threadpool_work(i);
+      add_threadpool_work(j);
+      add_threadpool_work(k);
+      add_threadpool_work(l);
+      add_threadpool_work(m);
+      add_threadpool_work(n);
+      add_threadpool_work(o);
+      add_threadpool_work(p);
+      join_threadpool();
+
+
+      // u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID };
+      // for_archetype(comps, {
+      //   comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c);
+
+      //   x += 1;
+      //   t->position.x += dt;
+      // });
+    }
+
+    static u32 count = 0;
+
+    if(get_action("move_forward").down && count != 0) {
+      for(int i = 0; (i < 10000) && (count != 0); i += 1) {
+        rem_comp(count - 1, Transform_COMP_ID);
+        count -= 1;
+      }
+    }
+
+    if(get_action("move_backward").down) {
+      Transform* p = (Transform*)get_comp(0, Transform_COMP_ID);
+      for(int i = 0; i < 10000; i += 1) {
+        //if(rand() % 100 < 4) {
+          add_comp(count, Transform, {{p->position.x, 2}, {}});
+        //}
+        add_comp(count, Model, {});
+        add_comp(count, ColorMaterial, {});
+        add_comp(count, Thing, {});
+        count += 1;
+      }
+    }
+
+    ecs_entity_count = count;
+
+    Transform* t = (Transform*)get_comp(0, Transform_COMP_ID);
+    f32 z = t->position.x;
+
+    bool equal = true;
+
+    // for(u32 i = 0; i < count; i += 1) {
+    //   if(((Transform*)ecs_comp_table[Transform_COMP_ID])[i].position.x != z) {
+    //     equal = false;
+    //     printf("%u\n", i);
+    //   }
+    // }
+    // printf("%f, %f\n", t->position.x, t->position.y);
+    // printf("count: %u\n", count);
+
+    static f64 tttt = 0.0f;
+    if(tttt > 1.0f) {
+      tttt -= 1.0f;
+      printf("total entity count: %u\n", count);
+
+      u32 v = 0;
+      for(int i = 0; i < 16; i += 1) {
+        v += x[i];
+      }
+
+      printf("archetype count: %u\n", v);
+    }
+    tttt += delta();
+  }
+
+  // void a() {
+
+  //   // maybe just use type hash?
+
+  //   void* ptrs[3];
+  //   u32 ids[3] = {TRANSFORM_COMP_ID, MODEL_COMP_ID, COLOR_MATERIAL_COMP_ID};
+
+  //   EcsListCtx ctx;
+  //   while(get_ecs_list(&ctx, ptrs, ids, 3)) {
+  //     resolve_ecs_list(ctx, Transform t, Model m, ColorMaterial c)
+  //   }
+  // }
+
   void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<MainCamera> res) {
     //auto& input = input_res.get();
   
@@ -439,6 +849,8 @@ namespace common {
       }
       T += delta();
     }
+
+    init_ecs();
 
     //for_every(i, 1000) {
     //  View<const Transform, const Color, Iden> v0;

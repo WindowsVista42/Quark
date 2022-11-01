@@ -282,11 +282,11 @@ namespace quark {
 // OS Memory API
 //
 
-  u8* os_reserve_mem(usize size);
-  void os_release_mem(u8* ptr);
-  
-  void os_commit_mem(u8* ptr, usize size);
-  void os_decommit_mem(u8* ptr, usize size);
+  platform_api u8* os_reserve_mem(usize size);
+  platform_api void os_release_mem(u8* ptr);
+
+  platform_api void os_commit_mem(u8* ptr, usize size);
+  platform_api void os_decommit_mem(u8* ptr, usize size);
 
 //
 // Zero Memory API
