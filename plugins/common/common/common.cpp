@@ -480,12 +480,7 @@ namespace common {
 \
       u32 entity_i = adj_i + loc_i; \
 \
-      void* ptrs[(c)]; \
       u32 inc = 0; \
-      for(u32 i = 0; i < (c); i += 1) { \
-        u8* comp_table = (u8*)ecs_comp_table[comps[i]]; \
-        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]]; \
-      } \
  \
       f \
     } \
@@ -522,6 +517,32 @@ namespace common {
 
 #define comp2(type, name) \
   type* name = &((type*)ecs_comp_table[comps[inc]])[entity_i]
+
+#define for_archetype3(type0, name0, type1, name1, type2, name2, f...) { \
+  u32 comps[3] = { type0##_COMP_ID, type1##_COMP_ID, type2##_COMP_ID }; \
+  u32 c = sizeof(comps) / sizeof(comps[0]); \
+  for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) { \
+    u32 archetype = ecs_bool_table[comps[0]][i];  \
+    for(u32 j = 1; j < (c); j += 1) { \
+      archetype &= ecs_bool_table[comps[j]][i];  \
+    } \
+\
+    u32 adj_i = i * 32; \
+\
+    while(archetype != 0) { \
+      u32 loc_i = __builtin_ctz(archetype); \
+      archetype ^= 1 << loc_i; \
+\
+      u32 entity_i = adj_i + loc_i; \
+\
+      type0* name0 = &((type0*)ecs_comp_table[comps[0]])[entity_i]; \
+      type1* name1 = &((type1*)ecs_comp_table[comps[1]])[entity_i]; \
+      type2* name2 = &((type2*)ecs_comp_table[comps[2]])[entity_i]; \
+\
+      f \
+    } \
+  } \
+} \
 
 // template <typename... T, typename F = void (*)(void**)>
 // void for_archetype2(u32* comps, u32 comps_count, F f) {
@@ -716,49 +737,56 @@ define_component(Thing, {
         }); \
       }; \
 
-      it(a, 0, 1);
-      it(b, 1, 2);
-      it(c, 2, 3);
-      it(d, 3, 4);
-      it(e, 4, 5);
-      it(f, 5, 6);
-      it(g, 6, 7);
-      it(h, 7, 8);
+      // it(a, 0, 1);
+      // it(b, 1, 2);
+      // it(c, 2, 3);
+      // it(d, 3, 4);
+      // it(e, 4, 5);
+      // it(f, 5, 6);
+      // it(g, 6, 7);
+      // it(h, 7, 8);
 
-      it(i, 8, 9);
-      it(j, 9, 10);
-      it(k, 10, 11);
-      it(l, 11, 12);
-      it(m, 12, 13);
-      it(n, 13, 14);
-      it(o, 14, 15);
-      it(p, 15, 16);
+      // it(i, 8, 9);
+      // it(j, 9, 10);
+      // it(k, 10, 11);
+      // it(l, 11, 12);
+      // it(m, 12, 13);
+      // it(n, 13, 14);
+      // it(o, 14, 15);
+      // it(p, 15, 16);
 
-      add_threadpool_work(a);
-      add_threadpool_work(b);
-      add_threadpool_work(c);
-      add_threadpool_work(d);
-      add_threadpool_work(e);
-      add_threadpool_work(f);
-      add_threadpool_work(g);
-      add_threadpool_work(h);
+      // add_threadpool_work(a);
+      // add_threadpool_work(b);
+      // add_threadpool_work(c);
+      // add_threadpool_work(d);
+      // add_threadpool_work(e);
+      // add_threadpool_work(f);
+      // add_threadpool_work(g);
+      // add_threadpool_work(h);
 
-      add_threadpool_work(i);
-      add_threadpool_work(j);
-      add_threadpool_work(k);
-      add_threadpool_work(l);
-      add_threadpool_work(m);
-      add_threadpool_work(n);
-      add_threadpool_work(o);
-      add_threadpool_work(p);
-      join_threadpool();
+      // add_threadpool_work(i);
+      // add_threadpool_work(j);
+      // add_threadpool_work(k);
+      // add_threadpool_work(l);
+      // add_threadpool_work(m);
+      // add_threadpool_work(n);
+      // add_threadpool_work(o);
+      // add_threadpool_work(p);
+      // join_threadpool();
 
+      for(int i = 0; i < 100; i += 1) {
 
-      // u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID };
-      // for_archetype(comps, {
-      //   comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c);
+      u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID };
+      for_archetype(comps, {
+        comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c);
 
-      //   x += 1;
+        x[0] += 1;
+        t->position.x += dt;
+      });
+
+      }
+
+      // for_archetype3(Transform, t, Model, m, ColorMaterial, c, {
       //   t->position.x += dt;
       // });
     }
@@ -775,10 +803,12 @@ define_component(Thing, {
     if(get_action("move_backward").down) {
       Transform* p = (Transform*)get_comp(0, Transform_COMP_ID);
       for(int i = 0; i < 10000; i += 1) {
-        //if(rand() % 100 < 4) {
+        if(rand() % 1000 <= 5) {
           add_comp(count, Transform, {{p->position.x, 2}, {}});
-        //}
-        add_comp(count, Model, {});
+        }
+        if(rand() % 1000 <= 5) {
+          add_comp(count, Model, {});
+        }
         add_comp(count, ColorMaterial, {});
         add_comp(count, Thing, {});
         count += 1;
