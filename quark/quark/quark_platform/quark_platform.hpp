@@ -292,7 +292,7 @@ namespace quark {
 // Zero Memory API
 //
 
-  void zero_mem(void* ptr, usize count);
+  platform_api void zero_mem(void* ptr, usize count);
   #define zero_struct(ptr) zero_mem((ptr), sizeof(*(ptr)))
   #define zero_array(ptr, type, count) zero_mem((ptr), (count) * sizeof(type))
 
@@ -300,7 +300,7 @@ namespace quark {
 // Copy Memory API
 //
 
-  void copy_mem(void* dst, void* src, usize size);
+  platform_api void copy_mem(void* dst, void* src, usize size);
   #define copy_struct(dst, src) copy_mem((dst), (src), sizeof(*src))
   #define copy_array(dst, src, type, count) copy_mem((dst), (src), (count) * sizeof(type))
 
@@ -314,26 +314,26 @@ namespace quark {
     usize commit_size;
   };
   
-  Arena* get_arena();
-  void free_arena(Arena* arena);
+  platform_api Arena* get_arena();
+  platform_api void free_arena(Arena* arena);
+
+  platform_api u8* push_arena(Arena* arena, usize size);
+  platform_api u8* push_zero_arena(Arena* arena, usize size);
   
-  u8* push_arena(Arena* arena, usize size);
-  u8* push_zero_arena(Arena* arena, usize size);
+  #define push_array_arena(arena, type, count) (type*)push_arena((arena), (count) * sizeof(type))
+  #define push_array_zero_arena(arena, type, count) (type*)push_zero_arena((arena), (count) * sizeof(type))
   
-  #define push_array_arena(arena, type, count) push_arena((arena), (count) * sizeof(type))
-  #define push_array_zero_arena(arena, type, count) push_zero_arena((arena), (count) * sizeof(type))
+  #define push_struct_arena(arena, type) (type*)push_arena((arena), sizeof(type))
+  #define push_struct_zero_arena(arena, type) (type*)push_zero_arena((arena), sizeof(type))
   
-  #define push_struct_arena(arena, type) push_arena((arena), sizeof(type))
-  #define push_struct_zero_arena(arena, type) push_zero_arena((arena), sizeof(type))
-  
-  void pop_arena(Arena* arena, usize size);
-  
-  usize get_arena_pos(Arena* arena);
-  void set_arena_pos(Arena* arena, usize size);
-  
-  void clear_arena(Arena* arena);
-  void clear_zero_arena(Arena* arena);
-  void reset_arena(Arena* arena);
+  platform_api void pop_arena(Arena* arena, usize size);
+
+  platform_api usize get_arena_pos(Arena* arena);
+  platform_api void set_arena_pos(Arena* arena, usize size);
+
+  platform_api void clear_arena(Arena* arena);
+  platform_api void clear_zero_arena(Arena* arena);
+  platform_api void reset_arena(Arena* arena);
 
 //
 // Temp Stack API
@@ -344,14 +344,14 @@ namespace quark {
     usize restore_pos;
   };
   
-  TempStack begin_temp_stack(Arena* arena);
-  void end_temp_stack(TempStack stack);
+  platform_api TempStack begin_temp_stack(Arena* arena);
+  platform_api void end_temp_stack(TempStack stack);
 
 //
 // Local Stack API
 //
 
-  TempStack begin_scratch(Arena** conflicts, usize conflict_count);
+  platform_api TempStack begin_scratch(Arena** conflicts, usize conflict_count);
   #define end_scratch(stack) end_temp_stack(stack)
 
 //

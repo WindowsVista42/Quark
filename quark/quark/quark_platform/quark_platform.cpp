@@ -450,6 +450,14 @@ namespace quark {
     ZeroMemory(ptr, count);
   }
 
+//
+// Copy Mem API
+//
+
+  void copy_mem(void* dst, void* src, usize size) {
+    CopyMemory(dst, src, size);
+  }
+
 #endif
 
 //

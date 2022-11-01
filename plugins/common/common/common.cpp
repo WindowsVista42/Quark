@@ -224,6 +224,163 @@ namespace common {
       //view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
       Iden::global_value += 1;
     }
+
+    auto thread_work = []() {
+      Arena* arena0 = get_arena();
+      Arena* arena1 = get_arena();
+
+      f64 avg = 0;
+
+      usize size = 10 * MB;
+
+      for(int i = 0; i < 100; i += 1) {
+        void* dst = push_zero_arena(arena0, size);
+        void* src = push_zero_arena(arena1, size);
+
+        memset(src, 10, size);
+
+        Timestamp t0 = get_timestamp();
+        copy_mem(dst, src, size);
+        Timestamp t1 = get_timestamp();
+
+        if(memcmp(src, dst, size) != 0) {
+          panic("failed to copy");
+        }
+
+        avg += get_timestamp_difference(t0, t1);
+      }
+      avg /= 100.0f;
+
+      printf("Copy took: %f ms\n", (f32)avg * 1000.0f);
+
+      free_arena(arena0);
+      free_arena(arena1);
+    };
+
+    // 1.2 -- 1 -- 10 MB --  8.33 MB/ms
+    // 1.7 -- 2 -- 20 MB -- 11.75 MB/ms
+    // 3.0 -- 4 -- 40 MB -- 13.33 MB/ms
+
+    add_threadpool_work(thread_work);
+    // add_threadpool_work(thread_work);
+    // add_threadpool_work(thread_work);
+    // add_threadpool_work(thread_work);
+    join_threadpool();
+
+#define clz(number) __builtin_clzll(number)
+
+    {
+      using Type = vec3; // PbrMaterial; //
+      constexpr Type Value = vec3 {1, 2, 3}; // Transform { {10,}, {1,} }; // Transform {{10,}, {1,} };// vec3 {1, 2, 3}; // PbrMaterial {{},{},{},{},{},{},{1,1}}; //
+
+      f64 avg_reference = 0;
+      f64 avg_bits = 0;
+
+      Arena* arena0 = get_arena();
+      usize capacity = 1024 * 4;
+      usize size = capacity / 8;
+
+      for(int z = 0; z < 10000; z += 1) {
+        Type* reference = push_array_zero_arena(arena0, Type, capacity);
+        Type* reference2 = push_array_zero_arena(arena0, Type, capacity);
+        Type* reference3 = push_array_zero_arena(arena0, Type, capacity);
+
+        u32* offset = push_array_zero_arena(arena0, u32, capacity);
+        u32* offset2 = push_array_zero_arena(arena0, u32, capacity);
+        u32* offset3 = push_array_zero_arena(arena0, u32, capacity);
+
+        Type* data = push_array_zero_arena(arena0, Type, capacity);
+        u32* valid_table = push_array_zero_arena(arena0, u32, capacity / 32);
+        u32* valid_table2 = push_array_zero_arena(arena0, u32, capacity / 32);
+        u32* valid_table3 = push_array_zero_arena(arena0, u32, capacity / 32);
+
+        Timestamp t0, t1;
+
+        u32 counter = 0;
+
+        for(u32 i = 0; i < capacity; i += 1) {
+          offset[i] = min(rand() % 10 + i, size - 1);
+          offset2[i] = min(rand() % 10 + i, size - 1);
+          offset3[i] = min(rand() % 10 + i, size - 1);
+        }
+
+        t0 = get_timestamp();
+        for(usize i = 0; i < size; i += 1) {
+          if(((offset[i] + offset2[i] + offset3[i]) % 4) == 0) {
+            continue;
+          }
+
+          // do thing
+          reference[offset[i]] = Value;
+          reference2[offset2[i]] = Value;
+          reference3[offset3[i]] = Value;
+        }
+        t1 = get_timestamp();
+        avg_reference += get_timestamp_difference(t0, t1);
+
+        for(usize i = 0; i < capacity; i += 1) {
+          usize x = i / 32;
+          usize y = i - (x * 32);
+          usize shift = 1 << y;
+
+          if((rand() % 10) <= 8) {
+            valid_table[x] |= shift;
+          }
+
+          if((rand() % 10) <= 0) {
+            valid_table2[x] |= shift;
+          }
+
+          if((rand() % 10) <= 0) {
+            valid_table3[x] |= shift;
+          }
+        }
+
+        // for(int i = 0; i < (512 / 32); i += 1) {
+        //   printf("%llx, ", valid_table[i]);
+        // }
+
+        //printf("\n");
+
+        t0 = get_timestamp();
+        for(u32 j = 0; j < (capacity / 32); j += 1) {
+          u32 valid_copy = valid_table[j] & valid_table2[j] & valid_table3[j];
+          if(valid_copy == 0) { continue; }
+
+          u32 jx = (j * 32);
+
+          while(valid_copy != 0) {
+            u32 i = __builtin_ctz(valid_copy);
+            valid_copy ^= 1 << i;
+
+            // do thing
+            reference[jx + i] = Value;
+            reference2[jx + i] = Value;
+            reference3[jx + i] = Value;
+          }
+        }
+
+        // for(usize i = 0; i < capacity; i += 1) {
+        //   usize x = i / 32;
+        //   usize y = i - (x * 32);
+        //   usize shift = 1 << y;
+
+        //   if((valid_table[x] & shift) != 0) {
+        //     reference[i] = Value;
+        //   }
+        // }
+        t1 = get_timestamp();
+        avg_bits += get_timestamp_difference(t0, t1);
+      }
+
+      avg_reference /= 10000.0f;
+      avg_bits      /= 10000.0f;
+
+      printf("Iter for offset arr took: %f ms\n", (f32)avg_reference * 1000.0f);
+      printf("Iter for bittable   took: %f ms\n", (f32)avg_bits * 1000.0f);
+
+      free_arena(arena0);
+    }
   
     //for_every(i, 10) {
     //  view1.create(Transform{}, Color{});
