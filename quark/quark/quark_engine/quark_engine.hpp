@@ -479,6 +479,9 @@ namespace quark {
     u32 ecs_empty_head = 0;
   };
 
+  engine_var const u32 ECS_ACTIVE_FLAG;
+  engine_var const u32 ECS_EMPTY_FLAG;
+
   engine_api EcsContext* get_ecs_context2();
   engine_api u32 add_ecs_table2(u32 component_size);
 

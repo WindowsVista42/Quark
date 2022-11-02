@@ -493,6 +493,9 @@ namespace quark {
     return &ecs_context;
   }
 
+  const u32 ECS_ACTIVE_FLAG = 0;
+  const u32 ECS_EMPTY_FLAG = 1;
+
   u32 add_ecs_table2(u32 component_size) {
     EcsContext* ctx = get_ecs_context2();
   
@@ -516,6 +519,7 @@ namespace quark {
       // ctx->ecs_destroyed_flag = add_ecs_table(0);
       // ctx->ecs_updated_flag = add_ecs_table(0);
       ctx->ecs_empty_flag = add_ecs_table2(0);
+
       memset(ctx->ecs_bool_table[ctx->ecs_empty_flag], 0xffffffff, 256 * KB);
     }
   
