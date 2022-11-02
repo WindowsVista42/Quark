@@ -481,8 +481,41 @@ namespace common {
       u32 entity_i = adj_i + loc_i; \
 \
       u32 inc = 0; \
+      void* ptrs[(c)]; \
+      for(u32 i = 0; i < (c); i += 1) { \
+        u8* comp_table = (u8*)ecs_comp_table[comps[i]]; \
+        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]]; \
+      } \
  \
       f \
+    } \
+  } \
+} \
+
+#define for_archetype_Z(comps, f...) { \
+  u32 c = sizeof(comps) / sizeof(comps[0]); \
+  for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) { \
+    u32 archetype = ecs_bool_table[comps[0]][i];  \
+    for(u32 j = 1; j < (c); j += 1) { \
+      archetype &= ecs_bool_table[comps[j]][i];  \
+    } \
+\
+    u32 adj_i = i * 32; \
+\
+    while(archetype != 0) { \
+      u32 loc_i = __builtin_ctz(archetype); \
+      archetype ^= 1 << loc_i; \
+\
+      u32 entity_i = adj_i + loc_i; \
+\
+      u32 inc = 0; \
+      void* ptrs[(c)]; \
+      for(u32 i = 0; i < (c); i += 1) { \
+        u8* comp_table = (u8*)ecs_comp_table[comps[i]]; \
+        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]]; \
+      } \
+ \
+      f(ptrs); \
     } \
   } \
 } \
@@ -610,6 +643,34 @@ namespace common {
   u32** ecs_bool_table = 0;
   u32* ecs_comp_sizes = 0;
 
+void for_archetype_f(u32* comps, u32 comps_count, void (*f)(void**)) {
+  u32 c = comps_count;
+  for(u32 i = 0; i <= (ecs_entity_count / 32); i += 1) {
+    u32 archetype = ecs_bool_table[comps[0]][i]; 
+    for(u32 j = 1; j < (c); j += 1) {
+      archetype &= ecs_bool_table[comps[j]][i]; 
+    }
+
+    u32 adj_i = i * 32;
+
+    while(archetype != 0) {
+      u32 loc_i = __builtin_ctz(archetype);
+      archetype ^= 1 << loc_i;
+
+      u32 entity_i = adj_i + loc_i;
+
+      u32 inc = 0;
+      void* ptrs[(c)];
+      for(u32 i = 0; i < (c); i += 1) {
+        u8* comp_table = (u8*)ecs_comp_table[comps[i]];
+        ptrs[i] = &comp_table[entity_i * ecs_comp_sizes[comps[i]]];
+      }
+
+      f(ptrs);
+    }
+  }
+}
+
 u32 add_ecs_table(u32 component_size) {
   if(ecs_comp_table == 0) {
     ecs_entity_capacity = 128 * KB;
@@ -645,35 +706,47 @@ u32 add_ecs_table(u32 component_size) {
   return i;
 }
 
-// u32 TRANSFORM_COMP_ID = add_ecs_table(sizeof(Transform));
-// u32 MODEL_COMP_ID = add_ecs_table(sizeof(Model));
-// u32 COLOR_MATERIAL_COMP_ID = add_ecs_table(sizeof(ColorMaterial));
-
-u32 Transform_COMP_ID = add_ecs_table(sizeof(Transform));
-u32 Model_COMP_ID = add_ecs_table(sizeof(Model));
-u32 ColorMaterial_COMP_ID = add_ecs_table(sizeof(ColorMaterial));
-
-#define define_component(name, x...) \
-  struct name x; \
-  u32 name##_COMP_ID = add_ecs_table(sizeof(name)); \
+#define declare_component(name, x...) \
+  struct name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+  const u32 name::COMPONENT_ID = add_ecs_table(sizeof(name)); \
+  static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
   __make_reflection_maker(name); \
-  ReflectionInfo name##_REFLECTION_INFO = __make_reflection_info_##name() \
+  const ReflectionInfo name::REFLECTION_INFO = __make_reflection_info_##name(); \
+  ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
 
-define_component(Thing, {
-  u32 a, b;
-});
+declare_component(Thing,
+  u32 a;
+  u32 b;
+);
+
+declare_component(Transform2,
+  vec3 position;
+  quat rotation;
+);
+
+declare_component(Model2,
+  vec3 half_extents;
+  MeshId id;
+);
+
+declare_component(ColorMaterial2,
+  vec4 color;
+);
 
 #define comp(type, name) \
-  type name = (type)ptrs[inc]; \
+  type* name = (type*)ptrs[inc]; \
   inc += 1 \
 
-#define add_comp(id, type, x...) \
+#define comp3(type, name, i) \
+  type* name = (type*)ptrs[i]; \
+
+#define set_comp(id, type, x...) \
 { \
   type t = x; \
-  add_comp2(id, type##_COMP_ID, &t, sizeof(type)); \
+  set_comp2(id, type::COMPONENT_ID, &t); \
 } \
 
-  void add_comp2(u32 id, u32 component_id, void* data, u32 data_size) {
+  void set_comp2(u32 id, u32 component_id, void* data) {
     u32 x = id / 32;
     u32 y = id - (x * 32);
     u32 shift = 1 << y;
@@ -683,7 +756,7 @@ define_component(Thing, {
     u8* comp_table = (u8*)ecs_comp_table[component_id];
     void* dst = &comp_table[id * ecs_comp_sizes[component_id]];
 
-    copy_mem(dst, data, data_size);
+    copy_mem(dst, data, ecs_comp_sizes[component_id]);
   }
 
   void* get_comp(u32 id, u32 component_id) {
@@ -704,14 +777,86 @@ define_component(Thing, {
     zero_mem(&comp_table[id * ecs_comp_sizes[component_id]], size);
   }
 
+#define get_comps(types...) \
+  u32 comps[] = { types##_COMP_ID... }; \
+
+template <typename T>
+struct function_traits
+    : public function_traits<decltype(&T::operator())>
+{};
+// For generic types, directly use the result of the signature of its 'operator()'
+
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function_traits<ReturnType(ClassType::*)(Args...) const>
+// we specialize for pointers to member function
+{
+    enum { arity = sizeof...(Args) };
+    // arity is the number of arguments.
+
+    typedef ReturnType result_type;
+
+    typedef typename std::tuple_element<0, std::tuple<Args...>>::type args;
+
+    template <size_t i>
+    struct arg
+    {
+        typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
+        // the i-th argument is equivalent to the i-th tuple element of a tuple
+        // composed of those arguments.
+    };
+};
+
+// test code below:
+int main()
+{
+    auto lambda = [](int i) { return long(i*10); };
+
+    typedef function_traits<decltype(lambda)> traits;
+
+    static_assert(std::is_same<long, traits::result_type>::value, "err");
+    static_assert(std::is_same<int, traits::arg<0>::type>::value, "err");
+
+    return 0;
+}
+
+template <typename... T>
+void for_archetype10(void (*f)(T*...)) {
+  u32 comps[] = { T::COMPONENT_ID... };
+  for_archetype(comps, {
+    u32 inc = 0;
+    std::tuple<T*...> t = std::tuple((T*)ptrs[inc++]...);
+    std::apply(f, t);
+  });
+}
+
+#define for_archetype_X(f...) { \
+  struct z { \
+    static void a f \
+  }; \
+ \
+  for_archetype10(z::a); \
+} \
+
+template <typename A>
+void set_comps(u32 id, A comp) {
+  set_comp2(id, A::COMPONENT_ID, &comp);
+}
+
+template <typename A, typename... T>
+void set_comps(u32 id, A comp, T... comps) {
+  set_comps<A>(id, comp);
+  set_comps<T...>(id, comps...);
+}
+
   void init_ecs() {
 
     static u32 x[16] = {};
+    static f32 dt = delta();
+
     for(int i = 0; i < 16; i += 1) {
       x[i] = 0;
     }
 
-    static f32 dt = delta();
     {
       static u32 offsets[17] = {};
       offsets[0] = 0;
@@ -725,17 +870,6 @@ define_component(Thing, {
       }
       offsets[16] = ecs_entity_count / 32 + 1;
       }
-
-#define it(name, i0, i1) \
-      auto name = []() { \
-        u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID }; \
-        for_archetype2(offsets[i0], offsets[i1], comps, { \
-          comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c); \
- \
-          x[i0] += 1; \
-          t->position.x += dt; \
-        }); \
-      }; \
 
       // it(a, 0, 1);
       // it(b, 1, 2);
@@ -774,16 +908,36 @@ define_component(Thing, {
       // add_threadpool_work(p);
       // join_threadpool();
 
-      for(int i = 0; i < 100; i += 1) {
+      static int s = 0;
 
-      u32 comps[3] = { Transform_COMP_ID, Model_COMP_ID, ColorMaterial_COMP_ID };
-      for_archetype(comps, {
-        comp2(Transform, t); comp2(Model, m); comp2(ColorMaterial, c);
+      if(get_action("move_left").just_down) { s += 1; s %= 3; printf("opts: %d\n", s); }
 
-        x[0] += 1;
-        t->position.x += dt;
-      });
+      for(int i = 0; i < 1; i += 1) {
 
+        if(s == 0) {
+          for_archetype_X((Transform2* t, Model2* m, ColorMaterial2* c) {
+            x[0] += 1;
+            t->position.x += dt;
+          });
+        }
+        if(s == 1) {
+          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID};
+          for_archetype(comps,
+            comp3(Transform2, t, 0); comp3(Model2, m, 1); comp3(ColorMaterial2, c, 2);
+
+            x[0] += 1;
+            t->position.x += dt;
+          );
+        }
+        if(s == 2) {
+          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID};
+          for_archetype_f(comps, 3, [](void** ptrs) {
+            comp3(Transform2, t, 0); comp3(Model2, m, 1); comp3(ColorMaterial2, c, 2);
+
+            x[0] += 1;
+            t->position.x += dt;
+          });
+        }
       }
 
       // for_archetype3(Transform, t, Model, m, ColorMaterial, c, {
@@ -795,35 +949,36 @@ define_component(Thing, {
 
     if(get_action("move_forward").down && count != 0) {
       for(int i = 0; (i < 10000) && (count != 0); i += 1) {
-        rem_comp(count - 1, Transform_COMP_ID);
+        rem_comp(count - 1, Transform2::COMPONENT_ID);
         count -= 1;
       }
     }
 
     if(get_action("move_backward").down) {
-      Transform* p = (Transform*)get_comp(0, Transform_COMP_ID);
+      Transform* p = (Transform*)get_comp(0, Transform2::COMPONENT_ID);
       for(int i = 0; i < 10000; i += 1) {
-        if(rand() % 1000 <= 5) {
-          add_comp(count, Transform, {{p->position.x, 2}, {}});
-        }
-        if(rand() % 1000 <= 5) {
-          add_comp(count, Model, {});
-        }
-        add_comp(count, ColorMaterial, {});
-        add_comp(count, Thing, {});
+        set_comps(count, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
+        // if(rand() % 1000 <= 5) {
+        //  set_comp(count, Transform2, {{p->position.x, 2}, {}});
+        // }
+        // if(rand() % 1000 <= 5) {
+        //  set_comp(count, Model2, {});
+        // }
+        //set_comp(count, ColorMaterial2, {});
+        // set_comp(count, Thing, {});
         count += 1;
       }
     }
 
     ecs_entity_count = count;
 
-    Transform* t = (Transform*)get_comp(0, Transform_COMP_ID);
+    Transform2* t = (Transform2*)get_comp(0, Transform2::COMPONENT_ID);
     f32 z = t->position.x;
 
     bool equal = true;
 
     // for(u32 i = 0; i < count; i += 1) {
-    //   if(((Transform*)ecs_comp_table[Transform_COMP_ID])[i].position.x != z) {
+    //   if(((Transform2*)ecs_comp_table[Transform2::COMP_ID])[i].position.x != z) {
     //     equal = false;
     //     printf("%u\n", i);
     //   }
