@@ -591,19 +591,32 @@ namespace quark {
     u32 entity_id = ctx->ecs_empty_head;
     unset_ecs_bit(ctx, entity_id, ctx->ecs_empty_flag);
 
-    for(u32 i = entity_id / 32; i <= (ECS_MAX_STORAGE / 32); i += 1) {
-      u32 empty_flags = ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
-      if(empty_flags == 0) {
-        if(entity_id / 32 == ECS_MAX_STORAGE / 32) {
-          panic("ran out of ecs storage!\n");
-        }
-
-        continue;
-      }
-
-      ctx->ecs_empty_head = (i * 32) + __builtin_ctz(empty_flags);
-      break;
+    // scan for new head
+    u32 head = ctx->ecs_empty_head / 32;
+    while(ctx->ecs_bool_table[ctx->ecs_empty_flag][head] == 0 && head < (ECS_MAX_STORAGE / 32)) {
+      head += 1;
     }
+
+    if(head == (ECS_MAX_STORAGE / 32)) {
+      panic("ran out of ecs storage!\n");
+    }
+
+    ctx->ecs_empty_head = (head * 32) + __builtin_ctz(ctx->ecs_bool_table[ctx->ecs_empty_flag][head]);
+
+    // TODO: validate before removing this
+    // for(u32 i = entity_id / 32; i <= (ECS_MAX_STORAGE / 32); i += 1) {
+    //   u32 empty_flags = ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+    //   if(empty_flags == 0) {
+    //     if(entity_id / 32 == ECS_MAX_STORAGE / 32) {
+    //       panic("ran out of ecs storage!\n");
+    //     }
+
+    //     continue;
+    //   }
+
+    //   ctx->ecs_empty_head = (i * 32) + __builtin_ctz(empty_flags);
+    //   break;
+    // }
 
     // move tail right if we have gone further right
     if((entity_id / 32) > ctx->ecs_entity_tail) {
