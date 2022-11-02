@@ -421,128 +421,82 @@ namespace common {
 
   static f32 T = 0.0f;
 
-#define for_archetype(comps, c, f...) { \
-  EcsContext* ctx = get_ecs_context(); \
-  for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
-    u32 archetype = ctx->ecs_bool_table[ctx->ecs_active_flag][i] & ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i]; \
-    for(u32 j = 0; j < (c); j += 1) { \
-      archetype &= ctx->ecs_bool_table[comps[j]][i];  \
-    } \
-\
-    u32 adj_i = i * 32; \
-\
-    while(archetype != 0) { \
-      u32 loc_i = __builtin_ctz(archetype); \
-      archetype ^= 1 << loc_i; \
-\
-      u32 entity_i = adj_i + loc_i; \
-\
-      u32 inc = 0; \
-      void* ptrs[(c)]; \
-      for(u32 i = 0; i < (c); i += 1) { \
-        u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]]; \
-        ptrs[i] = &comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]]; \
-      } \
- \
-      f \
-    } \
-  } \
-} \
 
-struct EcsContext {
-  u32 ecs_table_count = 0;
-  u32 ecs_table_capacity = 0;
+//   struct EcsContext {
+//     u32 ecs_table_count = 0;
+//     u32 ecs_table_capacity = 0;
+//   
+//     u32 ecs_entity_head = 0;
+//     u32 ecs_entity_tail = 0;
+//     u32 ecs_entity_capacity = 0;
+//   
+//     void** ecs_comp_table = 0;
+//     u32** ecs_bool_table = 0;
+//     u32* ecs_comp_sizes = 0;
+//   
+//     u32 ecs_active_flag = 0;
+//     // u32 ecs_created_flag = 0;
+//     // u32 ecs_destroyed_flag = 0;
+//     // u32 ecs_updated_flag = 0;
+//     u32 ecs_empty_flag = 0;
+//     u32 ecs_empty_head = 0;
+//   };
+// 
+//   #define ECS_MAX_STORAGE 1000000
+// 
+//   #define for_archetype(comps, c, excl, e, f...) { \
+//     EcsContext* ctx = get_ecs_context(); \
+//     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
+//       u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i]; \
+//       for(u32 j = 0; j < (c); j += 1) { \
+//         archetype &= ctx->ecs_bool_table[comps[j]][i];  \
+//       } \
+//       if ((c) != 0 || (e) != 0) { \
+//         archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i]; \
+//       } \
+//       for(u32 j = 0; j < (e); j += 1) { \
+//         archetype &= ~ctx->ecs_bool_table[excl[j]][i];  \
+//       } \
+//   \
+//       u32 adj_i = i * 32; \
+//   \
+//       while(archetype != 0) { \
+//         u32 loc_i = __builtin_ctz(archetype); \
+//         archetype ^= 1 << loc_i; \
+//   \
+//         u32 entity_i = adj_i + loc_i; \
+//   \
+//         u32 inc = 0; \
+//         void* ptrs[(c)]; \
+//         for(u32 i = 0; i < (c); i += 1) { \
+//           u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]]; \
+//           ptrs[i] = &comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]]; \
+//         } \
+//   \
+//         f \
+//       } \
+//     } \
+//   } \
+// 
+//   EcsContext ecs_context = {};
+// 
+// EcsContext* get_ecs_context() {
+//   return &ecs_context;
+// }
 
-  u32 ecs_entity_head = 0;
-  u32 ecs_entity_tail = 0;
-  u32 ecs_entity_capacity = 0;
+// void for_archetype_f(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(u32, void**)) {
+//   for_archetype(comps, comps_count, excl, excl_count, {
+//     f(entity_i, ptrs);
+//   });
+// }
 
-  void** ecs_comp_table = 0;
-  u32** ecs_bool_table = 0;
-  u32* ecs_comp_sizes = 0;
-
-  u32 ecs_active_flag = 0;
-  // u32 ecs_created_flag = 0;
-  // u32 ecs_destroyed_flag = 0;
-  // u32 ecs_updated_flag = 0;
-  u32 ecs_empty_flag = 0;
-  u32 ecs_empty_head = 0;
-};
-
-#define ECS_MAX_STORAGE 1000000
-
-EcsContext ecs_context = {};
-
-EcsContext* get_ecs_context() {
-  return &ecs_context;
-}
-
-void for_archetype_f(u32* comps, u32 comps_count, void (*f)(void**)) {
-  for_archetype(comps, comps_count, {
-    f(ptrs);
-  });
-}
-
-u32 add_ecs_table(u32 component_size) {
-  EcsContext* ctx = get_ecs_context();
-
-  if(ctx->ecs_comp_table == 0) {
-    ctx->ecs_entity_capacity = 128 * KB;
-    u32 size = 64 * KB;
-
-    ctx->ecs_comp_table = (void**)os_reserve_mem(size);
-    os_commit_mem((u8*)ctx->ecs_comp_table, size);
-
-    ctx->ecs_bool_table = (u32**)os_reserve_mem(size);
-    os_commit_mem((u8*)ctx->ecs_bool_table, size);
-
-    ctx->ecs_comp_sizes = (u32*)os_reserve_mem(size);
-    os_commit_mem((u8*)ctx->ecs_comp_sizes, size);
-
-    ctx->ecs_table_capacity = size / sizeof(void*);
-
-    ctx->ecs_active_flag = add_ecs_table(0);
-    // ctx->ecs_created_flag = add_ecs_table(0);
-    // ctx->ecs_destroyed_flag = add_ecs_table(0);
-    // ctx->ecs_updated_flag = add_ecs_table(0);
-    ctx->ecs_empty_flag = add_ecs_table(0);
-    memset(ctx->ecs_bool_table[ctx->ecs_empty_flag], 0xffffffff, 256 * KB);
-  }
-
-  u32 i = ctx->ecs_table_count;
-  ctx->ecs_table_count += 1;
-
-  // if(ecs_table_count) // reserve ptrs for more tables
-
-  if(component_size != 0) {
-    u32 comp_count = ECS_MAX_STORAGE;
-    u32 memsize = comp_count * component_size;
-    memsize = (memsize / (64 * KB)) + 1;
-    memsize *= 64 * KB;
-    printf("1 mil memsize eq: %d\n", memsize / (u32)(64 * KB));
-
-    ctx->ecs_comp_table[i] = (void*)os_reserve_mem(memsize);
-    os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
-    zero_mem(ctx->ecs_comp_table[i], memsize);
-  }
-
-  u32 bt_size = 256 * KB;
-  ctx->ecs_bool_table[i] = (u32*)os_reserve_mem(bt_size);
-  os_commit_mem((u8*)ctx->ecs_bool_table[i], bt_size);
-  zero_mem(ctx->ecs_bool_table[i], bt_size);
-
-  ctx->ecs_comp_sizes[i] = component_size;
-
-  return i;
-}
-
-#define declare_component(name, x...) \
-  struct name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
-  const u32 name::COMPONENT_ID = add_ecs_table(sizeof(name)); \
-  static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
-  __make_reflection_maker(name); \
-  const ReflectionInfo name::REFLECTION_INFO = __make_reflection_info_##name(); \
-  ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
+// #define declare_component(name, x...) \
+//   struct name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+//   const u32 name::COMPONENT_ID = add_ecs_table(sizeof(name)); \
+//   static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
+//   __make_reflection_maker(name); \
+//   const ReflectionInfo name::REFLECTION_INFO = __make_reflection_info_##name(); \
+//   ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
 
 declare_component(Thing,
   u32 a;
@@ -576,151 +530,120 @@ declare_component(ColorMaterial2,
   set_comp2(id, type::COMPONENT_ID, &t); \
 } \
 
-  void* get_comp_ptr(EcsContext* ctx, u32 id, u32 component_id) {
-    u8* comp_table = (u8*)ctx->ecs_comp_table[component_id];
-    void* dst = &comp_table[id * ctx->ecs_comp_sizes[component_id]];
-
-    return dst;
-  }
-
-  void set_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ctx->ecs_bool_table[component_id][x] |= shift;
-  }
-
-  void unset_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ctx->ecs_bool_table[component_id][x] &= ~shift;
-  }
-
-  void toggle_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ctx->ecs_bool_table[component_id][x] ^= shift;
-  }
-
 // HEAD GETS SET TO THE SMALLEST VALUE IF THERE IS A NEW SMALLEST VALUE
 // SO YOU ONLY EVER NEED TO SCAN RIGHTWARDS __NOT FROM THE BEGINNING__
 
-  u32 create_entity() {
-    EcsContext* ctx = get_ecs_context();
+  // u32 create_entity() {
+  //   EcsContext* ctx = get_ecs_context();
 
-    u32 id = ctx->ecs_empty_head;
-    unset_ecs_bit(ctx, id, ctx->ecs_empty_flag);
+  //   u32 id = ctx->ecs_empty_head;
+  //   unset_ecs_bit(ctx, id, ctx->ecs_empty_flag);
 
-    for(u32 i = id / 32; i <= (ECS_MAX_STORAGE / 32); i += 1) {
-      u32 empty_flags = ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
-      if(empty_flags == 0) {
-        if(id / 32 == ECS_MAX_STORAGE / 32) {
-          panic("ran out of ecs storage!\n");
-        }
+  //   for(u32 i = id / 32; i <= (ECS_MAX_STORAGE / 32); i += 1) {
+  //     u32 empty_flags = ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+  //     if(empty_flags == 0) {
+  //       if(id / 32 == ECS_MAX_STORAGE / 32) {
+  //         panic("ran out of ecs storage!\n");
+  //       }
 
-        continue;
-      }
+  //       continue;
+  //     }
 
-      ctx->ecs_empty_head = (i * 32) + __builtin_ctz(empty_flags);
-      break;
-    }
+  //     ctx->ecs_empty_head = (i * 32) + __builtin_ctz(empty_flags);
+  //     break;
+  //   }
 
-    // move tail right if we have gone further right
-    if((id / 32) > ctx->ecs_entity_tail) {
-      ctx->ecs_entity_tail = (id / 32);
-    }
+  //   // move tail right if we have gone further right
+  //   if((id / 32) > ctx->ecs_entity_tail) {
+  //     ctx->ecs_entity_tail = (id / 32);
+  //   }
 
-    return id;
-  }
+  //   return id;
+  // }
 
-  void destroy_entity(u32 id) {
-    EcsContext* ctx = get_ecs_context();
+  // void destroy_entity(u32 id) {
+  //   EcsContext* ctx = get_ecs_context();
 
-    set_ecs_bit(ctx, id, ctx->ecs_empty_flag);
+  //   set_ecs_bit(ctx, id, ctx->ecs_empty_flag);
 
-    // scan for new tail
-    while(~ctx->ecs_bool_table[ctx->ecs_empty_flag][ctx->ecs_entity_tail] == 0 && ctx->ecs_entity_tail != 0) {
-      ctx->ecs_entity_tail -= 1;
-    }
+  //   // scan for new tail
+  //   while(~ctx->ecs_bool_table[ctx->ecs_empty_flag][ctx->ecs_entity_tail] == 0 && ctx->ecs_entity_tail != 0) {
+  //     ctx->ecs_entity_tail -= 1;
+  //   }
 
-    if(id < ctx->ecs_empty_head) {
-      ctx->ecs_empty_head = id;
-    }
+  //   if(id < ctx->ecs_empty_head) {
+  //     ctx->ecs_empty_head = id;
+  //   }
 
-    // todo clear all
-  }
+  //   // todo clear all
+  // }
 
-  void set_comp2(u32 id, u32 component_id, void* data) {
-    EcsContext* ctx = get_ecs_context();
+  // void set_comp2(u32 id, u32 component_id, void* data) {
+  //   EcsContext* ctx = get_ecs_context();
 
-    set_ecs_bit(ctx, id, component_id);
-    void* dst = get_comp_ptr(ctx, id, component_id);
+  //   set_ecs_bit(ctx, id, component_id);
+  //   void* dst = get_comp_ptr(ctx, id, component_id);
 
-    u32 size = ctx->ecs_comp_sizes[component_id];
-    copy_mem(dst, data, size);
-  }
+  //   u32 size = ctx->ecs_comp_sizes[component_id];
+  //   copy_mem(dst, data, size);
+  // }
 
-  void* get_comp(u32 id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context();
-    return get_comp_ptr(ctx, id, component_id);
-  }
+  // void* get_comp(u32 id, u32 component_id) {
+  //   EcsContext* ctx = get_ecs_context();
+  //   return get_comp_ptr(ctx, id, component_id);
+  // }
 
-  void rem_comp(u32 id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context();
+  // void rem_comp(u32 id, u32 component_id) {
+  //   EcsContext* ctx = get_ecs_context();
 
-    unset_ecs_bit(ctx, id, component_id);
-    // void* dst = get_comp_ptr(ctx, id, component_id);
+  //   unset_ecs_bit(ctx, id, component_id);
+  //   // void* dst = get_comp_ptr(ctx, id, component_id);
 
-    // u32 size = ctx->ecs_comp_sizes[component_id];
-    // zero_mem(dst, size);
-  }
+  //   // u32 size = ctx->ecs_comp_sizes[component_id];
+  //   // zero_mem(dst, size);
+  // }
 
-#define get_comps(types...) \
-  u32 comps[] = { types##_COMP_ID... }; \
+// template <typename... T>
+// void for_archetype10(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
+//   u32 comps[] = { T::COMPONENT_ID... };
+// 
+//   static void (*ff)(u32 id, T*...);
+//   ff = f;
+// 
+//   // for_archetype_f(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, [](u32 entity_i, void** ptrs) {
+//   //   u32 inc = 0;
+//   //   std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc++]...);
+//   //   std::apply(ff, t);
+//   // });
+//   for_archetype(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
+//     u32 inc = 0;
+//     std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc++]...);
+//     std::apply(f, t);
+//   });
+// }
+// 
+// #define for_archetype_X(f...) { \
+//   struct z { \
+//     f \
+//   }; \
+//  \
+//   z a = {}; \
+//   for_archetype10(z::update, a.exclude, sizeof(a.exclude) / sizeof(a.exclude[0])); \
+// } \
 
-template <typename... T>
-void for_archetype10(void (*f)(u32 id, T*...)) {
-  u32 comps[] = { T::COMPONENT_ID... };
-  for_archetype(comps, sizeof(comps) / sizeof(comps[0]), {
-    u32 inc = 0;
-    std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc++]...);
-    std::apply(f, t);
-  });
-}
-
-#define for_archetype_X(f...) { \
-  struct z { \
-    static void a f \
-  }; \
- \
-  for_archetype10(z::a); \
-} \
-
-#define for_entities()
-
-template <typename A>
-void set_components(u32 id, A comp) {
-  set_comp2(id, A::COMPONENT_ID, &comp);
-}
-
-template <typename A, typename... T>
-void set_components(u32 id, A comp, T... comps) {
-  set_components<A>(id, comp);
-  set_components<T...>(id, comps...);
-}
-
-template <typename T>
-struct Not {};
-
-declare_enum(ComponentId, i32);
+// template <typename A>
+// void set_components(u32 id, A comp) {
+//   set_comp2(id, A::COMPONENT_ID, &comp);
+// }
+// 
+// template <typename A, typename... T>
+// void set_components(u32 id, A comp, T... comps) {
+//   set_components<A>(id, comp);
+//   set_components<T...>(id, comps...);
+// }
 
   void init_ecs() {
-    EcsContext* ctx = get_ecs_context();
+    EcsContext* ctx = get_ecs_context2();
 
     static u32 x[16] = {};
     static f32 dt = delta();
@@ -789,14 +712,15 @@ declare_enum(ComponentId, i32);
       for(int i = 0; i < 1; i += 1) {
 
         if(s == 0) {
-          for_archetype_X((u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
+          for_archetype_t(u32 exclude[0] = {}; static void update(u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
             x[0] += 1;
             t->position.x += dt;
           });
         }
         if(s == 1) {
           u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID };
-          for_archetype(comps, 3, {
+          u32 excl[] = {};
+          for_archetype(comps, 3, excl, 0, {
             comp3(Transform2, t, 0); comp3(Model2, m, 1); comp3(ColorMaterial2, c, 2);
 
             x[0] += 1;
@@ -804,8 +728,9 @@ declare_enum(ComponentId, i32);
           });
         }
         if(s == 2) {
-          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID};
-          for_archetype_f(comps, 3, [](void** ptrs) {
+          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID };
+          u32 excl[] = {};
+          for_archetype_f2(comps, 3, excl, 0, [](u32 entity_i, void** ptrs) {
             comp3(Transform2, t, 0); comp3(Model2, m, 1); comp3(ColorMaterial2, c, 2);
 
             x[0] += 1;
@@ -824,9 +749,9 @@ declare_enum(ComponentId, i32);
     // static u32 lowest = 0;
 
     if(get_action("move_forward").down) {
-      for_archetype_X((u32 id) {
+      for_archetype_t(u32 exclude[0] = {}; static void update(u32 id) {
         if(rand() % 1000 < 1) {
-          destroy_entity(id);
+          destroy_entity2(id);
           count -= 1;
         }
         x[1] += 1;
@@ -840,22 +765,22 @@ declare_enum(ComponentId, i32);
     }
 
     if(get_action("move_backward").just_down) {
-      Transform* p = (Transform*)get_comp(0, Transform2::COMPONENT_ID);
+      Transform* p = (Transform*)get_component2(0, Transform2::COMPONENT_ID);
       f64 elt = 0;
-      for(int z = 0; z < 100; z += 1) {
+      for(int z = 0; z < 1; z += 1) {
         Timestamp t0 = get_timestamp();
         for(int i = 0; i < 64 * KB; i += 1) {
-          u32 id = create_entity();
-          set_components(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
-          set_comp2(id, ctx->ecs_active_flag, 0);
+          u32 id = create_entity2();
+          add_components2(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
+          add_flag2(id, ctx->ecs_active_flag);
         }
         Timestamp t1 = get_timestamp();
         count += 64 * KB;
-        for(int i = 0; i < count; i += 1) {
-          count -= 1;
-          destroy_entity(count);
-          // rem_comp(count - 1, Transform2::COMPONENT_ID);
-        }
+        // for(int i = 0; i < count; i += 1) {
+        //   count -= 1;
+        //   destroy_entity(count);
+        //   // rem_comp(count - 1, Transform2::COMPONENT_ID);
+        // }
         elt += get_timestamp_difference(t0, t1);
       }
       printf("adding 64k comp took: %fms\n", (f32)(elt / 100.0f) * 1000.0f);
@@ -863,16 +788,16 @@ declare_enum(ComponentId, i32);
 
     if(get_action("move_right").just_down) {
       for(usize i = count; i < ECS_MAX_STORAGE; i += 1) {
-        u32 id = create_entity();
-        set_components(id, Transform2 {{2, 2}, {}}, Model2 {}, ColorMaterial2 {});
-        set_comp2(id, ctx->ecs_active_flag, 0);
+        u32 id = create_entity2();
+        add_components2(id, Transform2 {{2, 2}, {}}, Model2 {}, ColorMaterial2 {});
+        add_flag2(id, ctx->ecs_active_flag);
         count += 1;
       }
     }
 
     // ctx->ecs_entity_count = count;
 
-    Transform2* t = (Transform2*)get_comp(0, Transform2::COMPONENT_ID);
+    Transform2* t = (Transform2*)get_component2(0, Transform2::COMPONENT_ID);
     f32 z = t->position.x;
 
     bool equal = true;

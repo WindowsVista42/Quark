@@ -6,6 +6,7 @@
 #include <entt/entt.hpp>
 #include <vk_mem_alloc.h>
 #include <array>
+#include "reflection.hpp"
 
 namespace quark {
 
@@ -443,6 +444,125 @@ namespace quark {
 //
 
   // [[noreturn]] engine_api void panic(tempstr s);
+
+//
+// ECS API
+//
+
+  #define declare_component(name, x...) \
+    struct name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+    const u32 name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
+    static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
+    __make_reflection_maker(name); \
+    const ReflectionInfo name::REFLECTION_INFO = __make_reflection_info_##name(); \
+    ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
+
+  #define ECS_MAX_STORAGE 1000000
+
+  struct EcsContext {
+    u32 ecs_table_count = 0;
+    u32 ecs_table_capacity = 0;
+  
+    u32 ecs_entity_head = 0;
+    u32 ecs_entity_tail = 0;
+    u32 ecs_entity_capacity = 0;
+  
+    void** ecs_comp_table = 0;
+    u32** ecs_bool_table = 0;
+    u32* ecs_comp_sizes = 0;
+  
+    u32 ecs_active_flag = 0;
+    // u32 ecs_created_flag = 0;
+    // u32 ecs_destroyed_flag = 0;
+    // u32 ecs_updated_flag = 0;
+    u32 ecs_empty_flag = 0;
+    u32 ecs_empty_head = 0;
+  };
+
+  engine_api EcsContext* get_ecs_context2();
+  engine_api u32 add_ecs_table2(u32 component_size);
+
+  engine_api u32 create_entity2();
+  engine_api void destroy_entity2(u32 entity_id);
+
+  engine_api void add_component2(u32 entity_id, u32 component_id, void* data);
+  engine_api void remove_component2(u32 entity_id, u32 component_id);
+  engine_api void add_flag2(u32 entity_id, u32 component_id);
+  engine_api void remove_flag2(u32 entity_id, u32 component_id);
+  engine_api void* get_component2(u32 entity_id, u32 component_id);
+  engine_api bool has_component2(u32 entity_id, u32 component_id);
+
+  engine_api void for_archetype_f2(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(u32, void**));
+
+  // #define for_archetype(comps, c, excl, e, f...)
+  // #define for_archetype_t(f...)
+
+  #define for_archetype(comps, c, excl, e, f...) { \
+    EcsContext* ctx = get_ecs_context2(); \
+    for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
+      u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i]; \
+      for(u32 j = 0; j < (c); j += 1) { \
+        archetype &= ctx->ecs_bool_table[comps[j]][i];  \
+      } \
+      if ((c) != 0 || (e) != 0) { \
+        archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i]; \
+      } \
+      for(u32 j = 0; j < (e); j += 1) { \
+        archetype &= ~ctx->ecs_bool_table[excl[j]][i];  \
+      } \
+  \
+      u32 adj_i = i * 32; \
+  \
+      while(archetype != 0) { \
+        u32 loc_i = __builtin_ctz(archetype); \
+        archetype ^= 1 << loc_i; \
+  \
+        u32 entity_i = adj_i + loc_i; \
+  \
+        u32 inc = 0; \
+        void* ptrs[(c)]; \
+        for(u32 i = 0; i < (c); i += 1) { \
+          u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]]; \
+          ptrs[i] = &comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]]; \
+        } \
+  \
+        f \
+      } \
+    } \
+  } \
+
+  engine_api void for_archetype_f(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(void**));
+
+  template <typename... T>
+  void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count);
+
+  #define for_archetype_t(f...) { \
+    struct z { \
+      f \
+    }; \
+  \
+    z a = {}; \
+    for_archetype_template(z::update, a.exclude, sizeof(a.exclude) / sizeof(a.exclude[0])); \
+  } \
+
+  template <typename A> void add_components2(u32 id, A comp) {
+    add_component2(id, A::COMPONENT_ID, &comp);
+  }
+
+  template <typename A, typename... T> void add_components2(u32 id, A comp, T... comps) {
+    add_components2<A>(id, comp);
+    add_components2<T...>(id, comps...);
+  }
+
+  template <typename... T> void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
+    u32 comps[] = { T::COMPONENT_ID... };
+    for_archetype(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
+      u32 inc = 0;
+      std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc++]...);
+      std::apply(f, t);
+    });
+  }
+  
 
 //
 // Registry API

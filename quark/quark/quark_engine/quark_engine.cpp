@@ -483,6 +483,196 @@ namespace quark {
   //   exit(-1);
   // }
 
+//
+// ECS API
+//
+
+  EcsContext ecs_context = {};
+
+  EcsContext* get_ecs_context2() {
+    return &ecs_context;
+  }
+
+  u32 add_ecs_table2(u32 component_size) {
+    EcsContext* ctx = get_ecs_context2();
+  
+    if(ctx->ecs_comp_table == 0) {
+      ctx->ecs_entity_capacity = 128 * KB;
+      u32 size = 64 * KB;
+  
+      ctx->ecs_comp_table = (void**)os_reserve_mem(size);
+      os_commit_mem((u8*)ctx->ecs_comp_table, size);
+  
+      ctx->ecs_bool_table = (u32**)os_reserve_mem(size);
+      os_commit_mem((u8*)ctx->ecs_bool_table, size);
+  
+      ctx->ecs_comp_sizes = (u32*)os_reserve_mem(size);
+      os_commit_mem((u8*)ctx->ecs_comp_sizes, size);
+  
+      ctx->ecs_table_capacity = size / sizeof(void*);
+  
+      ctx->ecs_active_flag = add_ecs_table2(0);
+      // ctx->ecs_created_flag = add_ecs_table(0);
+      // ctx->ecs_destroyed_flag = add_ecs_table(0);
+      // ctx->ecs_updated_flag = add_ecs_table(0);
+      ctx->ecs_empty_flag = add_ecs_table2(0);
+      memset(ctx->ecs_bool_table[ctx->ecs_empty_flag], 0xffffffff, 256 * KB);
+    }
+  
+    u32 i = ctx->ecs_table_count;
+    ctx->ecs_table_count += 1;
+  
+    // if(ecs_table_count) // reserve ptrs for more tables
+  
+    if(component_size != 0) {
+      u32 comp_count = ECS_MAX_STORAGE;
+      u32 memsize = comp_count * component_size;
+      memsize = (memsize / (64 * KB)) + 1;
+      memsize *= 64 * KB;
+      printf("1 mil memsize eq: %d\n", memsize / (u32)(64 * KB));
+  
+      ctx->ecs_comp_table[i] = (void*)os_reserve_mem(memsize);
+      os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
+      zero_mem(ctx->ecs_comp_table[i], memsize);
+    }
+  
+    u32 bt_size = 256 * KB;
+    ctx->ecs_bool_table[i] = (u32*)os_reserve_mem(bt_size);
+    os_commit_mem((u8*)ctx->ecs_bool_table[i], bt_size);
+    zero_mem(ctx->ecs_bool_table[i], bt_size);
+  
+    ctx->ecs_comp_sizes[i] = component_size;
+  
+    return i;
+  }
+
+  void* get_comp_ptr(EcsContext* ctx, u32 id, u32 component_id) {
+    u8* comp_table = (u8*)ctx->ecs_comp_table[component_id];
+    void* dst = &comp_table[id * ctx->ecs_comp_sizes[component_id]];
+
+    return dst;
+  }
+
+  void set_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    ctx->ecs_bool_table[component_id][x] |= shift;
+  }
+
+  void unset_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    ctx->ecs_bool_table[component_id][x] &= ~shift;
+  }
+
+  void toggle_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    ctx->ecs_bool_table[component_id][x] ^= shift;
+  }
+
+  u32 get_ecs_bit(EcsContext* ctx, u32 id, u32 component_id) {
+    u32 x = id / 32;
+    u32 y = id - (x * 32);
+    u32 shift = 1 << y;
+
+    return ctx->ecs_bool_table[component_id][x] & shift;
+  }
+
+  u32 create_entity2() {
+    EcsContext* ctx = get_ecs_context2();
+
+    u32 entity_id = ctx->ecs_empty_head;
+    unset_ecs_bit(ctx, entity_id, ctx->ecs_empty_flag);
+
+    for(u32 i = entity_id / 32; i <= (ECS_MAX_STORAGE / 32); i += 1) {
+      u32 empty_flags = ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+      if(empty_flags == 0) {
+        if(entity_id / 32 == ECS_MAX_STORAGE / 32) {
+          panic("ran out of ecs storage!\n");
+        }
+
+        continue;
+      }
+
+      ctx->ecs_empty_head = (i * 32) + __builtin_ctz(empty_flags);
+      break;
+    }
+
+    // move tail right if we have gone further right
+    if((entity_id / 32) > ctx->ecs_entity_tail) {
+      ctx->ecs_entity_tail = (entity_id / 32);
+    }
+
+    return entity_id;
+  }
+
+  void destroy_entity2(u32 entity_id) {
+    EcsContext* ctx = get_ecs_context2();
+
+    set_ecs_bit(ctx, entity_id, ctx->ecs_empty_flag);
+
+    // scan for new tail
+    while(~ctx->ecs_bool_table[ctx->ecs_empty_flag][ctx->ecs_entity_tail] == 0 && ctx->ecs_entity_tail != 0) {
+      ctx->ecs_entity_tail -= 1;
+    }
+
+    if(entity_id < ctx->ecs_empty_head) {
+      ctx->ecs_empty_head = entity_id;
+    }
+
+    // todo clear all
+  }
+
+  void add_component2(u32 entity_id, u32 component_id, void* data) {
+    EcsContext* ctx = get_ecs_context2();
+
+    set_ecs_bit(ctx, entity_id, component_id);
+    void* dst = get_comp_ptr(ctx, entity_id, component_id);
+
+    u32 size = ctx->ecs_comp_sizes[component_id];
+    copy_mem(dst, data, size);
+  }
+
+  void remove_component2(u32 entity_id, u32 component_id) {
+  }
+
+  void add_flag2(u32 entity_id, u32 component_id) {
+    EcsContext* ctx = get_ecs_context2();
+    set_ecs_bit(ctx, entity_id, component_id);
+  }
+
+  void remove_flag2(u32 entity_id, u32 component_id) {
+    EcsContext* ctx = get_ecs_context2();
+    unset_ecs_bit(ctx, entity_id, component_id);
+  }
+
+  void* get_component2(u32 entity_id, u32 component_id) {
+    EcsContext* ctx = get_ecs_context2();
+    return get_comp_ptr(ctx, entity_id, component_id);
+  }
+
+  bool has_component2(u32 entity_id, u32 component_id) {
+    EcsContext* ctx = get_ecs_context2();
+    return get_ecs_bit(ctx, entity_id, component_id) > 0;
+  }
+
+  void for_archetype_f2(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(u32, void**)) {
+    for_archetype(comps, comps_count, excl, excl_count, {
+      f(entity_i, ptrs);
+    });
+  }
+
+//
+// //
+//
+
   std::unordered_map<u32, AssetFileLoader> _asset_ext_loaders;
   std::unordered_map<u32, AssetFileUnloader> _asset_ext_unloaders;
 
