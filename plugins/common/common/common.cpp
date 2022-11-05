@@ -421,24 +421,27 @@ namespace common {
 
   static f32 T = 0.0f;
 
-  declare_component(Thing,
-    u32 a;
-    u32 b;
-  );
-  
-  declare_component(Transform2,
-    vec3 position;
-    quat rotation;
-  );
-  
-  declare_component(Model2,
-    vec3 half_extents;
-    MeshId id;
-  );
-  
-  declare_component(ColorMaterial2,
-    vec4 color;
-  );
+  define_component(Thing);
+  define_component(Transform2);
+  define_component(Model2);
+  // define_component(ColorMaterial2);
+
+// u32 add_asset_type(u32 size);
+// 
+// #define declare_asset(name, x...) \
+//   struct name { \
+//     x \
+//     static const u32 ASSET_ID; \
+//   }; \
+// 
+// #define define_asset(name) \
+//   const u32 name::ID = add_asset_type(sizeof(name)); \
+//   u32 name##_ID = name::ID; \
+// 
+//   declare_asset(Mesh2,
+//     u32 offset;
+//     u32 size;
+//   );
 
 #define component_ptr(type, name, i) type* name = (type*)ptrs[i]
 
@@ -572,7 +575,7 @@ namespace common {
         for(int i = 0; i < 64 * KB; i += 1) {
           u32 id = create_entity2();
           add_components2(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
-          add_flag2(id, ctx->ecs_active_flag);
+          add_flag2(id, ECS_ACTIVE_FLAG);
         }
         Timestamp t1 = get_timestamp();
         count += 64 * KB;

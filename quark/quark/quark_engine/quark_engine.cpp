@@ -19,6 +19,8 @@ namespace quark {
   // define_resource(ParIterCtxTypeMap, {});
   define_resource(DrawBatchPool, {});
 
+  define_component(ColorMaterial2);
+
   const GraphicsContext* _context = get_graphics_context();
 
   Model create_model(const char* mesh_name, vec3 scale) {

@@ -1,0 +1,42 @@
+// ecs api:
+
+ComponentId add_ecs_table();
+
+EntityId create_entity()
+destroy_entity(u32 id)
+
+void add_component(EntityId entity_id, ComponentId component_id, void* value)
+void remove_component(EntityId entity_id, ComponentId component_id)
+void* get_component(EntityId entity_id, ComponentId component_id)
+bool has_component(EntityId entity_id, ComponentId component_id)
+
+void add_component_list(EntityId entity_id, ComponentId* components, void** values, u32 component_count);
+
+// if value is zero then it clears the component for the entity?
+void set_component(EntityId, ComponentId component_id, void* value);
+
+for_archetype(types, function {});
+
+TODO:
+X active flag
+X empty flag
+X create entity
+X destroy entity
+- move api to quark_engine.hpp
+- add something for iterating all entities
+
+1 for active, 0 for inactive
+1 for empty, 0 for nonempty
+
+u8* serialize_ecs(Arena* arena);
+void deserialze_ecs(u8* bytes);
+
+111100111
+     ^
+
+111101111
+    ^
+
+     ----
+000010000
+    ^

@@ -449,8 +449,10 @@ namespace quark {
 // ECS API
 //
 
-  #define declare_component(name, x...) \
-    struct name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+  #define declare_component(api_decl, name, x...) \
+    struct api_decl name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+
+  #define define_component(name) \
     const u32 name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
     static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
     __make_reflection_maker(name); \
@@ -458,6 +460,10 @@ namespace quark {
     ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
 
   #define ECS_MAX_STORAGE 1000000
+
+  declare_component(engine_api, ColorMaterial2,
+    vec4 color;
+  );
 
   struct EcsContext {
     u32 ecs_table_count = 0;
