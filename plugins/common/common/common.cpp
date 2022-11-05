@@ -68,6 +68,10 @@ namespace common {
 
   struct Tag {};
 
+  define_component(Thing);
+  define_component(Transform2);
+  define_component(Model2);
+
   //
 
   //
@@ -417,13 +421,13 @@ namespace common {
     bind_action("look_left",  MouseAxisCode::MoveLeft,  1.0f / 64.0f);
     bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 64.0f);
     bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 64.0f);
+
+    update_component(Thing);
+    update_component(Transform2);
+    update_component(Model2);
   }
 
   static f32 T = 0.0f;
-
-  define_component(Thing);
-  define_component(Transform2);
-  define_component(Model2);
   // define_component(ColorMaterial2);
 
 // u32 add_asset_type(u32 size);
@@ -518,6 +522,10 @@ namespace common {
           for_archetype_t(u32 exclude[0] = {}; static void update(u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
             x[0] += 1;
             t->position.x += dt;
+            t->position.y += dt;
+
+            c->color.x = sinf(T);
+            c->color.y = cosf(T);
           });
         }
         if(s == 1) {
@@ -528,6 +536,10 @@ namespace common {
 
             x[0] += 1;
             t->position.x += dt;
+            t->position.y += dt;
+
+            c->color.x = sinf(T);
+            c->color.y = cosf(T);
           });
         }
         if(s == 2) {
@@ -538,6 +550,10 @@ namespace common {
 
             x[0] += 1;
             t->position.x += dt;
+            // t->position.y += dt;
+
+            // c->color.x = sinf(T);
+            // c->color.y = cosf(T);
           });
         }
       }
@@ -601,7 +617,14 @@ namespace common {
     // ctx->ecs_entity_count = count;
 
     Transform2* t = (Transform2*)get_component2(0, Transform2::COMPONENT_ID);
-    f32 z = t->position.x;
+    ColorMaterial2* c = (ColorMaterial2*)get_component2(0, ColorMaterial2::COMPONENT_ID);
+
+    static f64 tttz = 0.0f;
+    // tttz += dt;
+    if(tttz > 0.05f) {
+      tttz -= 0.05f;
+      printf("pos: %f, %f, %f\ncolor: %f, %f, %f\n\n", t->position.x, t->position.y, t->position.z, c->color.x, c->color.y, c->color.z);
+    }
 
     bool equal = true;
 

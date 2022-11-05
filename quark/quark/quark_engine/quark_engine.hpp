@@ -280,7 +280,7 @@ namespace quark {
   void set_resource(Resource<T> res, T value) {
     res.value = value;
   }
-  
+
 //
 // Action API
 //
@@ -449,19 +449,46 @@ namespace quark {
 // ECS API
 //
 
-  #define declare_component(api_decl, name, x...) \
-    struct api_decl name { x; static const u32 COMPONENT_ID; static const ReflectionInfo REFLECTION_INFO; }; \
+#ifdef __cplusplus 
+  #define declare_component(api_decl, var_decl, name, x...) \
+    struct api_decl name { \
+      x; \
+      static u32 COMPONENT_ID; \
+      static ReflectionInfo REFLECTION_INFO; \
+    }; \
+    __make_reflection_maker(name); \
+    var_decl u32 name##_COMPONENT_ID; \
+    var_decl ReflectionInfo name##_REFLECTION_INFO;
 
   #define define_component(name) \
-    const u32 name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
-    static const u32 name##_COMPONENT_ID = name::COMPONENT_ID; \
+    u32 name::COMPONENT_ID; \
+    u32 name##_COMPONENT_ID; \
+    ReflectionInfo name::REFLECTION_INFO; \
+    ReflectionInfo name##_REFLECTION_INFO; \
+
+  #define update_component(name) \
+    name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
+    name##_COMPONENT_ID = name::COMPONENT_ID; \
+    name::REFLECTION_INFO = __make_reflection_info_##name(); \
+    name##_REFLECTION_INFO = name::REFLECTION_INFO
+
+#elif
+  #define declare_component(api_decl, var_decl, name, x...) \
+    struct name { \
+      x; \
+    }; \
     __make_reflection_maker(name); \
-    const ReflectionInfo name::REFLECTION_INFO = __make_reflection_info_##name(); \
-    ReflectionInfo name##_REFLECTION_INFO = name::REFLECTION_INFO
+    var_decl u32 name##_COMPONENT_ID; \
+    var_decl ReflectionInfo name##_REFLECTION_INFO;
+
+  #define define_component(name) \
+    name##_COMPONENT_ID = add_ecs_table2(sizeof(name)); \
+    name##_REFLECTION_INFO = __make_reflection_info_##name()
+#endif
 
   #define ECS_MAX_STORAGE 1000000
 
-  declare_component(engine_api, ColorMaterial2,
+  declare_component(engine_api, engine_var, ColorMaterial2,
     vec4 color;
   );
 
@@ -566,8 +593,8 @@ namespace quark {
   template <typename... T> void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
     u32 comps[] = { T::COMPONENT_ID... };
     for_archetype(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
-      u32 inc = 0;
-      std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc++]...);
+      u32 inc = (sizeof(comps) / sizeof(comps[0])) - 1;
+      std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc--]...);
       std::apply(f, t);
     });
   }

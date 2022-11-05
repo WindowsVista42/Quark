@@ -49,6 +49,8 @@ namespace quark {
   }
 
   void init() {
+    update_component(ColorMaterial2);
+
     // Create builtin system lists
     {
       // quark_init and quark_deinit are special
