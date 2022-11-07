@@ -89,6 +89,7 @@ quark 1.2
   - easier shader reflection?
   - more complex vulkan operations
   - static vs dynamic entities?
+  - fancy gpu algorithms?
 
 - materials 1.1
   - pbr material
