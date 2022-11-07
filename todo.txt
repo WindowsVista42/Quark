@@ -1,0 +1,94 @@
+quark 1.0
+concessions:
+  - c++ only api
+  - c++ only plugins
+
+X systems 1.0
+  X api
+  X basic functionality
+
+X assets 1.0
+  X api
+  X basic functionality
+
+X actions 1.0
+  X api
+  X basic functionality
+
+X resources 1.0
+  X api
+  X basic functionality
+  - update api to fit with new entities api
+
+- component helpers 1.0
+  - transform
+  - model
+  - other types
+
+X states 1.0
+  X api
+  X basic functionality
+
+- tempstr 1.0
+  - update api to be less jank, maybe just variadic macro?
+
+- render 1.0
+  - abstractions for main vulkan parts
+  - basic shader abstraction
+  - basic vulkan operations
+  - update render batching system
+  X draw batch api
+
+- materials 1.0
+  - api
+  - color material
+  - texture material
+  - basic material (blinn-phong)
+
+X reflection 1.0
+  X api
+  X basic functionality
+
+- entities 1.0
+  - migration to new system
+
+- platform 1.0
+  X input api
+  X window api
+  X timing api
+  X shared library api
+  X memory api
+  - memory operations api (X --> copy, zero) (O --> move)
+  X arena api
+
+X core 1.0
+  X typedefs
+  X linear algebra api
+  X basic c++ typeinfo
+  X helper macros
+  X enum macros
+  X array macros
+
+- cli 1.0
+  X helper script
+  - shader compiler script
+
+quark 1.1
+
+- ecs 1.1
+  - lazy memory allocation
+  - serialization
+  - created flag, destroyed flag, update flag
+
+quark 1.2
+
+- systems 2.0
+  - automatic multithreading
+
+- render 2.0
+  - easier shader reflection?
+  - more complex vulkan operations
+  - static vs dynamic entities?
+
+- materials 1.1
+  - pbr material

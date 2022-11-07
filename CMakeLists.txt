@@ -25,13 +25,13 @@ set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
   #set(FORCE_SHARED_CRT ON)
-  set(CMAKE_C_FLAGS_DEBUG "-O0 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O2 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
-  set(CMAKE_C_FLAGS_RELEASE "-O3 -mavx2 -static")
+  set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -static -Wno-nullability-completeness")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O0 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O2 -DDEBUG -static -Wno-nullability-completeness")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -mavx2 -static")
+  set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static -Wno-nullability-completeness")
 endif(WIN32)
 
 if(UNIX)

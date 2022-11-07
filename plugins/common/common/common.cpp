@@ -517,7 +517,6 @@ namespace common {
       if(get_action("move_left").just_down) { s += 1; s %= 3; printf("opts: %d\n", s); }
 
       for(int i = 0; i < 1; i += 1) {
-
         if(s == 0) {
           for_archetype_t(u32 exclude[0] = {}; static void update(u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
             x[0] += 1;
@@ -591,7 +590,9 @@ namespace common {
         for(int i = 0; i < 64 * KB; i += 1) {
           u32 id = create_entity2();
           add_components2(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
-          add_flag2(id, ECS_ACTIVE_FLAG);
+          // if(rand() % 10 < 1) {
+            add_flag2(id, ECS_ACTIVE_FLAG);
+          //}
         }
         Timestamp t1 = get_timestamp();
         count += 64 * KB;
@@ -668,18 +669,57 @@ namespace common {
   //   }
   // }
 
+bool arr_is_subset(u32 c, const u32 a[c], u32 b, const u32 d[b]) {
+  for_every(i, c) {
+    bool found = false;
+    for_every(j, b) {
+      if(a[i] == d[j]) {
+        found = true;
+        break;
+      }
+    }
+    if(!found) { return false; }
+  }
+
+  return true;
+}
+
+void assert2(bool v) {
+  if(v) {
+    panic("AAA");
+  }
+}
+
   void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<MainCamera> res) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
-      f32 ctr = 0.0f;
+      u32 comps[] = {Transform2_COMPONENT_ID, Model2_COMPONENT_ID};
+      u32 excl[] = {};
+      for_archetype(comps, 2, excl, 0, {
+        component_ptr(Transform2, transform, 0);
+        component_ptr(Model2, model, 1);
+        component_ptr(ColorMaterial2, material, 2);
 
-      for (auto [e, transform, material] : get_view_each(view)) {
-        // transform.position.x = sinf(T * 2.0f + ctr) * 5.0f;
-        // transform.position.y = cosf(T * 2.0f + ctr) * 5.0f;
-        // ctr += 0.25f;
-        // printf("transform: (x: %f, y: %f)\n", transform.position.x, transform.position.y);
+        transform->position.z = sinf(T + transform->position.y);
 
+        material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        material->color.y = 0.0f;
+        material->color.z = 0.0f;
+      })
+
+      for_archetype_t(u32 exclude[0] = {}; static void update(u32 e, Transform2* transform, Model2* model, ColorMaterial* material) {
+        transform->position.z = sinf(T + transform->position.y);
+
+        material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+        material->color.y = 0.0f;
+        material->color.z = 0.0f;
+      })
+
+      for(auto [e, transform, model, material] : get_view_each(View<Include<Transform, Model, ColorMaterial>, Exclude<>> {})) {
+      }
+
+      for(auto [e, transform, material] : get_view_each(view)) {
         transform.position.z = sinf(T + transform.position.y);
 
         material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);

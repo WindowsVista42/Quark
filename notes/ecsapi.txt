@@ -13,7 +13,7 @@ bool has_component(EntityId entity_id, ComponentId component_id)
 void add_component_list(EntityId entity_id, ComponentId* components, void** values, u32 component_count);
 
 // if value is zero then it clears the component for the entity?
-void set_component(EntityId, ComponentId component_id, void* value);
+// void set_component(EntityId, ComponentId component_id, void* value);
 
 for_archetype(types, function {});
 
@@ -22,8 +22,11 @@ X active flag
 X empty flag
 X create entity
 X destroy entity
-- move api to quark_engine.hpp
-- add something for iterating all entities
+X move api to quark_engine.hpp
+X add something for iterating all entities
+- add ecs serialization
+- add ecs deserialization
+- convert things over to using the new api
 
 1 for active, 0 for inactive
 1 for empty, 0 for nonempty
@@ -40,3 +43,5 @@ void deserialze_ecs(u8* bytes);
      ----
 000010000
     ^
+
+for_archetype(types, excludes, function {})

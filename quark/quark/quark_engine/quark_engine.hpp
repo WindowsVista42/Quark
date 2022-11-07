@@ -449,42 +449,21 @@ namespace quark {
 // ECS API
 //
 
-#ifdef __cplusplus 
   #define declare_component(api_decl, var_decl, name, x...) \
     struct api_decl name { \
       x; \
       static u32 COMPONENT_ID; \
       static ReflectionInfo REFLECTION_INFO; \
     }; \
-    __make_reflection_maker(name); \
-    var_decl u32 name##_COMPONENT_ID; \
-    var_decl ReflectionInfo name##_REFLECTION_INFO;
 
   #define define_component(name) \
     u32 name::COMPONENT_ID; \
-    u32 name##_COMPONENT_ID; \
     ReflectionInfo name::REFLECTION_INFO; \
-    ReflectionInfo name##_REFLECTION_INFO; \
+    __make_reflection_maker(name); \
 
   #define update_component(name) \
     name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
-    name##_COMPONENT_ID = name::COMPONENT_ID; \
     name::REFLECTION_INFO = __make_reflection_info_##name(); \
-    name##_REFLECTION_INFO = name::REFLECTION_INFO
-
-#elif
-  #define declare_component(api_decl, var_decl, name, x...) \
-    struct name { \
-      x; \
-    }; \
-    __make_reflection_maker(name); \
-    var_decl u32 name##_COMPONENT_ID; \
-    var_decl ReflectionInfo name##_REFLECTION_INFO;
-
-  #define define_component(name) \
-    name##_COMPONENT_ID = add_ecs_table2(sizeof(name)); \
-    name##_REFLECTION_INFO = __make_reflection_info_##name()
-#endif
 
   #define ECS_MAX_STORAGE 1000000
 

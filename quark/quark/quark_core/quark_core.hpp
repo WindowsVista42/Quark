@@ -29,7 +29,9 @@
 // For quark_core this is typically only done if the arguments
 // are the same across different use cases
 
+#ifdef __cplusplus
 namespace quark {
+#endif
 
 //
 // Number Types
@@ -1094,4 +1096,7 @@ namespace quark {
 #undef MAKE_SWIZZLE_4_2
 #undef MAKE_SWIZZLE_4_3
 #undef MAKE_SWIZZLE_4_4
+
+#ifdef __cplusplus
 };
+#endif
