@@ -1,0 +1,84 @@
+void init_systems();
+void deinit_systems();
+
+// this gets complicated quick!
+Arena* get_system_list_arena();
+SystemList create_system_list();
+void add_system(SystemList* list, void (*system)());
+void add_system_at(SystemList* list, void (*system)(), u64 index);
+
+// just use dynamic memory allocation here it doesnt matter
+// why would it matter its not performance critical or even going to be prone to memory bugs!
+
+//
+// non-performance critical
+// -- just write what works and what is reasonably simple
+// -- make the best api possible
+// -- memory managed for the user so they can just do-the-thing
+//
+// Input
+// Actions
+// SystemLists (creation)
+// States (creation)
+// Assets (registration)
+//
+// performance sensitive
+// -- can be managed memory, but general performance is important
+// -- not going to take up the bulk of time but its better if its faster
+// -- typically automated internal systems
+//
+// SystemLists (iteration)
+// States (changing)
+// Assets (loading and unloading)
+//
+// performance critical
+// -- use a low level api and simplify
+// -- make simple when possible, but dont gloss over details
+// -- user should provide an arena, OR, an arena should be selectable or obviously used upon creation
+//
+// Entity Component System
+// Materials
+// Rendering
+// Batching
+// Effects
+//
+
+//
+// revised api (memory managed)
+//
+
+void init_jobs();
+void deinit_jobs();
+
+void register_job_list(const char* name);
+void unregister_job_list(const char* name);
+void run_job_list(const char* name);
+
+void register_job(const char* name, VoidFunc job);
+void unregister_job(const char* name);
+
+void add_job(const char* job_list_name, const char* job_name, const char* relative_to, iptr position);
+void remove_job(const char* job_list_name, const char* job_name);
+
+//
+// permanant
+// level
+// multi-frame
+// frame
+// scratch
+//
+// since the managed system would just be permanant or level maybe
+// just make it an enum and manage it for the user?
+// resource creation doesnt have to be the *fastest* thing in the world
+//
+// just get it to work then worry about making it fast if needed?
+
+const SystemListId COMMON_SYSTEM_LIST_ID = register_system_list();
+const MeshPoolId COMMON_MESH_POOL_ID = register_mesh_pool();
+const RenderImageId SHADOW_IMAGE_ID = register_shadow_image();
+
+const RenderImageId MAIN_COLOR_IMAGE_ID = register_render_image();
+const RenderImageId MAIN_DEPTH_IMAGE_ID = register_render_image();
+const RenderImageId SHADOW_DEPTH_IMAGE_ID = register_render_image();
+const RenderImageId SWAPCHAIN_IMAGE_ID = register_render_image();
+
