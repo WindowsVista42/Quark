@@ -11,3 +11,21 @@ post process effects have global data
 
 effects should not be bound to a mesh pool, you should just be able to select a mesh pool when binding an effect
 and also, have the option to switch mesh pool when drawing
+
+struct MaterialEffectInfo {
+  u32 material_id;
+  u32 vertex_shader_id;
+  u32 fragment_shader_id;
+    
+  FillMode fill_mode;
+  CullMode cull_mode;
+  BlendMode blend_mode;
+};
+
+then you can just add the instances to the corresponding draw batch
+and updating the global material info is as easy as updating the global resource
+
+struct PostProcessEffect {
+  u32 post_process_id;
+  u32 fragment_shader_id;
+};
