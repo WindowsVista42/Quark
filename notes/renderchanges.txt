@@ -8,3 +8,6 @@ you can add new post processing effects
 
 materials have instance data and global data
 post process effects have global data
+
+effects should not be bound to a mesh pool, you should just be able to select a mesh pool when binding an effect
+and also, have the option to switch mesh pool when drawing
