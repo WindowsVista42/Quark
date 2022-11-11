@@ -1505,8 +1505,7 @@ namespace quark {
     bool frame_shared;
   };
 
-  engine_api Buffer create_buffer(BufferInfo* info);
-  engine_api void add_buffer(Buffer buffer, const char* name);
+  engine_api void create_buffer(BufferInfo* info, const char* name);
   engine_api Buffer* get_buffer(const char* name);
 
   engine_api void* map_buffer(const char* name);
@@ -1521,6 +1520,8 @@ namespace quark {
 //
 // Native Buffer API
 //
+
+  engine_api Buffer create_buffer_native(BufferInfo* info);
 
   engine_api void* map_buffer_native(VmaAllocation allocation);
   engine_api void unmap_buffer_native(VmaAllocation allocation);
@@ -1633,13 +1634,13 @@ namespace quark {
     SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
   );
 
-  declare_enum(ImageUsage, u32,
-    Unknown           = 0x00,
-    Src               = 0x01,
-    Dst               = 0x02,
-    Texture           = 0x04,
-    Storage           = 0x08,
-  );
+  // declare_enum(ImageUsage, u32,
+  //   Unknown           = 0x00,
+  //   Src               = 0x01,
+  //   Dst               = 0x02,
+  //   Texture           = 0x04,
+  //   Storage           = 0x08,
+  // );
 
   struct ImageInfo {
     ImageType type;
@@ -1647,20 +1648,108 @@ namespace quark {
     ivec2 resolution;
   };
 
-  struct Image {
+  struct ImageData {
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
+  };
+
+  declare_enum(ImageUsage, u32,
+    Unknown,
+    Src,
+    Dst,
+    Texture,
+    Storage,
+    RenderTargetColor,
+    RenderTargetDepth,
+    Present,
+  );
+
+  // struct Image {
+  //   ImageData data;
+  //   ImageUsage usage;
+
+  //   ivec2 resolution;
+  // };
+
+  // struct TextureArray {
+  //   std::vector<ImageData> data;
+  //   std::vector<ImageUsage> usage;
+
+  //   std::vector<ivec2> resolution;
+  // };
+
+  // struct RenderTexture {
+  //   ImageData data[2];
+  //   ImageUsage usage[2];
+
+  //   ivec2 resolution;
+  //   ImageFormat format;
+  // };
+
+  // void push_texture(const char* texture_array_name, u8* pixels, ivec2 resolution);
+
+  //
+  // Load an image from a file to be used in a shader
+  // Read an image in a shader
+  // Render to a texture
+  // Blit a texture to another
+  // Clear a texture
+  //
+
+  struct Image {
+    ImageData data;
+    ImageUsage usage;
 
     ImageType type;
     ImageFormat format;
     ivec2 resolution;
   };
 
+  // struct ExclusiveImage {
+  //   ImageData data[2];
+  //   ImageUsage usage[2];
+
+  //   ImageType type;
+  //   ImageFormat format;
+  //   ivec2 resolution;
+  // };
+
+  // struct RenderImage {
+  //   ImageData data[2];
+  //   ImageUsage usage[2];
+
+  //   ImageType type;
+  //   ImageFormat format;
+  //   ivec2 resolution;
+  // };
+
+  // struct ImageArray {
+  //   std::vector<ImageData> data;
+  //   std::vector<ImageUsage> usage;
+
+  //   ImageType type;
+  //   ImageFormat format;
+  //   ivec2 resolution;
+  // };
+
   // Create a single (readonly in shaders) image resource
-  Image create_image(ImageInfo* info);
-  engine_api void add_image(Image resource, const char* name);
+  engine_api void create_image(ImageInfo* info, const char* name);
   engine_api Image* get_image(const char* name);
+
+//
+// Native Image API
+//
+
+  engine_api Image create_image_native(ImageInfo* info);
+
+  engine_api VmaAllocationCreateInfo get_image_alloc_info(ImageInfo* info);
+  engine_api VkImageCreateInfo get_image_create_info(ImageInfo* info, VkImageUsageFlags usage, VkSampleCountFlagBits samples);
+  engine_api VkImageViewCreateInfo get_image_view_create_info(ImageInfo* info);
+
+  // true if format is color, false if format is depth
+  engine_api bool is_format_color(ImageFormat format);
+  engine_api VkImageUsageFlags image_type_to_vk_usage(ImageType type);
 
 //
 // Todo: Exclusive Image API
@@ -1673,14 +1762,26 @@ namespace quark {
   };
 
   struct ExclusiveImage {
-    VmaAllocation allocation[internal::_FRAME_OVERLAP];
-    VkImage image[internal::_FRAME_OVERLAP];
-    VkImageView view[internal::_FRAME_OVERLAP];
+    ImageData data[internal::_FRAME_OVERLAP];
+    ImageUsage usage[internal::_FRAME_OVERLAP];
 
     ImageType type;
     ImageFormat format;
     ivec2 resolution;
   };
+
+  engine_api void blit_image_native(VkCommandBuffer* commands, ImageData* dst, ImageUsage* dst_usage, ImageData* src, ImageUsage* src_usage);
+  engine_api void blit_render_image(const char* commands, const char* dst, const char* src, u32 index);
+
+  // void a() {
+
+  //   BlitOptions options = {
+  //     .filter_mode = FilterMode::Nearest,
+  //     .src_region = { -1, -1, -1 },
+  //     .dst_region = { -1, -1, -1 },
+  //   };
+  //   blit_image("main", "swapchain", internal::_frame_index, "main_color", internal::_frame_index, &options);
+  // }
 
   // Create an image resource with one exclusive image for each frame of possible overlap.
   //
@@ -1691,7 +1792,31 @@ namespace quark {
   // a unique image for each frame of possible overlap.
   // Meaning that at any point in time you are not
   // writing and reading to an image in two separate overlapping frames.
-  ExclusiveImage create_exclusive_image(ExclusiveImageInfo* info);
+  engine_api void create_exclusive_image(ExclusiveImageInfo* info, const char* name);
+  engine_api ExclusiveImage* get_exclusive_image(const char* name);
+
+//
+// Native Exclusive Image API
+//
+
+  ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info);
+
+  struct RenderOptions {
+    FillMode fill_mode;
+    CullMode cull_mode;
+    AlphaBlendMode alpha_blend_mode;
+  };
+
+  struct Effect {
+    u32 material_id;
+
+    u32 vertex_shader;
+    u32 fragment_shader;
+
+    u32 render_target_id;
+    u32 resource_bundle_id;
+    u32 mesh_pool;
+  };
 
 //
 // Render Image API
@@ -1699,7 +1824,7 @@ namespace quark {
 
   declare_enum(RenderImageType, u32,
     RenderTarget,
-    Present,      // Special flag only used for swapchain
+    Present,      // Special flag that should never be used
   );
 
   declare_enum(RenderImageUsage, u32,
@@ -1732,16 +1857,27 @@ namespace quark {
     VmaAllocation allocations[internal::_FRAME_OVERLAP];
     VkImage images[internal::_FRAME_OVERLAP];
     VkImageView views[internal::_FRAME_OVERLAP];
+
+    RenderImageType type;
+    ImageFormat format;
+    ivec2 resolution;
+    RenderImageSamples samples;
   };
 
   // An exclusive image that can be rendered to
-  engine_api RenderImage create_render_image(RenderImageInfo* info);
-  engine_api void add_render_image(RenderImage resource, const char* name);
+  engine_api void create_render_image(RenderImageInfo* info, const char* name);
   engine_api RenderImage* get_render_image(const char* name);
 
   enum struct RenderImageId : u32 {};
   engine_api RenderImageId get_render_image_id(const char* name);
   engine_api RenderImage* get_render_image_by_id(RenderImageId id);
+
+//
+// Render Image Native API
+//
+
+  engine_api RenderImage create_render_image_native(RenderImageInfo* info);
+  engine_api VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format);
 
 //
 // Render Target API

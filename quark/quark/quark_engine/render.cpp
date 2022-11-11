@@ -820,8 +820,7 @@ namespace quark {
         .size = 10 * MB,
       };
 
-      Buffer b = create_buffer(&buffer_info);
-      add_buffer(b, "staging_buffer");
+      create_buffer(&buffer_info, "staging_buffer");
 
       MeshPoolInfo mesh_pool_info = {
         .usage = MeshPoolType::Gpu,
@@ -2126,6 +2125,197 @@ namespace quark {
 //    return res;
 //  }
 //
+  bool is_format_color(ImageFormat format) {
+    if(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8 || format == ImageFormat::LinearD16) {
+      return false;
+    }
+
+    return true;
+  }
+
+  VkImageUsageFlags image_type_to_vk_usage(ImageType type) {
+    if(type == ImageType::Storage) {
+      return VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    }
+    else if(type == ImageType::Texture) {
+      return VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    }
+    else {
+      return 0;
+    }
+  }
+
+  VmaAllocationCreateInfo get_image_alloc_info(ImageInfo* info) {
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    
+    return alloc_info;
+  }
+
+  VkImageCreateInfo get_image_create_info(ImageInfo* info, VkImageUsageFlags usage, VkSampleCountFlagBits samples) {
+    VkImageCreateInfo image_info = {};
+    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_info.pNext = 0;
+    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.format = (VkFormat)info->format;
+    image_info.extent = VkExtent3D { .width = (u32)info->resolution.x, .height = (u32)info->resolution.y, .depth = 1 };
+    image_info.mipLevels = 1;
+    image_info.arrayLayers = 1;
+    image_info.samples = samples;
+    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_info.usage = usage;
+    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    return image_info;
+  }
+
+  VkImageViewCreateInfo get_image_view_create_info(ImageInfo* info, VkImage image) {
+    VkImageViewCreateInfo view_info = {};
+    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_info.pNext = 0;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.image = image;
+    view_info.format = (VkFormat)info->format;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+    view_info.subresourceRange.aspectMask = is_format_color(info->format) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
+
+    return view_info;
+  }
+
+  std::unordered_map<u32, Image> image_map;
+
+  void create_image(ImageInfo* info, const char* name) {
+    Image image = create_image_native(info);
+    image_map.insert(std::make_pair(hash_str_fast(name), image));
+  }
+
+  Image* get_image(const char* name) {
+    return &image_map.at(hash_str_fast(name));
+  }
+
+  Image create_image_native(ImageInfo* info) {
+    VmaAllocationCreateInfo alloc_info = get_image_alloc_info(info);
+    VkImageCreateInfo image_info = get_image_create_info(info, image_type_to_vk_usage(info->type), VK_SAMPLE_COUNT_1_BIT);
+    VkImageViewCreateInfo view_info = get_image_view_create_info(info);
+
+    Image image = {};
+
+    vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image.data.image, &image.data.allocation, 0));
+    vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.data.view));
+
+    image.type = info->type;
+    image.format = info->format;
+    image.resolution = info->resolution;
+
+    return image;
+  }
+
+  std::unordered_map<u32, ExclusiveImage> exclusive_image_map;
+
+  void create_exclusive_image(ExclusiveImageInfo* info, const char* name) {
+    ExclusiveImage image = create_exclusive_image_native(info);
+    exclusive_image_map.insert(std::make_pair(hash_str_fast(name), image));
+  }
+
+  ExclusiveImage* get_exclusive_image(const char* name) {
+    return &exclusive_image_map.at(hash_str_fast(name));
+  }
+
+  ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info) {
+    ExclusiveImage image = {};
+
+    for_every(i, internal::_FRAME_OVERLAP) {
+      ImageInfo info2 = {
+        .type = info->type,
+        .format = info->format,
+        .resolution= info->resolution
+      };
+
+      Image image2 = create_image_native(&info2);
+
+      image.data[i].allocation = image2.data.allocation;
+      image.data[i].image = image2.data.image;
+      image.data[i].view = image2.data.view;
+    }
+
+    image.type = info->type;
+    image.format = info->format;
+    image.resolution = info->resolution;
+
+    return image;
+  }
+
+  std::unordered_map<u32, RenderImage> render_image_map;
+
+  void create_render_image(RenderImageInfo* info, const char* name) {
+    RenderImage image = create_render_image_native(info);
+    render_image_map.insert(std::make_pair(hash_str_fast(name), image));
+  }
+
+  RenderImage* get_render_image(const char* name) {
+    return &render_image_map.at(hash_str_fast(name));
+  }
+
+  RenderImageId get_render_image_id(const char* name) {
+    return (RenderImageId)hash_str_fast(name);
+  }
+
+  RenderImage* get_render_image_by_id(RenderImageId id) {
+    return &render_image_map.at((u32)id);
+  }
+
+  RenderImage create_render_image_native(RenderImageInfo* info) {
+    ImageInfo info2 = ImageInfo {
+      .type = ImageType::Texture,
+      .format = info->format,
+      .resolution = info->resolution,
+    };
+
+    VmaAllocationCreateInfo alloc_info = get_image_alloc_info(&info2);
+    VkImageCreateInfo image_info = get_image_create_info(&info2, render_image_type_to_vk_usage(info->type, info->format), (VkSampleCountFlagBits)info->samples);
+    VkImageViewCreateInfo view_info = get_image_view_create_info(&info2);
+
+    RenderImage render_image = {};
+
+    for_every(i, internal::_FRAME_OVERLAP) {
+      VkImage image = {};
+      VkImageView view = {};
+      VmaAllocation alloc = {};
+
+      vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image, &alloc, 0));
+      vk_check(vkCreateImageView(_context.device, &view_info, 0, &view));
+
+      render_image.allocations[i] = alloc;
+      render_image.images[i] = image;
+      render_image.views[i] = view;
+    }
+
+    render_image.type = info->type;
+    render_image.format = info->format;
+    render_image.resolution = info->resolution;
+    render_image.samples = info->samples;
+
+    return render_image;
+  }
+
+  VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format) {
+    if(type == RenderImageType::RenderTarget) {
+      VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+      usage |= is_format_color(format) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+      return usage;
+    }
+    else if(type == RenderImageType::Present) {
+      return
+    }
+    else {
+      return 0;
+    }
+  }
+
 //  void ImageResource::create_one(ImageResource::Info& info, std::string name) {
 //    add_name_association(name, internal::ResourceType::ImageResourceOne);
 //
@@ -2386,22 +2576,10 @@ namespace quark {
     return info;
   }
 
-  Buffer create_buffer(BufferInfo* info) {
-    VkBufferCreateInfo buffer_info = get_buffer_create_info(info->type, info->size);
-    VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
-
-    Buffer buffer = {};
-    vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
-
-    buffer.type = info->type;
-    buffer.size = info->size;
-
-    return buffer;
-  }
-
   std::unordered_map<u32, Buffer> buffer_map;
 
-  void add_buffer(Buffer buffer, const char* name) {
+  void create_buffer(BufferInfo* info, const char* name) {
+    Buffer buffer = create_buffer_native(info);
     buffer_map.insert(std::make_pair(hash_str_fast(name), buffer));
   }
 
@@ -2439,6 +2617,19 @@ namespace quark {
     const Buffer* src_buf = get_buffer(buffer_src);
 
     copy_buffer_native(dst_buf->buffer, dst_offset_bytes, src_buf->buffer, src_offset_bytes, size);
+  }
+
+  Buffer create_buffer_native(BufferInfo* info) {
+    VkBufferCreateInfo buffer_info = get_buffer_create_info(info->type, info->size);
+    VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
+
+    Buffer buffer = {};
+    vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
+
+    buffer.type = info->type;
+    buffer.size = info->size;
+
+    return buffer;
   }
 
   void* map_buffer_native(VmaAllocation allocation) {

@@ -15,3 +15,6 @@ layout (set = 0, binding = 0) uniform WorldData {
 layout (set = 0, binding = 1) uniform sampler2D sun_shadow_sampler;
 
 layout (set = 0, binding = 2) uniform sampler2D TEXTURES[64];
+
+layout (push_constant) uniform push_constant {
+};
