@@ -1,0 +1,10 @@
+augmenting the rendering pipeline and creating a whole ass vulkan abstraction will NOT be a thing
+
+instead
+you can add new materials
+you can add new post processing effects
+
+-- THATS IT --
+
+materials have instance data and global data
+post process effects have global data
