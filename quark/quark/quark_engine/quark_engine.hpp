@@ -20,8 +20,7 @@ namespace quark {
   };
 
   struct MeshId {
-    u16 pool_index;
-    u16 index;
+    u32 index;
   };
 
   struct Model {
@@ -930,6 +929,8 @@ namespace quark {
     VkImage image;
     VkImageView view;
     VkImageLayout current_layout;
+    ivec2 resolution;
+    bool is_color;
   };
 
   struct MaterialEffectInfo {
@@ -1169,7 +1170,7 @@ namespace quark {
   engine_api void unmap_buffer(Buffer* buffer);
 
   engine_api void write_buffer(Buffer* dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
-  engine_api void copy_buffer(Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_buffer(VkCommandBuffer commands, Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size);
 
   engine_api VkBufferCreateInfo get_buffer_create_info(BufferType type, u32 size);
   engine_api VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type);
@@ -1177,7 +1178,10 @@ namespace quark {
 //
 // Image API
 //
-    void create_images(Image* images, u32 n, ImageInfo* info);
+  engine_api void create_images(Image* images, u32 n, ImageInfo* info);
+
+  engine_api void transition_image(VkCommandBuffer commands, Image* image, VkImageLayout new_layout);
+  engine_api void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode);
 
   engine_api void create_material_effectl(MaterialEffect* effect, MaterialEffectInfo* info);
 

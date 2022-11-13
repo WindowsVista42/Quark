@@ -42,8 +42,8 @@ namespace quark {
   }});
   define_resource(UICamera, {});
   define_resource(SunCamera, {});
-  define_resource(MeshRegistry, {});
-  define_resource(TextureRegistry, {});
+  // define_resource(MeshRegistry, {});
+  // define_resource(TextureRegistry, {});
   define_resource(WorldData, {});
   define_resource(FrustumCullData, {});
 
@@ -141,6 +141,17 @@ namespace quark {
   // void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
+    // blit image
+    Image swapchain_image = {
+      .image = _context.swapchain_images[_swapchain_image_index],
+      .view = _context.swapchain_image_views[_swapchain_image_index],
+      .current_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+      .resolution = get_window_dimensions(),
+      .is_color = true,
+    };
+    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context.material_color_images[_frame_index], FilterMode::Linear);
+    transition_image(_main_cmd_buf[_frame_index], &swapchain_image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
     VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -548,7 +559,9 @@ namespace quark {
       };
       create_buffers(&_context.vertex_buffer, 1, &vertex_info);
 
-      copy_buffer(&_context.vertex_buffer, 0, &_context.staging_buffer, 0, size);
+      VkCommandBuffer commands = begin_quick_commands();
+      copy_buffer(commands, &_context.vertex_buffer, 0, &_context.staging_buffer, 0, size);
+      end_quick_commands(commands);
     }
     
     void init_swapchain() {
@@ -647,7 +660,139 @@ namespace quark {
         vk_check(vkCreateImageView(_context.device, &view_info, 0, &images[i].view));
 
         images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        images[i].resolution = info->resolution;
+        images[i].is_color = info->is_color;
       }
+    }
+
+    struct BlitInfo {
+      VkOffset3D bottom_left;
+      VkOffset3D top_right;
+      VkImageSubresourceLayers subresource;
+    };
+
+    BlitInfo get_blit_info(Image* image) {
+      return BlitInfo {
+        .bottom_left = {0, 0, 0},
+        .top_right = { image->resolution.x, image->resolution.y, 1 },
+        .subresource = {
+          .aspectMask = (VkImageAspectFlags)(image->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT),
+          .mipLevel = 0,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+        },
+      };
+    }
+
+    void transition_image(VkCommandBuffer commands, Image* image, VkImageLayout new_layout) {
+      // Info: we can no-op if we're the correct layout
+      if(image->current_layout == new_layout) {
+        return;
+      }
+
+      // Info: i'm using the fact that VkImageLayout is 0 - 7 for the flags that i want to use,
+      // so i can just use it as an index into a lookup table.
+      // I have to do some *slight* translation for VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, since it
+      // has a value outside of [0, 8).
+      VkAccessFlagBits access_lookup[] = {
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_UNDEFINED
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_GENERAL // give up
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+        VK_ACCESS_SHADER_READ_BIT,    // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        VK_ACCESS_TRANSFER_READ_BIT,  // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        VK_ACCESS_TRANSFER_WRITE_BIT, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+      };
+
+      // Info: ditto with previous
+      VkPipelineStageFlagBits stage_lookup[] = {
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_UNDEFINED
+        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_GENERAL
+        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_PRESENT_OPTIMAL
+      };
+
+      // Info: index translation for lookup
+      u32 old_layout_i = image->current_layout;
+      old_layout_i = old_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : old_layout_i;
+
+      u32 new_layout_i = new_layout;
+      new_layout_i = new_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : new_layout_i;
+
+      // Info: We were given an invalit layout
+      if(old_layout_i > 8 || new_layout_i > 8) {
+        panic("Could not transition to image layout!\n");
+      }
+
+      VkImageMemoryBarrier barrier = {};
+      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+
+      barrier.oldLayout = image->current_layout;
+      barrier.newLayout = new_layout;
+
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+      barrier.image = image->image;
+
+      barrier.subresourceRange = {
+        .aspectMask = (VkImageAspectFlags)(image->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT),
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      };
+
+      barrier.srcAccessMask = access_lookup[old_layout_i];
+      barrier.dstAccessMask = access_lookup[new_layout_i];
+
+      vkCmdPipelineBarrier(commands,
+        stage_lookup[old_layout_i], stage_lookup[new_layout_i],
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier
+      );
+
+      image->current_layout = new_layout;
+    }
+
+    void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode) {
+      BlitInfo dst_blit_info = get_blit_info(dst);
+      BlitInfo src_blit_info = get_blit_info(src);
+
+      VkImageBlit blit_region = {};
+      blit_region.srcOffsets[0] = src_blit_info.bottom_left;
+      blit_region.srcOffsets[1] = src_blit_info.top_right;
+      blit_region.srcSubresource = src_blit_info.subresource;
+
+      blit_region.dstOffsets[0] = dst_blit_info.bottom_left;
+      blit_region.dstOffsets[1] = dst_blit_info.top_right;
+      blit_region.dstSubresource = dst_blit_info.subresource;
+
+      // Info: we need to transition the image layout
+      if(src->current_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        transition_image(commands, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      }
+
+      // Info: we need to transition the image layout
+      if(dst->current_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        transition_image(commands, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      }
+
+      vkCmdBlitImage(commands,
+        src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit_region,
+        (VkFilter)filter_mode
+      );
     }
 
     struct RenderPassInfo {
@@ -2462,17 +2607,13 @@ namespace quark {
     unmap_buffer(dst);
   }
 
-  void copy_buffer(Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size) {
-    VkCommandBuffer commands = begin_quick_commands();
-
+  void copy_buffer(VkCommandBuffer commands, Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size) {
     VkBufferCopy copy_region = {};
     copy_region.srcOffset = src_offset_bytes;
     copy_region.dstOffset = dst_offset_bytes;
     copy_region.size = size;
 
     vkCmdCopyBuffer(commands, src->buffer, dst->buffer, 1, &copy_region);
-
-    end_quick_commands(commands);
   }
 
   // VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {

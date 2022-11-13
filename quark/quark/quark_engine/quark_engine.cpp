@@ -27,7 +27,7 @@ namespace quark {
     MeshId id = *get_asset<MeshId>(mesh_name);
 
     return Model {
-      .half_extents = (scale / 2.0f) * get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index],
+      .half_extents = _context->mesh_scales[id.index],
       .id = id,
     };
   }
@@ -859,8 +859,7 @@ namespace quark {
     // MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
     // add mesh to _gpu_meshes
     MeshId id = {
-      .pool_index = 0,
-      .index = (u16)_context->mesh_counts,
+      .index = (u32)_context->mesh_counts,
     };
     _context->mesh_counts += 1;
 

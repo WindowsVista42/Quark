@@ -514,7 +514,7 @@ namespace common {
 
       static int s = 0;
 
-      if(get_action("move_left").just_down) { s += 1; s %= 3; printf("opts: %d\n", s); }
+      if(get_action("move_left").just_down && false) { s += 1; s %= 3; printf("opts: %d\n", s); }
 
       for(int i = 0; i < 1; i += 1) {
         if(s == 0) {
@@ -566,7 +566,7 @@ namespace common {
     // static u32 highest = 10000;
     // static u32 lowest = 0;
 
-    if(get_action("move_forward").down) {
+    if(get_action("move_forward").down && false) {
       for_archetype_t(u32 exclude[0] = {}; static void update(u32 id) {
         if(rand() % 1000 < 1) {
           destroy_entity2(id);
@@ -582,7 +582,7 @@ namespace common {
       // }
     }
 
-    if(get_action("move_backward").just_down) {
+    if(get_action("move_backward").just_down && false) {
       Transform* p = (Transform*)get_component2(0, Transform2::COMPONENT_ID);
       f64 elt = 0;
       for(int z = 0; z < 1; z += 1) {
@@ -606,7 +606,7 @@ namespace common {
       printf("adding 64k comp took: %fms\n", (f32)(elt / 100.0f) * 1000.0f);
     }
 
-    if(get_action("move_right").just_down) {
+    if(get_action("move_right").just_down && false) {
       for(usize i = count; i < ECS_MAX_STORAGE; i += 1) {
         u32 id = create_entity2();
         add_components2(id, Transform2 {{2, 2}, {}}, Model2 {}, ColorMaterial2 {});
