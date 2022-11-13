@@ -53,6 +53,17 @@ namespace quark {
     return &_context;
   }
 
+  void init_graphics_context() {
+    init_vulkan();
+    init_mesh_buffer();
+    init_command_pools_and_buffers();
+    init_swapchain();
+    init_render_passes();
+    init_framebuffers();
+    init_sync_objects();
+    init_sampler();
+  };
+
     VkViewport get_viewport(ivec2 resolution) {
       return VkViewport {
         .x = 0.0f,
@@ -137,8 +148,6 @@ namespace quark {
   
     vk_check(vkBeginCommandBuffer(_main_cmd_buf[_frame_index], &command_begin_info));
   }
-  
-  // void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
     // blit image
@@ -1126,22 +1135,40 @@ namespace quark {
     }
    
     void init_pipelines() {
-      MaterialEffectInfo color_material_effect_info = {
-        .instance_data_size = sizeof(ColorMaterialInstance),
-        .world_data_size = 0,
+      // MaterialEffectInfo color_material_effect_info = {
+      //   .instance_data_size = sizeof(ColorMaterialInstance),
+      //   .world_data_size = 0,
 
-        .vertex_shader = *get_asset<VertexShaderModule>("color"),
-        .fragment_shader = *get_asset<FragmentShaderModule>("color"),
+      //   .vertex_shader = *get_asset<VertexShaderModule>("color"),
+      //   .fragment_shader = *get_asset<FragmentShaderModule>("color"),
 
-        .fill_mode = FillMode::Fill,
-        .cull_mode = CullMode::Back,
-        .blend_mode = BlendMode::Off,
-      };
+      //   .fill_mode = FillMode::Fill,
+      //   .cull_mode = CullMode::Back,
+      //   .blend_mode = BlendMode::Off,
+      // };
 
-      printf("before created pipelines\n");
-      create_material_effect(&_context.material_effects[color_material_effect_id], &color_material_effect_info);
-      _context.material_effect_infos[color_material_effect_id] = color_material_effect_info;
-      printf("created pipelines\n");
+      // create_material_effect(&_context.material_effects[color_material_effect_id], &color_material_effect_info);
+      // _context.material_effect_infos[color_material_effect_id] = color_material_effect_info;
+    }
+
+    define_material(ColorMaterial2);
+
+    void init_materials() {
+      update_material(ColorMaterial2, "color", "color");
+      // MaterialEffectInfo ColorMaterial2_EFFECT_INFO = {
+      //   .instance_data_size = sizeof(ColorMaterial2Instance),
+      //   .world_data_size = 0,
+
+      //   .vertex_shader = *get_asset<VertexShaderModule>(ColorMaterial2::VERTEX_SHADER),
+      //   .fragment_shader = *get_asset<FragmentShaderModule>(ColorMaterial2::FRAGMENT_SHADER),
+
+      //   .fill_mode = FillMode::Fill,
+      //   .cull_mode = CullMode::Back,
+      //   .blend_mode = BlendMode::Off,
+      // };
+
+      // create_material_effect(&_context.material_effects[ColorMaterial2::MATERIAL_ID], &ColorMaterial2_EFFECT_INFO);
+      // _context.material_effect_infos[ColorMaterial2::MATERIAL_ID] = ColorMaterial2_EFFECT_INFO;
     }
 
     struct SamplerInfo {

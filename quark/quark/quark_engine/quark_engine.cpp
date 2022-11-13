@@ -19,8 +19,6 @@ namespace quark {
   // define_resource(ParIterCtxTypeMap, {});
   define_resource(DrawBatchPool, {});
 
-  define_component(ColorMaterial2);
-
   GraphicsContext* _context = get_graphics_context();
 
   Model create_model(const char* mesh_name, vec3 scale) {
@@ -1033,14 +1031,58 @@ namespace quark {
     add_asset(name, frag_module);
   }
 
-  std::unordered_map<type_hash, std::string> type_effect_map = {};
+  // std::unordered_map<type_hash, std::string> type_effect_map = {};
 
-  std::string get_type_effect(type_hash t) {
-    return type_effect_map.at(t);
+  // std::string get_type_effect(type_hash t) {
+  //   return type_effect_map.at(t);
+  // }
+
+  // void add_type_effect(type_hash t, const char* effect_name) {
+  //   type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
+  // }
+
+  DrawBatchContext _draw_batch_context = {};
+
+  DrawBatchContext* get_draw_batch_context() {
+    return &_draw_batch_context;
   }
 
-  void add_type_effect(type_hash t, const char* effect_name) {
-    type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
+  u32 add_material_type(u32 material_size) {
+    DrawBatchContext* context = get_draw_batch_context();
+
+    usize i = context->material_types_count;
+
+    context->material_sizes[i] = material_size;
+    context->batch_sizes[i] = 0;
+    context->batch_capacities[i] = 1024;
+
+    // Todo: be a bit better with memory
+    context->draw_batches[i] = (DrawableInstance*)malloc(1024 * sizeof(DrawableInstance));
+    context->material_batches[i] = malloc(1024 * material_size);
+
+    context->material_types_count += 1;
+
+    return i;
+  }
+
+  void add_drawable(u32 material_id, DrawableInstance* drawable, void* material) {
+    DrawBatchContext* context = get_draw_batch_context(); // get_resource(DrawBatchContext);
+
+    usize* batch_size = &context->batch_sizes[material_id];
+    usize batch_capacity = context->batch_capacities[material_id];
+    DrawableInstance* draw_batch = context->draw_batches[material_id];
+    u8* material_batch = (u8*)context->material_batches[material_id];
+    usize material_size = context->material_sizes[material_id];
+
+    // Info: pointer math to get correct positions
+    copy_mem(&draw_batch[*batch_size], drawable, sizeof(DrawableInstance));
+    copy_mem(material_batch + (*batch_size * material_size), material, material_size);
+
+    *batch_size += 1;
+
+    // Info: we need to resize
+    if(*batch_size == batch_capacity) {
+    }
   }
 
   void draw_material_batches() {
@@ -1050,46 +1092,36 @@ namespace quark {
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
 
-    ColorMaterialInstance instance_data = {};
-    instance_data.color = {0.0f, 1.0f, 1.0f, 1.0f};
-    instance_data.world_view_projection = _main_view_projection * transform_mat4({0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f});
+    DrawBatchContext* context = get_draw_batch_context();
 
-    vkCmdPushConstants(_main_cmd_buf[_frame_index],
-      effect->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ColorMaterialInstance), &instance_data);
-    vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[0].count, 1, _context->mesh_instances[0].offset, 0);
+    for_every(i, context->material_types_count) {
+      usize batch_size = context->batch_sizes[i];
+      usize batch_capacity = context->batch_capacities[i];
+      DrawableInstance* draw_batch = context->draw_batches[i];
+      u8* material_batch = (u8*)context->material_batches[i];
+      usize material_size = context->material_sizes[i];
 
-    // auto* batches = get_resource(Resource<DrawBatchPool> {});
-    // for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
-    //   DrawBatch<u8>* batch = &ty_batch->second;
-    //   u8* instance_data_ptr = (u8*)batch->instance_data.data();
+      for_every(j, batch_size) {
+        u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        Transform transform = draw_batch[j].transform;
+        Model model = draw_batch[j].model;
+        u8* material_data = &material_batch[i * material_size];
 
-    //   MaterialEffect* effect = 0;
-    //   {
-    //   }
+        mat4 world_view_projection = _main_view_projection * transform_mat4(transform.position, transform.rotation, model.half_extents);
 
-    //   // begin(get_type_effect(ty_batch->first).c_str());
-    //   for_every(i, batch->count) {
-    //     DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
-    //     void* instance_data = instance_data_ptr;
-    //     MeshInstance mesh_instance = get_mesh_instance(instance_info->model.id);
-
-    //     vkCmdPushConstants(_main_cmd_buf[_frame_index],
-    //       effect->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
-    //     vkCmdDraw(_main_cmd_buf[_frame_index], mesh_instance.count, 1, mesh_instance.offset, 0);
-
-    //     instance_data_ptr += batch->instance_data_size;
-    //   }
-    // }
+        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(mat4), &world_view_projection);
+        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, sizeof(mat4), material_size, material_data);
+        vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[model.id.index].count, 1, _context->mesh_instances[model.id.index].offset, 0);
+      }
+    }
   }
 
   void reset_material_batches() {
-    // auto* batches = get_resource(Resource<DrawBatchPool> {});
-    // for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
-    //   DrawBatch<u8>* batch = &ty_batch->second;
-    //   batch->instance_info.clear();
-    //   batch->instance_data.clear();
-    //   batch->count = 0;
-    // }
+    DrawBatchContext* context = get_draw_batch_context();
+
+    for_every(i, context->material_types_count) {
+      context->batch_sizes[i] = 0;
+    }
   }
 
   void end_effects() {

@@ -77,15 +77,6 @@ namespace quark {
 // Material Types
 //
 
-#define declare_material(name, x...) \
-  struct name { \
-    x; \
-  }; \
-  struct name##Instance { \
-    mat4 world_view_projection; \
-    x; \
-  }; \
-
   struct ColorMaterial {
     vec4 color;
   };
@@ -475,10 +466,6 @@ namespace quark {
 
   #define ECS_MAX_STORAGE 1000000
 
-  declare_component(engine_api, engine_var, ColorMaterial2,
-    vec4 color;
-  );
-
   struct EcsContext {
     u32 ecs_table_count = 0;
     u32 ecs_table_capacity = 0;
@@ -667,11 +654,71 @@ namespace quark {
   engine_api void load_frag_shader(const char* path, const char* name);
 
 //
-// Effect API
+// Materials API
 //
 
-  engine_api std::string get_type_effect(type_hash t);
-  engine_api void add_type_effect(type_hash t, const char* effect_name);
+  struct DrawableInstance {
+    Transform transform;
+    Model model;
+  };
+
+  struct DrawBatchContext {
+    u32 material_types_count;
+
+    usize batch_sizes[16];
+    usize batch_capacities[16];
+    DrawableInstance* draw_batches[16];
+    void* material_batches[16];
+    usize material_sizes[16];
+  };
+
+  engine_api DrawBatchContext* get_draw_batch_context();
+
+  engine_api u32 add_material_type(u32 material_size);
+
+  engine_api void add_drawable(u32 material_id, DrawableInstance* drawable, void* material);
+
+  #define declare_material(api_decl, var_decl, name, x...) \
+    struct api_decl name { \
+      x; \
+      static u32 COMPONENT_ID; \
+      static ReflectionInfo REFLECTION_INFO; \
+      static u32 MATERIAL_ID; \
+    }; \
+    struct name##Instance { \
+      mat4 world_view_projection; \
+      x; \
+    }; \
+
+  #define define_material(name) \
+    define_component(name); \
+    u32 name::MATERIAL_ID; \
+
+  #define update_material(name, vertex_shader_name, fragment_shader_name) \
+  { \
+    update_component(name); \
+    name::MATERIAL_ID = add_material_type(sizeof(name)); \
+    MaterialEffectInfo effect_info = { \
+      .instance_data_size = sizeof(name##Instance), \
+      .world_data_size = 0, \
+ \
+      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), \
+      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), \
+ \
+      .fill_mode = FillMode::Fill, \
+      .cull_mode = CullMode::Back, \
+      .blend_mode = BlendMode::Off, \
+    }; \
+ \
+    create_material_effect(&_context.material_effects[name::MATERIAL_ID], &effect_info); \
+    _context.material_effect_infos[name::MATERIAL_ID] = effect_info; \
+  } \
+
+  declare_material(engine_api, engine_var, ColorMaterial2,
+    vec4 color;
+  );
+
+  void init_materials();
 
 //
 // Draw Batch API
@@ -685,10 +732,10 @@ namespace quark {
     bool is_transparent;
   };
 
-  struct DrawableInstance {
-    Transform transform;
-    Model model;
-  };
+  // struct DrawableInstance {
+  //   Transform transform;
+  //   Model model;
+  // };
 
   template <typename T>
   struct DrawBatch {
@@ -1015,9 +1062,9 @@ namespace quark {
     MaterialEffect material_effects[16];
   };
 
-  const u32 color_material_effect_id = 0;
-
   engine_api GraphicsContext* get_graphics_context();
+
+  engine_api void init_graphics_context();
 
   // struct MeshRegistry {
   //   u32 pool_count = 0;

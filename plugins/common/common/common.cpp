@@ -729,6 +729,28 @@ void assert2(bool v) {
       T += delta();
     }
 
+    DrawableInstance drawable_instance = {
+      .transform = {
+        .position = { 0.0f, 5.0f, 0.0f },
+        .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
+      },
+      .model = {
+        .half_extents = { 1.0f, 1.0f, 1.0f },
+        .id = { 0 },
+      },
+    };
+    ColorMaterial2 color_material = {
+      .color = { 0.0f, 1.0f, sinf(T) / 2.0f + 0.5f, 1.0f },
+    };
+    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+    drawable_instance.transform.position.z += 3;
+    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+    drawable_instance.transform.position.z += 3;
+    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+    drawable_instance.transform.position.z += 3;
+    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+    // printf("Added drawable!\n");
+
     init_ecs();
 
     //for_every(i, 1000) {
