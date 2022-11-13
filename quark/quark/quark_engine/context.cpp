@@ -49,7 +49,7 @@ namespace quark {
   }
 
   void init() {
-    update_component(ColorMaterial2);
+    // update_component(ColorMaterial2);
 
     // Create builtin system lists
     {
@@ -74,30 +74,35 @@ namespace quark {
       create_system("init_threadpool", init_threadpool);
       create_system("add_asset_types", add_asset_types);
       create_system("init_window", init_window);
-      create_system("init_vulkan", internal::init_vulkan);
-      create_system("init_mesh_buffer", internal::init_mesh_buffer);
-      create_system("init_command_pools_and_buffers", internal::init_command_pools_and_buffers);
+      create_system("init_vulkan", init_vulkan);
+      create_system("init_mesh_buffer", init_mesh_buffer);
+      create_system("init_command_pools_and_buffers", init_command_pools_and_buffers);
       create_system("load_shaders", load_shaders);
       create_system("load_meshes", load_meshes);
       create_system("load_images", load_images);
-      create_system("init_swapchain", internal::init_swapchain);
-      // create_system("init_render_passes", internal::init_render_passes);
-      create_system("init_framebuffers", internal::init_framebuffers);
-      create_system("init_sync_objects", internal::init_sync_objects);
-      create_system("init_sampler", internal::init_sampler);
-      create_system("copy_meshes_to_gpu", internal::copy_meshes_to_gpu); // NOTE(sean): add meshes before this!
-      // create_system("init_pipelines", internal::init_pipelines); // NOTE(sean): add shaders before this!
+      create_system("init_swapchain", init_swapchain);
+      create_system("init_render_passes", init_render_passes);
+      create_system("init_framebuffers", init_framebuffers);
+      create_system("init_sync_objects", init_sync_objects);
+      create_system("init_sampler", init_sampler);
+      create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): add meshes before this!
+      create_system("init_pipelines", init_pipelines); // NOTE(sean): add shaders before this!
 
       // Update
-      create_system("print_performance_statistics", internal::print_performance_statistics);
+      create_system("print_performance_statistics", print_performance_statistics);
       create_system("update_window_inputs", update_window_inputs);
       create_system("update_all_actions", update_all_actions);
       create_system("update_tag", 0);
       create_system("update_cameras", update_cameras);
       create_system("begin_frame", begin_frame);
-      // create_system("draw_batches", draw_batches);
-      // create_system("reset_draw_batches", reset_draw_batches);
+      create_system("begin_drawing_materials", begin_drawing_materials);
+      create_system("draw_material_batches", draw_material_batches);
+      create_system("reset_material_batches", reset_material_batches);
       // create_system("end_effects", end_effects);
+      create_system("end_drawing_materials", end_drawing_materials);
+      // create_system("begin_post_process", begin_post_process);
+      // //
+      // create_system("end_post_process", end_post_process);
       create_system("end_frame", end_frame);
     }
 
@@ -114,12 +119,12 @@ namespace quark {
       add_system("quark_init", "load_meshes", "", -1);
       add_system("quark_init", "load_images", "", -1);
       add_system("quark_init", "init_swapchain", "", -1);
-      // add_system("quark_init", "init_render_passes", "", -1);
+      add_system("quark_init", "init_render_passes", "", -1);
       add_system("quark_init", "init_framebuffers", "", -1);
       add_system("quark_init", "init_sync_objects", "", -1);
       add_system("quark_init", "init_sampler", "", -1);
       add_system("quark_init", "copy_meshes_to_gpu", "", -1);
-      // add_system("quark_init", "init_pipelines", "", -1);
+      add_system("quark_init", "init_pipelines", "", -1);
 
       // Update
       add_system("update", "print_performance_statistics", "", -1);
@@ -128,11 +133,15 @@ namespace quark {
       add_system("update", "update_tag", "", -1);
       add_system("update", "update_cameras", "", -1);
       add_system("update", "begin_frame", "", -1);
+        // add_system("update", "draw_shadows", "", -1);
+        // add_system("update", "draw_depth_prepass", "", -1);
+        add_system("update", "begin_drawing_materials", "", -1);
+          add_system("update", "draw_material_batches", "", -1);
+          add_system("update", "reset_material_batches", "", -1);
+        add_system("update", "end_drawing_materials", "", -1);
       // Quark 3D Pipeline
         // add_system("update", "draw_sun_shadow", "", -1);
         // add_system("update", "draw_depth_prepass", "", -1);
-        // add_system("update", "draw_batches", "", -1);
-        // add_system("update", "reset_draw_batches", "", -1);
       // add_system("update", "end_effects", "", -1);
       add_system("update", "end_frame", "", -1);
 

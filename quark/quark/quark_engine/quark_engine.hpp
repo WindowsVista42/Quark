@@ -78,6 +78,15 @@ namespace quark {
 // Material Types
 //
 
+#define declare_material(name, x...) \
+  struct name { \
+    x; \
+  }; \
+  struct name##Instance { \
+    mat4 world_view_projection; \
+    x; \
+  }; \
+
   struct ColorMaterial {
     vec4 color;
   };
@@ -703,9 +712,8 @@ namespace quark {
 
   template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
 
-  engine_api void draw_batches();
-  engine_api void reset_draw_batches();
-  engine_api void end_effects();
+  engine_api void draw_material_batches();
+  engine_api void reset_material_batches();
 
 //
 // Scratch Allocator API
@@ -841,7 +849,119 @@ namespace quark {
   engine_api void begin_frame();
   engine_api void end_frame();
 
+  engine_api void begin_drawing_materials();
+  engine_api void end_drawing_materials();
+
+  engine_api void begin_drawing_post_process();
+  engine_api void end_drawing_post_process();
+
+  static constexpr usize _OP_TIMEOUT = 1000000000; // one second
+  static constexpr usize _FRAME_OVERLAP = 2;
+
+  declare_enum(FilterMode, u32,
+    Nearest = VK_FILTER_NEAREST,
+    Linear  = VK_FILTER_LINEAR,
+  );
+
+  declare_enum(WrapMode, u32,
+    Repeat            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    MirroredRepeat    = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+    EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
+  );
+
+  declare_enum(FillMode, u32,
+    Fill  = VK_POLYGON_MODE_FILL,
+    Line  = VK_POLYGON_MODE_LINE,
+    Point = VK_POLYGON_MODE_POINT,
+  );
+
+  declare_enum(CullMode, u32,
+    None  = VK_CULL_MODE_NONE,
+    Front = VK_CULL_MODE_FRONT_BIT,
+    Back  = VK_CULL_MODE_BACK_BIT,
+    Both  = VK_CULL_MODE_FRONT_AND_BACK,
+  );
+
+  declare_enum(BlendMode, u32,
+    Off    = 0x0,
+    Simple = 0x1,
+  );
+
+//
+// Buffer API
+//
+
+  declare_enum(BufferType, u32,
+    Uniform  = 0,
+    Storage  = 1,
+    Staging  = 2,
+    Vertex   = 3,
+    Index    = 4,
+    Commands = 5,
+  );
+
+  struct BufferInfo {
+    BufferType type;
+    u32 size;
+  };
+
+  struct Buffer {
+    // Resource Handles
+    VmaAllocation allocation;
+    VkBuffer buffer;
+
+    // Metadata
+    BufferType type;
+    u32 size;
+  };
+
+  struct ImageInfo {
+    ivec2 resolution;
+    VkFormat format;
+    VkImageUsageFlags usage;
+    VkSampleCountFlagBits samples;
+    bool is_color;
+  };
+
+  struct Image {
+    VmaAllocation allocation;
+    VkImage image;
+    VkImageView view;
+    VkImageLayout current_layout;
+  };
+
+  struct MaterialEffectInfo {
+    u32 instance_data_size;
+    u32 world_data_size;
+    VertexShaderModule vertex_shader;
+    FragmentShaderModule fragment_shader;
+      
+    FillMode fill_mode;
+    CullMode cull_mode;
+    BlendMode blend_mode;
+  };
+
+  struct MaterialEffect {
+    VkPipelineLayout layout;
+    VkPipeline pipeline;
+  };
+
+  struct PostProcessEffectInfo {
+    u32 post_process_id;
+    u32 fragment_shader_id;
+  };
+
+  struct PostProcessEffect {
+    VkPipelineLayout layout;
+    VkPipeline pipeline;
+  };
+
   struct GraphicsContext {
+    Arena* arena;
+    VmaAllocator gpu_alloc; 
+
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
     VkPhysicalDevice physical_device;
@@ -862,9 +982,38 @@ namespace quark {
     u32 swapchain_image_count;
     VkImage* swapchain_images;
     VkImageView* swapchain_image_views;
+
+    u32 image_count;
+    ivec2 render_resolution;
+
+    ImageInfo main_color_image_info;
+    Image main_color_images[_FRAME_OVERLAP];
+
+    ImageInfo main_depth_image_info;
+    Image main_depth_images[_FRAME_OVERLAP];
+
+    vec4 main_color_clear_value;
+    f32 main_depth_clear_value;
+    VkRenderPass main_render_pass;
+    VkFramebuffer main_framebuffers[_FRAME_OVERLAP];
+
+    VkSampler texture_sampler;
+
+    Buffer staging_buffer;
+
+    u32 mesh_counts;
+    MeshInstance* mesh_instances; // hot data
+    vec3* mesh_scales = {}; // cold data
+    Buffer vertex_buffer;
+    Buffer index_buffer;
+
+    MaterialEffectInfo material_effect_infos[16];
+    MaterialEffect material_effects[16];
   };
 
-  engine_api const GraphicsContext* get_graphics_context();
+  const u32 color_material_effect_id = 0;
+
+  engine_api GraphicsContext* get_graphics_context();
 
   struct MeshRegistry {
     u32 pool_count = 0;
@@ -874,6 +1023,21 @@ namespace quark {
   };
   declare_resource(engine_var, MeshRegistry);
 
+  struct TextureRegistry {
+    u32 texture_count = 0;
+    Image* textures[1024] = {};
+  };
+  declare_resource(engine_var, TextureRegistry);
+
+  struct WorldData {
+  };
+  declare_resource(engine_var, WorldData);
+
+  struct FrustumCullData {
+    vec4 cull_planes[6];
+  };
+  declare_resource(engine_var, FrustumCullData);
+
   inline MeshInstance get_mesh_instance(MeshId id) {
     return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
   }
@@ -881,96 +1045,10 @@ namespace quark {
   inline vec3 get_mesh_scale(MeshId id) {
     return get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index];
   }
-
-  // engine_api void begin_shadow_rendering();
-  // engine_api void draw_shadow(Transform transform, Model model);
-  // engine_api void draw_shadow_things();
-  // engine_api void end_shadow_rendering();
-
-  // engine_api void begin_depth_prepass_rendering();
-  // engine_api void draw_depth(Transform transform, Model model);
-  // engine_api void draw_depth_prepass_things();
-  // engine_api void end_depth_prepass_rendering();
-
-  // engine_api void begin_forward_rendering();
-
-  // engine_api void begin_lit_pass();
-  // engine_api void draw_lit(Transform transform, Model model, Texture texture);
-  // engine_api void draw_lit_pass_things();
-  // engine_api void end_lit_pass();
-
-  // engine_api void draw_color(Transform transform, Model model, Color color);
-
-  // engine_api void begin_solid_pass();
-  // engine_api void draw_solid_pass_things();
-  // engine_api void end_solid_pass();
-
-  // engine_api void begin_wireframe_pass();
-  // engine_api void draw_wireframe_pass_things();
-  // engine_api void end_wireframe_pass();
-
-  // engine_api void end_forward_rendering();
   
-  namespace internal {
-    // struct AllocatedBuffer {
-    //   VmaAllocation alloc;
-    //   VkBuffer buffer;
-    //   usize size;
-    // };
-     
-    // struct AllocatedImage {
-    //   VmaAllocation alloc;
-    //   VkImage image;
-    //   VkImageView view;
-    //   VkFormat format;
-    //   ivec2 dimensions;
-    // };
-
-    // struct AllocatedMesh {
-    //   u32 size = 0;
-    //   u32 offset = 0;
-    // };
-
-    // struct PointLightData {
-    //   vec3 position;
-    //   f32 falloff;
-    //   vec3 color;
-    //   f32 directionality;
-    // };
-    // 
-    // struct DirectionalLightData {
-    //   vec3 position;
-    //   f32 falloff;
-    //   vec3 direction;
-    //   f32 directionality;
-    //   vec3 color;
-    //   u32 _pad0;
-    // };
-    // 
-    // struct SunLightData {
-    //   vec3 direction;
-    //   f32 directionality;
-    //   vec3 color;
-    //   u32 _pad0;
-    // };
-    // 
-    // struct CameraData {
-    //   vec3 pos;
-    //   u32 _pad0;
-    //   vec3 dir;
-    //   f32 fov;
-    //   vec2 spherical_dir;
-    //   f32 znear;
-    //   f32 zfar;
-    // };
-    // 
-    // struct TimeData {
-    //   f32 tt;
-    //   f32 dt;
-    // };
-    
+  // namespace internal {
     // Frustum culling data
-    struct CullData {
+    struct GpuCullData {
       mat4 view;
     
       f32 p00, p22, znear, zfar;
@@ -979,124 +1057,15 @@ namespace quark {
     
       int dist_cull;
     };
+
+    // engine_var GpuCullData _cull_data; //
+    // engine_var vec4 _cull_planes[6]; //
     
-    // Internal Types
-    // struct DefaultPushConstant {
-    //   vec3 MODEL_POSITION;
-    //   u32 TEXTURE_INDEX;
-    //   vec4 MODEL_ROTATION;
-    //   vec4 MODEL_SCALE;
-    // };
-    // 
-    // struct ColorPushConstant {
-    //   vec4 MODEL_POSITION;
-    //   vec4 MODEL_ROTATION;
-    //   vec4 MODEL_SCALE;
-    //   vec4 color;
-    // };
-    
-    // struct RenderData {
-    //   vec3 position;
-    //   quat rotation;
-    //   Model model;
-    // };
-    
-    // struct WorldData {
-    //   PointLightData point_lights[512];
-    //   DirectionalLightData directional_lights[512];
-    //   u32 point_light_count;
-    //   u32 directional_light_count;
-    //   f32 TT;
-    //   f32 DT;
-    //   CameraData main_camera;
-    //   CameraData sun_camera;
-    //   SunLightData sun_light;
-    //   mat4 main_view_projection;
-    //   mat4 sun_view_projection;
-    // };
-    
-    //struct RenderEffectMeta {
-    //  u32 width;
-    //  u32 height;
-    //  u32 clear_value_count;
-    //  VkClearValue* clear_values;
-    //};
-    
-    //struct RenderEffect {
-    //  RenderEffectMeta meta;
-    //  // this does not need reference counting because i can just store the individual fields outside of this object
-    //  // these fields are merely a convenience for bundling rendering state together
-    //  VkPipelineLayout pipeline_layout;
-    //  VkPipeline pipeline;
-    //  VkRenderPass render_pass;
-    //
-    //  VkFramebuffer* framebuffers;
-    //
-    //  VkDescriptorSetLayout descriptor_set_layout;
-    //  VkDescriptorSet* descriptor_sets;
-    //};
-    
-    // index in array is binding index
-    // struct DescriptorLayoutInfo {
-    //   enum a: usize {
-    //     ONE,
-    //     ONE_PER_FRAME,
-    //     ARRAY,
-    //     ARRAY_PER_FRAME,
-    //   };
-    // 
-    //   enum w: usize {
-    //     WRITE_ON_RESIZE,
-    //     WRITE_ONCE,
-    //   };
-    // 
-    //   usize count;
-    //   VkDescriptorType descriptor_type;
-    //   void* buffers_and_images;
-    //   usize array_type;
-    //   usize write_type;
-    // };
-    
-    // Define a transparent struct with the inner value being referenced as _
-    // #define OLD_TRANSPARENT_TYPE(name, inner)                                                                                                            \
-    //   struct name {                                                                                                                                      \
-    //     inner _;                                                                                                                                         \
-    //     operator inner&() { return *(inner*)this; }                                                                                                      \
-    //   }
-    // 
-    // // Vulkan Shader Types
-    // OLD_TRANSPARENT_TYPE(VkFragmentShader, VkShaderModule);
-    // OLD_TRANSPARENT_TYPE(VkVertexShader, VkShaderModule);
 
     // VARIABLES
-
-    static constexpr usize _OP_TIMEOUT = 1000000000; // one second
-    static constexpr usize _FRAME_OVERLAP = 2;
     
     engine_var bool _framebuffer_resized; // framebuffer resizing should be --automatically handled--
     
-    // move into graphics context
-    // engine_var VkInstance _instance;
-    // engine_var VkDebugUtilsMessengerEXT _debug_messenger;
-    // engine_var VkPhysicalDevice _physical_device;
-    // engine_var VkDevice _device;
-    // engine_var VkSurfaceKHR _surface;
-
-    // engine_var VkSwapchainKHR _swapchain; //
-    // engine_var std::vector<VkImage> _swapchain_images; //
-    // engine_var std::vector<VkImageView> _swapchain_image_views; //
-    // engine_var VkFormat _swapchain_format; //
-
-    // // move into graphics context
-    // engine_var VkQueue _graphics_queue;
-    // engine_var VkQueue _transfer_queue;
-    // engine_var VkQueue _present_queue;
-
-    // // move into graphics context
-    // engine_var u32 _graphics_queue_family;
-    // engine_var u32 _transfer_queue_family;
-    // engine_var u32 _present_queue_family;
-
     engine_var VkCommandPool _transfer_cmd_pool;
 
     // update to per thread resource using api
@@ -1109,9 +1078,6 @@ namespace quark {
     // engine_var VkSampler _default_sampler; //
 
     // mesh data
-    // engine_var u32 _gpu_mesh_count[8];
-    // engine_var MeshInstance _gpu_meshes[8][1024]; // hot data
-    // engine_var vec3 _gpu_mesh_scales[8][1024]; // cold data
     engine_var LinearAllocationTracker _gpu_vertices_tracker;
     // this buffer starts out as being a 
     // engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
@@ -1127,12 +1093,6 @@ namespace quark {
 
     engine_var mat4 _main_view_projection; //
     engine_var mat4 _sun_view_projection; //
-    
-    engine_var CullData _cull_data; //
-    engine_var vec4 _cull_planes[6]; //
-    
-    engine_var LinearAllocator _render_alloc; // Move into func calls
-    engine_var VmaAllocator _gpu_alloc; // Move into func calls
 
     // FUNCTIONS
 
@@ -1199,380 +1159,30 @@ namespace quark {
     engine_api void resize_swapchain();
 
     engine_api void print_performance_statistics();
-  };
+  // };
 };
 
 namespace quark {
 
-  // declare_enum(ImageUsage, u32,
-  //   Unknown      = 0x00,
-  //   Src          = 0x01,
-  //   Dst          = 0x02,
-  //   Texture      = 0x04,
-  //   Storage      = 0x08,
-  //   RenderTarget = 0x10, // implicit depth stored // RenderTargetDepth = 0x20,
-  //   Present      = 0x40,
-  // );
+  engine_api void create_buffers(Buffer* buffers, u32 n, BufferInfo* info);
 
-  // declare_enum(BufferUsage, u32,
-  //   CpuSrc  = 0x01,
-  //   CpuDst  = 0x02,
+  engine_api void* map_buffer(Buffer* buffer);
+  engine_api void unmap_buffer(Buffer* buffer);
 
-  //   GpuSrc  = 0x04,
-  //   GpuDst  = 0x08,
-
-  //   Uniform = 0x10,
-  //   Storage = 0x20,
-  //   Index   = 0x40,
-  //   Vertex  = 0x80,
-  // );
-
-  declare_enum(FilterMode, u32,
-    Nearest = VK_FILTER_NEAREST,
-    Linear  = VK_FILTER_LINEAR,
-  );
-
-  declare_enum(WrapMode, u32,
-    Repeat            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    MirroredRepeat    = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
-    BorderClamp       = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-    EdgeClamp         = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    MirroredEdgeClamp = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
-  );
-
-  declare_enum(FillMode, u32,
-    Fill  = VK_POLYGON_MODE_FILL,
-    Line  = VK_POLYGON_MODE_LINE,
-    Point = VK_POLYGON_MODE_POINT,
-  );
-
-  declare_enum(CullMode, u32,
-    None  = VK_CULL_MODE_NONE,
-    Front = VK_CULL_MODE_FRONT_BIT,
-    Back  = VK_CULL_MODE_BACK_BIT,
-    Both  = VK_CULL_MODE_FRONT_AND_BACK,
-  );
-
-  declare_enum(AlphaBlendMode, u32,
-    Off    = 0x0,
-    Simple = 0x1,
-  );
-
-  // enum struct resource_id : u32 {};
-
-  // struct ImageResourceInfo2 {
-  //   ImageFormat format;
-  //   ImageType usage;
-  //   ivec2 resolution;
-  //   ImageSamples samples;
-  // };
-
-  // struct ImageResource2 {
-  //   // Resource handles
-  //   VmaAllocation allocation;
-  //   VkImage image;
-  //   VkImageView view;
-
-  //   // Metadata
-  //   ImageFormat format;
-  //   ivec2 resolution;
-  //   ImageSamples samples;
-  //   ImageType current_usage;
-  // };
-
-  // struct BufferResourceInfo2 {
-  //   BufferType type;
-  //   usize size;
-  // };
-
-  // struct BufferResource2 {
-  //   // Resource handles
-  //   VmaAllocation allocation;
-  //   VkBuffer buffer;
-
-  //   // Metadata
-  //   BufferType type;
-  //   usize size;
-  // };
-
-  // struct Model2 {
-  //   vec3 scale;
-  //   u64 id; // u32 x, u32 y
-  // };
-
-  // struct MeshPoolResource2 {
-  //   // Resource handles
-  //   VmaAllocation allocation;
-  //   VkBuffer buffer;
-
-  //   // Metadata
-  //   usize size;
-  // };
-
-  // struct SamplerResourceInfo2 {
-  //   FilterMode filter_mode;
-  //   WrapMode wrap_mode;
-  // };
-
-  // struct SamplerResource2 {
-  //   // Resource handles
-  //   VkSampler sampler;
-
-  //   // Metadata
-  //   FilterMode filter_mode;
-  //   WrapMode wrap_mode;
-  // };
-
-  // struct RenderTargetRef {
-  //   resource_id image_resource;
-  //   LoadMode load_mode;
-  //   StoreMode store_mode;
-  //   ImageType next_usage_mode;
-  // };
-
-  // struct RenderTargetInfo2 {
-  //   std::vector<RenderTargetRef> image_refs;
-  // };
-
-  // struct RenderTarget2 {
-  //   VkRenderPass render_pass;
-  //   VkFramebuffer framebuffers[internal::_FRAME_OVERLAP];
-  // };
-
-  // struct ResourceGroup2 {
-  //   VkDescriptorSetLayout layout;
-  //   VkDescriptorSet sets[internal::_FRAME_OVERLAP];
-  // };
-
-  // struct engine_api ResourceGroupInfo2 {
-  //   std::vector<resource_id> resources;
-  // };
-
-  // struct PushConstantInfo2 {
-  //   u32 size;
-  // };
-
-  // struct ResourceBundleInfo2 {
-  //   std::array<resource_id, 4> resource_groups; // no more than 4
-  //   resource_id push_constant;
-  // };
-
-  // struct ResourceBundle2 {
-  //   VkPipelineLayout layout;
-  // };
-
-  // struct EffectInfo2 {
-  //   render_target_id render_target;
-  //   resource_bundle_id resource_bundle;
-
-  //   shader_id shader;
-
-  //   render_mode_id render_mode;
-  //   mesh_pool_id mesh_pool;
-
-  //   type_hash material;
-  // };
-
-  // EffectInfo2 color_effect = {
-  //   .render_target = get_render_target_id("main"),
-  //   .resource_bundle = get_resource_bundle_id("main"),
-
-  //   .shader = get_shader_id("color"),
-
-  //   .render_mode = get_render_mode_id("main"),
-  //   .mesh_pool = get_mesh_pool_id("main"),
-
-  //   .material = get_type_hash<ColorMaterial>(),
-  // };
-
-  template <typename T>
-  class engine_api ItemCache {
-    std::unordered_map<std::string, T> data;
-
-  public:
-    inline void add(std::string name, T t) {
-      data.insert(std::make_pair(name, t));
-    }
-
-    inline bool has(std::string name) {
-      return data.find(name) != data.end();
-    }
-
-    inline T& get(std::string name) {
-      if (!has(name)) {
-        panic(create_tempstr() + "Could not find: '" + name.c_str() + "'" + "\n");
-      }
-
-      return data.at(name);
-    }
-
-    T& operator [](std::string& name) {
-      return get(name);
-    }
-
-    T& operator [](const char* name) {
-      return get(name);
-    }
-  };
-
-  template <typename T>
-  using RenderResourceCache = std::unordered_map<u32, T>;
-
-  // struct ImageResourceInfo {
-  // };
-
-  // struct engine_api ImageResource {
-  //   struct Info {
-  //     ImageFormat format;
-  //     ImageType usage;
-  //     ivec2 resolution;
-  //     ImageSamples samples = ImageSamples::One;
-
-  //     VkExtent3D _ext();
-  //     VkImageCreateInfo _img_info();
-  //     VmaAllocationCreateInfo _alloc_info();
-  //     VkImageViewCreateInfo _view_info(VkImage image);
-  //     bool _is_color();
-  //     ImageResource _create();
-
-  //     static ItemCache<ImageResource::Info> cache_one;
-  //     static ItemCache<std::vector<ImageResource::Info>> cache_array;
-  //     static ItemCache<ImageResource::Info> cache_one_per_frame;
-  //   };
-
-  //   // Resource handles
-  //   VmaAllocation allocation;
-  //   VkImage image;
-  //   VkImageView view;
-
-  //   // Metadata
-  //   ImageFormat format;
-  //   ivec2 resolution;
-  //   ImageSamples samples;
-  //   ImageType current_usage;
-
-  //   inline bool is_color() {
-  //     return !(format == ImageFormat::LinearD16 || format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8);
-  //   }
-
-  //   static void create_one(ImageResource::Info& info, std::string name);
-  //   static void create_array(ImageResource::Info& info, std::string name);
-  //   static void create_one_per_frame(ImageResource::Info& info, std::string name);
-
-  //   static void create_array_from_existing(ImageResource::Info& info, ImageResource& res, std::string name);
-
-  //   static void transition(std::string name, u32 index, ImageType next_usage);
-  //   //static void blit_to_swapchain(std::string src_name, u32 src_index = 0);
-  //   static void blit(std::string src_name, u32 src_index, std::string dst_name, u32 dst_index, FilterMode filter_mode = FilterMode::Linear);
-
-  //   static ImageResource& get(std::string name, u32 index = 0);
-
-  //   static ItemCache<ImageResource> cache_one;
-  //   static ItemCache<std::vector<ImageResource>> cache_array;
-  //   static ItemCache<std::array<ImageResource, internal::_FRAME_OVERLAP>> cache_one_per_frame;
-  // };
-
-//
-// Buffer API
-//
-
-  declare_enum(BufferType, u32,
-    Uniform         = 0,
-    GpuStorage      = 1,
-    CpuToGpuStorage = 2,
-    GpuToCpuStorage = 3,
-    DrawCommands    = 4,
-  );
-
-  struct BufferInfo {
-    BufferType type;
-    u32 size;
-
-    // Flag for whether this buffer is safe to share across frames or not.
-    //
-    // In most instances, this should be false.
-    bool shared;
-  };
-
-  struct Buffer {
-    // Resource Handles
-    VmaAllocation allocation;
-    VkBuffer buffer;
-
-    // Metadata
-    BufferType type;
-    u32 size;
-    bool frame_shared;
-  };
-
-  engine_api void create_buffer(BufferInfo* info, const char* name);
-  engine_api Buffer* get_buffer(const char* name);
-
-  engine_api void* map_buffer(const char* name);
-  engine_api void unmap_buffer(const char* name);
-
-  engine_api void write_buffer(const char* buffer_dst, void* src, u32 size);
-  engine_api void copy_buffer(const char* buffer_dst, const char* buffer_src, u32 size);
-
-  engine_api void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
-  engine_api void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
-
-//
-// Native Buffer API
-//
-
-  engine_api Buffer create_buffer_native(BufferInfo* info);
-
-  engine_api void* map_buffer_native(VmaAllocation allocation);
-  engine_api void unmap_buffer_native(VmaAllocation allocation);
-
-  engine_api void* map_buffer_native(VmaAllocation allocation);
-  engine_api void unmap_buffer_naitve(VmaAllocation allocation);
-
-  engine_api void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
-  engine_api void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size);
+  engine_api void write_buffer(Buffer* dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size);
+  engine_api void copy_buffer(Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size);
 
   engine_api VkBufferCreateInfo get_buffer_create_info(BufferType type, u32 size);
   engine_api VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type);
 
 //
-// Todo: Exclusive Buffer API
+// Image API
 //
+    void create_images(Image* images, u32 n, ImageInfo* info);
 
-//
-// Todo: Buffer Array API
-//
+  engine_api void create_material_effectl(MaterialEffect* effect, MaterialEffectInfo* info);
 
-  struct BufferArrayInfo {
-    u32 count;
-    BufferInfo* infos;
-  };
-
-  struct BufferArray {
-    u32 count;
-    Buffer buffers[];
-  };
-
-  // struct BufferArrayInfo {
-  //   BufferType type;
-  //   u32 size;
-  //   u32 count;
-  // };
-
-  // struct BufferArray {
-  //   // Resource Handles
-  //   VmaAllocation* allocation;
-  //   VkBuffer* buffer;
-
-  //   // Metadata
-  //   BufferType type;
-  //   u32 size;
-  //   u32 count;
-  // };
-
-  // engine_api BufferArray create_buffer_array(BufferArrayInfo* info);
-  // engine_api void add_buffer(BufferArray buffer_array, const char* name);
-  // engine_api BufferArray* get_buffer_array(const char* name);
+  engine_api void create_post_process_effect(PostProcessEffect* effect, PostProcessEffectInfo* info);
 
 //
 // Mesh Pool API
@@ -1581,954 +1191,207 @@ namespace quark {
 // into one global vertex and index array
 //
 
-  declare_enum(MeshPoolType, u32,
-    Gpu      = 0,
-    CpuToGpu = 1,
-  );
+  // declare_enum(MeshPoolType, u32,
+  //   Gpu      = 0,
+  //   CpuToGpu = 1,
+  // );
 
-  struct MeshPoolInfo {
-    MeshPoolType usage;
-    u32 vertex_size;
-    u32 vertex_count;
-  };
+  // struct MeshPoolInfo {
+  //   u32 vertex_count;
+  // };
 
-  struct MeshPool {
-    VmaAllocation vertex_allocation;
-    VkBuffer vertex_buffer;
+  // struct MeshPool {
+  //   Buffer vertex_buffer;
+  //   Buffer index_buffer;
 
-    VmaAllocation index_allocation;
-    VkBuffer index_buffer;
+  //   u32 vertex_size;
+  //   u32 count;
 
-    u32 vertex_size;
-    u32 count;
-    u32 pool_index;
-  };
+  //   u32 mesh_count;
+  //   MeshInstance* instances = {}; // hot data
+  //   vec3* scales = {}; // cold data
+  // };
 
-  engine_api MeshPool create_mesh_pool(MeshPoolInfo* info);
-  engine_api void add_mesh_pool(MeshPool resource, const char* name);
-  engine_api MeshPool* get_mesh_pool(const char* name);
-
-  engine_api void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
-  engine_api void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size);
+  // engine_api void create_mesh_pool(MeshPool* pool, Arena* arena, u32 vertex_count);
+  // engine_api void copy_mesh_pool_vertices(MeshPool* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size);
+  // engine_api void copy_mesh_pool_indices(MeshPool* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size);
 
 //
 // Image API
 //
 
-  declare_enum(ImageType, u32,
-    Texture,
-    Storage,
-  );
+//   declare_enum(ImageType, u32,
+//     Texture,
+//     Storage,
+//   );
+// 
+//   declare_enum(ImageFormat, u32,
+//     LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+//     LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
+//     LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+// 
+//     LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
+// 
+//     LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
+//     LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
+// 
+//     SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
+//     SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
+//   );
+// 
+//   struct ImageInfo {
+//     ImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//   };
+// 
+//   struct ImageData {
+//     VmaAllocation allocation;
+//     VkImage image;
+//     VkImageView view;
+//   };
+// 
+//   declare_enum(ImageUsage, u32,
+//     Unknown,
+//     Src,
+//     Dst,
+//     Texture,
+//     Storage,
+//     RenderTargetColor,
+//     RenderTargetDepth,
+//     Present,
+//   );
+// 
+// 
+//   struct Image {
+//     ImageData data;
+//     ImageUsage usage;
+// 
+//     ImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//   };
+// 
+//   // Create a single (readonly in shaders) image resource
+//   engine_api void create_image(ImageInfo* info, const char* name);
+//   engine_api Image* get_image(const char* name);
+// 
+// //
+// // Native Image API
+// //
+// 
+//   engine_api Image create_image_native(ImageInfo* info);
+// 
+//   engine_api VmaAllocationCreateInfo get_image_alloc_info(ImageInfo* info);
+//   engine_api VkImageCreateInfo get_image_create_info(ImageInfo* info, VkImageUsageFlags usage, VkSampleCountFlagBits samples);
+//   engine_api VkImageViewCreateInfo get_image_view_create_info(ImageInfo* info);
+// 
+//   // true if format is color, false if format is depth
+//   engine_api bool is_format_color(ImageFormat format);
+//   engine_api VkImageUsageFlags image_type_to_vk_usage(ImageType type);
+// 
+// //
+// // Todo: Exclusive Image API
+// //
+// 
+//   struct ExclusiveImageInfo {
+//     ImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//   };
+// 
+//   struct ExclusiveImage {
+//     ImageData data[internal::_FRAME_OVERLAP];
+//     ImageUsage usage[internal::_FRAME_OVERLAP];
+// 
+//     ImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//   };
+// 
+//   engine_api void blit_image_native(VkCommandBuffer* commands, ImageData* dst, ImageUsage* dst_usage, ImageData* src, ImageUsage* src_usage);
+//   engine_api void blit_render_image(const char* commands, const char* dst, const char* src, u32 index);
+// 
+//   engine_api void create_exclusive_image(ExclusiveImageInfo* info, const char* name);
+//   engine_api ExclusiveImage* get_exclusive_image(const char* name);
+// 
+// //
+// // Native Exclusive Image API
+// //
 
-  declare_enum(ImageFormat, u32,
-    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
-    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
-    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+//   ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info);
 
-    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
-
-    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
-    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
-
-    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
-    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
-  );
-
-  // declare_enum(ImageUsage, u32,
-  //   Unknown           = 0x00,
-  //   Src               = 0x01,
-  //   Dst               = 0x02,
-  //   Texture           = 0x04,
-  //   Storage           = 0x08,
-  // );
-
-  struct ImageInfo {
-    ImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-  };
-
-  struct ImageData {
-    VmaAllocation allocation;
-    VkImage image;
-    VkImageView view;
-  };
-
-  declare_enum(ImageUsage, u32,
-    Unknown,
-    Src,
-    Dst,
-    Texture,
-    Storage,
-    RenderTargetColor,
-    RenderTargetDepth,
-    Present,
-  );
-
-  // struct Image {
-  //   ImageData data;
-  //   ImageUsage usage;
-
-  //   ivec2 resolution;
-  // };
-
-  // struct TextureArray {
-  //   std::vector<ImageData> data;
-  //   std::vector<ImageUsage> usage;
-
-  //   std::vector<ivec2> resolution;
-  // };
-
-  // struct RenderTexture {
-  //   ImageData data[2];
-  //   ImageUsage usage[2];
-
-  //   ivec2 resolution;
-  //   ImageFormat format;
-  // };
-
-  // void push_texture(const char* texture_array_name, u8* pixels, ivec2 resolution);
-
-  //
-  // Load an image from a file to be used in a shader
-  // Read an image in a shader
-  // Render to a texture
-  // Blit a texture to another
-  // Clear a texture
-  //
-
-  struct Image {
-    ImageData data;
-    ImageUsage usage;
-
-    ImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-  };
-
-  // struct ExclusiveImage {
-  //   ImageData data[2];
-  //   ImageUsage usage[2];
-
-  //   ImageType type;
-  //   ImageFormat format;
-  //   ivec2 resolution;
-  // };
-
-  // struct RenderImage {
-  //   ImageData data[2];
-  //   ImageUsage usage[2];
-
-  //   ImageType type;
-  //   ImageFormat format;
-  //   ivec2 resolution;
-  // };
-
-  // struct ImageArray {
-  //   std::vector<ImageData> data;
-  //   std::vector<ImageUsage> usage;
-
-  //   ImageType type;
-  //   ImageFormat format;
-  //   ivec2 resolution;
-  // };
-
-  // Create a single (readonly in shaders) image resource
-  engine_api void create_image(ImageInfo* info, const char* name);
-  engine_api Image* get_image(const char* name);
-
-//
-// Native Image API
-//
-
-  engine_api Image create_image_native(ImageInfo* info);
-
-  engine_api VmaAllocationCreateInfo get_image_alloc_info(ImageInfo* info);
-  engine_api VkImageCreateInfo get_image_create_info(ImageInfo* info, VkImageUsageFlags usage, VkSampleCountFlagBits samples);
-  engine_api VkImageViewCreateInfo get_image_view_create_info(ImageInfo* info);
-
-  // true if format is color, false if format is depth
-  engine_api bool is_format_color(ImageFormat format);
-  engine_api VkImageUsageFlags image_type_to_vk_usage(ImageType type);
-
-//
-// Todo: Exclusive Image API
-//
-
-  struct ExclusiveImageInfo {
-    ImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-  };
-
-  struct ExclusiveImage {
-    ImageData data[internal::_FRAME_OVERLAP];
-    ImageUsage usage[internal::_FRAME_OVERLAP];
-
-    ImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-  };
-
-  engine_api void blit_image_native(VkCommandBuffer* commands, ImageData* dst, ImageUsage* dst_usage, ImageData* src, ImageUsage* src_usage);
-  engine_api void blit_render_image(const char* commands, const char* dst, const char* src, u32 index);
-
-  // void a() {
-
-  //   BlitOptions options = {
-  //     .filter_mode = FilterMode::Nearest,
-  //     .src_region = { -1, -1, -1 },
-  //     .dst_region = { -1, -1, -1 },
-  //   };
-  //   blit_image("main", "swapchain", internal::_frame_index, "main_color", internal::_frame_index, &options);
-  // }
-
-  // Create an image resource with one exclusive image for each frame of possible overlap.
-  //
-  // Since frames can overlap, normal images are considered read-only inside
-  // of rendering code.
-  //
-  // Exclusive images bypass this read-only requirement by creating
-  // a unique image for each frame of possible overlap.
-  // Meaning that at any point in time you are not
-  // writing and reading to an image in two separate overlapping frames.
-  engine_api void create_exclusive_image(ExclusiveImageInfo* info, const char* name);
-  engine_api ExclusiveImage* get_exclusive_image(const char* name);
-
-//
-// Native Exclusive Image API
-//
-
-  ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info);
-
-  struct RenderOptions {
-    FillMode fill_mode;
-    CullMode cull_mode;
-    AlphaBlendMode alpha_blend_mode;
-  };
-
-  struct Effect {
-    u32 material_id;
-
-    u32 vertex_shader;
-    u32 fragment_shader;
-
-    u32 render_target_id;
-    u32 resource_bundle_id;
-    u32 mesh_pool;
-  };
-
-//
-// Render Image API
-//
-
-  declare_enum(RenderImageType, u32,
-    RenderTarget,
-    Present,      // Special flag that should never be used
-  );
-
-  declare_enum(RenderImageUsage, u32,
-    Unknown,
-    Src,
-    Dst,
-    Texture,
-    Storage,
-    RenderTargetColor,
-    RenderTargetDepth,
-    Present,
-  );
-
-  declare_enum(RenderImageSamples, u32,
-    One     = VK_SAMPLE_COUNT_1_BIT,
-    Two     = VK_SAMPLE_COUNT_2_BIT,
-    Four    = VK_SAMPLE_COUNT_4_BIT,
-    Eight   = VK_SAMPLE_COUNT_8_BIT,
-    Sixteen = VK_SAMPLE_COUNT_16_BIT,
-  );
-
-  struct RenderImageInfo {
-    RenderImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-    RenderImageSamples samples;
-  };
-
-  struct RenderImage {
-    VmaAllocation allocations[internal::_FRAME_OVERLAP];
-    VkImage images[internal::_FRAME_OVERLAP];
-    VkImageView views[internal::_FRAME_OVERLAP];
-
-    RenderImageType type;
-    ImageFormat format;
-    ivec2 resolution;
-    RenderImageSamples samples;
-  };
-
-  // An exclusive image that can be rendered to
-  engine_api void create_render_image(RenderImageInfo* info, const char* name);
-  engine_api RenderImage* get_render_image(const char* name);
-
-  enum struct RenderImageId : u32 {};
-  engine_api RenderImageId get_render_image_id(const char* name);
-  engine_api RenderImage* get_render_image_by_id(RenderImageId id);
+//   struct RenderOptions {
+//     FillMode fill_mode;
+//     CullMode cull_mode;
+//     BlendMode alpha_blend_mode;
+//   };
+// 
+//   struct Effect {
+//     u32 material_id;
+// 
+//     u32 vertex_shader;
+//     u32 fragment_shader;
+// 
+//     u32 render_target_id;
+//     u32 resource_bundle_id;
+//     u32 mesh_pool;
+//   };
+// 
+// //
+// // Render Image API
+// //
+// 
+//   declare_enum(RenderImageType, u32,
+//     RenderTarget,
+//     Present,      // Special flag that should never be used
+//   );
+// 
+//   declare_enum(RenderImageUsage, u32,
+//     Unknown,
+//     Src,
+//     Dst,
+//     Texture,
+//     Storage,
+//     RenderTargetColor,
+//     RenderTargetDepth,
+//     Present
+//   );
+// 
+//   declare_enum(RenderImageSamples, u32,
+//     One     = VK_SAMPLE_COUNT_1_BIT,
+//     Two     = VK_SAMPLE_COUNT_2_BIT,
+//     Four    = VK_SAMPLE_COUNT_4_BIT,
+//     Eight   = VK_SAMPLE_COUNT_8_BIT,
+//     Sixteen = VK_SAMPLE_COUNT_16_BIT,
+//   );
+// 
+//   struct RenderImageInfo {
+//     RenderImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//     RenderImageSamples samples;
+//   };
+// 
+//   struct RenderImage {
+//     VmaAllocation allocations[internal::_FRAME_OVERLAP];
+//     VkImage images[internal::_FRAME_OVERLAP];
+//     VkImageView views[internal::_FRAME_OVERLAP];
+// 
+//     RenderImageType type;
+//     ImageFormat format;
+//     ivec2 resolution;
+//     RenderImageSamples samples;
+//   };
+// 
+//   // An exclusive image that can be rendered to
+//   engine_api void create_render_image(RenderImageInfo* info, const char* name);
+//   engine_api RenderImage* get_render_image(const char* name);
 
 //
 // Render Image Native API
 //
 
-  engine_api RenderImage create_render_image_native(RenderImageInfo* info);
-  engine_api VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format);
-
-//
-// Render Target API
-//
-
-  declare_enum(LoadOp, u32,
-    Load     = VK_ATTACHMENT_LOAD_OP_LOAD,
-    Clear    = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    DontLoad = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-  );
-
-  declare_enum(StoreOp, u32,
-    Store     = VK_ATTACHMENT_STORE_OP_STORE,
-    DontStore = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-  );
-
-  struct RenderTargetAttachment {
-    RenderImageId image_id;
-    LoadOp load_op;
-    StoreOp store_op;
-    RenderImageUsage next_usage;
-  };
-
-  struct RenderTargetInfo {
-    u32 depth_attachment_count;
-    RenderTargetAttachment depth_attachment;
-
-    u32 color_attachment_count;
-    RenderTargetAttachment color_attachments[4];
-  };
-
-  struct RenderTarget {
-    VkRenderPass render_pass;
-    VkFramebuffer framebuffers[internal::_FRAME_OVERLAP];
-
-    u32 depth_attachment_count;
-    RenderTargetAttachment depth_attachment;
-
-    u32 color_attachment_count;
-    RenderTargetAttachment color_attachments[4];
-  };
-
-  engine_api RenderTarget create_render_target(RenderTargetInfo* info);
-  engine_api void add_render_target(RenderTarget resource, const char* name);
-  engine_api RenderTarget* get_render_target(const char* name);
-
-  //struct engine_api MeshResource {
-  //  struct CreateInfo {
-  //    std::vector<VertexPNT> vertices;
-  //  };
-
-  //  struct Metadata {
-  //    vec3 extents;
-  //    vec3 origin;
-  //    u32 offset;
-  //    u32 size;
-  //    std::string vertex_buffer_resource;
-  //    std::string index_buffer_resource;
-  //  };
-
-  //  u32 offset;
-  //  u32 size;
-  //};
-
-  struct engine_api SamplerResource {
-    struct Info {
-      FilterMode filter_mode;
-      WrapMode wrap_mode;
-
-      VkSamplerCreateInfo _sampler_info();
-      SamplerResource _create();
-
-      static ItemCache<SamplerResource::Info> cache_one;
-      static ItemCache<std::vector<SamplerResource::Info>> cache_array;
-    };
-
-    VkSampler sampler;
-
-    static void create_one(SamplerResource::Info& info, std::string name);
-    static void create_array(SamplerResource::Info& info, std::string name);
-
-    static ItemCache<SamplerResource> cache_one;
-    static ItemCache<std::vector<SamplerResource>> cache_array;
-  };
-
-  // struct engine_api RenderTarget {
-  //   struct Info {
-  //     std::vector<std::string> image_resources; // one_per_frame ImageResource/ImageResourceInfo
-  //     std::vector<LoadMode> load_modes;
-  //     std::vector<StoreMode> store_modes;
-  //     std::vector<ImageType> next_usage_modes;
-
-  //     void _validate();
-  //     std::vector<VkAttachmentDescription> _attachment_desc();
-  //     std::vector<VkAttachmentReference> _color_attachment_refs();
-  //     VkAttachmentReference _depth_attachment_ref();
-  //     VkSubpassDescription _subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref);
-  //     VkRenderPassCreateInfo _render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc);
-
-  //     std::vector<VkImageView> _image_views(usize index);
-  //     VkFramebufferCreateInfo _framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass);
-
-  //     RenderTarget _create();
-
-  //     VkViewport _viewport();
-  //     VkRect2D _scissor();
-  //     ImageSamples _samples();
-  //     ivec2 _resolution();
-
-  //     static ItemCache<RenderTarget::Info> cache;
-  //   };
-
-  //   VkRenderPass render_pass;
-  //   std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
-
-  //   static void create(RenderTarget::Info& info, std::string name);
-
-  //   static ItemCache<RenderTarget> cache;
-  // };
-
-  declare_enum(ResourceType, u32,
-    Buffer,
-    BufferArray,
-    Image,
-    ImageArray,
-    Sampler,
-  );
-
-  struct ResourceHandle {
-    ResourceType resource_type;
-    union {
-      u32 buffer_name_hash;
-      u32 buffer_array_name_hash;
-      u32 image_name_hash;
-      u32 image_array_name_hash;
-      u32 sampler_name_hash;
-    };
-  };
-
-  struct ResourceGroup {
-    u32 resource_count;
-  };
-
-  // struct engine_api ResourceGroup {
-  //   struct Info {
-  //     std::vector<std::string> resources;
-
-  //     VkPipelineLayoutCreateInfo _layout_info();
-
-  //     ResourceGroup _create();
-  //   };
-
-  //   VkDescriptorSetLayout layout;
-  //   std::array<VkDescriptorSet, internal::_FRAME_OVERLAP> sets;
-
-  //   static void create(ResourceGroup::Info& info, std::string name);
-  // };
-
-  struct PushConstant {
-    struct Info {
-      u32 size;
-
-      static ItemCache<PushConstant::Info> cache;
-    };
-
-    static void create(PushConstant::Info& info, std::string name);
-  };
-
-  struct ResourceBundle {
-    struct Info {
-      std::array<std::string, 4> resource_groups; // no more than 4
-      std::string push_constant;
-
-      VkPushConstantRange _push_constant();
-      std::vector<VkDescriptorSetLayout> _set_layouts();
-      VkPipelineLayoutCreateInfo _layout_info(std::vector<VkDescriptorSetLayout> set_layouts, VkPushConstantRange* push_constant);
-
-      ResourceBundle _create();
-
-      static ItemCache<ResourceBundle::Info> cache;
-    };
-
-    VkPipelineLayout layout;
-
-    static void create(ResourceBundle::Info& info, std::string name);
-
-    static ItemCache<ResourceBundle> cache;
-  };
-
-  struct engine_api RenderMode {
-    struct Info {
-      FillMode fill_mode = FillMode::Fill;
-      CullMode cull_mode = CullMode::Back;
-      AlphaBlendMode alpha_blend_mode = AlphaBlendMode::Off;
-
-      f32 draw_width = 1.0f;
-
-      VkPipelineVertexInputStateCreateInfo _vertex_input_info();
-      VkPipelineInputAssemblyStateCreateInfo _input_assembly_info();
-      VkPipelineViewportStateCreateInfo _viewport_info(VkViewport* viewport, VkRect2D* scissor);
-      VkPipelineRasterizationStateCreateInfo _rasterization_info();
-      VkPipelineMultisampleStateCreateInfo _multisample_info(RenderImageSamples samples);
-      VkPipelineDepthStencilStateCreateInfo _depth_info();
-
-      std::vector<VkPipelineColorBlendAttachmentState> _color_blend_attachments(u32 count);
-      VkPipelineColorBlendStateCreateInfo _color_blend_info(std::vector<VkPipelineColorBlendAttachmentState>& attachments);
-
-      static ItemCache<RenderMode::Info> cache;
-    };
-
-    static void create(RenderMode::Info& info, std::string name);
-  };
-
-  struct engine_api RenderEffect {
-    struct Info {
-      std::string render_target;
-      std::string resource_bundle;
-
-      std::string vertex_shader;
-      // if "", no fragment shader is used
-      std::string fragment_shader;
-
-      std::string render_mode = "default";
-      std::string mesh_pool = "main_mesh_pool";
-
-      VkPipelineShaderStageCreateInfo _vertex_stage(const char* entry_name);
-      VkPipelineShaderStageCreateInfo _fragment_stage(const char* entry_name);
-      RenderEffect _create();
-
-      static ItemCache<RenderEffect::Info> cache;
-    };
-
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
-    VkRenderPass render_pass;
-
-    ivec2 resolution;
-    std::array<VkFramebuffer, internal::_FRAME_OVERLAP> framebuffers;
-    std::vector<ImageType> next_usage_modes;
-    std::vector<std::string> image_resources;
-
-    std::array<std::array<VkDescriptorSet, 4>, internal::_FRAME_OVERLAP> descriptor_sets;
-
-    VkBuffer vertex_buffer_resource;
-    VkBuffer index_buffer_resource;
-
-    static void create(std::string name);
-    static void create_all();
-
-    static ItemCache<RenderEffect> cache;
-    static std::mutex _mutex;
-  };
-
-  namespace internal {
-    engine_var RenderEffect current_re;
-  };
-
-  engine_api void begin(std::string name);
-
-  inline void draw(Model& model) {
-  }
-
-  // template <typename PushConstant>
-  // inline void draw(Model& model, PushConstant& push_constant) {
-  //   using namespace internal;
-  //   vkCmdPushConstants(_main_cmd_buf[_frame_index],
-  //     internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-  //     0, sizeof(PushConstant), &push_constant);
-  //   vkCmdDraw(_main_cmd_buf[_frame_index], _gpu_meshes[(u32)model.id].count, 1, _gpu_meshes[(u32)model.id].offset, 0);
-  // }
-
-  engine_api void end_everything();
-
-  namespace internal {
-    //struct AttachmentLookup {
-    //  VkAttachmentLoadOp load_op;
-    //  VkAttachmentStoreOp store_op;
-    //  VkImageLayout initial_layout;
-    //  VkImageLayout final_layout;
-    //};
-
-    struct LayoutLookup {
-      VkImageLayout initial_layout;
-      VkImageLayout final_layout;
-    };
-
-    engine_var VkImageLayout color_initial_layout_lookup[3];
-    engine_var VkImageLayout color_final_layout_lookup[3];
-
-    engine_var VkImageLayout depth_initial_layout_lookup[3];
-    engine_var VkImageLayout depth_final_layout_lookup[3];
-
-    //engine_var LayoutLookup color_layout_lookup[2];
-    //engine_var LayoutLookup depth_layout_lookup[2];
-
-    //engine_var VkImageLayout color_usage_to_layout[];
-    //engine_var VkImageLayout depth_usage_to_layout[];
-
-    enum struct ResourceType {
-      ImageResourceOne,
-      ImageResourceArray,
-      ImageResourceOnePerFrame,
-
-      BufferResourceOne,
-      BufferResourceArray,
-      BufferResourceOnePerFrame,
-
-      SamplerResourceOne,
-      SamplerResourceArray,
-
-      MeshResourceOne,
-    };
-
-    engine_var std::unordered_map<std::string, ResourceType> used_names;
-  };
+//   engine_api RenderImage create_render_image_native(RenderImageInfo* info);
+//   engine_api VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format);
 };
-
-// namespace quark {
-//   using namespace engine::effect;
-// };
-
-namespace quark {
-  namespace internal {
-    // static VkImageLayout image_usage_vk_layout(ImageType usage_bits, bool is_color) {
-    //   auto one_hot_to_binary = [](u32 value) {
-    //     value = (value == 0) ? 1 : value << 1;
-    //     return __builtin_ctz(value);
-    //   };
-
-    //   u32 bits = (u32)usage_bits;
-    //   bits += (usage_bits == ImageUsage::RenderTarget && is_color) ? 1 : 0;
-    //   u32 index = one_hot_to_binary(bits);
-
-    //   VkImageLayout lookup[] = {
-    //     VK_IMAGE_LAYOUT_UNDEFINED,
-    //     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    //   };
-
-    //   return lookup[index];
-
-    //   //switch(bits) {
-    //   //  case(ImageUsage::Unknown):      return VK_IMAGE_LAYOUT_UNDEFINED;
-    //   //  case(ImageUsage::Src):          return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    //   //  case(ImageUsage::Dst):          return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    //   //  case(ImageUsage::Texture):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //   //  case(ImageUsage::Storage):      return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //   //  case(ImageUsage::RenderTarget): return is_color ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    //   //                                                  : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    //   //  case(ImageUsage::Present):      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    //   //  default:                        return VK_IMAGE_LAYOUT_UNDEFINED;
-    //   //}
-    // }
-
-    // static VkImageUsageFlagBits image_usage_vk_usage(ImageType usage_bits, bool is_color) {
-    //   u32 flags = {};
-    //   u32 bits = (u32)usage_bits;
-
-    //   auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
-    //     if (src & flag_read) {
-    //       (*dst) |= flag_write;
-    //     }
-    //   };
-
-    //   auto has_bit = [&](u32 src, u32 flag_read) {
-    //     return (src & flag_read) != 0;
-    //   };
-
-    //   write_bit(&flags, bits, (u32)ImageUsage::Unknown, 0);
-    //   write_bit(&flags, bits, (u32)ImageUsage::Present, 0);
-
-    //   write_bit(&flags, bits, (u32)ImageUsage::Src, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-    //   write_bit(&flags, bits, (u32)ImageUsage::Dst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-    //   write_bit(&flags, bits, (u32)ImageType::Texture, VK_IMAGE_USAGE_SAMPLED_BIT);
-    //   write_bit(&flags, bits, (u32)ImageType::Storage, VK_IMAGE_USAGE_STORAGE_BIT);
-
-    //   if (has_bit(bits, (u32)ImageUsage::RenderTarget)) {
-    //     if (is_color) {
-    //       flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    //     } else {
-    //       flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    //     }
-    //   }
-
-    //   return (VkImageUsageFlagBits)flags;
-    // }
-
-    // static VkBufferUsageFlagBits buffer_usage_vk_usage(BufferUsage usage_bits) {
-    //   u32 flags = {};
-    //   u32 bits = (u32)usage_bits;
-
-    //   auto write_bit = [&](u32* dst, u32 src, u32 flag_read, u32 flag_write) {
-    //     if (src & flag_read) {
-    //       (*dst) |= flag_write;
-    //     }
-    //   };
-    //   
-    //   write_bit(&flags, bits, (u32)BufferUsage::CpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::CpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::GpuSrc, VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::GpuDst, VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-    //   write_bit(&flags, bits, (u32)BufferUsage::Uniform, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::Storage, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::Index, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    //   write_bit(&flags, bits, (u32)BufferUsage::Vertex, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-
-    //   return (VkBufferUsageFlagBits)flags;
-    // }
-
-    // static VmaMemoryUsage buffer_usage_vma_usage(BufferUsage bits) {
-    //   // likely a cpu -> gpu copy OR cpu -> gpu usage
-    //   if (((bits & BufferUsage::CpuSrc) | (bits & BufferUsage::Uniform)) != (BufferUsage)0) {
-    //     return VMA_MEMORY_USAGE_CPU_TO_GPU;
-    //   }
-
-    //   // likely a gpu -> cpu copy
-    //   if ((bits & BufferUsage::CpuDst) != (BufferUsage)0) {
-    //     return VMA_MEMORY_USAGE_GPU_TO_CPU;
-    //   }
-
-    //   // likely a gpu -> gpu copy OR internal gpu usage
-    //   return VMA_MEMORY_USAGE_GPU_ONLY;
-    // }
-
-    // struct BlitInfo {
-    //   VkOffset3D bottom_left;
-    //   VkOffset3D top_right;
-    //   VkImageSubresourceLayers subresource;
-    // };
-
-    // BlitInfo image_resource_blit_info(ImageResource& res);
-  };
-};
-
-namespace quark::internal {
-  static bool image_format_is_color(ImageFormat format) {
-    return !(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD16 || format == ImageFormat::LinearD24S8);
-  }
-
-  static VkImageAspectFlags image_format_vk_aspect(ImageFormat format) {
-    if (image_format_is_color(format)) {
-      return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-    
-    return VK_IMAGE_ASPECT_DEPTH_BIT;
-  }
-};
-
-// TODO: Thread Safety
-// Mutex lock:
-//   - Actions (create, destroy, binding)
-//   - Systems (create, destroy, adding)
-//   - Scratch buffer allocator
-//   - add_asset
-// Unique per-thread:
-//   - Tempstr api
-// Should be threadsafe just warn:
-//
-// Resource<PtrToArr>
-// Resource<const PtrToArr>
-//
-//
-  // using TypeEffectMap = std::unordered_map<type_hash, std::string>;
-  // declare_resource(engine_var, TypeEffectMap);
-
-  // template <typename T>
-  // struct DrawBatchInfo {
-  //   Transform transform;
-  //   Model model;
-
-  //   bool draw_shadows;
-  //   bool is_transparent;
-
-  //   T instance_data;
-  // };
-
-  // struct DrawBatchInfo2 {
-  //   Transform transform;
-  //   Model model;
-  //   bool draw_shadows;
-  //   bool is_transparent;
-  // };
-
-  // vec3 get_mesh_scale(mesh_id id) {
-  //   return engine::render::internal::_gpu_mesh_scales[(u32)id];
-  // }
-
-  // DrawBatchInfo<ColorMaterialInstanceData> get_batch_info(Transform t, Model m, ColorMaterial material) {
-  //   return DrawBatchInfo<ColorMaterialInstanceData> {
-  //     .transform = t,
-  //     .model = m,
-  //     .draw_shadows = true,
-  //     .is_transparent = material.color.w != 1.0f,
-  //     .instance_data = ColorMaterialInstanceData {
-  //       .world_view_projection = engine::render::internal::_main_view_projection * transform_mat4(t.position, t.rotation, get_mesh_scale((mesh_id)m.id)),
-  //       .color = material.color,
-  //     },
-  //   };
-  // }
-
-  // struct ColorMaterial {
-  //   vec4 color;
-  // };
-
-  // struct ColorMaterialInstance {
-  //   mat4 world_view_projection;
-  //   vec4 color;
-  // };
-
-  // template <typename T>
-  // struct DrawBatch {
-  //   std::vector<DrawBatchInfo2> batch_instance_info;
-  //   std::vector<T> batch_instance_data;
-  //   u32 size;
-  //   u32 count;
-  // };
-
-  // std::unordered_map<type_hash, DrawBatch<u8>> batches;
-
-  // Sean: for now this doesn't really work so I'm not going to support it until i feel like fixing it
-  // template <typename T>
-  // struct ParIterCtx {
-  //   usize work_head;
-  //   usize work_tail;
-  //   atomic_usize working_count;
-  //   std::vector<T> work_data = {};
-  //   std::mutex work_m = std::mutex();
-  //   std::mutex driver_m = std::mutex();
-  //   std::condition_variable driver_c = std::condition_variable();
-  //   void (*func)(T*);
-  // };
-
-  // struct MyData {float a;};
-
-  // static void my_data_func(MyData* m) {
-  //   printf("%f\n", m->a);
-  // };
-
-  // #define untemplate_it(T, S) using T##_##S = T<S>
-
-  // using ParIterCtxTypeMap = std::unordered_map<type_hash, ParIterCtx<u8>>;
-  // declare_resource(engine_var, ParIterCtxTypeMap);
-
-  // template <typename T>
-  // void __par_iter_thread_work() {
-  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(get_type_hash<T>());
-
-  //   ctx->work_m.lock();
-  //   ctx->working_count.fetch_add(1);
-  //   while(ctx->work_head < ctx->work_tail) {
-  //     T* val = &ctx->work_data[ctx->work_head];
-  //     ctx->work_head += 1;
-  //     ctx->work_m.unlock();
-
-  //     ctx->func(val);
-
-  //     ctx->work_m.lock();
-  //   }
-  //   ctx->working_count.fetch_sub(1);
-  //   ctx->work_m.unlock();
-
-  //   ctx->driver_c.notify_all();
-  // }
-
-  // template <typename T>
-  // void add_par_iter_data(T t) {
-  //   ParIterCtxTypeMap* map = get_resource(Resource<ParIterCtxTypeMap> {});
-  //   type_hash th = get_type_hash<T>();
-
-  //   if(map->find(th) == map->end()) {
-  //     std::unordered_map<type_hash, ParIterCtx<T>>* map2 = (std::unordered_map<type_hash, ParIterCtx<T>>*)map;
-  //     map2->emplace(std::piecewise_construct, std::forward_as_tuple(th), std::forward_as_tuple());
-  //   }
-
-  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(th);
-
-  //   ctx->work_data.push_back(t);
-  //   ctx->work_tail += 1;
-  // }
-
-  // template <typename T>
-  // void join_par_iter(void (*f)(T* t)) {
-  //   ParIterCtx<T>* ctx = (ParIterCtx<T>*)&get_resource(Resource<ParIterCtxTypeMap> {})->at(get_type_hash<T>());
-  //   ctx->func = f;
-
-  //   for_every(i, min(get_threadpool_thread_count(), ctx->work_tail)) {
-  //     add_threadpool_work(__par_iter_thread_work<T>);
-  //   }
-
-  //   start_threadpool();
-
-  //   std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(ctx->driver_m, std::defer_lock);
-  //   lock.lock();
-  //   while(ctx->working_count > 0) {
-  //     ctx->driver_c.wait(lock);
-  //   }
-
-  //   ctx->work_head = 0;
-  //   ctx->work_tail = 0;
-
-  //   lock.unlock();
-  // }
-
-  // static void a2() {
-  //   add_par_iter_data(MyData { 1.0f });
-  //   add_par_iter_data(MyData { 2.0f });
-  //   add_par_iter_data(MyData { 3.0f });
-
-  //   join_par_iter(my_data_func);
-  // }
-
-  // template <typename... T>
-  // struct IterInfo {
-  //   using iterator_t = typeof(get_resource(Resource<Registry> {})->view<T...>().each().begin());
-  //   iterator_t _begin;
-  //   iterator_t _end;
-
-  //   iterator_t begin() { return _begin; }
-  //   iterator_t end() { return _end; }
-  // };
-  // 
-  // template <typename... T, typename... R>
-  // void par_iter_view(View<Include<T...>, R...> v, void (*f)(IterInfo<T...>* info), usize n) {
-  //   auto each = get_registry_each(v);
-  //   auto true_begin = each.begin();
-  //   auto true_end = each.end();
-  //   auto locl_begin = true_begin;
-  //   bool ex = false;
-  //   while(!ex) {
-  //     auto begin = locl_begin;
-  //     auto end = locl_begin;
-
-  //     for(usize i = 0; i < n; i += 1) {
-  //       end++;
-  //       if(end == true_end) {
-  //         ex = true;
-  //       }
-  //     }
-
-  //     locl_begin = end;
-
-  //     add_par_iter_data(IterInfo<T...> { begin, end });
-  //     //ParIter<IterInfo, apply_view<F>>::push(IterInfo{begin, end});
-  //   }
-
-  //   join_par_iter(f);
-  //   //ParIter<IterInfo, apply_view<F>>::join();
-  // }

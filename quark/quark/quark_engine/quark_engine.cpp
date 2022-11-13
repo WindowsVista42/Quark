@@ -21,7 +21,7 @@ namespace quark {
 
   define_component(ColorMaterial2);
 
-  const GraphicsContext* _context = get_graphics_context();
+  GraphicsContext* _context = get_graphics_context();
 
   Model create_model(const char* mesh_name, vec3 scale) {
     MeshId id = *get_asset<MeshId>(mesh_name);
@@ -736,7 +736,8 @@ namespace quark {
   }
 
   void load_obj_file(const char* path, const char* name) {
-    using namespace internal;
+    TempStack stack = begin_scratch(0, 0);
+    defer(end_scratch(stack));
 
     // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
@@ -761,7 +762,7 @@ namespace quark {
     for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
   
     usize memsize = size * sizeof(VertexPNT);
-    VertexPNT* data = (VertexPNT*)alloc(&_render_alloc, memsize);
+    VertexPNT* data = (VertexPNT*)push_arena(stack.arena, memsize);
     usize count = 0;
   
     vec3 max_ext = {0.0f, 0.0f, 0.0f};
@@ -855,14 +856,13 @@ namespace quark {
       data[i].position /= (ext * 0.5f);
     }
 
-    MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
-  
+    // MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
     // add mesh to _gpu_meshes
     MeshId id = {
       .pool_index = 0,
-      .index = (u16)meshes->counts[0],
+      .index = (u16)_context->mesh_counts,
     };
-    meshes->counts[0] += 1;
+    _context->mesh_counts += 1;
 
     struct MeshScale : vec3 {};
 
@@ -870,8 +870,8 @@ namespace quark {
     //add_asset(, name);
 
     //AllocatedMesh* mesh = &;//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
-    meshes->instances[id.pool_index][id.index] = create_mesh(data, size, sizeof(VertexPNT));
-    meshes->scales[id.pool_index][id.index] = normalize_max_length(ext, 2.0f);
+    _context->mesh_instances[id.index] = create_mesh(data, size, sizeof(VertexPNT));
+    _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
 
     add_asset(name, id);
   }
@@ -1044,40 +1044,56 @@ namespace quark {
     type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
   }
 
-  void draw_batches() {
-    auto* batches = get_resource(Resource<DrawBatchPool> {});
-    for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
-      DrawBatch<u8>* batch = &ty_batch->second;
-      u8* instance_data_ptr = (u8*)batch->instance_data.data();
+  void draw_material_batches() {
+    MaterialEffect* effect = &_context->material_effects[0];
+    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->pipeline);
 
-      begin(get_type_effect(ty_batch->first).c_str());
-      for_every(i, batch->count) {
-        DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
-        void* instance_data = instance_data_ptr;
-        MeshInstance mesh_instance = get_mesh_instance(instance_info->model.id);
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
 
-        using namespace internal;
+    ColorMaterialInstance instance_data = {};
+    instance_data.color = {0.0f, 1.0f, 1.0f, 1.0f};
+    instance_data.world_view_projection = _main_view_projection * transform_mat4({1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f});
 
-        vkCmdPushConstants(_main_cmd_buf[_frame_index],
-          internal::current_re.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], mesh_instance.count, 1, mesh_instance.offset, 0);
+    vkCmdPushConstants(_main_cmd_buf[_frame_index],
+      effect->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ColorMaterialInstance), &instance_data);
+    vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[0].count, 1, _context->mesh_instances[0].offset, 0);
 
-        instance_data_ptr += batch->instance_data_size;
-      }
-    }
+    // auto* batches = get_resource(Resource<DrawBatchPool> {});
+    // for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
+    //   DrawBatch<u8>* batch = &ty_batch->second;
+    //   u8* instance_data_ptr = (u8*)batch->instance_data.data();
+
+    //   MaterialEffect* effect = 0;
+    //   {
+    //   }
+
+    //   // begin(get_type_effect(ty_batch->first).c_str());
+    //   for_every(i, batch->count) {
+    //     DrawBatchInstanceInfo* instance_info = &batch->instance_info[i];
+    //     void* instance_data = instance_data_ptr;
+    //     MeshInstance mesh_instance = get_mesh_instance(instance_info->model.id);
+
+    //     vkCmdPushConstants(_main_cmd_buf[_frame_index],
+    //       effect->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, batch->instance_data_size, instance_data);
+    //     vkCmdDraw(_main_cmd_buf[_frame_index], mesh_instance.count, 1, mesh_instance.offset, 0);
+
+    //     instance_data_ptr += batch->instance_data_size;
+    //   }
+    // }
   }
 
-  void reset_draw_batches() {
-    auto* batches = get_resource(Resource<DrawBatchPool> {});
-    for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
-      DrawBatch<u8>* batch = &ty_batch->second;
-      batch->instance_info.clear();
-      batch->instance_data.clear();
-      batch->count = 0;
-    }
+  void reset_material_batches() {
+    // auto* batches = get_resource(Resource<DrawBatchPool> {});
+    // for(auto ty_batch = batches->begin(); ty_batch != batches->end(); ty_batch++) {
+    //   DrawBatch<u8>* batch = &ty_batch->second;
+    //   batch->instance_info.clear();
+    //   batch->instance_data.clear();
+    //   batch->count = 0;
+    // }
   }
 
   void end_effects() {
-    end_everything();
+    // end_everything();
   }
 };

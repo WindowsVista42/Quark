@@ -694,7 +694,7 @@ void assert2(bool v) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
-      u32 comps[] = {Transform2_COMPONENT_ID, Model2_COMPONENT_ID};
+      u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID };
       u32 excl[] = {};
       for_archetype(comps, 2, excl, 0, {
         component_ptr(Transform2, transform, 0);

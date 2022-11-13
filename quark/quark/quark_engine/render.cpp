@@ -30,7 +30,7 @@
   } while (0)
 
 namespace quark {
-  using namespace internal;
+  // using namespace internal;
 
   define_resource(MainCamera, {{
     .position = VEC3_ZERO,
@@ -43,12 +43,33 @@ namespace quark {
   define_resource(UICamera, {});
   define_resource(SunCamera, {});
   define_resource(MeshRegistry, {});
+  define_resource(TextureRegistry, {});
+  define_resource(WorldData, {});
+  define_resource(FrustumCullData, {});
 
   GraphicsContext _context = {};
 
-  const GraphicsContext* get_graphics_context() {
+  GraphicsContext* get_graphics_context() {
     return &_context;
   }
+
+    VkViewport get_viewport(ivec2 resolution) {
+      return VkViewport {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = (f32)_context.render_resolution.x,
+        .height = (f32)_context.render_resolution.y,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+      };
+    }
+
+    VkRect2D get_scissor(ivec2 resolution) {
+      return VkRect2D {
+        .offset = { 0, 0 },
+        .extent = { (u32)_context.render_resolution.x, (u32)_context.render_resolution.y },
+      };
+    }
 
     // NOTE: Calculate frustum culling data
     // NOTE: Dont get rid of this!!
@@ -88,86 +109,8 @@ namespace quark {
     // }
 
   void update_cameras() {
-    // MAIN_CAMERA.dir = forward(MAIN_CAMERA.spherical_dir);
-
-    // SUN_CAMERA.position = MAIN_CAMERA.position + vec3{20.0f, 20.0f, 300.0f};
-    // SUN_CAMERA.rotation = look_dir_quat(normalize(MAIN_CAMERA.position - SUN_CAMERA.position), VEC3_UNIT_Z);
-    // SUN_CAMERA.znear = 10.0f;
-    // SUN_CAMERA.zfar = 500.0f;
-    // SUN_CAMERA.fov = 16.0f;
-    // _sun_view_projection = update_matrices(SUN_CAMERA, 2048, 2048);
     _main_view_projection = get_camera3d_view_projection(get_resource(Resource<MainCamera> {}), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
   }
-  
-  // void update_world_data() {
-  //   void* ptr;
-  //   vmaMapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc, &ptr);
-  //   WorldData* world_data = (WorldData*)ptr;
-  // 
-  //   u32 count = 0;
-  //   for (auto [e, transform, light] : get_view_each(View<Include<const Transform, const PointLight>> {})) {
-  //     world_data->point_lights[count].position = transform.position;
-  //     world_data->point_lights[count].falloff = light.falloff;
-  //     world_data->point_lights[count].color = swizzle(light.color, 0, 1, 2);
-  //     world_data->point_lights[count].directionality = light.directionality;
-  //     count += 1;
-  //   }
-  //   world_data->point_light_count = count;
-  // 
-  //   count = 0;
-  //   for (auto [e, transform, light] : get_view_each(View<Include<const Transform, const DirectionalLight>> {})) {
-  //     world_data->directional_lights[count].position = transform.position;
-  //     world_data->directional_lights[count].falloff = light.falloff;
-  //     world_data->directional_lights[count].direction = forward(transform.rotation);
-  //     world_data->directional_lights[count].color = swizzle(light.color, 0, 1, 2);
-  //     world_data->directional_lights[count].directionality = light.directionality;
-  //     count += 1;
-  //   }
-  //   world_data->directional_light_count = count;
-  // 
-  //   // TODO: update world data
-  //   // TODO: update world data
-  //   // TODO: update world data
-  //   // TODO: update world data
-  //   // TODO: update world data
-  //   // world_data->main_camera.spherical_dir = as_vec2(MAIN_CAMERA.spherical_dir);
-  //   // world_data->main_camera.pos = MAIN_CAMERA.pos;
-  //   // world_data->main_camera.znear = MAIN_CAMERA.z_near;
-  //   // world_data->main_camera.dir = MAIN_CAMERA.dir;
-  //   // world_data->main_camera.zfar = MAIN_CAMERA.z_far;
-  //   // world_data->main_camera.fov = MAIN_CAMERA.fov;
-  // 
-  //   // world_data->sun_camera.spherical_dir = as_vec2(SUN_CAMERA.spherical_dir);
-  //   // world_data->sun_camera.pos = SUN_CAMERA.pos;
-  //   // world_data->sun_camera.znear = SUN_CAMERA.z_near;
-  //   // world_data->sun_camera.dir = SUN_CAMERA.dir;
-  //   // world_data->sun_camera.zfar = SUN_CAMERA.z_far;
-  //   // world_data->sun_camera.fov = SUN_CAMERA.fov;
-  // 
-  //   // {
-  //   //   //auto [transform, color, light] = ecs::get_first<Transform, Color, SunLight>();
-  //   //   //world_data->sun_light.direction = transform.rot.dir();
-  //   //   //world_data->sun_light.color = color.xyz;
-  //   //   //world_data->sun_light.directionality = light.directionality;
-  //   //   world_data->sun_light.direction = SUN_CAMERA.dir;
-  //   //   world_data->sun_light.directionality = 1.0f;
-  //   //   world_data->sun_light.color = vec3 { 0.8f, 0.8f, 0.8f };
-  //   // }
-  // 
-  //   world_data->TT = time();
-  //   world_data->DT = delta();
-  // 
-  //   world_data->sun_view_projection = _sun_view_projection;
-  //   world_data->main_view_projection = _main_view_projection;
-  // 
-  //   vmaUnmapMemory(_gpu_alloc, _world_data_buf[_frame_index].alloc);
-  // }
-
-  // template <typename T>
-  // void _draw(T t, VkPipelineLayout layout, u32 size, u32 offset) {
-  //   vkCmdPushConstants(_main_cmd_buf[_frame_index], layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(T), &t);
-  //   vkCmdDraw(_main_cmd_buf[_frame_index], size, 1, offset, 0);
-  // }
 
   void begin_frame() {
     // TODO Sean: dont block the thread
@@ -193,224 +136,9 @@ namespace quark {
     command_begin_info.pNext = 0;
   
     vk_check(vkBeginCommandBuffer(_main_cmd_buf[_frame_index], &command_begin_info));
-
-    quark::internal::current_re = {};
   }
-  // void begin_shadow_rendering() {
-  //   VkClearValue depth_clear;
-  //   depth_clear.depthStencil.depth = 1.0f;
-  // 
-  //   VkClearValue clear_values[1] = {depth_clear};
-  // 
-  //   VkRenderPassBeginInfo render_pass_begin_info = {};
-  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  //   render_pass_begin_info.renderPass = _depth_only_render_pass;
-  //   render_pass_begin_info.renderArea.offset.x = 0;
-  //   render_pass_begin_info.renderArea.offset.y = 0;
-  //   render_pass_begin_info.renderArea.extent.width = 2048;
-  //   render_pass_begin_info.renderArea.extent.height = 2048;
-  //   render_pass_begin_info.framebuffer = _sun_shadow_framebuffers[_swapchain_image_index];
-  //   render_pass_begin_info.clearValueCount = 1;
-  //   render_pass_begin_info.pClearValues = clear_values;
-  //   render_pass_begin_info.pNext = 0;
-  // 
-  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline);
-  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_only_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-  // 
-  // void draw_shadow(Transform transform, Model model) {
-  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
-
-  //   DefaultPushConstant dpc;
-  //   dpc.MODEL_POSITION = transform.position;
-  //   dpc.TEXTURE_INDEX = 2;
-  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-  // 
-  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  // }
-
-  // void draw_shadow_things() {
-  //   for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
-  //     // NOTE(sean): frustum culling temporarily removed because it is culling
-  //     // using the MAIN_CAMERA instead of the SUN_CAMERA
-  //     //if (box_in_frustum(transform.pos, scl)) {
-  //       draw_shadow(transform, model);
-  //     //}
-  //   }
-  // }
-
-  // void end_shadow_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-
-  // void begin_depth_prepass_rendering() {
-  //   // update_matrices(camera_projection, camera_view, camera_view_projection, cull_data, planes, camera, window_w,
-  //   // window_h);
-  // 
-  //   VkClearValue depth_clear;
-  //   depth_clear.depthStencil.depth = 1.0f;
-  // 
-  //   VkClearValue clear_values[1] = {depth_clear};
-  // 
-  //   VkRenderPassBeginInfo render_pass_begin_info = {};
-  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  //   render_pass_begin_info.renderPass = _depth_prepass_render_pass;
-  //   render_pass_begin_info.renderArea.offset.x = 0;
-  //   render_pass_begin_info.renderArea.offset.y = 0;
-  //   render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
-  //   render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
-  //   render_pass_begin_info.framebuffer = _depth_prepass_framebuffers[_swapchain_image_index];
-  //   render_pass_begin_info.clearValueCount = 1;
-  //   render_pass_begin_info.pClearValues = clear_values;
-  //   render_pass_begin_info.pNext = 0;
-  // 
-  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-
-  // void draw_depth(Transform transform, Model model) {
-  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
-
-  //   DefaultPushConstant dpc;
-  //   dpc.MODEL_POSITION = transform.position;
-  //   dpc.TEXTURE_INDEX = 2;
-  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-  // 
-  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  // }
-
-  // void draw_depth_prepass_things() {
-  //   for (auto [e, transform, model] : get_view_each(View<Include<const Transform, const Model>> {})) {
-  //     if (box_in_frustum(transform.position, model.half_extents)) {
-  //       draw_depth(transform, model);
-  //     }
-  //   }
-  // }
-
-  // void end_depth_prepass_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
-  // 
-  // void begin_forward_rendering() {
-  //   VkClearValue color_clear;
-  //   color_clear.color.float32[0] = 0.0f;
-  //   color_clear.color.float32[1] = 0.0f;
-  //   color_clear.color.float32[2] = 0.0f;
-  //   color_clear.color.float32[3] = 1.0f;
-  // 
-  //   VkClearValue depth_clear;
-  //   depth_clear.depthStencil.depth = 1.0f;
-  // 
-  //   VkClearValue clear_values[2] = {color_clear, depth_clear};
-  // 
-  //   VkRenderPassBeginInfo render_pass_begin_info = {};
-  //   render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  //   render_pass_begin_info.renderPass = _default_render_pass;
-  //   render_pass_begin_info.renderArea.offset.x = 0;
-  //   render_pass_begin_info.renderArea.offset.y = 0;
-  //   render_pass_begin_info.renderArea.extent.width = get_window_dimensions().x;
-  //   render_pass_begin_info.renderArea.extent.height = get_window_dimensions().y;
-  //   render_pass_begin_info.framebuffer = _global_framebuffers[_swapchain_image_index];
-  //   render_pass_begin_info.clearValueCount = 2;
-  //   render_pass_begin_info.pClearValues = clear_values;
-  //   render_pass_begin_info.pNext = 0;
-  // 
-  //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_prepass_pipeline);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-  // 
-  // void begin_lit_pass() {
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline);
-  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _lit_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-  // 
-  // void draw_lit(Transform transform, Model model, Texture texture) {
-  //   AllocatedMesh mesh = _gpu_meshes[(u32)model.id];
-
-  //   DefaultPushConstant dpc;
-  //   dpc.MODEL_POSITION = transform.position;
-  //   dpc.TEXTURE_INDEX = (u32)texture.id;
-  //   dpc.MODEL_ROTATION = as_vec4(transform.rotation);
-  //   dpc.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-
-  //   _draw(dpc, _lit_pipeline_layout, mesh.size, mesh.offset);
-  // }
-  // 
-  // void draw_lit_pass_things() {
-  //   for (auto [e, transform, model, material] :
-  //   get_view_each(View<Include<const Transform, const Model, const BasicMaterial>> {})) {
-  //   //registry::view<const Transform, const Model, const Texture, const Effect::LitTextureFill, Exclude<Effect::Transparent>>().each()) {
-  //     if (box_in_frustum(transform.position, model.half_extents)) {
-  //       draw_lit(transform, model, material.albedo);
-  //     }
-  //   }
-  // }
-  // 
-  // void end_lit_pass() {}
   
-  // void draw_color(Transform transform, Model model, Color color) {
-  //   AllocatedMesh mesh = _gpu_meshes[model.id];//asset::get<Mesh>("cube");//mesh_data::_meshes[model.id];
-
-  //   ColorPushConstant pcd;
-  //   pcd.MODEL_POSITION = as_vec4(transform.position, 1.0f);
-  //   pcd.MODEL_ROTATION = as_vec4(transform.rotation);
-  //   pcd.MODEL_SCALE = as_vec4(model.half_extents, 1.0f);
-  //   pcd.color = color;
-
-  //   _draw(pcd, _color_pipeline_layout, mesh.size, mesh.offset);
-  // }
-  
-  // void begin_solid_pass() {
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _solid_pipeline);
-  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-  // 
-  // void draw_solid_pass_things() {
-  //   for (auto [e, transform, model, color] :
-  //   get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorFill>, Exclude<Effect::Transparent>> {})) {
-  //     if (box_in_frustum(transform.position, model.half_extents)) {
-  //       draw_color(transform, model, color);
-  //     }
-  //   }
-  // }
-  // 
-  // void end_solid_pass() {}
-  // 
-  // void begin_wireframe_pass() {
-  //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _wireframe_pipeline);
-  //   vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, _color_pipeline_layout, 0, 1, &_global_constants_sets[_frame_index], 0, 0);
-  // 
-  //   VkDeviceSize offset = 0;
-  //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_gpu_vertices.buffer, &offset);
-  // }
-
-  // void draw_wireframe_pass_things() {
-  //   for (auto [e, transform, model, color] :
-  //   get_view_each(View<Include<const Transform, const Model, const Color, const Effect::SolidColorLines>, Exclude<Effect::Transparent>> {})) {
-  //     if (box_in_frustum(transform.position, model.half_extents)) {
-  //       draw_color(transform, model, color);
-  //     }
-  //   }
-  // }
-
-  // void end_wireframe_pass() {}
-  
-  void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
+  // void end_forward_rendering() { vkCmdEndRenderPass(_main_cmd_buf[_frame_index]); }
   
   void end_frame() {
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -453,24 +181,30 @@ namespace quark {
     _frame_count += 1;
     _frame_index = _frame_count % _FRAME_OVERLAP;
   }
+
+  void begin_drawing_materials() {
+    VkClearValue clear_values[2];
+    copy_array(&clear_values[0].color.float32, &_context.main_color_clear_value, f32, 4);
+    clear_values[1].depthStencil.depth = _context.main_depth_clear_value;
+
+    VkRenderPassBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin_info.renderPass = _context.main_render_pass;
+    begin_info.renderArea = get_scissor(_context.render_resolution);
+    begin_info.framebuffer = _context.main_framebuffers[_frame_index];
+    begin_info.clearValueCount = 2;
+    begin_info.pClearValues = clear_values;
+
+    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  }
+
+  void end_drawing_materials() {
+    vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+  }
   
-  namespace internal {
+  // namespace internal {
     // VARIABLES
     bool _framebuffer_resized = false;
-
-    // VkInstance _instance = {};
-    // VkDebugUtilsMessengerEXT _debug_messenger = {};
-    // VkPhysicalDevice _physical_device = {};
-    // VkDevice _device = {};
-    // VkSurfaceKHR _surface = {};
-    
-    // VkQueue _graphics_queue = {};
-    // VkQueue _transfer_queue = {};
-    // VkQueue _present_queue = {};
-    // 
-    // u32 _graphics_queue_family = {};
-    // u32 _transfer_queue_family = {};
-    // u32 _present_queue_family = {};
 
     VkCommandPool _transfer_cmd_pool = {};
     
@@ -479,68 +213,8 @@ namespace quark {
     VkSemaphore _present_semaphore[_FRAME_OVERLAP] = {};
     VkSemaphore _render_semaphore[_FRAME_OVERLAP] = {};
     VkFence _render_fence[_FRAME_OVERLAP] = {};
-    
-    // VkSampler _default_sampler = {};
-
-    // AllocatedBuffer _world_data_buf[_FRAME_OVERLAP] = {};
-
-    // usize _gpu_mesh_count = 0;
-    // MeshInstance _gpu_meshes[1024] = {};
-    // vec3 _gpu_mesh_scales[1024] = {};
 
     LinearAllocationTracker _gpu_vertices_tracker = create_linear_allocation_tracker(100 * MB);
-
-    // Image _gpu_images[1024] = {};
-    // ImageResource _gpu_images[1024] = {};
-
-    // DescriptorLayoutInfo _global_constants_layout_info[] = {
-    //   //{ 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, WORLD_DATA_BUF,                     0, DescriptorLayoutInfo::ONE_PER_FRAME, sizeof(WorldData)},
-    //   //{ 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,              0,      &SUN_DEPTH_IMAGE,           DescriptorLayoutInfo::ONE, 0},
-    //   { 1,         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         _world_data_buf, DescriptorLayoutInfo::ONE_PER_FRAME, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-    //   { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,       &_sun_depth_image,           DescriptorLayoutInfo::ONE, DescriptorLayoutInfo::WRITE_ON_RESIZE},
-    //   { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,             _gpu_images,         DescriptorLayoutInfo::ARRAY, DescriptorLayoutInfo::WRITE_ONCE},
-    // };
-
-    // void make_bind_groups() {
-    //   //(BindGroupEntry {
-    //   //  .resource_type   = ResourceType::Buffer,
-    //   //  .resource_count  = ResourceCount::OnePerFrame,
-    //   //  .resource_rebind = ResourceRebind::OnResize,
-    //   //  .resource        = "globals", // uses the MultiBufferResource named "globals"
-    //   //}).add_to_cache("globals"); // adds a BindGroupEntry named "globals"
-
-    //   //(BindGroupEntry {
-    //   //  .resource_type   = ResourceType::ImageWithSampler,
-    //   //  .resource_count  = ResourceCount::One,
-    //   //  .resource_rebind = ResourceRebind::OnResize,
-    //   //  .resource        = "sun_depth", // uses the ImageResource named "sun_depth"
-    //   //}).add_to_cache("sun_depth"); // adds a BindGroupEntry named "sun_depth"
-
-    //   //BindGroup::Info inf {
-    //   //  .resources = { "" },
-    //   //  .image_samplers =  { "" },
-    //   //};
-
-    //   //(BindGroupEntry {
-    //   //  .resource_type   = ResourceType::ImageWithSampler, // the resource is an image with a sampler
-    //   //  .resource_count  = ResourceCount::Array, // the resource is an array
-    //   //  .resource_rebind = ResourceRebind::Never, // does not rebind the resource
-    //   //  .resource        = "textures", // uses the ImageArrayResource named "textures"
-    //   //}).add_to_cache("textures"); // adds a BindGroupEntry named "textures"
-
-    //   //(BindGroupInfo {
-    //   //  .entries = { "globals", "sun_depth", "textures" }
-    //   //}).add_to_cache("default");
-    // }
-    
-    // TODO(sean): maybe load these in some kind of way from a file?
-    // VkDescriptorPoolSize _global_descriptor_pool_sizes[] = {
-    //     { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
-    //     { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 },
-    // };
-
-    // VkDescriptorPool _global_descriptor_pool = {};
-    // VkDescriptorSetLayout _global_constants_layout = {};
     
     VkDescriptorSet _global_constants_sets[_FRAME_OVERLAP] = {};
 
@@ -553,11 +227,11 @@ namespace quark {
     mat4 _main_view_projection = {};
     mat4 _sun_view_projection = {};
     
-    CullData _cull_data = {};
+    // CullData _cull_data = {};
     vec4 _cull_planes[6] = {};
     
-    LinearAllocator _render_alloc = {};
-    VmaAllocator _gpu_alloc = {};
+    // LinearAllocator _render_alloc = {};
+    // VmaAllocator _gpu_alloc = {};
     
     // FUNCTIONS
     
@@ -747,7 +421,7 @@ namespace quark {
       for_every(index, glfw_extension_count) { builder = builder.enable_extension(glfw_extensions[index]); }
     
       #ifdef DEBUG
-        builder = builder.request_validation_layers(false);
+        builder = builder.request_validation_layers(true);
       #else
         builder = builder.request_validation_layers(false);
       #endif
@@ -786,15 +460,15 @@ namespace quark {
       vma_alloc_info.physicalDevice = _context.physical_device;
       vma_alloc_info.device = _context.device;
       vma_alloc_info.instance = _context.instance;
-    
-      vmaCreateAllocator(&vma_alloc_info, &_gpu_alloc);
-    
+
+      vk_check(vmaCreateAllocator(&vma_alloc_info, &_context.gpu_alloc));
+
       _context.graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
       _context.present_queue = vkb_device.get_queue(vkb::QueueType::present).value();
-    
+
       _context.graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
       _context.present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
-    
+
       // We check if the selected DEVICE has a transfer queue, otherwise we set it as the graphics queue.
       auto transfer_queue_value = vkb_device.get_queue(vkb::QueueType::transfer);
       if (transfer_queue_value.has_value()) {
@@ -802,7 +476,7 @@ namespace quark {
       } else {
         _context.transfer_queue = _context.graphics_queue;
       }
-    
+
       auto transfer_queue_family_value = vkb_device.get_queue_index(vkb::QueueType::transfer);
       if (transfer_queue_family_value.has_value()) {
         _context.transfer_queue_family = transfer_queue_family_value.value();
@@ -810,26 +484,31 @@ namespace quark {
         _context.transfer_queue_family = _context.graphics_queue_family;
       }
 
-      _render_alloc = create_linear_allocator(100 * MB);
+      _context.arena = get_arena();
+      _context.mesh_instances = push_array_arena(_context.arena, MeshInstance, 1024);
+      _context.mesh_scales = push_array_arena(_context.arena, vec3, 1024);
+
+      // _render_alloc = create_linear_allocator(100 * MB);
       //_render_alloc.init(100 * MB);
     }
 
     void init_mesh_buffer() {
-      BufferInfo buffer_info = {
-        .type = BufferType::CpuToGpuStorage,
-        .size = 10 * MB,
+      BufferInfo staging_buffer_info = {
+        .type = BufferType::Staging,
+        .size = 16 * MB,
       };
+      create_buffers(&_context.staging_buffer, 1, &staging_buffer_info);
 
-      create_buffer(&buffer_info, "staging_buffer");
+      // create_buffer(&buffer_info, "staging_buffer");
 
-      MeshPoolInfo mesh_pool_info = {
-        .usage = MeshPoolType::Gpu,
-        .vertex_size = sizeof(VertexPNT),
-        .vertex_count = 100 * 100 * 10,
-      };
+      // MeshPoolInfo mesh_pool_info = {
+      //   .usage = MeshPoolType::Gpu,
+      //   .vertex_size = sizeof(VertexPNT),
+      //   .vertex_count = 100 * 100 * 10,
+      // };
 
-      MeshPool res = create_mesh_pool(&mesh_pool_info);
-      add_mesh_pool(res, "main_mesh_pool");
+      // MeshPool mesh_pool = create_mesh_pool(&mesh_pool_info);
+      // add_mesh_pool(res, "main_mesh_pool");
     }
     
     void copy_meshes_to_gpu() {
@@ -839,7 +518,15 @@ namespace quark {
       _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
       alloc(&_gpu_vertices_tracker, old_tracker.size);
 
-      copy_mesh_pool_vertices("main_mesh_pool", 0, "staging_buffer", 0, old_tracker.size * sizeof(VertexPNT));
+      u32 size = (u32)old_tracker.size * (u32)sizeof(VertexPNT);
+
+      BufferInfo vertex_info = {
+        .type = BufferType::Vertex,
+        .size = size,
+      };
+      create_buffers(&_context.vertex_buffer, 1, &vertex_info);
+
+      copy_buffer(&_context.vertex_buffer, 0, &_context.staging_buffer, 0, size);
     }
     
     void init_swapchain() {
@@ -860,86 +547,56 @@ namespace quark {
       _context.swapchain = vkb_swapchain.swapchain;
       _context.swapchain_format = swapchain_format;
       _context.swapchain_image_count = swapchain_images.size();
-      _context.swapchain_images = (VkImage*)alloc_copy(&_render_alloc, swapchain_images.data(), swapchain_images.size() * sizeof(VkImage));
-      _context.swapchain_image_views = (VkImageView*)alloc_copy(&_render_alloc, swapchain_image_views.data(), swapchain_image_views.size() * sizeof(VkImageView));
-    
 
-      // RenderImageInfo main_color_info = {
-      //   .type = RenderImageType::RenderTarget,
-      //   .format = ImageFormat::LinearRgba16,
-      //   .resolution = get_window_dimensions() / 4,
-      //   .samples = RenderImageSamples::One,
-      // };
+      _context.swapchain_images = push_array_arena(_context.arena, VkImage, swapchain_images.size());
+      copy_array(_context.swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
 
-      // RenderImage main_color = create_render_image(&main_color_info);
+      _context.swapchain_image_views = push_array_arena(_context.arena, VkImageView, swapchain_image_views.size());
+      copy_array(_context.swapchain_image_views, swapchain_image_views.data(), VkImageView, swapchain_image_views.size());
+    }
 
-      // RenderImageInfo main_depth_info = {
-      //   .type = RenderImageType::RenderTarget,
-      //   .format = ImageFormat::LinearRgba16,
-      //   .resolution = get_window_dimensions() / 4,
-      //   .samples = RenderImageSamples::One,
-      // };
+    VmaAllocationCreateInfo get_image_alloc_info() {
+      VmaAllocationCreateInfo alloc_info = {};
+      alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+      alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      
+      return alloc_info;
+    }
 
-      // RenderImage main_depth = create_render_image(&main_depth_info);
+    VkImageCreateInfo get_image_info(ImageInfo* info) {
+      VkImageCreateInfo image_info = {};
+      image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      image_info.pNext = 0;
+      image_info.imageType = VK_IMAGE_TYPE_2D;
+      image_info.format = info->format;
+      image_info.extent = VkExtent3D { .width = (u32)info->resolution.x, .height = (u32)info->resolution.y, .depth = 1 };
+      image_info.mipLevels = 1;
+      image_info.arrayLayers = 1;
+      image_info.samples = info->samples;
+      image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+      image_info.usage = info->usage;
+      image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-      // RenderImageInfo shadow_depth_info = {
-      //   .type = RenderImageType::RenderTarget,
-      //   .format = ImageFormat::LinearRgba16,
-      //   .resolution = {2048, 2048},
-      //   .samples = RenderImageSamples::One,
-      // };
+      return image_info;
+    }
 
-      // RenderImage shadow_depth = create_render_image(&shadow_depth_info);
+    VkImageViewCreateInfo get_image_view_info(ImageInfo* info, VkImage image) {
+      VkImageViewCreateInfo view_info = {};
+      view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      view_info.pNext = 0;
+      view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      view_info.image = image;
+      view_info.format = info->format;
+      view_info.subresourceRange.baseMipLevel = 0;
+      view_info.subresourceRange.levelCount = 1;
+      view_info.subresourceRange.baseArrayLayer = 0;
+      view_info.subresourceRange.layerCount = 1;
+      view_info.subresourceRange.aspectMask = info->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
 
-      // ImageResource::Info info;
-
-      // info = {
-      //   .format = ImageFormat::LinearRgba16,
-      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture | ImageUsage::Src,
-      //   .resolution = get_window_dimensions() / 2,
-      // };
-      // ImageResource::create_one_per_frame(info, "main_color");
-
-      // info = {
-      //   .format = ImageFormat::LinearD24S8,
-      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-      //   .resolution = get_window_dimensions() / 2,
-      // };
-      // ImageResource::create_one_per_frame(info, "main_depth");
-    
-      // info = {
-      //   .format = ImageFormat::LinearD24S8,
-      //   .usage = ImageUsage::RenderTarget | ImageUsage::Texture,
-      //   .resolution = {2048, 2048},
-      // };
-      // ImageResource::create_one_per_frame(info, "shadow_pass_depth");
-
-      // for_every(index, _context.swapchain_image_count) {
-      //   ImageResource::Info s_info = {
-      //     .format = ImageFormat::LinearBgra8,
-      //     .usage = ImageUsage::Present | ImageUsage::Dst,
-      //     .resolution = get_window_dimensions(),
-      //     .samples = ImageSamples::One,
-      //   };
-
-      //   ImageResource res = {
-      //     .allocation = 0,
-      //     .image = swapchain_images[index],
-      //     .view = swapchain_image_views[index],
-      //     .format = s_info.format,
-      //     .resolution = s_info.resolution,
-      //     .samples = s_info.samples,
-      //     .current_usage = ImageUsage::Unknown,
-      //   };
-
-      //   ImageResource::create_array_from_existing(s_info, res, "swapchain");
-      // }
+      return view_info;
     }
     
     void init_command_pools_and_buffers() {
-      // create_command_pool(graphics_cmd_pool, graphics_queue_family);
-      // create_command_pool(transfer_cmd_pool, transfer_queue_family);
-    
       {
         auto command_pool_info = get_cmd_pool_info(_context.graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     
@@ -954,92 +611,205 @@ namespace quark {
       {
         auto command_pool_info = get_cmd_pool_info(_context.transfer_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
         vk_check(vkCreateCommandPool(_context.device, &command_pool_info, 0, &_transfer_cmd_pool));
-    
-        // auto command_allocate_info = get_cmd_alloc_info(transfer_cmd_pool, 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        // vk_check(vkAllocateCommandBuffers(DEVICE, &command_allocate_info, &main_cmd_buf[i]));
       }
+    }
+
+    void create_images(Image* images, u32 n, ImageInfo* info) {
+      for_every(i, n) {
+        VkImageCreateInfo image_info = get_image_info(info);
+        VmaAllocationCreateInfo alloc_info = get_image_alloc_info();
+
+        vk_check(vmaCreateImage(_context.gpu_alloc, &image_info, &alloc_info, &images[i].image, &images[i].allocation, 0));
+
+        VkImageViewCreateInfo view_info = get_image_view_info(info, images[i].image);
+        vk_check(vkCreateImageView(_context.device, &view_info, 0, &images[i].view));
+
+        images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      }
+    }
+
+    struct RenderPassInfo {
+      u32 attachment_count;
+      ImageInfo* image_infos;
+      Image** images;
+      VkAttachmentLoadOp* load_ops;
+      VkAttachmentStoreOp* store_ops;
+      VkImageLayout* initial_layouts;
+      VkImageLayout* final_layouts;
+    };
+
+    void create_render_pass(VkRenderPass* render_pass, RenderPassInfo* info) {
+      VkAttachmentDescription attachment_descs[info->attachment_count];
+      zero_array(attachment_descs, VkAttachmentDescription, info->attachment_count);
+
+      u32 color_count = 0;
+      VkAttachmentReference color_attachment_refs[info->attachment_count - 1];
+      zero_array(color_attachment_refs, VkAttachmentReference, info->attachment_count - 1);
+
+      u32 depth_count = 0;
+      VkAttachmentReference depth_attachment_ref[1];
+      zero_array(depth_attachment_ref, VkAttachmentReference, 1);
+
+      for_every(i, info->attachment_count) {
+        // build attachment descs
+        attachment_descs[i].format = info->image_infos[i].format;
+        attachment_descs[i].samples = info->image_infos[i].samples;
+        attachment_descs[i].loadOp = info->load_ops[i];
+        attachment_descs[i].storeOp = info->store_ops[i];
+        attachment_descs[i].initialLayout = info->initial_layouts[i];
+        attachment_descs[i].finalLayout = info->final_layouts[i];
+
+        attachment_descs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment_descs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        // build attachment refs
+        if(info->image_infos[i].is_color) {
+          color_attachment_refs[color_count].attachment = i;
+          color_attachment_refs[color_count].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+          color_count += 1;
+        } else {
+          depth_count += 1;
+          if(depth_count > 1) {
+            panic("Cannot have more than one depth image per render pass!\n");
+          }
+
+          // always going to be 0 because we can have up-to 1 depth attachment
+          depth_attachment_ref[0].attachment = i;
+          depth_attachment_ref[0].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }
+      }
+
+      VkSubpassDescription subpass_desc = {};
+      subpass_desc.colorAttachmentCount = color_count;
+      subpass_desc.pColorAttachments = color_attachment_refs;
+
+      // if we have a depth image then attach it, otherwise dont do anything (its already zeroed)
+      if(depth_count > 0) {
+        subpass_desc.pDepthStencilAttachment = depth_attachment_ref;
+      }
+
+      VkRenderPassCreateInfo create_info = {};
+      create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+      create_info.attachmentCount = info->attachment_count;
+      create_info.pAttachments = attachment_descs;
+      create_info.subpassCount = 1;
+      create_info.pSubpasses = &subpass_desc;
+
+      vk_check(vkCreateRenderPass(_context.device, &create_info, 0, render_pass));
     }
     
     void init_render_passes() {
+      _context.render_resolution = get_window_dimensions();
+
+      _context.main_color_image_info = {
+        .resolution = _context.render_resolution,
+        .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .is_color = true,
+      };
+      create_images(_context.main_color_images, 2, &_context.main_color_image_info);
+
+      _context.main_depth_image_info = {
+        .resolution = _context.render_resolution,
+        .format = VK_FORMAT_D24_UNORM_S8_UINT,
+        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .is_color = false,
+      };
+      create_images(_context.main_depth_images, 2, &_context.main_depth_image_info);
+
+      _context.main_color_clear_value = vec4 { 1.0f, 0.0f, 0.0f, 1.0f };
+      _context.main_depth_clear_value = 1.0f;
+
+      ImageInfo image_infos[2] = {
+        _context.main_color_image_info,
+        _context.main_depth_image_info,
+      };
+
+      Image* images[2] = {
+        _context.main_color_images,
+        _context.main_depth_images,
+      };
+
+      VkAttachmentLoadOp load_ops[2] = {
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+      };
+
+      VkAttachmentStoreOp store_ops[2] = {
+        VK_ATTACHMENT_STORE_OP_STORE,
+        VK_ATTACHMENT_STORE_OP_STORE,
+      };
+
+      VkImageLayout initial_layouts[2] = {
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+      };
+
+      VkImageLayout final_layouts[2] = {
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      };
+
+      RenderPassInfo render_pass_info = {
+        .attachment_count = 2,
+        .image_infos = image_infos,
+        .images = images,
+        .load_ops = load_ops,
+        .store_ops = store_ops,
+        .initial_layouts = initial_layouts,
+        .final_layouts = final_layouts,
+      };
+
+      create_render_pass(&_context.main_render_pass, &render_pass_info);
+    }
+
+    struct FramebufferInfo {
+      ivec2 resolution;
+      u32 attachment_count;
+      Image** attachments;
+      VkRenderPass render_pass;
+    };
+
+    void create_framebuffers(VkFramebuffer* framebuffers, u32 n, FramebufferInfo* info) {
+      for_every(i, n) {
+        VkFramebufferCreateInfo framebuffer_info = {};
+        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebuffer_info.renderPass = info->render_pass;
+
+        framebuffer_info.width = info->resolution.x;
+        framebuffer_info.height = info->resolution.y;
+        framebuffer_info.layers = 1;
+
+        framebuffer_info.attachmentCount = info->attachment_count;
+
+        VkImageView attachments[info->attachment_count];
+        for_every(j, info->attachment_count) {
+          attachments[j] = info->attachments[j][i].view;
+        }
+
+        framebuffer_info.pAttachments = attachments;
+
+        vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &framebuffers[i]);
+      }
     }
     
     void init_framebuffers() {
-      // RenderTarget::Info info = {};
-      // RenderTargetInfo info = {};
+      Image* attachments[2] = {
+        _context.main_color_images,
+        _context.main_depth_images,
+      };
 
-      // info = RenderTargetInfo {
-      //   .depth_attachment_count = 1,
-      //   .depth_attachment = RenderTargetAttachment {
-      //     .image_id = (RenderImageId)hash_str_fast("main_depth"),
-      //     .load_op = LoadOp::Clear,
-      //     .store_op = StoreOp::Store,
-      //     .next_usage = RenderImageUsage::RenderTargetDepth,
-      //   },
+      FramebufferInfo info = {
+        .resolution = _context.render_resolution,
+        .attachment_count = 2,
+        .attachments = attachments,
+        .render_pass = _context.main_render_pass,
+      };
 
-      //   .color_attachment_count = 0,
-      //   .color_attachments = {},
-      // };
-      // RenderTarget shadow_target = create_render_target(&info);
-      // add_render_target(shadow_target, "shadow_render_target");
-
-      // RenderTargetInfo depth_prepass_target_info = {
-      //   .depth_attachment_count = 1,
-      //   .depth_attachment = RenderTargetAttachment {
-      //     .image_id = get_render_image_id("main_depth"),
-      //     .load_op = LoadOp::Clear,
-      //     .store_op = StoreOp::Store,
-      //     .next_usage = RenderImageUsage::RenderTargetDepth,
-      //   },
-
-      //   .color_attachment_count = 0,
-      //   .color_attachments = {},
-      // };
-      // RenderTarget depth_prepass_target = create_render_target(&depth_prepass_target_info);
-
-      // RenderTargetInfo forward_pass_target_info = {
-      //   .depth_attachment_count = 1,
-      //   .depth_attachment = RenderTargetAttachment {
-      //     .image_id = get_render_image_id("main_depth"),
-      //     .load_op = LoadOp::Load,
-      //     .store_op = StoreOp::Store,
-      //     .next_usage = RenderImageUsage::RenderTargetDepth,
-      //   },
-
-      //   .color_attachment_count = 1,
-      //   .color_attachments = {
-      //     RenderTargetAttachment {
-      //       .image_id = get_render_image_id("main_color"),
-      //       .load_op = LoadOp::Clear,
-      //       .store_op = StoreOp::Store,
-      //       .next_usage = RenderImageUsage::RenderTargetDepth,
-      //     },
-      //   },
-      // };
-      // RenderTarget forward_pass_target = create_render_target(&forward_pass_target_info);
-
-      // info = {
-      //   .image_resources = {"main_depth"},
-      //   .load_modes = {LoadMode::Clear},
-      //   .store_modes = {StoreMode::Store},
-      //   .next_usage_modes = {ImageUsage::RenderTarget},
-      // };
-      // RenderTarget::create(info, "main_depth_prepass");
-
-      // info = {
-      //   .image_resources =  {"main_color",         "main_depth"},
-      //   .load_modes =       {LoadMode::Clear,      LoadMode::Clear},
-      //   .store_modes =      {StoreMode::Store,     StoreMode::Store},
-      //   .next_usage_modes = {ImageUsage::Src,      ImageUsage::RenderTarget},
-      // };
-      // RenderTarget::create(info, "forward_pass");
-
-      // info = {
-      //   .image_resources = {"shadow_pass_depth"},
-      //   .load_modes = {LoadMode::Clear},
-      //   .store_modes = {StoreMode::Store},
-      //   .next_usage_modes = {ImageTYpe::Texture},
-      // };
-      // RenderTarget::create(info, "shadow_pass");
+      create_framebuffers(_context.main_framebuffers, _FRAME_OVERLAP, &info);
     }
     
     void init_sync_objects() {
@@ -1060,91 +830,178 @@ namespace quark {
       }
     }
 
-    //void ma() {
-    //  RenderEffect::create("color_fill");
-    //}
+    void create_material_effect(MaterialEffect* effect, MaterialEffectInfo* info) {
+      VkPushConstantRange push_constant_info = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = info->instance_data_size,
+      };
 
-    //void mb() {
-    //  RenderEffect::create("color_line");
-    //}
+      VkPipelineLayoutCreateInfo layout_info = {};
+      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      layout_info.setLayoutCount = 0;
+      layout_info.pSetLayouts = 0;
+      layout_info.pushConstantRangeCount = 1;
+      layout_info.pPushConstantRanges = &push_constant_info;
+
+      vk_check(vkCreatePipelineLayout(_context.device, &layout_info, 0, &effect->layout));
+
+      // Info: data of triangles
+      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
+      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+      vertex_input_info.vertexBindingDescriptionCount = 1;
+      vertex_input_info.pVertexBindingDescriptions = get_vertex_pnt_input_description()->bindings;
+      vertex_input_info.vertexAttributeDescriptionCount = 3;
+      vertex_input_info.pVertexAttributeDescriptions = get_vertex_pnt_input_description()->attributes;
+
+      // Info: layout of triangles
+      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
+      input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      input_assembly_info.primitiveRestartEnable = VK_FALSE;
+
+      // Info: what region of the image to render to
+      VkViewport viewport = get_viewport(_context.render_resolution);
+      VkRect2D scissor = get_scissor(_context.render_resolution);
+
+      VkPipelineViewportStateCreateInfo viewport_info = {};
+      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+      viewport_info.viewportCount = 1;
+      viewport_info.pViewports = &viewport;
+      viewport_info.scissorCount = 1;
+      viewport_info.pScissors = &scissor;
+
+      // Info: how the triangles get drawn
+      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
+      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+      rasterization_info.depthClampEnable = VK_FALSE;
+      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
+      rasterization_info.polygonMode = (VkPolygonMode)info->fill_mode;
+      rasterization_info.cullMode = (VkCullModeFlags)info->cull_mode;
+      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      rasterization_info.depthBiasEnable = VK_FALSE;
+      rasterization_info.lineWidth = 1.0f;
+
+      // Info: msaa support
+      VkPipelineMultisampleStateCreateInfo multisample_info = {};
+      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+      multisample_info.rasterizationSamples = _context.main_color_image_info.samples;
+      multisample_info.sampleShadingEnable = VK_FALSE;
+      multisample_info.alphaToCoverageEnable = VK_FALSE;
+      multisample_info.alphaToOneEnable = VK_FALSE;
+
+      // Info: how depth gets handled
+      VkPipelineDepthStencilStateCreateInfo depth_info = {};
+      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depth_info.depthTestEnable = VK_TRUE;
+      depth_info.depthWriteEnable = VK_TRUE;
+      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_info.depthBoundsTestEnable = VK_FALSE;
+      depth_info.stencilTestEnable = VK_FALSE;
+      depth_info.minDepthBounds = 0.0f;
+      depth_info.maxDepthBounds = 1.0f;
+
+      // Info: alpha blending info
+      VkPipelineColorBlendAttachmentState color_blend_state = {};
+      color_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      color_blend_state.blendEnable = VK_FALSE;
+
+      // Todo: suppport different blend modes
+      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
+      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+      color_blend_info.logicOpEnable = VK_FALSE;
+      color_blend_info.attachmentCount = 1;
+      color_blend_info.pAttachments = &color_blend_state;
+
+      // Info: vertex shader stage
+      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
+      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+      vertex_stage_info.module = info->vertex_shader.module;
+      vertex_stage_info.pName = "main";
+
+      // Info: fragment shader stage
+      VkPipelineShaderStageCreateInfo fragment_stage_info = {};
+      fragment_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      fragment_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+      fragment_stage_info.module = info->fragment_shader.module;
+      fragment_stage_info.pName = "main";
+
+      VkPipelineShaderStageCreateInfo shader_stages[2] = {
+        vertex_stage_info,
+        fragment_stage_info,
+      };
+
+      VkGraphicsPipelineCreateInfo pipeline_info = {};
+      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+      pipeline_info.stageCount = 2;
+      pipeline_info.pStages = shader_stages;
+      pipeline_info.pVertexInputState = &vertex_input_info;
+      pipeline_info.pInputAssemblyState = &input_assembly_info;
+      pipeline_info.pViewportState = &viewport_info;
+      pipeline_info.pRasterizationState = &rasterization_info;
+      pipeline_info.pMultisampleState = &multisample_info;
+      pipeline_info.pDepthStencilState = &depth_info;
+      pipeline_info.pColorBlendState = &color_blend_info;
+      pipeline_info.layout = effect->layout;
+      pipeline_info.renderPass = _context.main_render_pass;
+
+      vk_check(vkCreateGraphicsPipelines(_context.device, 0, 1, &pipeline_info, 0, &effect->pipeline));
+    }
    
     void init_pipelines() {
-      // PushConstant::Info color_pc_info = {};
-      // color_pc_info = {
-      //   .size = 80,
-      // };
-      // PushConstant::create(color_pc_info, "color");
+      MaterialEffectInfo color_material_effect_info = {
+        .instance_data_size = sizeof(ColorMaterialInstance),
+        .world_data_size = 0,
 
-      // ResourceBundle::Info color_rb_info = {};
-      // color_rb_info = {
-      //   .resource_groups = {},
-      //   .push_constant = "color",
-      // };
+        .vertex_shader = *get_asset<VertexShaderModule>("color"),
+        .fragment_shader = *get_asset<FragmentShaderModule>("color"),
 
-      // ResourceBundle::create(color_rb_info, "color");
+        .fill_mode = FillMode::Fill,
+        .cull_mode = CullMode::Back,
+        .blend_mode = BlendMode::Off,
+      };
 
-      // RenderMode::Info rm_info = {};
-
-    //  rm_info= {
-    //    .fill_mode = FillOp::Fill,
-    //    .cull_mode = CullMode::Back,
-    //    .alpha_blend_mode = AlphaBlendMode::Off,
-    //    .draw_width = 1.0f,
-    //  };
-    //  RenderMode::create(rm_info, "default_fill");
-
-    //  rm_info = {
-    //    .fill_mode = FillOp::Line,
-    //    .cull_mode = CullMode::None,
-    //    .alpha_blend_mode = AlphaBlendMode::Off,
-    //    .draw_width = 1.0f,
-    //  };
-      // RenderMode::create(rm_info, "default_line");
-
-      // RenderEffect::Info re_info = {};
-
-      // re_info = {
-      //   .render_target = "forward_pass", //
-      //   .resource_bundle = "color", //
-
-      //   .vertex_shader = "color", //
-      //   .fragment_shader = "color", //"empty", //
-
-      //   .render_mode = "default_fill",
-
-      //   .mesh_pool = "main_mesh_pool",
-      //   // .vertex_buffer_resource = "main_vertex_buffer", //
-      //   // .index_buffer_resource = "",
-      // };
-      // RenderEffect::Info::cache.add("color_fill", re_info);
-
-      // re_info.render_mode = "default_line";
-      // RenderEffect::Info::cache.add("color_line", re_info);
-
-      // auto t0 = std::chrono::high_resolution_clock::now();
-      // add_threadpool_work([]() {RenderEffect::create("color_fill");});
-      // add_threadpool_work([]() {RenderEffect::create("color_line");});
-      // join_threadpool();
-
-      // RenderEffect::create("color_fill");
-      // RenderEffect::create("color_line");
-
-      //threadpool::internal::_thread_pool.push();
-      //threadpool::internal::_thread_pool.push();
-      //threadpool::internal::_thread_pool.join();
-      // auto t1 = std::chrono::high_resolution_clock::now();
-
-      // std::cout << "Total Effect time: " << std::chrono::duration<double>(t1 - t0).count() << "\n";
+      printf("before created pipelines\n");
+      create_material_effect(&_context.material_effects[color_material_effect_id], &color_material_effect_info);
+      _context.material_effect_infos[color_material_effect_id] = color_material_effect_info;
+      printf("created pipelines\n");
     }
-    
-    void init_sampler() {
-      // SamplerResource::Info info = {};
 
-      // info = {
-      //   .filter_mode = FilterMode::Linear,
-      //   .wrap_mode = WrapMode::MirroredRepeat,
-      // };
-      // SamplerResource::create_one(info, "default_sampler");
+    struct SamplerInfo {
+      VkFilter filter_mode;
+      VkSamplerAddressMode wrap_mode;
+    };
+
+    void create_sampler(VkSampler* sampler, SamplerInfo* info) {
+      VkSamplerCreateInfo sampler_info = {};
+      sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+      sampler_info.magFilter = info->filter_mode;
+      sampler_info.minFilter = info->filter_mode;
+      sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+      sampler_info.addressModeU = info->wrap_mode;
+      sampler_info.addressModeV = info->wrap_mode;
+      sampler_info.addressModeW = info->wrap_mode;
+      sampler_info.mipLodBias = 0.0f;
+      sampler_info.anisotropyEnable = VK_FALSE;
+      sampler_info.maxAnisotropy = 1.0f;
+      sampler_info.compareEnable = VK_FALSE;
+      sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+      sampler_info.minLod = 0.0f;
+      sampler_info.maxLod = 0.0f;
+      sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+      sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+      vk_check(vkCreateSampler(_context.device, &sampler_info, 0, sampler));
+    }
+
+    void init_sampler() {
+      SamplerInfo texture_sampler_info = {
+        .filter_mode = VK_FILTER_LINEAR,
+        .wrap_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      };
+
+      create_sampler(&_context.texture_sampler, &texture_sampler_info);
     }
     
     // void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
@@ -1444,7 +1301,7 @@ namespace quark {
       mesh.offset = alloc(&_gpu_vertices_tracker, size);
 
       // BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
-      Buffer* gpu_verts = get_buffer("staging_buffer");
+      Buffer* gpu_verts = &_context.staging_buffer; //get_buffer("staging_buffer");
     
       // void* ptr = map_buffer("staging_buffer");
       // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
@@ -1452,7 +1309,8 @@ namespace quark {
 
       u32 dst_offset = elemsize * mesh.offset;
       u32 src_size = elemsize * mesh.count;
-      write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
+      write_buffer(&_context.staging_buffer, dst_offset, data, 0, src_size);
+      // write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
 
       // void* ptr;
       // vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
@@ -1806,9 +1664,9 @@ namespace quark {
     }
     
     void deinit_allocators() {
-      destroy_linear_allocator(&_render_alloc);
+      // destroy_linear_allocator(&_render_alloc);
       // vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
-      vmaDestroyAllocator(_gpu_alloc);
+      vmaDestroyAllocator(_context.gpu_alloc);
     }
     
     // void deinit_pipelines() {
@@ -1923,13 +1781,13 @@ namespace quark {
         high = 0.0;
       }
     }
-  };
+  // };
 };
 
 // effect
 
 namespace quark {
-  using namespace internal;
+  // using namespace internal;
 
   // #define vk_check(x)                                                                                                                                  \
   //   do {                                                                                                                                               \
@@ -1940,37 +1798,37 @@ namespace quark {
   //     }                                                                                                                                                \
   //   } while (0)
 
-  namespace internal {
-    VkImageLayout color_initial_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-    };
+  // namespace internal {
+  //   VkImageLayout color_initial_layout_lookup[3] = {
+  //     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_UNDEFINED,
+  //     VK_IMAGE_LAYOUT_UNDEFINED,
+  //   };
 
-    VkImageLayout color_final_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    };
+  //   VkImageLayout color_final_layout_lookup[3] = {
+  //     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+  //   };
 
-    VkImageLayout depth_initial_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-    };
+  //   VkImageLayout depth_initial_layout_lookup[3] = {
+  //     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_UNDEFINED,
+  //     VK_IMAGE_LAYOUT_UNDEFINED,
+  //   };
 
-    VkImageLayout depth_final_layout_lookup[3] = {
-      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    };
+  //   VkImageLayout depth_final_layout_lookup[3] = {
+  //     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+  //     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+  //   };
 
-    std::unordered_map<std::string, ResourceType> used_names = {};
+  //   std::unordered_map<std::string, ResourceType> used_names = {};
 
-    RenderEffect current_re = {};
-  };
+  //   RenderEffect current_re = {};
+  // };
 
-  using namespace internal;
+  // using namespace internal;
 
   // image cache
 //  ItemCache<ImageResource::Info> ImageResource::Info::cache_one = {};
@@ -1989,52 +1847,52 @@ namespace quark {
   // ItemCache<std::array<BufferResource, _FRAME_OVERLAP>> BufferResource::cache_one_per_frame = {};
 
   // sampler cache
-  ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
-  ItemCache<std::vector<SamplerResource::Info>> SamplerResource::Info::cache_array = {};
-  ItemCache<SamplerResource> SamplerResource::cache_one = {};
-  ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array = {};
+  // ItemCache<SamplerResource::Info> SamplerResource::Info::cache_one = {};
+  // ItemCache<std::vector<SamplerResource::Info>> SamplerResource::Info::cache_array = {};
+  // ItemCache<SamplerResource> SamplerResource::cache_one = {};
+  // ItemCache<std::vector<SamplerResource>> SamplerResource::cache_array = {};
 
   // render target cache
 //  ItemCache<RenderTarget::Info> RenderTarget::Info::cache = {};
 //  ItemCache<RenderTarget> RenderTarget::cache = {};
 
-  ItemCache<PushConstant::Info> PushConstant::Info::cache = {};
+  // ItemCache<PushConstant::Info> PushConstant::Info::cache = {};
 
-  ItemCache<ResourceBundle::Info> ResourceBundle::Info::cache = {};
-  ItemCache<ResourceBundle> ResourceBundle::cache = {};
+  // ItemCache<ResourceBundle::Info> ResourceBundle::Info::cache = {};
+  // ItemCache<ResourceBundle> ResourceBundle::cache = {};
 
-  ItemCache<RenderMode::Info> RenderMode::Info::cache = {};
+  // ItemCache<RenderMode::Info> RenderMode::Info::cache = {};
 
-  ItemCache<RenderEffect::Info> RenderEffect::Info::cache = {};
-  ItemCache<RenderEffect> RenderEffect::cache = {};
+  // ItemCache<RenderEffect::Info> RenderEffect::Info::cache = {};
+  // ItemCache<RenderEffect> RenderEffect::cache = {};
 
-  std::mutex RenderEffect::_mutex = {};
+  // std::mutex RenderEffect::_mutex = {};
 
-  void add_name_association(std::string name, internal::ResourceType resource_type) {
-    if (internal::used_names.find(name) != internal::used_names.end()) {
-      if (resource_type == internal::ResourceType::ImageResourceArray
-       || resource_type == internal::ResourceType::BufferResourceArray
-       || resource_type == internal::ResourceType::SamplerResourceArray) {
+  // void add_name_association(std::string name, internal::ResourceType resource_type) {
+  //   if (internal::used_names.find(name) != internal::used_names.end()) {
+  //     if (resource_type == internal::ResourceType::ImageResourceArray
+  //      || resource_type == internal::ResourceType::BufferResourceArray
+  //      || resource_type == internal::ResourceType::SamplerResourceArray) {
 
-        // no need to worry, its an array type of the same resource type
-        if (internal::used_names.at(name) == resource_type) {
-          // dont add identifier
-          return;
-        }
+  //       // no need to worry, its an array type of the same resource type
+  //       if (internal::used_names.at(name) == resource_type) {
+  //         // dont add identifier
+  //         return;
+  //       }
 
-        // we are trying to add an array resource thats a different type
-        panic((create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which is a different resource type!\n").data);
-      }
+  //       // we are trying to add an array resource thats a different type
+  //       panic((create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which is a different resource type!\n").data);
+  //     }
 
-      // identifier exists and was not valid for appending
-      panic((create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which already exists!\n").data);
-      return;
-    }
+  //     // identifier exists and was not valid for appending
+  //     panic((create_tempstr() + "Attempted to create resource: '" + name.c_str() + "' which already exists!\n").data);
+  //     return;
+  //   }
 
-    // add new identifier
-    internal::used_names.insert(std::make_pair(name, resource_type));
-    return;
-  }
+  //   // add new identifier
+  //   internal::used_names.insert(std::make_pair(name, resource_type));
+  //   return;
+  // }
 
 //  VkExtent3D ImageResource::Info::_ext() {
 //    VkExtent3D extent = {};
@@ -2125,196 +1983,156 @@ namespace quark {
 //    return res;
 //  }
 //
-  bool is_format_color(ImageFormat format) {
-    if(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8 || format == ImageFormat::LinearD16) {
-      return false;
-    }
 
-    return true;
-  }
-
-  VkImageUsageFlags image_type_to_vk_usage(ImageType type) {
-    if(type == ImageType::Storage) {
-      return VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    }
-    else if(type == ImageType::Texture) {
-      return VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    }
-    else {
-      return 0;
-    }
-  }
-
-  VmaAllocationCreateInfo get_image_alloc_info(ImageInfo* info) {
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    alloc_info.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    
-    return alloc_info;
-  }
-
-  VkImageCreateInfo get_image_create_info(ImageInfo* info, VkImageUsageFlags usage, VkSampleCountFlagBits samples) {
-    VkImageCreateInfo image_info = {};
-    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_info.pNext = 0;
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.format = (VkFormat)info->format;
-    image_info.extent = VkExtent3D { .width = (u32)info->resolution.x, .height = (u32)info->resolution.y, .depth = 1 };
-    image_info.mipLevels = 1;
-    image_info.arrayLayers = 1;
-    image_info.samples = samples;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.usage = usage;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    return image_info;
-  }
-
-  VkImageViewCreateInfo get_image_view_create_info(ImageInfo* info, VkImage image) {
-    VkImageViewCreateInfo view_info = {};
-    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_info.pNext = 0;
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.image = image;
-    view_info.format = (VkFormat)info->format;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-    view_info.subresourceRange.aspectMask = is_format_color(info->format) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
-
-    return view_info;
-  }
-
-  std::unordered_map<u32, Image> image_map;
-
-  void create_image(ImageInfo* info, const char* name) {
-    Image image = create_image_native(info);
-    image_map.insert(std::make_pair(hash_str_fast(name), image));
-  }
-
-  Image* get_image(const char* name) {
-    return &image_map.at(hash_str_fast(name));
-  }
-
-  Image create_image_native(ImageInfo* info) {
-    VmaAllocationCreateInfo alloc_info = get_image_alloc_info(info);
-    VkImageCreateInfo image_info = get_image_create_info(info, image_type_to_vk_usage(info->type), VK_SAMPLE_COUNT_1_BIT);
-    VkImageViewCreateInfo view_info = get_image_view_create_info(info);
-
-    Image image = {};
-
-    vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image.data.image, &image.data.allocation, 0));
-    vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.data.view));
-
-    image.type = info->type;
-    image.format = info->format;
-    image.resolution = info->resolution;
-
-    return image;
-  }
-
-  std::unordered_map<u32, ExclusiveImage> exclusive_image_map;
-
-  void create_exclusive_image(ExclusiveImageInfo* info, const char* name) {
-    ExclusiveImage image = create_exclusive_image_native(info);
-    exclusive_image_map.insert(std::make_pair(hash_str_fast(name), image));
-  }
-
-  ExclusiveImage* get_exclusive_image(const char* name) {
-    return &exclusive_image_map.at(hash_str_fast(name));
-  }
-
-  ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info) {
-    ExclusiveImage image = {};
-
-    for_every(i, internal::_FRAME_OVERLAP) {
-      ImageInfo info2 = {
-        .type = info->type,
-        .format = info->format,
-        .resolution= info->resolution
-      };
-
-      Image image2 = create_image_native(&info2);
-
-      image.data[i].allocation = image2.data.allocation;
-      image.data[i].image = image2.data.image;
-      image.data[i].view = image2.data.view;
-    }
-
-    image.type = info->type;
-    image.format = info->format;
-    image.resolution = info->resolution;
-
-    return image;
-  }
-
-  std::unordered_map<u32, RenderImage> render_image_map;
-
-  void create_render_image(RenderImageInfo* info, const char* name) {
-    RenderImage image = create_render_image_native(info);
-    render_image_map.insert(std::make_pair(hash_str_fast(name), image));
-  }
-
-  RenderImage* get_render_image(const char* name) {
-    return &render_image_map.at(hash_str_fast(name));
-  }
-
-  RenderImageId get_render_image_id(const char* name) {
-    return (RenderImageId)hash_str_fast(name);
-  }
-
-  RenderImage* get_render_image_by_id(RenderImageId id) {
-    return &render_image_map.at((u32)id);
-  }
-
-  RenderImage create_render_image_native(RenderImageInfo* info) {
-    ImageInfo info2 = ImageInfo {
-      .type = ImageType::Texture,
-      .format = info->format,
-      .resolution = info->resolution,
-    };
-
-    VmaAllocationCreateInfo alloc_info = get_image_alloc_info(&info2);
-    VkImageCreateInfo image_info = get_image_create_info(&info2, render_image_type_to_vk_usage(info->type, info->format), (VkSampleCountFlagBits)info->samples);
-    VkImageViewCreateInfo view_info = get_image_view_create_info(&info2);
-
-    RenderImage render_image = {};
-
-    for_every(i, internal::_FRAME_OVERLAP) {
-      VkImage image = {};
-      VkImageView view = {};
-      VmaAllocation alloc = {};
-
-      vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image, &alloc, 0));
-      vk_check(vkCreateImageView(_context.device, &view_info, 0, &view));
-
-      render_image.allocations[i] = alloc;
-      render_image.images[i] = image;
-      render_image.views[i] = view;
-    }
-
-    render_image.type = info->type;
-    render_image.format = info->format;
-    render_image.resolution = info->resolution;
-    render_image.samples = info->samples;
-
-    return render_image;
-  }
-
-  VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format) {
-    if(type == RenderImageType::RenderTarget) {
-      VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-      usage |= is_format_color(format) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-      return usage;
-    }
-    else if(type == RenderImageType::Present) {
-      return
-    }
-    else {
-      return 0;
-    }
-  }
+//   bool is_format_color(ImageFormat format) {
+//     if(format == ImageFormat::LinearD32 || format == ImageFormat::LinearD24S8 || format == ImageFormat::LinearD16) {
+//       return false;
+//     }
+// 
+//     return true;
+//   }
+// 
+//   VkImageUsageFlags image_type_to_vk_usage(ImageType type) {
+//     if(type == ImageType::Storage) {
+//       return VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//     }
+//     else if(type == ImageType::Texture) {
+//       return VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//     }
+//     else {
+//       return 0;
+//     }
+//   }
+// 
+//   std::unordered_map<u32, Image> image_map;
+// 
+//   void create_image(ImageInfo* info, const char* name) {
+//     Image image = create_image_native(info);
+//     image_map.insert(std::make_pair(hash_str_fast(name), image));
+//   }
+// 
+//   Image* get_image(const char* name) {
+//     return &image_map.at(hash_str_fast(name));
+//   }
+// 
+//   // Image create_image_native(ImageInfo* info) {
+//   //   VmaAllocationCreateInfo alloc_info = get_image_alloc_info(info);
+//   //   VkImageCreateInfo image_info = get_image_info(info, image_type_to_vk_usage(info->type), VK_SAMPLE_COUNT_1_BIT);
+//   //   VkImageViewCreateInfo view_info = get_image_view_create_info(info);
+// 
+//   //   Image image = {};
+// 
+//   //   vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image.data.image, &image.data.allocation, 0));
+//   //   vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.data.view));
+// 
+//   //   image.type = info->type;
+//   //   image.format = info->format;
+//   //   image.resolution = info->resolution;
+// 
+//   //   return image;
+//   // }
+// 
+//   std::unordered_map<u32, ExclusiveImage> exclusive_image_map;
+// 
+//   void create_exclusive_image(ExclusiveImageInfo* info, const char* name) {
+//   //   ExclusiveImage image = create_exclusive_image_native(info);
+//   //   exclusive_image_map.insert(std::make_pair(hash_str_fast(name), image));
+//   }
+// 
+//   ExclusiveImage* get_exclusive_image(const char* name) {
+//   //   return &exclusive_image_map.at(hash_str_fast(name));
+//   }
+// 
+//   ExclusiveImage create_exclusive_image_native(ExclusiveImageInfo* info) {
+//   //   ExclusiveImage image = {};
+// 
+//   //   for_every(i, internal::_FRAME_OVERLAP) {
+//   //     ImageInfo info2 = {
+//   //       .type = info->type,
+//   //       .format = info->format,
+//   //       .resolution= info->resolution
+//   //     };
+// 
+//   //     Image image2 = create_image_native(&info2);
+// 
+//   //     image.data[i].allocation = image2.data.allocation;
+//   //     image.data[i].image = image2.data.image;
+//   //     image.data[i].view = image2.data.view;
+//   //   }
+// 
+//   //   image.type = info->type;
+//   //   image.format = info->format;
+//   //   image.resolution = info->resolution;
+// 
+//   //   return image;
+//   }
+// 
+//   // std::unordered_map<u32, RenderImage> render_image_map;
+// 
+//   void create_render_image(RenderImageInfo* info, const char* name) {
+//   //   RenderImage image = create_render_image_native(info);
+//   //   render_image_map.insert(std::make_pair(hash_str_fast(name), image));
+//   }
+// 
+//   RenderImage* get_render_image(const char* name) {
+//   //   return &render_image_map.at(hash_str_fast(name));
+//   }
+// 
+//   // RenderImageId get_render_image_id(const char* name) {
+//   //   return (RenderImageId)hash_str_fast(name);
+//   // }
+// 
+//   // RenderImage* get_render_image_by_id(RenderImageId id) {
+//   //   return &render_image_map.at((u32)id);
+//   // }
+// 
+//   RenderImage create_render_image_native(RenderImageInfo* info) {
+//   //   ImageInfo info2 = ImageInfo {
+//   //     .type = ImageType::Texture,
+//   //     .format = info->format,
+//   //     .resolution = info->resolution,
+//   //    };
+// 
+//   //   VmaAllocationCreateInfo alloc_info = get_image_alloc_info(&info2);
+//   //   VkImageCreateInfo image_info = get_image_create_info(&info2, render_image_type_to_vk_usage(info->type, info->format), (VkSampleCountFlagBits)info->samples);
+//   //   VkImageViewCreateInfo view_info = get_image_view_create_info(&info2);
+// 
+//   //   RenderImage render_image = {};
+// 
+//   //   for_every(i, internal::_FRAME_OVERLAP) {
+//   //     VkImage image = {};
+//   //     VkImageView view = {};
+//   //     VmaAllocation alloc = {};
+// 
+//   //     vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image, &alloc, 0));
+//   //     vk_check(vkCreateImageView(_context.device, &view_info, 0, &view));
+// 
+//   //     render_image.allocations[i] = alloc;
+//   //     render_image.images[i] = image;
+//   //     render_image.views[i] = view;
+//   //   }
+// 
+//   //   render_image.type = info->type;
+//   //   render_image.format = info->format;
+//   //   render_image.resolution = info->resolution;
+//   //   render_image.samples = info->samples;
+// 
+//   //   return render_image;
+//   }
+// 
+//   VkImageUsageFlags render_image_type_to_vk_usage(RenderImageType type, ImageFormat format) {
+//   //   if(type == RenderImageType::RenderTarget) {
+//   //     VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//   //     usage |= is_format_color(format) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+//   //     return usage;
+//   //   }
+//   //   else if(type == RenderImageType::Present) {
+//   //     return
+//   //   }
+//   //   else {
+//   //     return 0;
+//   //   }
+//   }
 
 //  void ImageResource::create_one(ImageResource::Info& info, std::string name) {
 //    add_name_association(name, internal::ResourceType::ImageResourceOne);
@@ -2530,16 +2348,19 @@ namespace quark {
       // Uniform
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 
-      // GpuStorage 
+      // Storage
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-      // CpuToGpuStorage 
+      // Staging
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-      // GpuToCpuStorage 
-      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      // Vertex
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 
-      // DrawCommands
+      // Index
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+
+      // Commands
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
     };
 
@@ -2559,16 +2380,19 @@ namespace quark {
       // Uniform
       VMA_MEMORY_USAGE_CPU_TO_GPU,
 
-      // GpuStorage 
+      // Storage
       VMA_MEMORY_USAGE_GPU_ONLY,
 
-      // CpuToGpuStorage 
+      // Staging
       VMA_MEMORY_USAGE_CPU_TO_GPU,
 
-      // GpuToCpuStorage 
-      VMA_MEMORY_USAGE_GPU_TO_CPU,
+      // Vertex
+      VMA_MEMORY_USAGE_GPU_ONLY,
 
-      // DrawCommands
+      // Index
+      VMA_MEMORY_USAGE_GPU_ONLY,
+
+      // Commands
       VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
 
@@ -2576,79 +2400,38 @@ namespace quark {
     return info;
   }
 
-  std::unordered_map<u32, Buffer> buffer_map;
+  void create_buffers(Buffer* buffers, u32 n, BufferInfo* info) {
+    for_every(i, n) {
+      VkBufferCreateInfo buffer_info = get_buffer_create_info(info->type, info->size);
+      VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
 
-  void create_buffer(BufferInfo* info, const char* name) {
-    Buffer buffer = create_buffer_native(info);
-    buffer_map.insert(std::make_pair(hash_str_fast(name), buffer));
+      Buffer buffer = {};
+      vk_check(vmaCreateBuffer(_context.gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
+
+      buffer.type = info->type;
+      buffer.size = info->size;
+
+      buffers[i] = buffer;
+    }
   }
 
-  Buffer* get_buffer(const char* name) {
-    return &buffer_map.at(hash_str_fast(name));
-  }
-
-  void* map_buffer(const char* name) {
-    const Buffer* buffer = get_buffer(name);
-    return map_buffer_native(buffer->allocation);
-  }
-
-  void unmap_buffer(const char* name) {
-    const Buffer* buffer = get_buffer(name);
-
-    vmaUnmapMemory(_gpu_alloc, buffer->allocation);
-  }
-
-  void write_buffer(const char* dst, void* src, u32 size) {
-    write_buffer_adv(dst, 0, src, 0, size);
-  }
-
-  void copy_buffer(const char* dst, const char* src, u32 size) {
-    copy_buffer_adv(dst, 0, src, 0, size);
-  }
-
-  void write_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
-    const Buffer* dst_buf = get_buffer(buffer_dst);
-
-    write_buffer_native(dst_buf->allocation, dst_offset_bytes, src, src_offset_bytes, size);
-  }
-
-  void copy_buffer_adv(const char* buffer_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size) {
-    const Buffer* dst_buf = get_buffer(buffer_dst);
-    const Buffer* src_buf = get_buffer(buffer_src);
-
-    copy_buffer_native(dst_buf->buffer, dst_offset_bytes, src_buf->buffer, src_offset_bytes, size);
-  }
-
-  Buffer create_buffer_native(BufferInfo* info) {
-    VkBufferCreateInfo buffer_info = get_buffer_create_info(info->type, info->size);
-    VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
-
-    Buffer buffer = {};
-    vk_check(vmaCreateBuffer(_gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
-
-    buffer.type = info->type;
-    buffer.size = info->size;
-
-    return buffer;
-  }
-
-  void* map_buffer_native(VmaAllocation allocation) {
+  void* map_buffer(Buffer* buffer) {
     void* ptr;
-    vmaMapMemory(_gpu_alloc, allocation, &ptr);
+    vmaMapMemory(_context.gpu_alloc, buffer->allocation, &ptr);
     return ptr;
   }
 
-  void unmap_buffer_native(VmaAllocation allocation) {
-    vmaUnmapMemory(_gpu_alloc, allocation);
+  void unmap_buffer(Buffer* buffer) {
+    vmaUnmapMemory(_context.gpu_alloc, buffer->allocation);
   }
 
-  void write_buffer_native(VmaAllocation dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
-    void* ptr = map_buffer_native(dst);
+  void write_buffer(Buffer* dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
+    void* ptr = map_buffer(dst);
     memcpy((u8*)ptr + dst_offset_bytes, (u8*)src + src_offset_bytes, size);
-    unmap_buffer_native(dst);
+    unmap_buffer(dst);
   }
 
-  void copy_buffer_native(VkBuffer dst, u32 dst_offset_bytes, VkBuffer src, u32 src_offset_bytes, u32 size) {
+  void copy_buffer(Buffer* dst, u32 dst_offset_bytes, Buffer* src, u32 src_offset_bytes, u32 size) {
     VkCommandBuffer commands = begin_quick_commands();
 
     VkBufferCopy copy_region = {};
@@ -2656,7 +2439,7 @@ namespace quark {
     copy_region.dstOffset = dst_offset_bytes;
     copy_region.size = size;
 
-    vkCmdCopyBuffer(commands, src, dst, 1, &copy_region);
+    vkCmdCopyBuffer(commands, src->buffer, dst->buffer, 1, &copy_region);
 
     end_quick_commands(commands);
   }
@@ -2716,69 +2499,59 @@ namespace quark {
   //   }
   // }
 
-  MeshPool create_mesh_pool(MeshPoolInfo* info) {
-    u32 vertex_size = info->vertex_count * info->vertex_size;
-    u32 index_size = info->vertex_count * sizeof(u32);
+  // void create_mesh_pool(MeshPool* pool, Arena* arena, MeshPoolInfo* info) {
+  //   u32 vertex_size = info->vertex_count * info->vertex_size;
+  //   u32 index_size = info->vertex_count * sizeof(u32);
 
-    VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if(info->usage == MeshPoolType::Gpu) {
-      memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    } else if(info->usage == MeshPoolType::CpuToGpu) {
-      memory_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    } else {
-      panic((create_tempstr() + "Failed to create mesh pool resource: " + "Mesh resource type was not valid!").data);
-    }
+  //   VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  //   if(info->usage == MeshPoolType::Gpu) {
+  //     memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  //   } else if(info->usage == MeshPoolType::CpuToGpu) {
+  //     memory_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+  //   } else {
+  //     panic((create_tempstr() + "Failed to create mesh pool resource: " + "Mesh resource type was not valid!").data);
+  //   }
 
-    VkBufferCreateInfo vertex_info = {};
-    vertex_info.size = vertex_size;
-    vertex_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  //   VkBufferCreateInfo vertex_info = {};
+  //   vertex_info.size = vertex_size;
+  //   vertex_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-    VmaAllocationCreateInfo vertex_alloc_info = {};
-    vertex_alloc_info.usage = memory_usage;
+  //   VmaAllocationCreateInfo vertex_alloc_info = {};
+  //   vertex_alloc_info.usage = memory_usage;
 
-    // VkBufferCreateInfo index_info = {};
-    // index_info.size = index_size;
-    // index_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+  //   // VkBufferCreateInfo index_info = {};
+  //   // index_info.size = index_size;
+  //   // index_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-    // VmaAllocationCreateInfo index_alloc_info = {};
-    // index_alloc_info.usage = memory_usage;
+  //   // VmaAllocationCreateInfo index_alloc_info = {};
+  //   // index_alloc_info.usage = memory_usage;
 
-    MeshPool resource = {};
-    vk_check(vmaCreateBuffer(_gpu_alloc, &vertex_info, &vertex_alloc_info, &resource.vertex_buffer, &resource.vertex_allocation, 0));
-    // vk_check(vmaCreateBuffer(_gpu_alloc, &index_info, &index_alloc_info, &resource.index_buffer, &resource.index_allocation, 0));
+  //   MeshPool resource = {};
+  //   vk_check(vmaCreateBuffer(_gpu_alloc, &vertex_info, &vertex_alloc_info, &resource.vertex_buffer.buffer, &resource.vertex_buffer.allocation, 0));
+  //   // vk_check(vmaCreateBuffer(_gpu_alloc, &index_info, &index_alloc_info, &resource.index_buffer, &resource.index_allocation, 0));
 
-    resource.index_allocation = 0;
-    resource.index_buffer = 0;
-    resource.pool_index = get_resource(Resource<MeshRegistry> {})->pool_count;
-    get_resource(Resource<MeshRegistry> {})->pool_count += 1;
+  //   resource.index_buffer = {0, 0};
 
-    return resource;
-  }
+  //   resource.instances = push_array_arena(arena, MeshInstance, 1024);
+  //   resource.scales = push_array_arena(arena, vec3, 1024);
+  //   // get_resource(Resource<MeshRegistry> {})->pool_count += 1;
 
-  std::unordered_map<std::string, MeshPool> mesh_pools;
+  //   return resource;
+  // }
 
-  void add_mesh_pool(MeshPool resource, const char* name) {
-    mesh_pools.insert(std::make_pair(std::string(name), resource));
-    mesh_pools.insert(std::make_pair(std::string(name), resource));
-  }
+  // void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
+  //   const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
+  //   // const Buffer* buffer = get_buffer(buffer_src);
 
-  MeshPool* get_mesh_pool(const char* name) {
-    return &mesh_pools.at(std::string(name));
-  }
+  //   copy_buffer(pool->vertex_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
+  // }
 
-  void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
-    const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
-    const Buffer* buffer = get_buffer(buffer_src);
+  // void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
+  //   const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
+  //   const Buffer* buffer = get_buffer(buffer_src);
 
-    copy_buffer_native(pool->vertex_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
-  }
-
-  void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
-    const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
-    const Buffer* buffer = get_buffer(buffer_src);
-
-    copy_buffer_native(pool->index_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
-  }
+  //   copy_buffer(pool->index_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
+  // }
 
 //  VkSamplerCreateInfo SamplerResource::Info::_sampler_info() {
 //    VkSamplerCreateInfo info = {};
@@ -2844,17 +2617,17 @@ namespace quark {
   //  return s + "(x: " + i.x + ", y: " + i.y + ")";
   //}
 
-  tempstr operator +(tempstr s, RenderImageSamples i) {
-    switch(i) {
-      case(RenderImageSamples::One): { return s + "ImageSamples::One"; };
-      case(RenderImageSamples::Two): { return s + "ImageSamples::Two"; };
-      case(RenderImageSamples::Four): { return s + "ImageSamples::Four"; };
-      case(RenderImageSamples::Eight): { return s + "ImageSamples::Eight"; };
-      case(RenderImageSamples::Sixteen): { return s + "ImageSamples::Sixteen"; };
-    }
-
-    return s;
-  }
+//   tempstr operator +(tempstr s, RenderImageSamples i) {
+//     switch(i) {
+//       case(RenderImageSamples::One): { return s + "ImageSamples::One"; };
+//       case(RenderImageSamples::Two): { return s + "ImageSamples::Two"; };
+//       case(RenderImageSamples::Four): { return s + "ImageSamples::Four"; };
+//       case(RenderImageSamples::Eight): { return s + "ImageSamples::Eight"; };
+//       case(RenderImageSamples::Sixteen): { return s + "ImageSamples::Sixteen"; };
+//     }
+// 
+//     return s;
+//   }
 
 //  void RenderTarget::Info::_validate() {
 //    // validate counts
@@ -3432,6 +3205,33 @@ namespace quark {
 //
 //  static std::unordered_set<std::string> initialized_images = {};
 //  static bool started_render_pass = false;
+
+  void begin_rendering() {
+    // // color
+    // for_every (index, re.image_resources.size() - 1) {
+    //   VkClearValue clear_value = {};
+    //   clear_value.color = {0.0f, 0.0f, 0.0f, 1.0f};
+    //   clear_values.push_back(clear_value);
+    // }
+
+    // // depth
+    // {
+    //   VkClearValue clear_value = {};
+    //   clear_value.depthStencil.depth = 1.0f;
+    //   clear_values.push_back(clear_value);
+    // }
+
+    // VkRenderPassBeginInfo begin_info = {};
+    // begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    // begin_info.renderPass = re.render_pass;
+    // begin_info.renderArea.offset.x = 0;
+    // begin_info.renderArea.offset.y = 0;
+    // begin_info.renderArea.extent.width = re.resolution.x;
+    // begin_info.renderArea.extent.height = re.resolution.y;
+    // begin_info.framebuffer = re.framebuffers[_frame_index];
+    // begin_info.clearValueCount = clear_values.size();
+    // begin_info.pClearValues = clear_values.data();
+  }
 
   void begin(std::string name) {
     // RenderEffect& re = RenderEffect::cache.get(name);

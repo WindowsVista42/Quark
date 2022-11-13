@@ -324,7 +324,7 @@ namespace quark {
 // Enum Helpers
 //
   
-#define declare_enum(name, int_type, members...) \
+  #define declare_enum(name, int_type, members...) \
   enum struct name : int_type { members }; \
   inline name operator |(name a, name b) { return (name)((int_type)a | (int_type)b); } \
   inline name operator &(name a, name b) { return (name)((int_type)a & (int_type)b); } \
@@ -337,6 +337,34 @@ namespace quark {
   // Get the number of elements in an array
   template<typename T, size_t size>
   constexpr size_t count_of(T(&)[size]) { return size; };
+
+//
+// Defer
+//
+
+  // https://www.gingerbill.org/article/2015/08/19/defer-in-cpp/
+  template <typename F>
+  struct privDefer {
+  	F f;
+  	privDefer(F f) : f(f) {}
+  	~privDefer() { f(); }
+  };
+  
+  template <typename F>
+  privDefer<F> defer_func(F f) {
+  	return privDefer<F>(f);
+  }
+
+  #define DEFER_1(x, y) x##y
+  #define DEFER_2(x, y) DEFER_1(x, y)
+  #define DEFER_3(x)    DEFER_2(x, __COUNTER__)
+  #define defer(code)   auto DEFER_3(_defer_) = defer_func([&](){code;})
+
+//
+// Dump Struct
+//
+
+  #define dump_struct(s) __builtin_dump_struct(&s, &printf)
   
 //
 // Linear Algebra Type Definitions
