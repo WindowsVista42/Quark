@@ -40,9 +40,10 @@ namespace quark {
     add_asset_file_loader(".obj", load_obj_file);
     add_asset_file_loader(".png", load_png_file);
 
-    load_asset_folder("quark/shaders");
-    load_asset_folder("quark/models");
-    load_asset_folder("quark/textures");
+    load_asset_folder(".");
+    // load_asset_folder("quark/shaders");
+    // load_asset_folder("quark/models");
+    // load_asset_folder("quark/textures");
   }
 
   Timestamp frame_begin_time;

@@ -734,10 +734,7 @@ void assert2(bool v) {
         .position = { 0.0f, 5.0f, 0.0f },
         .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
       },
-      .model = {
-        .half_extents = { 1.0f, 1.0f, 1.0f },
-        .id = { 0 },
-      },
+      .model = create_model("suzanne", {1.0f, 1.0f, 1.0f}),
     };
     ColorMaterial2 color_material = {
       .color = { 0.0f, 1.0f, sinf(T) / 2.0f + 0.5f, 1.0f },
