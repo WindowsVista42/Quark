@@ -4,11 +4,11 @@ import glob
 import shutil
 import threading
 
-OUTPUT_PATH = "assets/shaders/"
+OUTPUT_PATH = "quark/shaders/"
 
 SHADER_DIRS = [
     "",
-    "quark/engine/shaders/",
+    "quark/quark/quark_engine/shaders/",
 ]
 
 FLAGS = [

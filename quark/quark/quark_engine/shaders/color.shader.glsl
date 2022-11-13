@@ -63,6 +63,6 @@ vec4 aces(vec4 in_color) {
 
 void main() {
   //COLOR = vec4(pow(aces(CUSTOM_PUSH.color.xyz), vec3(2.2)), 1.0f);
-  COLOR = aces(vec4(sin(CUSTOM_PUSH.color.x/gl_FragCoord.z)) * CUSTOM_PUSH.color);
+  COLOR = aces(CUSTOM_PUSH.color); // vec4(sin(CUSTOM_PUSH.color.x/gl_FragCoord.z)) * CUSTOM_PUSH.color);
   //COLOR = vec4(CUSTOM_PUSH.color.xyz, 1.0f);
 }

@@ -1053,7 +1053,7 @@ namespace quark {
 
     ColorMaterialInstance instance_data = {};
     instance_data.color = {0.0f, 1.0f, 1.0f, 1.0f};
-    instance_data.world_view_projection = _main_view_projection * transform_mat4({1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f});
+    instance_data.world_view_projection = _main_view_projection * transform_mat4({0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f});
 
     vkCmdPushConstants(_main_cmd_buf[_frame_index],
       effect->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ColorMaterialInstance), &instance_data);

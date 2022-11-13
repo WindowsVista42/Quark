@@ -694,38 +694,38 @@ void assert2(bool v) {
     //auto& input = input_res.get();
   
     if(!get_action("pause").down) {
-      u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID };
-      u32 excl[] = {};
-      for_archetype(comps, 2, excl, 0, {
-        component_ptr(Transform2, transform, 0);
-        component_ptr(Model2, model, 1);
-        component_ptr(ColorMaterial2, material, 2);
+      // u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID };
+      // u32 excl[] = {};
+      // for_archetype(comps, 2, excl, 0, {
+      //   component_ptr(Transform2, transform, 0);
+      //   component_ptr(Model2, model, 1);
+      //   component_ptr(ColorMaterial2, material, 2);
 
-        transform->position.z = sinf(T + transform->position.y);
+      //   transform->position.z = sinf(T + transform->position.y);
 
-        material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-        material->color.y = 0.0f;
-        material->color.z = 0.0f;
-      })
+      //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+      //   material->color.y = 0.0f;
+      //   material->color.z = 0.0f;
+      // })
 
-      for_archetype_t(u32 exclude[0] = {}; static void update(u32 e, Transform2* transform, Model2* model, ColorMaterial* material) {
-        transform->position.z = sinf(T + transform->position.y);
+      // for_archetype_t(u32 exclude[0] = {}; static void update(u32 e, Transform2* transform, Model2* model, ColorMaterial* material) {
+      //   transform->position.z = sinf(T + transform->position.y);
 
-        material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-        material->color.y = 0.0f;
-        material->color.z = 0.0f;
-      })
+      //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+      //   material->color.y = 0.0f;
+      //   material->color.z = 0.0f;
+      // })
 
-      for(auto [e, transform, model, material] : get_view_each(View<Include<Transform, Model, ColorMaterial>, Exclude<>> {})) {
-      }
+      // for(auto [e, transform, model, material] : get_view_each(View<Include<Transform, Model, ColorMaterial>, Exclude<>> {})) {
+      // }
 
-      for(auto [e, transform, material] : get_view_each(view)) {
-        transform.position.z = sinf(T + transform.position.y);
+      // for(auto [e, transform, material] : get_view_each(view)) {
+      //   transform.position.z = sinf(T + transform.position.y);
 
-        material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-        material.color.y = 0.0f;
-        material.color.z = 0.0f;
-      }
+      //   material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+      //   material.color.y = 0.0f;
+      //   material.color.z = 0.0f;
+      // }
       T += delta();
     }
 

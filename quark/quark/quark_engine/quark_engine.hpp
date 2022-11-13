@@ -986,11 +986,14 @@ namespace quark {
     u32 image_count;
     ivec2 render_resolution;
 
-    ImageInfo main_color_image_info;
-    Image main_color_images[_FRAME_OVERLAP];
+    ImageInfo material_color_image_info;
+    Image material_color_images[_FRAME_OVERLAP];
 
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
+
+    // ImageInfo post_process_color_image_info;
+    // Image post_process_color_images[_FRAME_OVERLAP];
 
     vec4 main_color_clear_value;
     f32 main_depth_clear_value;
@@ -1015,21 +1018,17 @@ namespace quark {
 
   engine_api GraphicsContext* get_graphics_context();
 
-  struct MeshRegistry {
-    u32 pool_count = 0;
-    u32 counts[8] = {};
-    MeshInstance instances[8][1024] = {}; // hot data
-    vec3 scales[8][1024] = {}; // cold data
-  };
-  declare_resource(engine_var, MeshRegistry);
-
-  struct TextureRegistry {
-    u32 texture_count = 0;
-    Image* textures[1024] = {};
-  };
-  declare_resource(engine_var, TextureRegistry);
+  // struct MeshRegistry {
+  //   u32 pool_count = 0;
+  //   u32 counts[8] = {};
+  //   MeshInstance instances[8][1024] = {}; // hot data
+  //   vec3 scales[8][1024] = {}; // cold data
+  // };
+  // declare_resource(engine_var, MeshRegistry);
 
   struct WorldData {
+    vec4 tint;
+    // vec4 ambient;
   };
   declare_resource(engine_var, WorldData);
 
@@ -1038,13 +1037,13 @@ namespace quark {
   };
   declare_resource(engine_var, FrustumCullData);
 
-  inline MeshInstance get_mesh_instance(MeshId id) {
-    return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
-  }
+  // inline MeshInstance get_mesh_instance(MeshId id) {
+  //   return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
+  // }
 
-  inline vec3 get_mesh_scale(MeshId id) {
-    return get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index];
-  }
+  // inline vec3 get_mesh_scale(MeshId id) {
+  //   return get_resource(Resource<MeshRegistry> {})->scales[id.pool_index][id.index];
+  // }
   
   // namespace internal {
     // Frustum culling data

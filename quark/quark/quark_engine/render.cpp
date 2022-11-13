@@ -196,10 +196,32 @@ namespace quark {
     begin_info.pClearValues = clear_values;
 
     vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    for_every(i, _FRAME_OVERLAP) {
+      _context.material_color_images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      _context.main_depth_images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    }
   }
 
   void end_drawing_materials() {
     vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
+
+    for_every(i, _FRAME_OVERLAP) {
+      _context.material_color_images[i].current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      _context.main_depth_images[i].current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+  }
+
+  void begin_drawing_post_process() {
+    // for_every(i, _FRAME_OVERLAP) {
+    //   _context.post_process_color_images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // }
+  }
+
+  void end_drawing_post_process() {
+    // for_every(i, 2) {
+    //   _context.post_process_color_images[i].current_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    // }
   }
   
   // namespace internal {
@@ -702,14 +724,14 @@ namespace quark {
     void init_render_passes() {
       _context.render_resolution = get_window_dimensions();
 
-      _context.main_color_image_info = {
+      _context.material_color_image_info = {
         .resolution = _context.render_resolution,
         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
         .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .is_color = true,
       };
-      create_images(_context.main_color_images, 2, &_context.main_color_image_info);
+      create_images(_context.material_color_images, _FRAME_OVERLAP, &_context.material_color_image_info);
 
       _context.main_depth_image_info = {
         .resolution = _context.render_resolution,
@@ -718,18 +740,27 @@ namespace quark {
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .is_color = false,
       };
-      create_images(_context.main_depth_images, 2, &_context.main_depth_image_info);
+      create_images(_context.main_depth_images, _FRAME_OVERLAP, &_context.main_depth_image_info);
+
+      // _context.post_process_color_image_info = {
+      //   .resolution = _context.render_resolution,
+      //   .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+      //   .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+      //   .samples = VK_SAMPLE_COUNT_1_BIT,
+      //   .is_color = true,
+      // };
+      // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
 
       _context.main_color_clear_value = vec4 { 1.0f, 0.0f, 0.0f, 1.0f };
       _context.main_depth_clear_value = 1.0f;
 
       ImageInfo image_infos[2] = {
-        _context.main_color_image_info,
+        _context.material_color_image_info,
         _context.main_depth_image_info,
       };
 
       Image* images[2] = {
-        _context.main_color_images,
+        _context.material_color_images,
         _context.main_depth_images,
       };
 
@@ -798,7 +829,7 @@ namespace quark {
     
     void init_framebuffers() {
       Image* attachments[2] = {
-        _context.main_color_images,
+        _context.material_color_images,
         _context.main_depth_images,
       };
 
@@ -885,7 +916,7 @@ namespace quark {
       // Info: msaa support
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = _context.main_color_image_info.samples;
+      multisample_info.rasterizationSamples = _context.material_color_image_info.samples;
       multisample_info.sampleShadingEnable = VK_FALSE;
       multisample_info.alphaToCoverageEnable = VK_FALSE;
       multisample_info.alphaToOneEnable = VK_FALSE;
