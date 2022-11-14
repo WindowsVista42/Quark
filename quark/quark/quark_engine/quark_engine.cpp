@@ -1089,6 +1089,10 @@ namespace quark {
     WorldData* world_data = get_resource(Resource<WorldData> {});
     Buffer* current_world_data_buffer = &_context->world_data_buffer[_frame_index];
 
+    world_data->main_view_projection = _main_view_projection;
+    world_data->sun_view_projection = _sun_view_projection;
+    world_data->ambient = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
+    world_data->tint = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
     world_data->time = (f32)get_timestamp().value;
 
     {
@@ -1120,10 +1124,15 @@ namespace quark {
         Model model = draw_batch[j].model;
         u8* material_data = &material_batch[i * material_size];
 
-        mat4 world_view_projection = _main_view_projection * transform_mat4(transform.position, transform.rotation, model.half_extents);
+        // Info: I think its probably best to only call vkCmdPushConstants once,
+        // so we do the weird stuff here to avoid calling it twice
+        u8* data = (u8*)alloca(sizeof(vec4[3]) + material_size);
+        copy_mem(data + 0,               &transform.position, sizeof(vec3));
+        copy_mem(data + sizeof(vec4[1]), &transform.rotation, sizeof(vec4));
+        copy_mem(data + sizeof(vec4[2]), &model.half_extents, sizeof(vec3));
+        copy_mem(data + sizeof(vec4[3]), material_data, material_size);
 
-        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(mat4), &world_view_projection);
-        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, sizeof(mat4), material_size, material_data);
+        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(vec4[3]) + material_size, data);
         vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[model.id.index].count, 1, _context->mesh_instances[model.id.index].offset, 0);
       }
     }

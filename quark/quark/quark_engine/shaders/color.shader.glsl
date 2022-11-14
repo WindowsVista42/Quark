@@ -4,33 +4,36 @@
 // WORLD_DATA: SIMPLE
 
 struct CustomPushConstant {
-  mat4 world_view_projection;
+  vec4 position;
+  vec4 rotation;
+  vec4 scale;
   vec4 color;
 };
 
 layout (set = 0, binding = 0) uniform WorldData {
-  f32 time;
+  mat4 main_view_projection;
+  mat4 sun_view_projection;
   vec4 tint;
   vec4 ambient;
+  f32 time;
 };
 
 // SECTION: VERTEX
 
 void main() {
-  //vec3 world_position = rotate(VERTEX_POSITION * MODEL_SCALE.xyz, MODEL_ROTATION) + MODEL_POSITION.xyz;
-  POSITION = CUSTOM_PUSH.world_view_projection * vec4(VERTEX_POSITION, 1.0f); // + vec3(sin(time + VERTEX_POSITION.x), cos(time + VERTEX_POSITION.y), tan(time + VERTEX_POSITION.z)), 1.0f); //main_view_projection * vec4(world_position, 1.0f);
+  const vec4 position = CUSTOM_PUSH.position;
+  const vec4 rotation = CUSTOM_PUSH.rotation;
+  const vec4 scale = CUSTOM_PUSH.scale;
+  const vec3 world_position = rotate(VERTEX_POSITION * scale.xyz, rotation) + position.xyz;
+  // WORLD_NORMAL = rotate(VERTEX_NORMAL, MODEL_ROTATION);
+  // WORLD_UV = VERTEX_UV;
+
+  // vec3 world_position = rotate(VERTEX_POSITION * position.xyz, rotation) + position.xyz;
+  POSITION = main_view_projection * vec4(world_position, 1.0f);
+  // POSITION = CUSTOM_PUSH.world_view_projection * vec4(VERTEX_POSITION, 1.0f); // + vec3(sin(time + VERTEX_POSITION.x), cos(time + VERTEX_POSITION.y), tan(time + VERTEX_POSITION.z)), 1.0f); //main_view_projection * vec4(world_position, 1.0f);
 }
 
 // SECTION: FRAGMENT
-
-//vec3 aces(vec3 x) {
-//  const float a = 2.51;
-//  const float b = 0.03;
-//  const float c = 2.43;
-//  const float d = 0.59;
-//  const float e = 0.14;
-//  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-//}
 
 const mat3 _aces_input_mat = {
   { 0.59719, 0.35458, 0.04823},
@@ -52,25 +55,21 @@ vec3 _rrt_and_odt_fit(vec3 v) {
 }
 
 vec4 aces(vec4 in_color) {
-    vec3 color = in_color.xyz;
+  vec3 color = in_color.xyz;
 
-    color = color * _aces_input_mat;
+  color = color * _aces_input_mat;
 
-    // Apply RRT and ODT
-    color = _rrt_and_odt_fit(color);
+  // Apply RRT and ODT
+  color = _rrt_and_odt_fit(color);
 
-    color = color * _aces_output_mat;
+  color = color * _aces_output_mat;
 
-    // Clamp to [0, 1]
-    color = clamp(color, 0.0, 1.0);
+  // Clamp to [0, 1]
+  color = clamp(color, 0.0, 1.0);
 
-    return vec4(color, in_color.w);
+  return vec4(color, in_color.w);
 }
 
 void main() {
-  //COLOR = vec4(pow(aces(CUSTOM_PUSH.color.xyz), vec3(2.2)), 1.0f);
-  // COLOR = vec4(sin(CUSTOM_PUSH.color.x/gl_FragCoord.z)) * CUSTOM_PUSH.color);
-  //COLOR = aces(CUSTOM_PUSH.color + vec4(tan(time), 0, 0, 1));
   COLOR = aces(CUSTOM_PUSH.color);
-  // COLOR = vec4(0, 0, 0, 1);
 }

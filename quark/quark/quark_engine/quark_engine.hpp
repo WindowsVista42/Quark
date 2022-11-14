@@ -686,7 +686,9 @@ namespace quark {
       static u32 MATERIAL_ID; \
     }; \
     struct name##Instance { \
-      mat4 world_view_projection; \
+      vec4 position; \
+      vec4 rotation; \
+      vec4 scale; \
       x; \
     }; \
 
@@ -1080,9 +1082,11 @@ namespace quark {
   // declare_resource(engine_var, MeshRegistry);
 
   struct WorldData {
-    f32 time;
+    mat4 main_view_projection;
+    mat4 sun_view_projection;
     vec4 tint;
     vec4 ambient;
+    f32 time;
   };
   declare_resource(engine_var, WorldData);
 
