@@ -1058,6 +1058,11 @@ namespace quark {
     Buffer vertex_buffer;
     Buffer index_buffer;
 
+    Buffer world_data_buffer[_FRAME_OVERLAP];
+    VkDescriptorSetLayout globals_layout;
+    VkDescriptorSet global_sets[_FRAME_OVERLAP];
+    VkDescriptorPool main_descriptor_pool;
+
     MaterialEffectInfo material_effect_infos[16];
     MaterialEffect material_effects[16];
   };
@@ -1075,8 +1080,9 @@ namespace quark {
   // declare_resource(engine_var, MeshRegistry);
 
   struct WorldData {
+    f32 time;
     vec4 tint;
-    // vec4 ambient;
+    vec4 ambient;
   };
   declare_resource(engine_var, WorldData);
 

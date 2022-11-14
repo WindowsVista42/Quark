@@ -68,8 +68,8 @@ namespace quark {
       return VkViewport {
         .x = 0.0f,
         .y = 0.0f,
-        .width = (f32)_context.render_resolution.x,
-        .height = (f32)_context.render_resolution.y,
+        .width = (f32)resolution.x,
+        .height = (f32)resolution.y,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
       };
@@ -78,7 +78,7 @@ namespace quark {
     VkRect2D get_scissor(ivec2 resolution) {
       return VkRect2D {
         .offset = { 0, 0 },
-        .extent = { (u32)_context.render_resolution.x, (u32)_context.render_resolution.y },
+        .extent = { (u32)resolution.x, (u32)resolution.y },
       };
     }
 
@@ -158,7 +158,7 @@ namespace quark {
       .resolution = get_window_dimensions(),
       .is_color = true,
     };
-    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context.material_color_images[_frame_index], FilterMode::Linear);
+    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context.material_color_images[_frame_index], FilterMode::Nearest);
     transition_image(_main_cmd_buf[_frame_index], &swapchain_image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -876,7 +876,7 @@ namespace quark {
     }
     
     void init_render_passes() {
-      _context.render_resolution = get_window_dimensions();
+      _context.render_resolution = get_window_dimensions() / 1;
 
       _context.material_color_image_info = {
         .resolution = _context.render_resolution,
@@ -1024,8 +1024,8 @@ namespace quark {
 
       VkPipelineLayoutCreateInfo layout_info = {};
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = 0;
-      layout_info.pSetLayouts = 0;
+      layout_info.setLayoutCount = 1;
+      layout_info.pSetLayouts = &_context.globals_layout;
       layout_info.pushConstantRangeCount = 1;
       layout_info.pPushConstantRanges = &push_constant_info;
 
@@ -1154,6 +1154,108 @@ namespace quark {
     define_material(ColorMaterial2);
 
     void init_materials() {
+      {
+        // Info: World Data
+        VkDescriptorSetLayoutBinding world_data_binding_layout = {};
+        world_data_binding_layout.binding = 0;
+        world_data_binding_layout.descriptorCount = 1;
+        world_data_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        world_data_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        // // Info: Textures
+        // VkDescriptorSetLayoutBinding textures_binding_layout = {};
+        // textures_binding_layout.binding = 1;
+        // textures_binding_layout.descriptorCount = 2048;
+        // textures_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        // textures_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        // // Info: Shadows
+
+        // // Info: Samplers
+        // VkDescriptorSetLayoutBinding sampler_binding_layout = {};
+        // sampler_binding_layout.binding = 2;
+        // sampler_binding_layout.descriptorCount = 1;
+        // sampler_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        // sampler_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        VkDescriptorSetLayoutBinding globals_bindings[] = {
+          world_data_binding_layout,
+          // textures_binding_layout,
+          // sampler_binding_layout,
+        };
+
+        VkDescriptorSetLayoutCreateInfo globals_set_layout_info = {};
+        globals_set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        globals_set_layout_info.bindingCount = count_of(globals_bindings);
+        globals_set_layout_info.pBindings = globals_bindings;
+
+        vk_check(vkCreateDescriptorSetLayout(_context.device, &globals_set_layout_info, 0, &_context.globals_layout));
+      }
+
+      {
+        BufferInfo info = {
+          .type = BufferType::Uniform,
+          .size = sizeof(WorldData),
+        };
+
+        create_buffers(_context.world_data_buffer, 2, &info);
+      }
+
+      {
+        VkDescriptorPoolSize pool_sizes[] = {
+          { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4096, },
+          { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024, },
+          { VK_DESCRIPTOR_TYPE_SAMPLER, 64, },
+        };
+
+        VkDescriptorPoolCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        info.poolSizeCount = count_of(pool_sizes);
+        info.pPoolSizes = pool_sizes;
+        info.maxSets = 128;
+
+        vk_check(vkCreateDescriptorPool(_context.device, &info, 0, &_context.main_descriptor_pool));
+      }
+
+      {
+        VkDescriptorSetLayout layouts[_FRAME_OVERLAP] = {
+          _context.globals_layout,
+          _context.globals_layout,
+        };
+
+        VkDescriptorSetAllocateInfo alloc_info = {};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = _context.main_descriptor_pool;
+        alloc_info.descriptorSetCount = _FRAME_OVERLAP;
+        alloc_info.pSetLayouts = layouts;
+
+        vk_check(vkAllocateDescriptorSets(_context.device, &alloc_info, _context.global_sets));
+
+        for_every(i, _FRAME_OVERLAP) {
+          VkDescriptorBufferInfo buffer_info = {};
+          buffer_info.buffer = _context.world_data_buffer[i].buffer;
+          buffer_info.offset = 0;
+          buffer_info.range = _context.world_data_buffer[i].size;
+
+          VkWriteDescriptorSet buffer_write = {};
+          buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+          buffer_write.dstSet = _context.global_sets[i];
+          buffer_write.dstBinding = 0;
+          buffer_write.dstArrayElement = 0;
+          buffer_write.descriptorCount = 1;
+          buffer_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+          buffer_write.pBufferInfo = &buffer_info;
+
+          // VkDescriptorImageInfo image_info = {};
+
+          // VkWriteDescriptorSet image_write = {};
+          // buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+          // buffer_write.descriptorCount = 0;
+
+          vkUpdateDescriptorSets(_context.device, 1, &buffer_write, 0, 0);
+        }
+      }
+
       update_material(ColorMaterial2, "color", "color");
       // MaterialEffectInfo ColorMaterial2_EFFECT_INFO = {
       //   .instance_data_size = sizeof(ColorMaterial2Instance),

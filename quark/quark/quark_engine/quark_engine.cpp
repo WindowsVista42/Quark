@@ -1086,11 +1086,24 @@ namespace quark {
   }
 
   void draw_material_batches() {
+    WorldData* world_data = get_resource(Resource<WorldData> {});
+    Buffer* current_world_data_buffer = &_context->world_data_buffer[_frame_index];
+
+    world_data->time = (f32)get_timestamp().value;
+
+    {
+      void* ptr = map_buffer(current_world_data_buffer);
+      copy_mem(ptr, world_data, sizeof(WorldData));
+      unmap_buffer(current_world_data_buffer);
+    }
+
     MaterialEffect* effect = &_context->material_effects[0];
     vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->pipeline);
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
+
+    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->layout, 0, 1, &_context->global_sets[_frame_index], 0, 0);
 
     DrawBatchContext* context = get_draw_batch_context();
 
