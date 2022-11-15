@@ -1047,7 +1047,7 @@ namespace quark {
     return &_draw_batch_context;
   }
 
-  u32 add_material_type(u32 material_size) {
+  u32 add_material_type(u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers) {
     DrawBatchContext* context = get_draw_batch_context();
 
     usize i = context->material_types_count;
@@ -1059,6 +1059,10 @@ namespace quark {
     // Todo: be a bit better with memory
     context->draw_batches[i] = (DrawableInstance*)malloc(1024 * sizeof(DrawableInstance));
     context->material_batches[i] = malloc(1024 * material_size);
+
+    context->material_world_data_sizes[i] = material_world_size;
+    context->material_world_data_ptrs[i] = world_data_ptr;
+    context->material_world_data_buffers[i] = buffers;
 
     context->material_types_count += 1;
 
@@ -1087,7 +1091,7 @@ namespace quark {
 
   void draw_material_batches() {
     WorldData* world_data = get_resource(Resource<WorldData> {});
-    Buffer* current_world_data_buffer = &_context->world_data_buffer[_frame_index];
+    Buffer* current_world_data_buffer = &_context->world_data_buffers[_frame_index];
 
     world_data->main_view_projection = _main_view_projection;
     world_data->sun_view_projection = _sun_view_projection;
@@ -1101,22 +1105,30 @@ namespace quark {
       unmap_buffer(current_world_data_buffer);
     }
 
-    MaterialEffect* effect = &_context->material_effects[0];
-    vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->pipeline);
-
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
-
-    vkCmdBindDescriptorSets(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->layout, 0, 1, &_context->global_sets[_frame_index], 0, 0);
 
     DrawBatchContext* context = get_draw_batch_context();
 
     for_every(i, context->material_types_count) {
+      MaterialEffect* effect = &_context->material_effects[i];
+      bind_effect(_main_cmd_buf[_frame_index], effect);
+
       usize batch_size = context->batch_sizes[i];
       usize batch_capacity = context->batch_capacities[i];
       DrawableInstance* draw_batch = context->draw_batches[i];
       u8* material_batch = (u8*)context->material_batches[i];
       usize material_size = context->material_sizes[i];
+      usize material_world_data_size = context->material_world_data_sizes[i];
+      void* material_world_data_ptr = context->material_world_data_ptrs[i];
+      Buffer* material_world_data_buffer = &context->material_world_data_buffers[i][_frame_index];
+
+      // Info: update material world data
+      {
+        void* ptr = map_buffer(material_world_data_buffer);
+        copy_mem(ptr, material_world_data_ptr, material_world_data_size);
+        unmap_buffer(material_world_data_buffer);
+      }
 
       for_every(j, batch_size) {
         u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;

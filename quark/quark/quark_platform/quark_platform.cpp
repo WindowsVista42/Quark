@@ -567,6 +567,12 @@ namespace quark {
     zero_mem(ptr, size);
     return ptr;
   }
+
+  u8* copy_mem_arena(Arena* arena, void* src, usize size) {
+    u8* ptr = push_arena(arena, size);
+    copy_mem(ptr, src, size);
+    return ptr;
+  }
   
   void pop_arena(Arena* arena, usize size) {
     arena->pos -= size;

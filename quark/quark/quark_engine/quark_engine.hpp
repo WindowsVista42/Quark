@@ -652,117 +652,6 @@ namespace quark {
 
   engine_api void load_vert_shader(const char* path, const char* name);
   engine_api void load_frag_shader(const char* path, const char* name);
-
-//
-// Materials API
-//
-
-  struct DrawableInstance {
-    Transform transform;
-    Model model;
-  };
-
-  struct DrawBatchContext {
-    u32 material_types_count;
-
-    usize batch_sizes[16];
-    usize batch_capacities[16];
-    DrawableInstance* draw_batches[16];
-    void* material_batches[16];
-    usize material_sizes[16];
-  };
-
-  engine_api DrawBatchContext* get_draw_batch_context();
-
-  engine_api u32 add_material_type(u32 material_size);
-
-  engine_api void add_drawable(u32 material_id, DrawableInstance* drawable, void* material);
-
-  #define declare_material(api_decl, var_decl, name, x...) \
-    struct api_decl name { \
-      x; \
-      static u32 COMPONENT_ID; \
-      static ReflectionInfo REFLECTION_INFO; \
-      static u32 MATERIAL_ID; \
-    }; \
-    struct name##Instance { \
-      vec4 position; \
-      vec4 rotation; \
-      vec4 scale; \
-      x; \
-    }; \
-
-  #define define_material(name) \
-    define_component(name); \
-    u32 name::MATERIAL_ID; \
-
-  #define update_material(name, vertex_shader_name, fragment_shader_name) \
-  { \
-    update_component(name); \
-    name::MATERIAL_ID = add_material_type(sizeof(name)); \
-    MaterialEffectInfo effect_info = { \
-      .instance_data_size = sizeof(name##Instance), \
-      .world_data_size = 0, \
- \
-      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), \
-      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), \
- \
-      .fill_mode = FillMode::Fill, \
-      .cull_mode = CullMode::Back, \
-      .blend_mode = BlendMode::Off, \
-    }; \
- \
-    create_material_effect(&_context.material_effects[name::MATERIAL_ID], &effect_info); \
-    _context.material_effect_infos[name::MATERIAL_ID] = effect_info; \
-  } \
-
-  declare_material(engine_api, engine_var, ColorMaterial2,
-    vec4 color;
-  );
-
-  void init_materials();
-
-//
-// Draw Batch API
-//
-
-  struct DrawBatchInstanceInfo {
-    Transform transform;
-    Model model;
-
-    bool draw_shadows;
-    bool is_transparent;
-  };
-
-  // struct DrawableInstance {
-  //   Transform transform;
-  //   Model model;
-  // };
-
-  template <typename T>
-  struct DrawBatch {
-    std::vector<DrawBatchInstanceInfo> instance_info;
-    std::vector<T> instance_data;
-    u32 instance_data_size;
-    u32 count;
-  };
-
-  // TODO:
-  // [] opaque + shadow |--> 2 opqaue draw call
-  // [] opaque          |
-  //
-  // [] transparent + shadow |--> 2 transparent draw call
-  // [] transparent          |
-  //
-  // add way to persist static objects
-
-  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
-
-  template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
-
-  engine_api void draw_material_batches();
-  engine_api void reset_material_batches();
-
 //
 // Scratch Allocator API
 //
@@ -778,7 +667,6 @@ namespace quark {
   declare_resource(engine_var, Registry);
   declare_resource(engine_var, ScratchAllocator);
   declare_resource(engine_var, AssetServer);
-  declare_resource(engine_var, DrawBatchPool);
   
   declare_resource(engine_var, MainCamera);
   declare_resource(engine_var, UICamera);
@@ -879,14 +767,6 @@ namespace quark {
   T* get_asset(const char* name) {
     static auto* map = create_cached_type_map<T>(&get_resource(Resource<AssetServer> {})->data, std::unordered_map<u32, T>());
     return &map->at(hash_str_fast(name));
-  }
-
-  template <typename T>
-  void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data) {
-    static auto* batch = create_cached_type_map<T>(get_resource(Resource<DrawBatchPool> {}), DrawBatch<T> {{}, {}, sizeof(T), 0});
-    batch->instance_info.push_back(instance_info);
-    batch->instance_data.push_back(instance_data);
-    batch->count += 1;
   }
 };
 
@@ -1010,6 +890,7 @@ namespace quark {
     ivec2 resolution;
     ImageFormat format;
     VkSampleCountFlagBits samples;
+    ImageType type;
   };
 
   union ClearValue {
@@ -1024,7 +905,6 @@ namespace quark {
     ivec2 resolution;
 
     u32 attachment_count;
-    u32 image_count;
 
     Image** attachments;
 
@@ -1039,7 +919,6 @@ namespace quark {
     ivec2 resolution;
 
     u32 attachment_count;
-    u32 image_count;
 
     Image** attachments;
 
@@ -1050,11 +929,41 @@ namespace quark {
     VkFramebuffer* framebuffers;
   };
 
+  struct ResourceBinding {
+    u32 count;
+    Buffer** buffers;
+    Image** images;
+    // Sampler* samplers[_FRAME_OVERLAP];
+  };
+
+  struct ResourceGroupInfo {
+    u32 bindings_count;
+    ResourceBinding* bindings;
+  };
+
+  struct ResourceGroup {
+    // u32 bindings_count;
+    // ResourceBinding* bindings;
+    VkDescriptorSetLayout layout;
+    VkDescriptorSet sets[_FRAME_OVERLAP];
+  };
+
+  struct ResourceBundleInfo {
+    u32 group_count;
+    ResourceGroup** groups;
+  };
+
+  struct ResourceBundle {
+    u32 group_count;
+    ResourceGroup** groups;
+  };
+
   struct MaterialEffectInfo {
     u32 instance_data_size;
     u32 world_data_size;
     VertexShaderModule vertex_shader;
     FragmentShaderModule fragment_shader;
+    ResourceBundleInfo resource_bundle_info;
       
     FillMode fill_mode;
     CullMode cull_mode;
@@ -1064,6 +973,7 @@ namespace quark {
   struct MaterialEffect {
     VkPipelineLayout layout;
     VkPipeline pipeline;
+    ResourceBundle resource_bundle;
   };
 
   struct PostProcessEffectInfo {
@@ -1110,7 +1020,9 @@ namespace quark {
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
 
+    // RenderPass depth_prepass_render_pass;
     RenderPass main_render_pass;
+    // RenderPass post_process_render_pass;
 
     // RenderPass shadow_render_pass;
     // RenderPass depth_render_pass;
@@ -1118,9 +1030,6 @@ namespace quark {
 
     // ImageInfo post_process_color_image_info;
     // Image post_process_color_images[_FRAME_OVERLAP];
-
-    vec4 main_color_clear_value;
-    f32 main_depth_clear_value;
 
     VkSampler texture_sampler;
 
@@ -1132,10 +1041,11 @@ namespace quark {
     Buffer vertex_buffer;
     Buffer index_buffer;
 
-    Buffer world_data_buffer[_FRAME_OVERLAP];
-    VkDescriptorSetLayout globals_layout;
-    VkDescriptorSet global_sets[_FRAME_OVERLAP];
+    Buffer world_data_buffers[_FRAME_OVERLAP];
+    ResourceGroup global_resources_group;
     VkDescriptorPool main_descriptor_pool;
+    // VkDescriptorSetLayout globals_layout;
+    // VkDescriptorSet global_sets[_FRAME_OVERLAP];
 
     MaterialEffectInfo material_effect_infos[16];
     MaterialEffect material_effects[16];
@@ -1312,7 +1222,7 @@ namespace quark {
   engine_api void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage);
   engine_api void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode);
 
-  engine_api void create_material_effectl(MaterialEffect* effect, MaterialEffectInfo* info);
+  engine_api void create_material_effectl(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info);
 
   engine_api void create_post_process_effect(PostProcessEffect* effect, PostProcessEffectInfo* info);
 
@@ -1333,4 +1243,191 @@ namespace quark {
   // Image** images --> an array of image pointers, for each image we used
   // in this render pass
   // engine_api void end_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target);
+
+//
+// Resource Group API
+//
+
+  engine_api void create_resource_group(Arena* arena, ResourceGroup* group, ResourceGroupInfo* info);
+  engine_api void create_resource_bundle(Arena* arena, ResourceBundle* bundle, ResourceBundleInfo* info);
+
+  engine_api void bind_resource_group(VkCommandBuffer commands, VkPipelineLayout layout, ResourceGroup* group, u32 frame_index, u32 bind_index);
+  engine_api void bind_resource_bundle(VkCommandBuffer commands, VkPipelineLayout layout, ResourceBundle* bundle, u32 frame_index);
+  engine_api void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index);
+
+  engine_api void bind_effect(VkCommandBuffer commands, MaterialEffect* effect);
+
+//
+// Materials API
+//
+
+  struct DrawableInstance {
+    Transform transform;
+    Model model;
+  };
+
+  struct DrawBatchContext {
+    u32 material_types_count;
+
+    usize batch_sizes[16];
+    usize batch_capacities[16];
+    DrawableInstance* draw_batches[16];
+    void* material_batches[16];
+    usize material_sizes[16];
+
+    usize material_world_data_sizes[16];
+    void* material_world_data_ptrs[16];
+    Buffer* material_world_data_buffers[16];
+  };
+
+  engine_api DrawBatchContext* get_draw_batch_context();
+
+  engine_api u32 add_material_type(u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers);
+
+  engine_api void add_drawable(u32 material_id, DrawableInstance* drawable, void* material);
+
+  #define declare_material(api_decl, var_decl, name, x...) \
+    struct api_decl name { \
+      x; \
+      static u32 COMPONENT_ID; \
+      static ReflectionInfo REFLECTION_INFO; \
+      static u32 MATERIAL_ID; \
+    }; \
+    struct name##Instance { \
+      vec4 position; \
+      vec4 rotation; \
+      vec4 scale; \
+      x; \
+    }; \
+
+  #define define_material(name) \
+    define_component(name); \
+    u32 name::MATERIAL_ID; \
+
+  #define declare_material_world_data(api_decl, var_decl, name, x...) \
+    struct name##WorldData { \
+      x; \
+    }; \
+    declare_resource(var_decl, name##WorldData); \
+    var_decl Buffer name##WorldData_BUFFERS[_FRAME_OVERLAP]; \
+    var_decl ResourceGroup name##WorldData_RESOURCE_GROUP; \
+
+  #define define_material_world_data(name, value...) \
+    define_resource(name##WorldData, value); \
+    Buffer name##WorldData_BUFFERS[_FRAME_OVERLAP]; \
+    ResourceGroup name##WorldData_RESOURCE_GROUP; \
+
+  #define update_material(name, vertex_shader_name, fragment_shader_name) \
+  { \
+    update_component(name); \
+    name::MATERIAL_ID = add_material_type(sizeof(name), sizeof(name##WorldData), &name##WorldData_RESOURCE, name##WorldData_BUFFERS); \
+ \
+    BufferInfo buffer_info = { \
+      .type = BufferType::Uniform, \
+      .size = sizeof(name##WorldData), \
+    }; \
+ \
+    create_buffers(name##WorldData_BUFFERS, 2, &buffer_info); \
+    dump_struct(&name##WorldData_BUFFERS[0]); \
+ \
+    Buffer* buffers[_FRAME_OVERLAP] = { \
+      &name##WorldData_BUFFERS[0], \
+      &name##WorldData_BUFFERS[1], \
+    }; \
+\
+    ResourceBinding bindings[1] = {}; \
+    bindings[0].count = 1; \
+    bindings[0].buffers = buffers; \
+\
+    ResourceGroupInfo resource_info { \
+      .bindings_count = 1, \
+      .bindings = bindings, \
+    }; \
+ \
+    create_resource_group(_context.arena, &name##WorldData_RESOURCE_GROUP, &resource_info); \
+ \
+    ResourceGroup* resource_groups[] = { \
+      &_context.global_resources_group, \
+      &name##WorldData_RESOURCE_GROUP, \
+    }; \
+    ResourceBundleInfo resource_bundle_info { \
+      .group_count = count_of(resource_groups), \
+      .groups = resource_groups \
+    }; \
+    MaterialEffectInfo effect_info = { \
+      .instance_data_size = sizeof(name##Instance), \
+      .world_data_size = 0, \
+ \
+      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), \
+      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), \
+      .resource_bundle_info = resource_bundle_info, \
+ \
+      .fill_mode = FillMode::Fill, \
+      .cull_mode = CullMode::Back, \
+      .blend_mode = BlendMode::Off, \
+    }; \
+ \
+    create_material_effect(_context.arena, &_context.material_effects[name::MATERIAL_ID], &effect_info); \
+    _context.material_effect_infos[name::MATERIAL_ID] = effect_info; \
+  } \
+
+  void init_materials();
+
+  declare_material(engine_api, engine_var, ColorMaterial2,
+    vec4 color;
+  );
+  declare_material_world_data(engine_api, engine_var, ColorMaterial2,
+    vec4 tint;
+  );
+
+//
+// Draw Batch API
+//
+
+  struct DrawBatchInstanceInfo {
+    Transform transform;
+    Model model;
+
+    bool draw_shadows;
+    bool is_transparent;
+  };
+
+  // struct DrawableInstance {
+  //   Transform transform;
+  //   Model model;
+  // };
+
+  template <typename T>
+  struct DrawBatch {
+    std::vector<DrawBatchInstanceInfo> instance_info;
+    std::vector<T> instance_data;
+    u32 instance_data_size;
+    u32 count;
+  };
+
+  // TODO:
+  // [] opaque + shadow |--> 2 opqaue draw call
+  // [] opaque          |
+  //
+  // [] transparent + shadow |--> 2 transparent draw call
+  // [] transparent          |
+  //
+  // add way to persist static objects
+
+  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
+
+  declare_resource(engine_var, DrawBatchPool);
+
+  template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
+
+  engine_api void draw_material_batches();
+  engine_api void reset_material_batches();
+
+  template <typename T>
+  void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data) {
+    static auto* batch = create_cached_type_map<T>(get_resource(Resource<DrawBatchPool> {}), DrawBatch<T> {{}, {}, sizeof(T), 0});
+    batch->instance_info.push_back(instance_info);
+    batch->instance_data.push_back(instance_data);
+    batch->count += 1;
+  }
 };

@@ -303,6 +303,7 @@ namespace quark {
   platform_api void copy_mem(void* dst, void* src, usize size);
   #define copy_struct(dst, src) copy_mem((dst), (src), sizeof(*src))
   #define copy_array(dst, src, type, count) copy_mem((dst), (src), (count) * sizeof(type))
+  #define copy_array2(dst, src, count) copy_mem((dst), (src), (count) * sizeof((src)[0]))
 
 //
 // Arena API
@@ -325,6 +326,9 @@ namespace quark {
   
   #define push_struct_arena(arena, type) (type*)push_arena((arena), sizeof(type))
   #define push_struct_zero_arena(arena, type) (type*)push_zero_arena((arena), sizeof(type))
+
+  platform_api u8* copy_mem_arena(Arena* arena, void* src, usize size);
+  #define copy_array_arena(arena, src, type, count) (type*)copy_mem_arena((arena), (src), sizeof(type) * (count))
   
   platform_api void pop_arena(Arena* arena, usize size);
 

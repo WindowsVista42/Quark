@@ -154,7 +154,6 @@ namespace quark {
     Image swapchain_image = {
       .image = _context.swapchain_images[_swapchain_image_index],
       .view = _context.swapchain_image_views[_swapchain_image_index],
-      // .current_layout = VK_IMAGE_LAYOUT_UNDEFINED,
       .current_usage = ImageUsage::Unknown,
       .resolution = get_window_dimensions(),
       .format = ImageFormat::LinearBgra8,
@@ -686,6 +685,7 @@ namespace quark {
         images[i].resolution = info->resolution;
         images[i].format = info->format;
         images[i].samples = info->samples;
+        images[i].type = info->type;
       }
     }
 
@@ -956,17 +956,19 @@ namespace quark {
         .render_pass = render_pass->render_pass,
       };
 
-      render_pass->framebuffers = push_array_arena(arena, VkFramebuffer, info->image_count);
-      create_framebuffers(render_pass->framebuffers, info->image_count, &framebuffer_info);
+      render_pass->framebuffers = push_array_arena(arena, VkFramebuffer, _FRAME_OVERLAP);
+      create_framebuffers(render_pass->framebuffers, _FRAME_OVERLAP, &framebuffer_info);
 
       // Info: we need to copy over the relevant data
       render_pass->attachment_count = info->attachment_count;
-      render_pass->image_count = info->image_count;
       render_pass->resolution = info->resolution;
+
       render_pass->attachments = push_array_arena(arena, Image*, info->attachment_count);
       render_pass->initial_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
       render_pass->final_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
 
+      //render_pass->attachments[0] = info->attachments[0];
+      //render_pass->attachments[1] = info->attachments[1];
       copy_array(render_pass->attachments, info->attachments, Image*, info->attachment_count);
       copy_array(render_pass->initial_usage, info->initial_usage, ImageUsage, info->attachment_count);
       copy_array(render_pass->final_usage, info->final_usage, ImageUsage, info->attachment_count);
@@ -1075,9 +1077,6 @@ namespace quark {
       // };
       // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
 
-      _context.main_color_clear_value = vec4 { 1.0f, 0.0f, 0.0f, 1.0f };
-      _context.main_depth_clear_value = 1.0f;
-
       Image* images[2] = {
         _context.material_color_images,
         _context.main_depth_images,
@@ -1106,7 +1105,6 @@ namespace quark {
       RenderPassInfo render_pass_info = {
         .resolution = _context.render_resolution,
         .attachment_count = 2,
-        .image_count = _FRAME_OVERLAP,
 
         .attachments = images,
 
@@ -1135,6 +1133,11 @@ namespace quark {
 
       // create_framebuffers(_context.main_framebuffers, _FRAME_OVERLAP, &info);
     }
+
+    void bind_effect(VkCommandBuffer commands, MaterialEffect* effect) {
+      vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, effect->pipeline);
+      bind_effect_resources(_main_cmd_buf[_frame_index], effect, _frame_index);
+    }
     
     void init_sync_objects() {
       VkFenceCreateInfo fence_info = {};
@@ -1154,17 +1157,25 @@ namespace quark {
       }
     }
 
-    void create_material_effect(MaterialEffect* effect, MaterialEffectInfo* info) {
+    void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info) {
       VkPushConstantRange push_constant_info = {
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
         .offset = 0,
         .size = info->instance_data_size,
       };
 
+      VkDescriptorSetLayout set_layouts[info->resource_bundle_info.group_count];
+      for_every(i, info->resource_bundle_info.group_count) {
+        set_layouts[i] = info->resource_bundle_info.groups[i]->layout;
+      }
+
+      effect->resource_bundle.group_count = info->resource_bundle_info.group_count;
+      effect->resource_bundle.groups = copy_array_arena(arena, info->resource_bundle_info.groups, ResourceGroup*, info->resource_bundle_info.group_count);
+
       VkPipelineLayoutCreateInfo layout_info = {};
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = 1;
-      layout_info.pSetLayouts = &_context.globals_layout;
+      layout_info.setLayoutCount = info->resource_bundle_info.group_count;
+      layout_info.pSetLayouts = set_layouts;
       layout_info.pushConstantRangeCount = 1;
       layout_info.pPushConstantRanges = &push_constant_info;
 
@@ -1292,52 +1303,197 @@ namespace quark {
 
     define_material(ColorMaterial2);
 
-    void init_materials() {
-      {
-        // Info: World Data
-        VkDescriptorSetLayoutBinding world_data_binding_layout = {};
-        world_data_binding_layout.binding = 0;
-        world_data_binding_layout.descriptorCount = 1;
-        world_data_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        world_data_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    declare_enum(AccessType, u32,
+      Exclusive,
+      Shared,
+    );
 
-        // // Info: Textures
-        // VkDescriptorSetLayoutBinding textures_binding_layout = {};
-        // textures_binding_layout.binding = 1;
-        // textures_binding_layout.descriptorCount = 2048;
-        // textures_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        // textures_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    declare_enum(ResourceType, u32,
+      UniformBuffer = 0,
+      StorageBuffer = 1,
+      Texture       = 2,
+      Sampler       = 3,
+    );
 
-        // // Info: Shadows
+    // struct ResourceBinding {
+    //   AccessType access_type;
+    //   ResourceType resource_type;
+    //   u32 count;
+    // };
 
-        // // Info: Samplers
-        // VkDescriptorSetLayoutBinding sampler_binding_layout = {};
-        // sampler_binding_layout.binding = 2;
-        // sampler_binding_layout.descriptorCount = 1;
-        // sampler_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-        // sampler_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    // void get_layout_binding(ResourceBinding* resource_bindings, u32 n) {
+    // }
 
-        VkDescriptorSetLayoutBinding globals_bindings[] = {
-          world_data_binding_layout,
-          // textures_binding_layout,
-          // sampler_binding_layout,
-        };
+    VkDescriptorType get_buffer_descriptor_type(BufferType type) {
+      VkDescriptorType buffer_lookup[] = {
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, // BufferType::Uniform
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // BufferType::Storage
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // BufferType::Staging
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // BufferType::Vertex
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // BufferType::Index
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // BufferType::Commands
+      };
 
-        VkDescriptorSetLayoutCreateInfo globals_set_layout_info = {};
-        globals_set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        globals_set_layout_info.bindingCount = count_of(globals_bindings);
-        globals_set_layout_info.pBindings = globals_bindings;
+      return buffer_lookup[(u32)type];
+    }
 
-        vk_check(vkCreateDescriptorSetLayout(_context.device, &globals_set_layout_info, 0, &_context.globals_layout));
+    VkDescriptorType get_image_descriptor_type(ImageType type) {
+      VkDescriptorType image_lookup[] = {
+        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::Texture
+        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::RenderTargetColor
+        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::RenderTargetDepth
+      };
+
+      return image_lookup[(u32)type];
+    }
+
+    void create_descriptor_layout(VkDescriptorSetLayout* layout, ResourceBinding* bindings, u32 n) {
+      VkDescriptorSetLayoutBinding layout_bindings[n];
+      zero_array(layout_bindings, VkDescriptorSetLayoutBinding, n);
+
+      // Info: fill out layout bindings
+      for_every(i, n) {
+        layout_bindings[i].binding = i;
+
+        // switch over buffer / image resource
+        if(bindings->buffers != 0) {
+          layout_bindings[i].descriptorType = get_buffer_descriptor_type(bindings[i].buffers[0][0].type);
+        } else if(bindings->images != 0) {
+          layout_bindings[i].descriptorType = get_image_descriptor_type(bindings[i].images[0][0].type);
+        } else {
+          panic("");
+        }
+
+        layout_bindings[i].descriptorCount = bindings[i].count;
+        layout_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
       }
 
+      VkDescriptorSetLayoutCreateInfo layout_info = {};
+      layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+      layout_info.bindingCount = n;
+      layout_info.pBindings = layout_bindings;
+
+      vk_check(vkCreateDescriptorSetLayout(_context.device, &layout_info, 0, layout));
+    }
+
+    void allocate_descriptor_sets(VkDescriptorSet* sets, VkDescriptorSetLayout layout) {
+      VkDescriptorSetLayout layouts[_FRAME_OVERLAP] = {
+        layout,
+        layout,
+      };
+
+      VkDescriptorSetAllocateInfo alloc_info = {};
+      alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+      alloc_info.descriptorPool = _context.main_descriptor_pool;
+      alloc_info.descriptorSetCount = _FRAME_OVERLAP;
+      alloc_info.pSetLayouts = layouts;
+
+      vk_check(vkAllocateDescriptorSets(_context.device, &alloc_info, sets));
+    }
+
+    void update_descriptor_sets(VkDescriptorSet* sets, ResourceBinding* bindings, u32 n) {
+      TempStack scratch = begin_scratch(0, 0);
+      defer(end_scratch(scratch));
+
+      for_every(i, _FRAME_OVERLAP) {
+        VkWriteDescriptorSet writes[n];
+        zero_array(writes, VkWriteDescriptorSet, n);
+
+        for_every(j, n) {
+          ResourceBinding* res = &bindings[j];
+
+          if(bindings[j].buffers != 0) {
+            // Info: fill out array of buffers,
+            // if there is only one item then this just fills out the one
+            VkDescriptorBufferInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorBufferInfo, res->count);
+            for_every(k, res->count) {
+              infos[k].buffer = res->buffers[i][k].buffer;
+              infos[k].offset = 0;
+              infos[k].range = res->buffers[i][k].size;
+            }
+
+            writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[j].dstSet = sets[i];
+            writes[j].dstBinding = j;
+            writes[j].dstArrayElement = 0;
+            writes[j].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            writes[j].descriptorCount = res->count;
+            writes[j].pBufferInfo = infos;
+          }
+          else if(bindings[j].images != 0) {
+            VkDescriptorImageInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorImageInfo, res->count);
+            for_every(k, res->count) {
+              infos[k].imageView = res->images[i][k].view;
+              infos[k].imageLayout = get_image_layout(res->images[i][k].current_usage);
+              infos[k].sampler = VK_NULL_HANDLE;
+            }
+
+            writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[j].dstSet = sets[i];
+            writes[j].dstBinding = j;
+            writes[j].dstArrayElement = 0;
+            writes[j].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            writes[j].descriptorCount = res->count;
+            writes[j].pImageInfo = infos;
+          }
+        }
+
+        vkUpdateDescriptorSets(_context.device, n, writes, 0, 0);
+      }
+    }
+
+    void create_resource_group(Arena* arena, ResourceGroup* group, ResourceGroupInfo* info) {
+      create_descriptor_layout(&group->layout, info->bindings, info->bindings_count);
+      allocate_descriptor_sets(group->sets, group->layout);
+
+      // group->bindings_count = info->bindings_count;
+      // group->bindings = push_array_arena(arena, ResourceBinding, info->bindings_count);
+      // for_every(i, info->bindings_count) {
+      //   group->bindings[i].count = info->bindings[i].count;
+
+      //   if(info->bindings[i].buffers != 0) {
+      //     group->bindings[i].buffers = copy_array_arena(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
+      //   }
+      //   else if(info->bindings[i].images != 0) {
+      //     group->bindings[i].images = copy_array_arena(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
+      //   }
+      // }
+
+      // copy_array_arena(arena, info->bindings, ResourceBinding, info->bindings_count);
+
+      update_descriptor_sets(group->sets, info->bindings, info->bindings_count);
+    }
+
+
+    void create_resource_bundle(Arena* arena, ResourceBundle* bundle, ResourceBundleInfo* info) {
+      bundle->group_count = info->group_count;
+      bundle->groups = copy_array_arena(arena, info->groups, ResourceGroup*, info->group_count);
+    }
+
+    void bind_resource_group(VkCommandBuffer commands, VkPipelineLayout layout, ResourceGroup* group, u32 frame_index, u32 bind_index) {
+      vkCmdBindDescriptorSets(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, bind_index, 1, &group->sets[frame_index], 0, 0);
+    }
+
+    void bind_resource_bundle(VkCommandBuffer commands, VkPipelineLayout layout, ResourceBundle* bundle, u32 frame_index) {
+      for_every(i, bundle->group_count) {
+        bind_resource_group(commands, layout, bundle->groups[i], frame_index, i);
+      }
+    }
+
+    void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index) {
+      bind_resource_bundle(commands, effect->layout, &effect->resource_bundle, frame_index);
+    }
+
+    define_material_world_data(ColorMaterial2, {});
+
+    void init_materials() {
       {
         BufferInfo info = {
           .type = BufferType::Uniform,
           .size = sizeof(WorldData),
         };
 
-        create_buffers(_context.world_data_buffer, 2, &info);
+        create_buffers(_context.world_data_buffers, 2, &info);
       }
 
       {
@@ -1357,42 +1513,98 @@ namespace quark {
       }
 
       {
-        VkDescriptorSetLayout layouts[_FRAME_OVERLAP] = {
-          _context.globals_layout,
-          _context.globals_layout,
+        // VkDescriptorSetLayoutBinding layout_bindings[1] = {};
+
+        // // Info: World Data
+        // VkDescriptorSetLayoutBinding world_data_binding_layout = {};
+        // world_data_binding_layout.binding = 0;
+        // world_data_binding_layout.descriptorCount = 1;
+        // world_data_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        // world_data_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        Buffer* buffers[_FRAME_OVERLAP] = {
+          &_context.world_data_buffers[0],
+          &_context.world_data_buffers[1],
         };
 
-        VkDescriptorSetAllocateInfo alloc_info = {};
-        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        alloc_info.descriptorPool = _context.main_descriptor_pool;
-        alloc_info.descriptorSetCount = _FRAME_OVERLAP;
-        alloc_info.pSetLayouts = layouts;
+        ResourceBinding bindings[1] = {};
+        bindings[0].count = 1;
+        bindings[0].buffers = buffers;
 
-        vk_check(vkAllocateDescriptorSets(_context.device, &alloc_info, _context.global_sets));
+        ResourceGroupInfo resource_info {
+          .bindings_count = 1,
+          .bindings = bindings,
+        };
 
-        for_every(i, _FRAME_OVERLAP) {
-          VkDescriptorBufferInfo buffer_info = {};
-          buffer_info.buffer = _context.world_data_buffer[i].buffer;
-          buffer_info.offset = 0;
-          buffer_info.range = _context.world_data_buffer[i].size;
+        create_resource_group(_context.arena, &_context.global_resources_group, &resource_info);
 
-          VkWriteDescriptorSet buffer_write = {};
-          buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-          buffer_write.dstSet = _context.global_sets[i];
-          buffer_write.dstBinding = 0;
-          buffer_write.dstArrayElement = 0;
-          buffer_write.descriptorCount = 1;
-          buffer_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-          buffer_write.pBufferInfo = &buffer_info;
+        // // Info: Textures
+        // VkDescriptorSetLayoutBinding textures_binding_layout = {};
+        // textures_binding_layout.binding = 1;
+        // textures_binding_layout.descriptorCount = 2048;
+        // textures_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        // textures_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-          // VkDescriptorImageInfo image_info = {};
+        // // Info: Shadows
 
-          // VkWriteDescriptorSet image_write = {};
-          // buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-          // buffer_write.descriptorCount = 0;
+        // // Info: Samplers
+        // VkDescriptorSetLayoutBinding sampler_binding_layout = {};
+        // sampler_binding_layout.binding = 2;
+        // sampler_binding_layout.descriptorCount = 1;
+        // sampler_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        // sampler_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-          vkUpdateDescriptorSets(_context.device, 1, &buffer_write, 0, 0);
-        }
+        // VkDescriptorSetLayoutBinding globals_bindings[] = {
+        //   world_data_binding_layout,
+        //   // textures_binding_layout,
+        //   // sampler_binding_layout,
+        // };
+
+        // VkDescriptorSetLayoutCreateInfo globals_set_layout_info = {};
+        // globals_set_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        // globals_set_layout_info.bindingCount = count_of(globals_bindings);
+        // globals_set_layout_info.pBindings = globals_bindings;
+
+        // vk_check(vkCreateDescriptorSetLayout(_context.device, &globals_set_layout_info, 0, &_context.globals_layout));
+      }
+
+      {
+        // VkDescriptorSetLayout layouts[_FRAME_OVERLAP] = {
+        //   _context.globals_layout,
+        //   _context.globals_layout,
+        // };
+
+        // VkDescriptorSetAllocateInfo alloc_info = {};
+        // alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        // alloc_info.descriptorPool = _context.main_descriptor_pool;
+        // alloc_info.descriptorSetCount = _FRAME_OVERLAP;
+        // alloc_info.pSetLayouts = layouts;
+
+        // vk_check(vkAllocateDescriptorSets(_context.device, &alloc_info, _context.global_sets));
+
+        // for_every(i, _FRAME_OVERLAP) {
+        //   VkDescriptorBufferInfo buffer_info = {};
+        //   buffer_info.buffer = _context.world_data_buffers[i].buffer;
+        //   buffer_info.offset = 0;
+        //   buffer_info.range = _context.world_data_buffers[i].size;
+
+        //   VkWriteDescriptorSet buffer_write = {};
+        //   buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        //   buffer_write.dstSet = _context.global_resources_group.sets[i];
+        //   buffer_write.dstBinding = 0;
+        //   buffer_write.dstArrayElement = 0;
+        //   buffer_write.descriptorCount = 1;
+        //   buffer_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        //   buffer_write.pBufferInfo = &buffer_info;
+
+        //   // VkDescriptorImageInfo image_info = {};
+
+        //   // VkWriteDescriptorSet image_write = {};
+        //   // buffer_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        //   // buffer_write.descriptorCount = 0;
+
+        //   vkUpdateDescriptorSets(_context.device, 1, &buffer_write, 0, 0);
+        // }
       }
 
       update_material(ColorMaterial2, "color", "color");

@@ -746,6 +746,8 @@ void assert2(bool v) {
     add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
     drawable_instance.transform.position.z += 3;
     add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+
+    get_resource(Resource<ColorMaterial2WorldData> {})->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
     // printf("Added drawable!\n");
 
     init_ecs();

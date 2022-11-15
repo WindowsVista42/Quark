@@ -364,7 +364,7 @@ namespace quark {
 // Dump Struct
 //
 
-  #define dump_struct(s) __builtin_dump_struct(&s, &printf)
+  #define dump_struct(s) __builtin_dump_struct((s), &printf)
   
 //
 // Linear Algebra Type Definitions

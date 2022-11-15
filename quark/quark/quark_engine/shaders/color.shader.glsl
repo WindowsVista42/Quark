@@ -18,6 +18,10 @@ layout (set = 0, binding = 0) uniform WorldData {
   f32 time;
 };
 
+layout (set = 1, binding = 0) uniform ColorData {
+  vec4 cd_tint;
+};
+
 // SECTION: VERTEX
 
 void main() {
@@ -71,5 +75,5 @@ vec4 aces(vec4 in_color) {
 }
 
 void main() {
-  COLOR = aces(CUSTOM_PUSH.color);
+  COLOR = aces(CUSTOM_PUSH.color) + cd_tint;
 }
