@@ -444,6 +444,20 @@ namespace quark {
     vec4 xs, ys, zs, ws;
     vec4& operator [](usize i);
   };
+
+//
+// Colors
+//
+
+  constexpr vec4 RED         = vec4 { 1, 0, 0, 1 };
+  constexpr vec4 YELLOW      = vec4 { 1, 1, 0, 1 };
+  constexpr vec4 GREEN       = vec4 { 0, 1, 0, 1 };
+  constexpr vec4 CYAN        = vec4 { 0, 1, 1, 1 };
+  constexpr vec4 BLUE        = vec4 { 0, 0, 1, 1 };
+  constexpr vec4 MAGENTA     = vec4 { 1, 0, 1, 1 };
+  constexpr vec4 WHITE       = vec4 { 1, 1, 1, 1 };
+  constexpr vec4 BLACK       = vec4 { 0, 0, 0, 1 };
+  constexpr vec4 TRANSPARENT = vec4 { 0, 0, 0, 0 };
   
 //
 // Linear Algebra Type Operators

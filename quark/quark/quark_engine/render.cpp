@@ -154,12 +154,13 @@ namespace quark {
     Image swapchain_image = {
       .image = _context.swapchain_images[_swapchain_image_index],
       .view = _context.swapchain_image_views[_swapchain_image_index],
-      .current_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+      // .current_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+      .current_usage = ImageUsage::Unknown,
       .resolution = get_window_dimensions(),
-      .is_color = true,
+      .format = ImageFormat::LinearBgra8,
     };
     blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context.material_color_images[_frame_index], FilterMode::Nearest);
-    transition_image(_main_cmd_buf[_frame_index], &swapchain_image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    transition_image(_main_cmd_buf[_frame_index], &swapchain_image, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
   
@@ -203,33 +204,15 @@ namespace quark {
   }
 
   void begin_drawing_materials() {
-    VkClearValue clear_values[2];
-    copy_array(&clear_values[0].color.float32, &_context.main_color_clear_value, f32, 4);
-    clear_values[1].depthStencil.depth = _context.main_depth_clear_value;
-
-    VkRenderPassBeginInfo begin_info = {};
-    begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    begin_info.renderPass = _context.main_render_pass;
-    begin_info.renderArea = get_scissor(_context.render_resolution);
-    begin_info.framebuffer = _context.main_framebuffers[_frame_index];
-    begin_info.clearValueCount = 2;
-    begin_info.pClearValues = clear_values;
-
-    vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    for_every(i, _FRAME_OVERLAP) {
-      _context.material_color_images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      _context.main_depth_images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    }
+    ClearValue clear_values[2] = {
+      { .color = CYAN },
+      { .depth = 1, .stencil = 0 },
+    };
+    begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context.main_render_pass, clear_values);
   }
 
   void end_drawing_materials() {
-    vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
-
-    for_every(i, _FRAME_OVERLAP) {
-      _context.material_color_images[i].current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-      _context.main_depth_images[i].current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    }
+    end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context.main_render_pass);
   }
 
   void begin_drawing_post_process() {
@@ -552,7 +535,24 @@ namespace quark {
       // MeshPool mesh_pool = create_mesh_pool(&mesh_pool_info);
       // add_mesh_pool(res, "main_mesh_pool");
     }
-    
+
+    template<typename T, typename ...Opts>
+    bool eq_any(T val, Opts ...opts) {
+        return (... || (val == opts));
+    }
+
+    VkImageAspectFlags get_image_aspect(ImageFormat format) {
+      if(eq_any(format, ImageFormat::LinearD32, ImageFormat::LinearD24S8, ImageFormat::LinearD16)) {
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+      }
+
+      return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    bool is_format_color(ImageFormat format) {
+      return get_image_aspect(format) == VK_IMAGE_ASPECT_COLOR_BIT ? true : false;
+    }
+
     void copy_meshes_to_gpu() {
       LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
     
@@ -608,17 +608,31 @@ namespace quark {
     }
 
     VkImageCreateInfo get_image_info(ImageInfo* info) {
+
+
       VkImageCreateInfo image_info = {};
       image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_info.pNext = 0;
       image_info.imageType = VK_IMAGE_TYPE_2D;
-      image_info.format = info->format;
+      image_info.format = (VkFormat)info->format;
       image_info.extent = VkExtent3D { .width = (u32)info->resolution.x, .height = (u32)info->resolution.y, .depth = 1 };
       image_info.mipLevels = 1;
       image_info.arrayLayers = 1;
       image_info.samples = info->samples;
       image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-      image_info.usage = info->usage;
+
+      VkImageUsageFlags usage_lookup[] {
+        // Texture
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+
+        // RenderTargetColor
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        
+        // RenderTargetDepth
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      };
+
+      image_info.usage = usage_lookup[(u32)info->type];
       image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
       return image_info;
@@ -630,12 +644,12 @@ namespace quark {
       view_info.pNext = 0;
       view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
       view_info.image = image;
-      view_info.format = info->format;
+      view_info.format = (VkFormat)info->format;
       view_info.subresourceRange.baseMipLevel = 0;
       view_info.subresourceRange.levelCount = 1;
       view_info.subresourceRange.baseArrayLayer = 0;
       view_info.subresourceRange.layerCount = 1;
-      view_info.subresourceRange.aspectMask = info->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;
+      view_info.subresourceRange.aspectMask = get_image_aspect(info->format);
 
       return view_info;
     }
@@ -668,9 +682,10 @@ namespace quark {
         VkImageViewCreateInfo view_info = get_image_view_info(info, images[i].image);
         vk_check(vkCreateImageView(_context.device, &view_info, 0, &images[i].view));
 
-        images[i].current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        images[i].current_usage = ImageUsage::Unknown; // current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         images[i].resolution = info->resolution;
-        images[i].is_color = info->is_color;
+        images[i].format = info->format;
+        images[i].samples = info->samples;
       }
     }
 
@@ -685,7 +700,7 @@ namespace quark {
         .bottom_left = {0, 0, 0},
         .top_right = { image->resolution.x, image->resolution.y, 1 },
         .subresource = {
-          .aspectMask = (VkImageAspectFlags)(image->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT),
+          .aspectMask = get_image_aspect(image->format),
           .mipLevel = 0,
           .baseArrayLayer = 0,
           .layerCount = 1,
@@ -693,9 +708,23 @@ namespace quark {
       };
     }
 
-    void transition_image(VkCommandBuffer commands, Image* image, VkImageLayout new_layout) {
+    VkImageLayout get_image_layout(ImageUsage usage) {
+      VkImageLayout layout_lookup[] = {
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+      };
+
+      return layout_lookup[(u32)usage];
+    }
+
+    void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage) {
       // Info: we can no-op if we're the correct layout
-      if(image->current_layout == new_layout) {
+      if(image->current_usage == new_usage) {
         return;
       }
 
@@ -704,47 +733,67 @@ namespace quark {
       // I have to do some *slight* translation for VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, since it
       // has a value outside of [0, 8).
       VkAccessFlagBits access_lookup[] = {
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_UNDEFINED
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_GENERAL // give up
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-        VK_ACCESS_SHADER_READ_BIT,    // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        VK_ACCESS_TRANSFER_READ_BIT,  // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        VK_ACCESS_TRANSFER_WRITE_BIT, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        VK_ACCESS_NONE,                               // ImageUsage::Unknown
+        VK_ACCESS_TRANSFER_READ_BIT,                  // ImageUsage::Src
+        VK_ACCESS_TRANSFER_WRITE_BIT,                 // ImageUsage::Dst
+        VK_ACCESS_SHADER_READ_BIT,                    // ImageUsage::Texture
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,         // ImageUsage::RenderTargetColor
+        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, // ImageUsage::RenderTargetDepth
+        VK_ACCESS_NONE,                               // ImageUsage::Present
       };
 
+      // VkAccessFlagBits access_lookup[] = {
+      //   VK_ACCESS_NONE,               // // VK_IMAGE_LAYOUT_UNDEFINED
+      //   // VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_GENERAL // give up
+      //   VK_ACCESS_NONE,               // // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      //   VK_ACCESS_NONE,               // // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      //   VK_ACCESS_NONE,               // // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+      //   VK_ACCESS_SHADER_READ_BIT,    // // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+      //   VK_ACCESS_TRANSFER_READ_BIT,  // // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+      //   VK_ACCESS_TRANSFER_WRITE_BIT, // // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+      //   // VK_ACCESS_NONE,               // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+      // };
+
       // Info: ditto with previous
+      // VkPipelineStageFlagBits stage_lookup[] = {
+      //   VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_UNDEFINED
+      //   // VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_GENERAL
+      //   VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      //   VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      //   VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+      //   VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+      //   VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+      //   VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+      //   // VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_PRESENT_OPTIMAL
+      // };
+
       VkPipelineStageFlagBits stage_lookup[] = {
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_UNDEFINED
-        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_GENERAL
-        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        VK_PIPELINE_STAGE_NONE, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        VK_PIPELINE_STAGE_TRANSFER_BIT, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // VK_IMAGE_LAYOUT_PRESENT_OPTIMAL
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,    // ImageUsage::Unknown
+        VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Src
+        VK_PIPELINE_STAGE_TRANSFER_BIT,       // ImageUsage::Dst
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  // ImageUsage::Texture
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  // ImageUsage::RenderTargetColor
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  // ImageUsage::RenderTargetDepth
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // ImageUsage::Present
       };
 
       // Info: index translation for lookup
-      u32 old_layout_i = image->current_layout;
-      old_layout_i = old_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : old_layout_i;
+      // u32 old_layout_i = image->current_usage;
+      // old_layout_i = old_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : old_layout_i;
 
-      u32 new_layout_i = new_layout;
-      new_layout_i = new_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : new_layout_i;
+      // u32 new_layout_i = new_layout;
+      // new_layout_i = new_layout_i == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ? 8 : new_layout_i;
 
       // Info: We were given an invalit layout
-      if(old_layout_i > 8 || new_layout_i > 8) {
-        panic("Could not transition to image layout!\n");
-      }
+      // if(old_layout_i > 8 || new_layout_i > 8) {
+      //   panic("Could not transition to image layout!\n");
+      // }
 
       VkImageMemoryBarrier barrier = {};
       barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 
-      barrier.oldLayout = image->current_layout;
-      barrier.newLayout = new_layout;
+      barrier.oldLayout = get_image_layout(image->current_usage);
+      barrier.newLayout = get_image_layout(new_usage);
 
       barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -752,25 +801,25 @@ namespace quark {
       barrier.image = image->image;
 
       barrier.subresourceRange = {
-        .aspectMask = (VkImageAspectFlags)(image->is_color ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT),
+        .aspectMask = get_image_aspect(image->format),
         .baseMipLevel = 0,
         .levelCount = 1,
         .baseArrayLayer = 0,
         .layerCount = 1,
       };
 
-      barrier.srcAccessMask = access_lookup[old_layout_i];
-      barrier.dstAccessMask = access_lookup[new_layout_i];
+      barrier.srcAccessMask = access_lookup[(u32)image->current_usage];
+      barrier.dstAccessMask = access_lookup[(u32)new_usage];
 
       vkCmdPipelineBarrier(commands,
-        stage_lookup[old_layout_i], stage_lookup[new_layout_i],
+        stage_lookup[(u32)image->current_usage], stage_lookup[(u32)new_usage],
         0,
         0, 0,
         0, 0,
         1, &barrier
       );
 
-      image->current_layout = new_layout;
+      image->current_usage = new_usage;
     }
 
     void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode) {
@@ -787,13 +836,13 @@ namespace quark {
       blit_region.dstSubresource = dst_blit_info.subresource;
 
       // Info: we need to transition the image layout
-      if(src->current_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-        transition_image(commands, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      if(src->current_usage != ImageUsage::Src) {
+        transition_image(commands, src, ImageUsage::Src);
       }
 
       // Info: we need to transition the image layout
-      if(dst->current_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-        transition_image(commands, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      if(dst->current_usage != ImageUsage::Dst) {
+        transition_image(commands, dst, ImageUsage::Dst);
       }
 
       vkCmdBlitImage(commands,
@@ -804,17 +853,10 @@ namespace quark {
       );
     }
 
-    struct RenderPassInfo {
-      u32 attachment_count;
-      ImageInfo* image_infos;
-      Image** images;
-      VkAttachmentLoadOp* load_ops;
-      VkAttachmentStoreOp* store_ops;
-      VkImageLayout* initial_layouts;
-      VkImageLayout* final_layouts;
-    };
+    void begin_render_pass(VkCommandBuffer commands, RenderPass* render_pass, u32 image_index, ClearValue* clear_values) {
+    }
 
-    void create_render_pass(VkRenderPass* render_pass, RenderPassInfo* info) {
+    void create_vk_render_pass(VkRenderPass* render_pass, RenderPassInfo* info) {
       VkAttachmentDescription attachment_descs[info->attachment_count];
       zero_array(attachment_descs, VkAttachmentDescription, info->attachment_count);
 
@@ -828,18 +870,18 @@ namespace quark {
 
       for_every(i, info->attachment_count) {
         // build attachment descs
-        attachment_descs[i].format = info->image_infos[i].format;
-        attachment_descs[i].samples = info->image_infos[i].samples;
+        attachment_descs[i].format = (VkFormat)info->attachments[i][0].format;
+        attachment_descs[i].samples = info->attachments[i][0].samples;
         attachment_descs[i].loadOp = info->load_ops[i];
         attachment_descs[i].storeOp = info->store_ops[i];
-        attachment_descs[i].initialLayout = info->initial_layouts[i];
-        attachment_descs[i].finalLayout = info->final_layouts[i];
+        attachment_descs[i].initialLayout = get_image_layout(info->initial_usage[i]);
+        attachment_descs[i].finalLayout = get_image_layout(info->final_usage[i]);
 
         attachment_descs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachment_descs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
         // build attachment refs
-        if(info->image_infos[i].is_color) {
+        if(is_format_color(info->attachments[i][0].format)) {
           color_attachment_refs[color_count].attachment = i;
           color_attachment_refs[color_count].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
@@ -874,82 +916,6 @@ namespace quark {
 
       vk_check(vkCreateRenderPass(_context.device, &create_info, 0, render_pass));
     }
-    
-    void init_render_passes() {
-      _context.render_resolution = get_window_dimensions() / 1;
-
-      _context.material_color_image_info = {
-        .resolution = _context.render_resolution,
-        .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .is_color = true,
-      };
-      create_images(_context.material_color_images, _FRAME_OVERLAP, &_context.material_color_image_info);
-
-      _context.main_depth_image_info = {
-        .resolution = _context.render_resolution,
-        .format = VK_FORMAT_D24_UNORM_S8_UINT,
-        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .is_color = false,
-      };
-      create_images(_context.main_depth_images, _FRAME_OVERLAP, &_context.main_depth_image_info);
-
-      // _context.post_process_color_image_info = {
-      //   .resolution = _context.render_resolution,
-      //   .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-      //   .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-      //   .samples = VK_SAMPLE_COUNT_1_BIT,
-      //   .is_color = true,
-      // };
-      // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
-
-      _context.main_color_clear_value = vec4 { 1.0f, 0.0f, 0.0f, 1.0f };
-      _context.main_depth_clear_value = 1.0f;
-
-      ImageInfo image_infos[2] = {
-        _context.material_color_image_info,
-        _context.main_depth_image_info,
-      };
-
-      Image* images[2] = {
-        _context.material_color_images,
-        _context.main_depth_images,
-      };
-
-      VkAttachmentLoadOp load_ops[2] = {
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-      };
-
-      VkAttachmentStoreOp store_ops[2] = {
-        VK_ATTACHMENT_STORE_OP_STORE,
-        VK_ATTACHMENT_STORE_OP_STORE,
-      };
-
-      VkImageLayout initial_layouts[2] = {
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-      };
-
-      VkImageLayout final_layouts[2] = {
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      };
-
-      RenderPassInfo render_pass_info = {
-        .attachment_count = 2,
-        .image_infos = image_infos,
-        .images = images,
-        .load_ops = load_ops,
-        .store_ops = store_ops,
-        .initial_layouts = initial_layouts,
-        .final_layouts = final_layouts,
-      };
-
-      create_render_pass(&_context.main_render_pass, &render_pass_info);
-    }
 
     struct FramebufferInfo {
       ivec2 resolution;
@@ -980,21 +946,194 @@ namespace quark {
         vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &framebuffers[i]);
       }
     }
+
+    void create_render_pass(Arena* arena, RenderPass* render_pass, RenderPassInfo* info) {
+      create_vk_render_pass(&render_pass->render_pass, info);
+      FramebufferInfo framebuffer_info = {
+        .resolution = info->resolution,
+        .attachment_count = info->attachment_count,
+        .attachments = info->attachments,
+        .render_pass = render_pass->render_pass,
+      };
+
+      render_pass->framebuffers = push_array_arena(arena, VkFramebuffer, info->image_count);
+      create_framebuffers(render_pass->framebuffers, info->image_count, &framebuffer_info);
+
+      // Info: we need to copy over the relevant data
+      render_pass->attachment_count = info->attachment_count;
+      render_pass->image_count = info->image_count;
+      render_pass->resolution = info->resolution;
+      render_pass->attachments = push_array_arena(arena, Image*, info->attachment_count);
+      render_pass->initial_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
+      render_pass->final_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
+
+      copy_array(render_pass->attachments, info->attachments, Image*, info->attachment_count);
+      copy_array(render_pass->initial_usage, info->initial_usage, ImageUsage, info->attachment_count);
+      copy_array(render_pass->final_usage, info->final_usage, ImageUsage, info->attachment_count);
+    }
+
+    void begin_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass, ClearValue* clear_values) {
+      VkRenderPassBeginInfo begin_info = {};
+      begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      begin_info.renderPass = render_pass->render_pass;
+      begin_info.renderArea = get_scissor(render_pass->resolution);
+      begin_info.framebuffer = render_pass->framebuffers[image_index];
+      begin_info.clearValueCount = render_pass->attachment_count;
+      begin_info.pClearValues = (VkClearValue*)clear_values;
+
+      vkCmdBeginRenderPass(commands, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+      for_every(i, render_pass->attachment_count) {
+        render_pass->attachments[i][image_index].current_usage = render_pass->initial_usage[i];
+      }
+    }
+
+    void end_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass) {
+      vkCmdEndRenderPass(commands);
+
+      for_every(i, render_pass->attachment_count) {
+        render_pass->attachments[i][image_index].current_usage = render_pass->final_usage[i];
+      }
+    }
+
+    // struct RenderTargetInfo {
+    //   u32 attachment_count;
+    //   ivec2 resolution;
+    // };
+
+    // void create_render_targets(Arena* arena, RenderTarget* render_target, u32 n, RenderTargetInfo* info, Image** images) {
+    //   for_every(i, n) {
+    //     VkFramebufferCreateInfo framebuffer_info = {};
+    //     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    //     framebuffer_info.renderPass = info->render_pass;
+
+    //     framebuffer_info.width = info->resolution.x;
+    //     framebuffer_info.height = info->resolution.y;
+    //     framebuffer_info.layers = 1;
+
+    //     framebuffer_info.attachmentCount = info->attachment_count;
+
+    //     VkImageView attachments[info->attachment_count];
+    //     for_every(j, info->attachment_count) {
+    //       attachments[j] = images[j][i].view;
+    //     }
+
+    //     framebuffer_info.pAttachments = attachments;
+
+    //     vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &render_target[i].framebuffer);
+
+    //     render_target[i].attachment_count = info->attachment_count;
+    //     render_target[i].images = (Image**)push_array_arena(arena, Image*, info->attachment_count);
+    //     for_every(j, info->attachment_count) {
+    //      render_target[i].images[j] = &info->attachments[j][i];
+    //     }
+
+    //     render_target[i].resolution = info->resolution;
+    //   }
+    // }
+
+    // void begin_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target, ClearValue* clear_values) {
+    // }
+
+    // void end_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target);
     
-    void init_framebuffers() {
-      Image* attachments[2] = {
+    void init_render_passes() {
+      _context.render_resolution = get_window_dimensions() / 1;
+
+      _context.material_color_image_info = {
+        .resolution = _context.render_resolution,
+        .format = ImageFormat::LinearRgba16,
+        .type = ImageType::RenderTargetColor,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+      };
+      create_images(_context.material_color_images, _FRAME_OVERLAP, &_context.material_color_image_info);
+
+      _context.main_depth_image_info = {
+        .resolution = _context.render_resolution,
+        .format = ImageFormat::LinearD24S8,
+        .type = ImageType::RenderTargetDepth,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+      };
+      create_images(_context.main_depth_images, _FRAME_OVERLAP, &_context.main_depth_image_info);
+
+      // Image* images[] = {
+      //   _context.material_color_images,
+      //   _context.main_depth_images,
+      // };
+      // RenderTargetInfo render_target_info = {
+      //   .attachment_count = 2,
+      //   .resolution
+      // };
+      // create_render_targets(_context.arena, _context.main_render_targets, _FRAME_OVERLAP, images);
+
+      // _context.post_process_color_image_info = {
+      //   .resolution = _context.render_resolution,
+      //   .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+      //   .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+      //   .samples = VK_SAMPLE_COUNT_1_BIT,
+      //   .is_color = true,
+      // };
+      // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
+
+      _context.main_color_clear_value = vec4 { 1.0f, 0.0f, 0.0f, 1.0f };
+      _context.main_depth_clear_value = 1.0f;
+
+      Image* images[2] = {
         _context.material_color_images,
         _context.main_depth_images,
       };
 
-      FramebufferInfo info = {
-        .resolution = _context.render_resolution,
-        .attachment_count = 2,
-        .attachments = attachments,
-        .render_pass = _context.main_render_pass,
+      VkAttachmentLoadOp load_ops[2] = {
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
       };
 
-      create_framebuffers(_context.main_framebuffers, _FRAME_OVERLAP, &info);
+      VkAttachmentStoreOp store_ops[2] = {
+        VK_ATTACHMENT_STORE_OP_STORE,
+        VK_ATTACHMENT_STORE_OP_STORE,
+      };
+
+      ImageUsage initial_usages[2] = {
+        ImageUsage::Unknown,
+        ImageUsage::Unknown,
+      };
+
+      ImageUsage final_usages[2] = {
+        ImageUsage::Texture,
+        ImageUsage::Texture,
+      };
+
+      RenderPassInfo render_pass_info = {
+        .resolution = _context.render_resolution,
+        .attachment_count = 2,
+        .image_count = _FRAME_OVERLAP,
+
+        .attachments = images,
+
+        .load_ops = load_ops,
+        .store_ops = store_ops,
+
+        .initial_usage = initial_usages,
+        .final_usage = final_usages,
+      };
+
+      create_render_pass(_context.arena, &_context.main_render_pass, &render_pass_info);
+    }
+    
+    void init_framebuffers() {
+      // Image* attachments[2] = {
+      //   _context.material_color_images,
+      //   _context.main_depth_images,
+      // };
+
+      // FramebufferInfo info = {
+      //   .resolution = _context.render_resolution,
+      //   .attachment_count = 2,
+      //   .attachments = attachments,
+      //   .render_pass = _context.main_render_pass,
+      // };
+
+      // create_framebuffers(_context.main_framebuffers, _FRAME_OVERLAP, &info);
     }
     
     void init_sync_objects() {
@@ -1129,7 +1268,7 @@ namespace quark {
       pipeline_info.pDepthStencilState = &depth_info;
       pipeline_info.pColorBlendState = &color_blend_info;
       pipeline_info.layout = effect->layout;
-      pipeline_info.renderPass = _context.main_render_pass;
+      pipeline_info.renderPass = _context.main_render_pass.render_pass;
 
       vk_check(vkCreateGraphicsPipelines(_context.device, 0, 1, &pipeline_info, 0, &effect->pipeline));
     }

@@ -392,7 +392,7 @@ namespace quark {
     usize length;
 
     tempstr() = delete;
-  }; 
+  };
 
   // No cleanup required, create_tempstr automatically resets the internal buffer
   engine_api tempstr create_tempstr();
@@ -965,21 +965,89 @@ namespace quark {
     u32 size;
   };
 
+  declare_enum(ImageFormat, u32,
+    LinearD32    = VK_FORMAT_D32_SFLOAT, // 32-bit depth image
+    LinearD24S8  = VK_FORMAT_D24_UNORM_S8_UINT, // 24-bit depth image
+    LinearD16    = VK_FORMAT_D16_UNORM, // 16-bit depth image
+ 
+    LinearRgba16 = VK_FORMAT_R16G16B16A16_SFLOAT, // 16-bpc color image
+ 
+    LinearRgba8  = VK_FORMAT_R8G8B8A8_UNORM, // 8-bpc color image
+    LinearBgra8  = VK_FORMAT_B8G8R8A8_UNORM, // 8-bpc Bgra color image
+ 
+    SrgbRgba8    = VK_FORMAT_R8G8B8A8_SRGB, // 8-bpc Srgb color image
+    SrgbBgra8    = VK_FORMAT_B8G8R8A8_SRGB, // 8-bpc Bgra Srgb color image
+  );
+
+  declare_enum(ImageType, u32,
+    Texture           = 0,
+    RenderTargetColor = 1,
+    RenderTargetDepth = 2,
+  );
+
+  declare_enum(ImageUsage, u32,
+    Unknown           = 0, // VK_IMAGE_LAYOUT_UNDEFINED,
+    Src               = 1, // VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    Dst               = 2, // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    Texture           = 3, // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    RenderTargetColor = 4, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    RenderTargetDepth = 5, // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    Present           = 6, // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  );
+
   struct ImageInfo {
     ivec2 resolution;
-    VkFormat format;
-    VkImageUsageFlags usage;
+    ImageFormat format;
+    ImageType type;
     VkSampleCountFlagBits samples;
-    bool is_color;
   };
 
   struct Image {
     VmaAllocation allocation;
     VkImage image;
     VkImageView view;
-    VkImageLayout current_layout;
+    ImageUsage current_usage;
     ivec2 resolution;
-    bool is_color;
+    ImageFormat format;
+    VkSampleCountFlagBits samples;
+  };
+
+  union ClearValue {
+    vec4 color;
+    struct {
+      f32 depth;
+      u32 stencil;
+    };
+  };
+
+  struct RenderPassInfo {
+    ivec2 resolution;
+
+    u32 attachment_count;
+    u32 image_count;
+
+    Image** attachments;
+
+    VkAttachmentLoadOp* load_ops;
+    VkAttachmentStoreOp* store_ops;
+
+    ImageUsage* initial_usage;
+    ImageUsage* final_usage;
+  };
+
+  struct RenderPass {
+    ivec2 resolution;
+
+    u32 attachment_count;
+    u32 image_count;
+
+    Image** attachments;
+
+    ImageUsage* initial_usage;
+    ImageUsage* final_usage;
+
+    VkRenderPass render_pass;
+    VkFramebuffer* framebuffers;
   };
 
   struct MaterialEffectInfo {
@@ -1042,13 +1110,17 @@ namespace quark {
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
 
+    RenderPass main_render_pass;
+
+    // RenderPass shadow_render_pass;
+    // RenderPass depth_render_pass;
+    // RenderPass material_render_pass;
+
     // ImageInfo post_process_color_image_info;
     // Image post_process_color_images[_FRAME_OVERLAP];
 
     vec4 main_color_clear_value;
     f32 main_depth_clear_value;
-    VkRenderPass main_render_pass;
-    VkFramebuffer main_framebuffers[_FRAME_OVERLAP];
 
     VkSampler texture_sampler;
 
@@ -1237,10 +1309,28 @@ namespace quark {
 //
   engine_api void create_images(Image* images, u32 n, ImageInfo* info);
 
-  engine_api void transition_image(VkCommandBuffer commands, Image* image, VkImageLayout new_layout);
+  engine_api void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage);
   engine_api void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode);
 
   engine_api void create_material_effectl(MaterialEffect* effect, MaterialEffectInfo* info);
 
   engine_api void create_post_process_effect(PostProcessEffect* effect, PostProcessEffectInfo* info);
+
+//
+// Render Pass API
+//
+
+  engine_api void begin_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass, ClearValue* clear_values);
+  engine_api void end_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass);
+  // expect the pointers to be stable
+  // array of image array pointers copied
+  // keep inital and final usages and update images
+
+  // Image** images --> an array of image pointers, for each image we want to
+  // usage in this render pass
+  // engine_api void begin_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target, ClearValue* clear_values);
+
+  // Image** images --> an array of image pointers, for each image we used
+  // in this render pass
+  // engine_api void end_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target);
 };
