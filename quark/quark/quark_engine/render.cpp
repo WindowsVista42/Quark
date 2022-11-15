@@ -379,6 +379,41 @@ namespace quark {
     
       vkFreeCommandBuffers(_context.device, _transfer_cmd_pool, 1, &command_buffer);
     }
+
+    VkCommandBuffer begin_quick_commands2() {
+      VkCommandBufferAllocateInfo allocate_info = {};
+      allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+      allocate_info.commandPool = _graphics_cmd_pool[0];
+      allocate_info.commandBufferCount = 1;
+    
+      VkCommandBuffer command_buffer;
+      vk_check(vkAllocateCommandBuffers(_context.device, &allocate_info, &command_buffer));
+    
+      VkCommandBufferBeginInfo begin_info = {};
+      begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+      begin_info.flags = 0;
+      begin_info.pInheritanceInfo = 0;
+    
+      vkBeginCommandBuffer(command_buffer, &begin_info);
+    
+      return command_buffer;
+    }
+
+
+    void end_quick_commands2(VkCommandBuffer command_buffer) {
+      vkEndCommandBuffer(command_buffer);
+    
+      VkSubmitInfo submit_info = {};
+      submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submit_info.commandBufferCount = 1;
+      submit_info.pCommandBuffers = &command_buffer;
+    
+      vk_check(vkQueueSubmit(_context.graphics_queue, 1, &submit_info, 0));
+      vkQueueWaitIdle(_context.graphics_queue);
+    
+      vkFreeCommandBuffers(_context.device, _graphics_cmd_pool[0], 1, &command_buffer);
+    }
     
     // AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
     //   AllocatedBuffer alloc_buffer = {};
@@ -1356,11 +1391,13 @@ namespace quark {
         layout_bindings[i].binding = i;
 
         // switch over buffer / image resource
-        if(bindings->buffers != 0) {
+        if(bindings[i].buffers != 0) {
           layout_bindings[i].descriptorType = get_buffer_descriptor_type(bindings[i].buffers[0][0].type);
-        } else if(bindings->images != 0) {
+        }
+        else if(bindings[i].images != 0) {
           layout_bindings[i].descriptorType = get_image_descriptor_type(bindings[i].images[0][0].type);
-        } else {
+        }
+        else {
           panic("");
         }
 
@@ -1424,7 +1461,7 @@ namespace quark {
             VkDescriptorImageInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorImageInfo, res->count);
             for_every(k, res->count) {
               infos[k].imageView = res->images[i][k].view;
-              infos[k].imageLayout = get_image_layout(res->images[i][k].current_usage);
+              infos[k].imageLayout = get_image_layout(ImageUsage::Texture);
               infos[k].sampler = VK_NULL_HANDLE;
             }
 
@@ -1446,22 +1483,20 @@ namespace quark {
       create_descriptor_layout(&group->layout, info->bindings, info->bindings_count);
       allocate_descriptor_sets(group->sets, group->layout);
 
-      // group->bindings_count = info->bindings_count;
-      // group->bindings = push_array_arena(arena, ResourceBinding, info->bindings_count);
-      // for_every(i, info->bindings_count) {
-      //   group->bindings[i].count = info->bindings[i].count;
+      group->bindings_count = info->bindings_count;
+      group->bindings = push_array_zero_arena(arena, ResourceBinding, info->bindings_count);
+      for_every(i, info->bindings_count) {
+        group->bindings[i].count = info->bindings[i].count;
 
-      //   if(info->bindings[i].buffers != 0) {
-      //     group->bindings[i].buffers = copy_array_arena(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
-      //   }
-      //   else if(info->bindings[i].images != 0) {
-      //     group->bindings[i].images = copy_array_arena(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
-      //   }
-      // }
+        if(info->bindings[i].buffers != 0) {
+          group->bindings[i].buffers = copy_array_arena(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
+        }
+        else if(info->bindings[i].images != 0) {
+          group->bindings[i].images = copy_array_arena(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
+        }
+      }
 
-      // copy_array_arena(arena, info->bindings, ResourceBinding, info->bindings_count);
-
-      update_descriptor_sets(group->sets, info->bindings, info->bindings_count);
+      update_descriptor_sets(group->sets, group->bindings, group->bindings_count);
     }
 
 
@@ -1522,17 +1557,39 @@ namespace quark {
         // world_data_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         // world_data_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
+        ImageInfo image_info = {
+          .resolution = { 1, 1 },
+          .format = ImageFormat::LinearRgba8,
+          .type = ImageType::Texture,
+          .samples = VK_SAMPLE_COUNT_1_BIT,
+        };
+        create_images(&_context.textures[0], 1, &image_info);
+
+        VkCommandBuffer commands = begin_quick_commands2();
+        transition_image(commands, &_context.textures[0], ImageUsage::Texture);
+        end_quick_commands2(commands);
+
         Buffer* buffers[_FRAME_OVERLAP] = {
           &_context.world_data_buffers[0],
           &_context.world_data_buffers[1],
         };
 
-        ResourceBinding bindings[1] = {};
+        Image* images[_FRAME_OVERLAP] = {
+          _context.textures,
+          _context.textures,
+        };
+
+        ResourceBinding bindings[2] = {};
         bindings[0].count = 1;
         bindings[0].buffers = buffers;
+        bindings[0].images = 0;
+
+        bindings[1].count = 1;
+        bindings[1].buffers = 0;
+        bindings[1].images = images;
 
         ResourceGroupInfo resource_info {
-          .bindings_count = 1,
+          .bindings_count = count_of(bindings),
           .bindings = bindings,
         };
 

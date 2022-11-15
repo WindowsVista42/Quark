@@ -942,8 +942,8 @@ namespace quark {
   };
 
   struct ResourceGroup {
-    // u32 bindings_count;
-    // ResourceBinding* bindings;
+    u32 bindings_count;
+    ResourceBinding* bindings;
     VkDescriptorSetLayout layout;
     VkDescriptorSet sets[_FRAME_OVERLAP];
   };
@@ -1019,6 +1019,8 @@ namespace quark {
 
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
+
+    Image textures[16];
 
     // RenderPass depth_prepass_render_pass;
     RenderPass main_render_pass;
