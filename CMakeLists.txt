@@ -25,13 +25,13 @@ set(BUILD_PYBULLET OFF CACHE BOOL "" FORCE)
 # OPTIMIZATION AND DEBUGGING OPTIONS
 if(WIN32)
   #set(FORCE_SHARED_CRT ON)
-  set(CMAKE_C_FLAGS_DEBUG "-O2 -DDEBUG -static -Wno-nullability-completeness")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
-  set(CMAKE_C_FLAGS_RELEASE "-Ofast -mavx2 -static -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_DEBUG "-O2 -mavx2 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -mavx2 -DDEBUG -static")
+  set(CMAKE_C_FLAGS_RELEASE "-O2 -mavx2 -static -Wno-nullability-completeness")
   
-  set(CMAKE_CXX_FLAGS_DEBUG "-O2 -DDEBUG -static -Wno-nullability-completeness")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -mavx2 -DDEBUG -static")
-  set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mavx2 -static -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_DEBUG "-O2 -mavx2 -DDEBUG -static -Wno-nullability-completeness")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -mavx2 -DDEBUG -static")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -mavx2 -static -Wno-nullability-completeness")
 endif(WIN32)
 
 if(UNIX)
@@ -71,6 +71,7 @@ include_directories(PUBLIC lib/qoi)
 include_directories(PUBLIC lib/entt/src)
 include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
+include_directories(PUBLIC lib/meshoptimizer/src)
 
 # QUARK
 add_subdirectory(quark/quark)

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <stb_image.h>
+#include <meshoptimizer.h>
 
 namespace quark {
   template <typename A, typename B>
@@ -811,58 +812,81 @@ namespace quark {
     vec3 max_extents = { 0.0f, 0.0f, 0.0f };
     vec3 min_extents = { 0.0f, 0.0f, 0.0f };
 
-    std::unordered_map<VertexPNT, u32> unique_vertices{};
-    std::vector<VertexPNT> vertices = {};
+    // std::unordered_map<VertexPNT, u32> unique_vertices{};
+    // std::vector<VertexPNT> vertices = {};
+    std::vector<vec3> positions = {};
+    std::vector<vec3> normals = {};
+    std::vector<vec2> uvs = {};
     std::vector<u32> indices = {};
     
     for (const auto& shape : shapes) {
       for (const auto& idx : shape.mesh.indices) {
         // vertex position
-        f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
-        f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
-        f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
+
+        vec3 position = vec3 {
+          .x = attrib.vertices[(3 * idx.vertex_index) + 0],
+          .y = attrib.vertices[(3 * idx.vertex_index) + 1],
+          .z = attrib.vertices[(3 * idx.vertex_index) + 2],
+        };
+
+        positions.push_back(position);
+
+        vec3 normal = vec3 {
+          .x = attrib.normals[(3 * idx.normal_index) + 0],
+          .y = attrib.normals[(3 * idx.normal_index) + 1],
+          .z = attrib.normals[(3 * idx.normal_index) + 2],
+        };
+
+        normals.push_back(normal);
+
+        // f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
+        // f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
+        // f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
         // vertex normal
-        f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
-        f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
-        f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
   
-        f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
-        f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
+        vec2 uv = vec2 {
+          .x = attrib.texcoords[(2 * idx.texcoord_index) + 0],
+          .y = attrib.texcoords[(2 * idx.texcoord_index) + 1],
+        };
+
+        uvs.push_back(uv);
+
+        indices.push_back(positions.size() - 1);
   
         // copy it into our vertex
-        VertexPNT vertex = {};
-        vertex.position.x = vx;
-        vertex.position.y = vy;
-        vertex.position.z = vz;
+        // VertexPNT vertex = {};
+        // vertex.position.x = vx;
+        // vertex.position.y = vy;
+        // vertex.position.z = vz;
   
-        vertex.normal.x = nx;
-        vertex.normal.y = ny;
-        vertex.normal.z = nz;
+        // vertex.normal.x = nx;
+        // vertex.normal.y = ny;
+        // vertex.normal.z = nz;
   
-        vertex.texture.x = tx;
-        vertex.texture.y = 1.0f - ty; // Info: flipped cus .obj
+        // vertex.texture.x = tx;
+        // vertex.texture.y = 1.0f - ty; // Info: flipped cus .obj
 
         // vertices.push_back(vertex);
         // indices.push_back(indices.size());
   
-        if(unique_vertices.count(vertex) == 0) {
-          unique_vertices[vertex] = (u32)vertices.size();
-          vertices.push_back(vertex);
-          // printf("new vertex!\n");
-          // dump_struct(&vertex);
+        // if(unique_vertices.count(vertex) == 0) {
+        //   unique_vertices[vertex] = (u32)vertices.size();
+        //   vertices.push_back(vertex);
+        //   // printf("new vertex!\n");
+        //   // dump_struct(&vertex);
 
-        //   // Info: find mesh extents
-          max_extents.x = max(max_extents.x, vertex.position.x);
-          max_extents.y = max(max_extents.y, vertex.position.y);
-          max_extents.z = max(max_extents.z, vertex.position.z);
+        // //   // Info: find mesh extents
+        max_extents.x = max(max_extents.x, position.x);
+        max_extents.y = max(max_extents.y, position.y);
+        max_extents.z = max(max_extents.z, position.z);
 
-          min_extents.x = min(min_extents.x, vertex.position.x);
-          min_extents.y = min(min_extents.y, vertex.position.y);
-          min_extents.z = min(min_extents.z, vertex.position.z);
-        }
+        min_extents.x = min(min_extents.x, position.x);
+        min_extents.y = min(min_extents.y, position.y);
+        min_extents.z = min(min_extents.z, position.z);
+        // }
   
-        indices.push_back(unique_vertices[vertex]);
-        printf("index: %d\n", indices[indices.size() - 1]);
+        // indices.push_back(unique_vertices[vertex]);
+        // printf("index: %d\n", indices[indices.size() - 1]);
       }
     }
   
@@ -871,16 +895,27 @@ namespace quark {
     extents.y = (max_extents.y - min_extents.y);
     extents.z = (max_extents.z - min_extents.z);
 
-    for_every(i, vertices.size()) {
-      vertices[i].position /= (extents * 0.5f);
+    for_every(i, positions.size()) {
+      positions[i] /= (extents * 0.5f);
     }
+
+    meshopt_Stream streams[] = {
+      {positions.data(), sizeof(vec3), sizeof(vec3)},
+      {normals.data(), sizeof(vec3), sizeof(vec3)},
+      {uvs.data(), sizeof(vec2), sizeof(vec2)},
+    };
+
+    // Todo: Finish this
+    std::vector<u32> remap(indices.size());
+    meshopt_generateVertexRemapMulti(remap.data(), NULL, indices.size(), indices.size(), streams, 3);
 
     MeshId id = (MeshId)_context->mesh_counts;
     _context->mesh_counts += 1;
 
     struct MeshScale : vec3 {};
 
-    _context->mesh_instances[(u32)id] = create_mesh2(vertices.data(), vertices.size(), indices.data(), indices.size());
+    _context->mesh_instances[(u32)id] = create_mesh2(positions.data(), normals.data(), uvs.data(), positions.size(), indices.data(), indices.size());
+    //vertices.data(), vertices.size(), indices.data(), indices.size());
     _context->mesh_scales[(u32)id] = normalize_max_length(extents, 2.0f);
 
     add_asset(name, id);
@@ -1197,8 +1232,14 @@ namespace quark {
       unmap_buffer(current_world_data_buffer);
     }
 
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
+    VkDeviceSize offsets[3] = { 0, 0, 0 };
+    VkBuffer buffers[3] = {
+      _context->vertex_positions_buffer.buffer,
+      _context->vertex_normals_buffer.buffer,
+      _context->vertex_uvs_buffer.buffer,
+    };
+
+    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 3, buffers, offsets);
     vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     DrawBatchContext* context = get_draw_batch_context();

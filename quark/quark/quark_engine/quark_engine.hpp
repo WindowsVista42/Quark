@@ -1049,7 +1049,10 @@ namespace quark {
     u32 mesh_counts;
     MeshInstance* mesh_instances; // hot data
     vec3* mesh_scales = {}; // cold data
-    Buffer vertex_buffer;
+    Buffer vertex_positions_buffer;
+    Buffer vertex_normals_buffer;
+    Buffer vertex_uvs_buffer;
+    // Buffer vertex_buffer;
     Buffer index_buffer;
 
     Buffer world_data_buffers[_FRAME_OVERLAP];
@@ -1207,7 +1210,8 @@ namespace quark {
     engine_api bool box_in_frustum(vec3 pos, vec3 Scl); // refactor
 
     engine_api MeshInstance create_mesh(void* data, usize size, usize memsize);
-    engine_api MeshInstance create_mesh2(VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count);
+    // engine_api MeshInstance create_mesh2(VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count);
+    engine_api MeshInstance create_mesh2(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count);
 
     // Texture loading
     // engine_api void create_image(void* data, usize width, usize height, VkFormat format, Image* image);

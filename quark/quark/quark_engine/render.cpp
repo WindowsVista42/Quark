@@ -559,18 +559,35 @@ namespace quark {
       };
       create_buffers(&_context.staging_buffer, 1, &staging_buffer_info);
 
-      // Info: 10 mil verts
-      u32 size = 10000000 * (u32)sizeof(VertexPNT);
+      // Info: 10 mil vertices and indices
+      u32 vertex_count = 10000000;
+      u32 index_count = 10000000;
 
-      BufferInfo vertex_info = {
+      u32 positions_size = vertex_count * sizeof(vec3);
+      u32 normals_size = vertex_count * sizeof(vec3);
+      u32 uvs_size = vertex_count * sizeof(vec2);
+
+      BufferInfo positions_buffer_info = {
         .type = BufferType::Vertex,
-        .size = 10000000 * (u32)sizeof(VertexPNT),
+        .size = positions_size,
       };
-      create_buffers(&_context.vertex_buffer, 1, &vertex_info);
+      create_buffers(&_context.vertex_positions_buffer, 1, &positions_buffer_info);
+
+      BufferInfo normals_buffer_info = {
+        .type = BufferType::Vertex,
+        .size = normals_size,
+      };
+      create_buffers(&_context.vertex_normals_buffer, 1, &normals_buffer_info);
+
+      BufferInfo uvs_buffer_info = {
+        .type = BufferType::Vertex,
+        .size = uvs_size,
+      };
+      create_buffers(&_context.vertex_uvs_buffer, 1, &uvs_buffer_info);
 
       BufferInfo index_info = {
         .type = BufferType::Index,
-        .size = 10000000 * (u32)sizeof(u32),
+        .size = index_count * (u32)sizeof(u32)
       };
       create_buffers(&_context.index_buffer, 1, &index_info);
 
@@ -1232,13 +1249,45 @@ namespace quark {
 
       vk_check(vkCreatePipelineLayout(_context.device, &layout_info, 0, &effect->layout));
 
+      VkVertexInputBindingDescription binding_descriptions[3] = {};
+      // Info: positions data
+      binding_descriptions[0].binding = 0;
+      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      binding_descriptions[0].stride = sizeof(vec3);
+
+      // Info: Normals data
+      binding_descriptions[1].binding = 1;
+      binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      binding_descriptions[1].stride = sizeof(vec3);
+
+      // Info: Texture UV data
+      binding_descriptions[2].binding = 2;
+      binding_descriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      binding_descriptions[2].stride = sizeof(vec2);
+
+      VkVertexInputAttributeDescription attribute_descriptions[3] = {};
+      attribute_descriptions[0].binding = 0;
+      attribute_descriptions[0].location = 0;
+      attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attribute_descriptions[0].offset = 0;
+
+      attribute_descriptions[1].binding = 1;
+      attribute_descriptions[1].location = 1;
+      attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attribute_descriptions[1].offset = 0;
+
+      attribute_descriptions[2].binding = 2;
+      attribute_descriptions[2].location = 2;
+      attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+      attribute_descriptions[2].offset = 0;
+
       // Info: data of triangles
       VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
       vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = 1;
-      vertex_input_info.pVertexBindingDescriptions = get_vertex_pnt_input_description()->bindings;
+      vertex_input_info.vertexBindingDescriptionCount = 3;
+      vertex_input_info.pVertexBindingDescriptions = binding_descriptions; // get_vertex_pnt_input_description()->bindings;
       vertex_input_info.vertexAttributeDescriptionCount = 3;
-      vertex_input_info.pVertexAttributeDescriptions = get_vertex_pnt_input_description()->attributes;
+      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions; // get_vertex_pnt_input_description()->attributes;
 
       // Info: layout of triangles
       VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
@@ -2128,7 +2177,8 @@ namespace quark {
       return length2(vec2 { longest, middle });
     }
 
-    MeshInstance create_mesh2(VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count) {
+    MeshInstance create_mesh2(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count) {
+      // VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count) {
       usize vertex_offset = alloc(&_gpu_vertices_tracker, vertex_count);
       usize index_offset = alloc(&_gpu_indices_tracker, index_count);
 
@@ -2144,28 +2194,47 @@ namespace quark {
       printf("created mesh -- vertex count: %d\n", (u32)vertex_count);
 
       MeshInstance mesh = {};
+      // mesh.count = vertex_count; // index_count;
+      // mesh.offset = (u32)vertex_offset; // index_offset; //  * sizeof(VertexPNT);
+                                        //
       mesh.count = index_count;
       mesh.offset = (u32)index_offset; //  * sizeof(VertexPNT);
 
-      VkCommandBuffer commands = begin_quick_commands();
+      auto copy_into_buffer = [&](Buffer* dst, usize dst_offset, void* src, usize src_size) {
+        VkCommandBuffer commands = begin_quick_commands();
 
-      u32 vertex_src_size = sizeof(VertexPNT) * vertex_count;
-      write_buffer(&_context.staging_buffer, 0, vertices, 0, vertex_src_size);
+        write_buffer(&_context.staging_buffer, 0, src, 0, src_size);
 
-      u32 vertex_dst_offset = sizeof(VertexPNT) * vertex_offset;
-      copy_buffer(commands, &_context.vertex_buffer, vertex_dst_offset, &_context.staging_buffer, 0, vertex_src_size);
+        copy_buffer(commands, dst, dst_offset, &_context.staging_buffer, 0, src_size);
 
-      end_quick_commands(commands);
+        end_quick_commands(commands);
+      };
 
-      commands = begin_quick_commands();
+      copy_into_buffer(&_context.vertex_positions_buffer, vertex_offset * sizeof(vec3), positions, vertex_count * sizeof(vec3));
+      copy_into_buffer(&_context.vertex_normals_buffer, vertex_offset * sizeof(vec3), normals, vertex_count * sizeof(vec3));
+      copy_into_buffer(&_context.vertex_uvs_buffer, vertex_offset * sizeof(vec2), uvs, vertex_count * sizeof(vec2));
 
-      u32 index_src_size = sizeof(u32) * index_count;
-      write_buffer(&_context.staging_buffer, 0, indices, 0, index_src_size);
+      copy_into_buffer(&_context.index_buffer, index_offset * sizeof(u32), indices, index_count * sizeof(u32));
 
-      u32 index_dst_offset = sizeof(u32) * index_offset;
-      copy_buffer(commands, &_context.index_buffer, index_dst_offset, &_context.staging_buffer, 0, index_src_size);
+      // VkCommandBuffer commands = begin_quick_commands();
 
-      end_quick_commands(commands);
+      // u32 vertex_src_size = sizeof(VertexPNT) * vertex_count;
+      // write_buffer(&_context.staging_buffer, 0, vertices, 0, vertex_src_size);
+
+      // u32 vertex_dst_offset = sizeof(VertexPNT) * vertex_offset;
+      // copy_buffer(commands, &_context.vertex_buffer, vertex_dst_offset, &_context.staging_buffer, 0, vertex_src_size);
+
+      // end_quick_commands(commands);
+
+      // commands = begin_quick_commands();
+
+      // u32 index_src_size = sizeof(u32) * index_count;
+      // write_buffer(&_context.staging_buffer, 0, indices, 0, index_src_size);
+
+      // u32 index_dst_offset = sizeof(u32) * index_offset;
+      // copy_buffer(commands, &_context.index_buffer, index_dst_offset, &_context.staging_buffer, 0, index_src_size);
+
+      // end_quick_commands(commands);
 
       return mesh;
     }

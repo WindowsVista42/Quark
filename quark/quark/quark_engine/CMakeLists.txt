@@ -37,4 +37,5 @@ target_link_libraries(quark_engine
   BulletDynamics
   BulletCollision
   LinearMath
+  meshoptimizer
 )
