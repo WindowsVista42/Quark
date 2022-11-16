@@ -3,16 +3,20 @@
 // PUSH_CONSTANT: CUSTOM
 // WORLD_DATA: SIMPLE
 
-layout (push_constant) uniform ColorMaterialInstance {
+layout (push_constant) uniform TextureMaterialInstance {
   vec4 MODEL_POSITION;
   vec4 MODEL_ROTATION;
   vec4 MODEL_SCALE;
 
-  vec4 MODEL_COLOR;
+  vec4 MODEL_TINT;
+  u32 MODEL_TEXTURE_ID;
+
+  vec2 tiling;
+  vec2 offset;
 };
 
-layout (set = 1, binding = 0) uniform ColorMaterialWorldData {
-  vec4 CM_TINT;
+layout (set = 1, binding = 0) uniform TextureMaterialWorldData {
+  vec4 TM_TINT;
 };
 
 // SECTION: VERTEX
@@ -32,5 +36,5 @@ void main() {
 // SECTION: FRAGMENT
 
 void main() {
-  COLOR = aces(MODEL_COLOR); // texture(TEXTURES[0], WORLD_UV + TIME * 0.25f) + CM_TINT + MODEL_COLOR);
+  COLOR = aces(texture(TEXTURES[MODEL_TEXTURE_ID], (WORLD_UV * tiling) + offset) + MODEL_TINT);
 }

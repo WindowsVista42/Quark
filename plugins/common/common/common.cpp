@@ -731,7 +731,7 @@ void assert2(bool v) {
 
     DrawableInstance drawable_instance = {
       .transform = {
-        .position = { 0.0f, 5.0f, 0.0f },
+        .position = { 300.0f, 300.0f, 0.0f },
         .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
       },
       .model = create_model("suzanne", {1.0f, 1.0f, 1.0f}),
@@ -739,13 +739,25 @@ void assert2(bool v) {
     ColorMaterial2 color_material = {
       .color = { 0.0f, 1.0f, sinf(T) / 2.0f + 0.5f, 1.0f },
     };
-    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
-    drawable_instance.transform.position.z += 3;
-    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
-    drawable_instance.transform.position.z += 3;
-    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
-    drawable_instance.transform.position.z += 3;
-    add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+
+    for_every(x, 100) {
+      for_every(y, 100) {
+        add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
+        drawable_instance.transform.position.y -= 3;
+      }
+      drawable_instance.transform.position.y = 3 * 100;
+      drawable_instance.transform.position.x -= 3;
+    }
+
+    drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
+    TextureMaterial2 texture_material = {
+      .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
+      .albedo = *get_asset<ImageId>("bigtest"),
+      .tiling = { 1, 1 },
+      .offset = { sinf(T), cosf(T) },
+    };
+
+    add_drawable(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
 
     get_resource(Resource<ColorMaterial2WorldData> {})->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
     // printf("Added drawable!\n");

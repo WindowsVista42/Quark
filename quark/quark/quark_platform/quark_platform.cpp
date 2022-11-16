@@ -465,19 +465,23 @@ namespace quark {
 //
 
   struct ArenaPool {
-    Arena arenas[16] = {};
-    i64 thread_locks[16] = {
+    Arena arenas[32] = {};
+    i64 thread_locks[32] = {
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
+      -1,-1,-1,-1,
       -1,-1,-1,-1,
       -1,-1,-1,-1,
       -1,-1,-1,-1,
       -1,-1,-1,-1,
     };
-    bool allocated[16] = {};
+    bool allocated[32] = {};
   };
   
   const usize alignment = 8;
-  const usize max_arena_count = 16;
-  const usize virtual_reserve_size = 16 * GB;
+  const usize max_arena_count = 32;
+  const usize virtual_reserve_size = 8 * GB;
   ArenaPool pool = {};
   
   #define CURRENT_THREAD_ID 1

@@ -99,10 +99,10 @@ namespace quark {
     ImageId height;
     ImageId occlusion;
     ImageId emission;
-  
+
     vec2 tiling;
     vec2 offset;
-  
+
     vec3 albedo_tint;
     f32 metallic_strength;
     f32 roughness_strength;
@@ -1294,7 +1294,7 @@ namespace quark {
 // Materials API
 //
 
-  struct DrawableInstance {
+  struct alignas(8) DrawableInstance {
     Transform transform;
     Model model;
   };
@@ -1304,8 +1304,8 @@ namespace quark {
 
     usize batch_sizes[16];
     usize batch_capacities[16];
-    DrawableInstance* draw_batches[16];
-    void* material_batches[16];
+    Arena* draw_batches[16];
+    Arena* material_batches[16];
     usize material_sizes[16];
 
     usize material_world_data_sizes[16];
@@ -1320,13 +1320,13 @@ namespace quark {
   engine_api void add_drawable(u32 material_id, DrawableInstance* drawable, void* material);
 
   #define declare_material(api_decl, var_decl, name, x...) \
-    struct api_decl name { \
+    struct api_decl alignas(8) name { \
       x; \
       static u32 COMPONENT_ID; \
       static ReflectionInfo REFLECTION_INFO; \
       static u32 MATERIAL_ID; \
     }; \
-    struct name##Instance { \
+    struct alignas(8) name##Instance { \
       vec4 position; \
       vec4 rotation; \
       vec4 scale; \
@@ -1338,7 +1338,7 @@ namespace quark {
     u32 name::MATERIAL_ID; \
 
   #define declare_material_world_data(api_decl, var_decl, name, x...) \
-    struct name##WorldData { \
+    struct alignas(8) name##WorldData { \
       x; \
     }; \
     declare_resource(var_decl, name##WorldData); \
@@ -1411,6 +1411,19 @@ namespace quark {
   );
   declare_material_world_data(engine_api, engine_var, ColorMaterial2,
     vec4 tint;
+  );
+
+  declare_material(engine_api, engine_var, TextureMaterial2,
+    vec4 tint;
+    ImageId albedo;
+    u32 _pad0;
+
+    vec2 tiling;
+    vec2 offset;
+  );
+
+  declare_material_world_data(engine_api, engine_var, TextureMaterial2,
+    vec4 something;
   );
 
 //

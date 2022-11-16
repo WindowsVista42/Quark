@@ -1,3 +1,3 @@
-layout (push_constant) uniform push_constant {
-  CustomPushConstant CUSTOM_PUSH;
-};
+// layout (push_constant) uniform push_constant {
+//   CustomPushConstant CUSTOM_PUSH;
+// };

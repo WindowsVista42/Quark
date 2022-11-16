@@ -760,78 +760,63 @@ namespace quark {
     for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
   
     usize memsize = size * sizeof(VertexPNT);
-    VertexPNT* data = (VertexPNT*)push_arena(stack.arena, memsize);
-    usize count = 0;
-  
+    VertexPNT* vertex_data = (VertexPNT*)push_arena(stack.arena, memsize);
+
+    usize vertex_count = attrib.vertices.size();
+    VertexPNT* vertex_data2 = push_array_arena(stack.arena, VertexPNT, vertex_count);
+
     vec3 max_ext = {0.0f, 0.0f, 0.0f};
     vec3 min_ext = {0.0f, 0.0f, 0.0f};
+
+    std::unordered_map<VertexPNT, uint32_t> unique_vertices{};
+    std::vector<VertexPNT> vertices = {};
+    std::vector<u32> indices= {};
+    
+    for (const auto& shape : shapes) {
+      for (const auto& idx : shape.mesh.indices) {
+        VertexPNT vertex = {};
   
-    for_every(s, shapes.size()) {
-      isize index_offset = 0;
-      for_every(f, shapes[s].mesh.num_face_vertices.size()) {
-        isize fv = 3;
+        // vertex position
+        f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
+        f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
+        f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
+        // vertex normal
+        f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
+        f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
+        f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
   
-        for_every(v, fv) {
-          // access to vertex
-          tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+        f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
+        f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
   
-          // vertex position
-          f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
-          f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
-          f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
-          // vertex normal
-          f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
-          f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
-          f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
+        // copy it into our vertex
+        VertexPNT new_vert;
+        new_vert.position.x = vx;
+        new_vert.position.y = vy;
+        new_vert.position.z = vz;
   
-          f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
-          f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
+        new_vert.normal.x = nx;
+        new_vert.normal.y = ny;
+        new_vert.normal.z = nz;
   
-          // copy it into our vertex
-          VertexPNT new_vert;
-          new_vert.position.x = vx;
-          new_vert.position.y = vy;
-          new_vert.position.z = vz;
+        new_vert.texture.x = tx;
+        new_vert.texture.y = 1.0f - ty; // Info: flipped cus .obj
   
-          new_vert.normal.x = nx;
-          new_vert.normal.y = ny;
-          new_vert.normal.z = nz;
-  
-          new_vert.texture.x = tx;
-          new_vert.texture.y = ty;
-  
-          if (new_vert.position.x > max_ext.x) {
-            max_ext.x = new_vert.position.x;
-          }
-          if (new_vert.position.y > max_ext.y) {
-            max_ext.y = new_vert.position.y;
-          }
-          if (new_vert.position.z > max_ext.z) {
-            max_ext.z = new_vert.position.z;
-          }
-  
-          if (new_vert.position.x < min_ext.x) {
-            min_ext.x = new_vert.position.x;
-          }
-          if (new_vert.position.y < min_ext.y) {
-            min_ext.y = new_vert.position.y;
-          }
-          if (new_vert.position.z < min_ext.z) {
-            min_ext.z = new_vert.position.z;
-          }
-  
-          // normalize vertex positions to -1, 1
-          // f32 current_distance = length(new_vert.position) / sqrt_3;
-          // if(current_distance > largest_distance) {
-          //  largest_distance = current_distance;
-          //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
-          //}
-  
-          data[count] = new_vert;
-          count += 1;
+        if(unique_vertices.count(vertex) == 0) {
+          unique_vertices[vertex] = (u32)vertices.size();
+          vertices.push_back(vertex);
+
+          // Info: find mesh extents
+          max_ext.x = max(max_ext.x, vertex.position.x);
+          min_ext.x = min(min_ext.x, vertex.position.x);
+
+          max_ext.y = max(max_ext.y, vertex.position.y);
+          min_ext.y = min(min_ext.y, vertex.position.y);
+
+          max_ext.z = max(max_ext.z, vertex.position.z);
+          min_ext.z = min(min_ext.z, vertex.position.z);
         }
   
-        index_offset += fv;
+        indices.push_back(unique_vertices[vertex]);
       }
     }
   
@@ -839,6 +824,137 @@ namespace quark {
     ext.x = (max_ext.x - min_ext.x);
     ext.y = (max_ext.y - min_ext.y);
     ext.z = (max_ext.z - min_ext.z);
+
+    for_every(i, vertices.size()) {
+      vertices[i].position /= (ext * 0.5f);
+    }
+
+    MeshId id = (MeshId)_context->mesh_counts
+    _context->mesh_counts += 1;
+
+    struct MeshScale : vec3 {};
+
+    _context->mesh_instances[id.index] = create_mesh(vertex_data, size, sizeof(VertexPNT));
+    _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
+
+    add_asset(name, id);
+
+    // usize voffset = 0;
+    // for_every(v, vertex_count) {
+    //   vertex_data2[voffset] = VertexPNT {
+    //     .position = {
+    //       attrib.vertices[v * 3 + 0],
+    //       attrib.vertices[v * 3 + 1],
+    //       attrib.vertices[v * 3 + 2],
+    //     },
+    //     .normal = {
+    //       attrib.normals[v * 3 + 0],
+    //       attrib.normals[v * 3 + 1],
+    //       attrib.normals[v * 3 + 2],
+    //     },
+    //     .texture = {
+    //       attrib.texcoords[v * 2 + 0],
+    //       attrib.texcoords[v * 2 + 1],
+    //     },
+    //   };
+
+    //   // Info: find mesh extents
+    //   max_ext.x = max(max_ext.x, vertex_data2[voffset].position.x);
+    //   min_ext.x = min(min_ext.x, vertex_data2[voffset].position.x);
+
+    //   max_ext.y = max(max_ext.y, vertex_data2[voffset].position.y);
+    //   min_ext.y = min(min_ext.y, vertex_data2[voffset].position.y);
+
+    //   max_ext.z = max(max_ext.z, vertex_data2[voffset].position.z);
+    //   min_ext.z = min(min_ext.z, vertex_data2[voffset].position.z);
+
+    //   voffset += 1;
+    // }
+
+    // usize index_count = size;
+    // u32* index_data = push_array_arena(stack.arena, u32, index_count);
+
+    // usize ioffset = 0;
+    // for_every(s, shapes.size()) {
+    //   for_every(i, shapes[s].mesh.indices.size()) {
+    //     index_data[ioffset] = shapes[s].mesh.indices[i].vertex_index;
+    //     ioffset += 1;
+    //   }
+    // }
+
+    // usize index_memsize = size * sizeof(u32);
+    // u32* index_data = (u32*)push_arena(stack.arena, index_memsize);
+
+    // usize count = 0;
+  
+    // for_every(s, shapes.size()) {
+    //   isize index_offset = 0;
+    //   for_every(f, shapes[s].mesh.num_face_vertices.size()) {
+    //     isize fv = 3;
+  
+    //     for_every(v, fv) {
+    //       // access to vertex
+    //       tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+  
+    //       // vertex position
+    //       f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
+    //       f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
+    //       f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
+    //       // vertex normal
+    //       f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
+    //       f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
+    //       f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
+  
+    //       f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
+    //       f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
+  
+    //       // copy it into our vertex
+    //       VertexPNT new_vert;
+    //       new_vert.position.x = vx;
+    //       new_vert.position.y = vy;
+    //       new_vert.position.z = vz;
+  
+    //       new_vert.normal.x = nx;
+    //       new_vert.normal.y = ny;
+    //       new_vert.normal.z = nz;
+  
+    //       new_vert.texture.x = tx;
+    //       new_vert.texture.y = ty;
+
+    //       if (new_vert.position.x > max_ext.x) {
+    //         max_ext.x = new_vert.position.x;
+    //       }
+    //       if (new_vert.position.y > max_ext.y) {
+    //         max_ext.y = new_vert.position.y;
+    //       }
+    //       if (new_vert.position.z > max_ext.z) {
+    //         max_ext.z = new_vert.position.z;
+    //       }
+  
+    //       if (new_vert.position.x < min_ext.x) {
+    //         min_ext.x = new_vert.position.x;
+    //       }
+    //       if (new_vert.position.y < min_ext.y) {
+    //         min_ext.y = new_vert.position.y;
+    //       }
+    //       if (new_vert.position.z < min_ext.z) {
+    //         min_ext.z = new_vert.position.z;
+    //       }
+  
+    //       // normalize vertex positions to -1, 1
+    //       // f32 current_distance = length(new_vert.position) / sqrt_3;
+    //       // if(current_distance > largest_distance) {
+    //       //  largest_distance = current_distance;
+    //       //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
+    //       //}
+  
+    //       vertex_data[count] = new_vert;
+    //       count += 1;
+    //     }
+  
+    //     index_offset += fv;
+    //   }
+    // }
   
     // f32 largest_side = 0.0f;
     // if(ext.x > largest_side) { largest_side = ext.x; }
@@ -850,31 +966,27 @@ namespace quark {
     //print("extents: ", ext);
   
     // normalize vertex positions to -1, 1
-    for (usize i = 0; i < size; i += 1) {
-      data[i].position /= (ext * 0.5f);
-    }
+    // for (usize i = 0; i < size; i += 1) {
+    //   vertex_data[i].position /= (ext * 0.5f);
+    // }
 
     // MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
     // add mesh to _gpu_meshes
-    MeshId id = {
-      .index = (u32)_context->mesh_counts,
-    };
-    _context->mesh_counts += 1;
+     // MeshId id = {
+     //   .index = (u32)_context->mesh_counts,
+     // };
+     // _context->mesh_counts += 1;
 
-    struct MeshScale : vec3 {};
+     // struct MeshScale : vec3 {};
 
-    //add_asset(name, _gpu_meshes[mesh_id], MeshScale { normalize_max_length(ext, 2.0f) });
-    //add_asset(, name);
+     // _context->mesh_instances[id.index] = create_mesh(vertex_data, size, sizeof(VertexPNT));
+     // _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
 
-    //AllocatedMesh* mesh = &;//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
-    _context->mesh_instances[id.index] = create_mesh(data, size, sizeof(VertexPNT));
-    _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
-
-    add_asset(name, id);
+     // add_asset(name, id);
   }
 
   void load_png_file(const char* path, const char* name) {
-    // using namespace internal;
+    Image* image = &_context->textures[_context->texture_count];
 
     int width, height, channels;
     stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
@@ -882,11 +994,8 @@ namespace quark {
     if(!pixels) {
       printf("Failed to load texture file \"%s\"\n", path);
       panic("");
-    } else {
-      printf("Loading: \"%s\"\n", name);
     }
 
-    // copy texture to cpu only memory
     u64 image_size = width * height * 4;
 
     ImageInfo info = {
@@ -895,116 +1004,20 @@ namespace quark {
       .type = ImageType::Texture,
       .samples = VK_SAMPLE_COUNT_1_BIT,
     };
-
-    printf("here!\n");
-    Image* image = &_context->textures[_context->texture_count];
     create_images(image, 1, &info);
 
-    printf("here!\n");
     write_buffer(&_context->staging_buffer, 0, pixels, 0, image_size);
-    printf("here!\n");
 
-    printf("here!\n");
     VkCommandBuffer commands = begin_quick_commands2();
     copy_buffer_to_image(commands, image, &_context->staging_buffer);
-    printf("here!\n");
     transition_image(commands, image, ImageUsage::Texture);
     end_quick_commands2(commands);
-    printf("here!\n");
 
     stbi_image_free(pixels);
 
-    // Texture texture = {};
+    add_asset(name, (ImageId)_context->texture_count);
 
     _context->texture_count += 1;
-
-    // AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    // void* data;
-    // vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
-    // memcpy(data, pixels, (isize)image_size);
-    // vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
-
-    // stbi_image_free(pixels);
-
-    // //TODO(sean): transfer to gpu only memory
-    // VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    // AllocatedImage alloc_image = create_allocated_image(
-    //     width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, aspect);
-  
-    // //TODO(sean): move this to the 
-    // auto cmd = begin_quick_commands();
-    // {
-    //   VkImageSubresourceRange range;
-  	// 	range.aspectMask = aspect;
-  	// 	range.baseMipLevel = 0;
-  	// 	range.levelCount = 1;
-  	// 	range.baseArrayLayer = 0;
-  	// 	range.layerCount = 1;
-  
-  	// 	VkImageMemoryBarrier barrier_to_writable = {};
-  	// 	barrier_to_writable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  
-  	// 	barrier_to_writable.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  	// 	barrier_to_writable.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  	// 	barrier_to_writable.image = alloc_image.image;
-  	// 	barrier_to_writable.subresourceRange = range;
-  
-  	// 	barrier_to_writable.srcAccessMask = 0;
-  	// 	barrier_to_writable.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  
-  	// 	vkCmdPipelineBarrier(cmd,
-    //     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
-    //     0, 0, 
-    //     0, 0, 
-    //     1, &barrier_to_writable
-    //   );
-  
-    //   VkBufferImageCopy copy_region = {};
-    //   copy_region.bufferOffset = 0;
-    //   copy_region.bufferRowLength = 0;
-    //   copy_region.bufferImageHeight = 0;
-  
-    //   copy_region.imageSubresource.aspectMask = aspect;
-    //   copy_region.imageSubresource.mipLevel = 0;
-    //   copy_region.imageSubresource.baseArrayLayer = 0;
-    //   copy_region.imageSubresource.layerCount = 1;
-    //   copy_region.imageExtent = VkExtent3D{(u32)width, (u32)height, 1};
-  
-    //   vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, alloc_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
-  
-  	// 	VkImageMemoryBarrier barrier_to_readable = {};
-  	// 	barrier_to_readable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  
-  	// 	barrier_to_readable.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  	// 	barrier_to_readable.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  	// 	barrier_to_readable.image = alloc_image.image;
-  	// 	barrier_to_readable.subresourceRange = range;
-  
-  	// 	barrier_to_readable.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  	// 	barrier_to_readable.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-  
-  	// 	vkCmdPipelineBarrier(cmd,
-    //     VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
-    //     0, 0, 
-    //     0, 0, 
-    //     1, &barrier_to_readable
-    //   );
-    // }
-    // end_quick_commands(cmd);
-  
-    // vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
-  
-    // //TODO(sean): store our AllocatedImage in the global textures array and 
-    // static int texture_id = 0;
-    // Texture texture = {}; //(Texture*)alloc(&_render_alloc, sizeof(Texture));
-    // texture.id = (image_id)texture_id;//_global_constants_layout_info[2].count;
-  
-    // _gpu_images[texture_id] = alloc_image;
-    // texture_id += 1;
-    // //printf("%llu\n", _global_constants_layout_info[2].count);
-
-    // add_asset(name, texture);
   }
 
   struct Bytes {
@@ -1085,11 +1098,11 @@ namespace quark {
 
     context->material_sizes[i] = material_size;
     context->batch_sizes[i] = 0;
-    context->batch_capacities[i] = 1024;
+    context->batch_capacities[i] = 0;
 
     // Todo: be a bit better with memory
-    context->draw_batches[i] = (DrawableInstance*)malloc(1024 * sizeof(DrawableInstance));
-    context->material_batches[i] = malloc(1024 * material_size);
+    context->draw_batches[i] = get_arena(); // (DrawableInstance*)malloc(context->batch_capacities[i] * sizeof(DrawableInstance));
+    context->material_batches[i] = get_arena(); // malloc(context->batch_capacities[i] * material_size);
 
     context->material_world_data_sizes[i] = material_world_size;
     context->material_world_data_ptrs[i] = world_data_ptr;
@@ -1105,13 +1118,15 @@ namespace quark {
 
     usize* batch_size = &context->batch_sizes[material_id];
     usize batch_capacity = context->batch_capacities[material_id];
-    DrawableInstance* draw_batch = context->draw_batches[material_id];
-    u8* material_batch = (u8*)context->material_batches[material_id];
+    Arena* draw_batch = context->draw_batches[material_id];
+    Arena* material_batch = context->material_batches[material_id];
     usize material_size = context->material_sizes[material_id];
 
     // Info: pointer math to get correct positions
-    copy_mem(&draw_batch[*batch_size], drawable, sizeof(DrawableInstance));
-    copy_mem(material_batch + (*batch_size * material_size), material, material_size);
+    copy_mem_arena(draw_batch, drawable, sizeof(DrawableInstance));
+    // copy_mem(&draw_batch[*batch_size], drawable, sizeof(DrawableInstance));
+    copy_mem_arena(material_batch, material, material_size);
+    // copy_mem(material_batch + (*batch_size * material_size), material, material_size);
 
     *batch_size += 1;
 
@@ -1151,8 +1166,10 @@ namespace quark {
 
       usize batch_size = context->batch_sizes[i];
       usize batch_capacity = context->batch_capacities[i];
-      DrawableInstance* draw_batch = context->draw_batches[i];
-      u8* material_batch = (u8*)context->material_batches[i];
+
+      Arena* draw_batch = context->draw_batches[i];
+      Arena* material_batch = context->material_batches[i];
+
       usize material_size = context->material_sizes[i];
       usize material_world_data_size = context->material_world_data_sizes[i];
       void* material_world_data_ptr = context->material_world_data_ptrs[i];
@@ -1169,11 +1186,11 @@ namespace quark {
 
       for_every(j, batch_size) {
         u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        Transform transform = draw_batch[j].transform;
-        Model model = draw_batch[j].model;
-        u8* material_data = &material_batch[i * material_size];
+        Transform transform = ((DrawableInstance*)draw_batch->ptr)[j].transform;
+        Model model = ((DrawableInstance*)draw_batch->ptr)[j].model;
+        u8* material_data = &((u8*)material_batch->ptr)[j * material_size];
 
-        f32 radius2 = get_aabb_radius2(Aabb { transform.position, model.half_extents });
+        f32 radius2 = get_aabb_radius2(Aabb { transform.position, model.half_extents * 2.0f });
         if(!is_sphere_visible(&frustum, transform.position, radius2)) {
           // printf("culled, %u!\n", cull_count);
           cull_count += 1;
@@ -1182,7 +1199,7 @@ namespace quark {
 
         // Info: I think its probably best to only call vkCmdPushConstants once,
         // so we do the weird stuff here to avoid calling it twice
-        u8* data = (u8*)alloca(sizeof(vec4[3]) + material_size);
+        u8 data[sizeof(vec4[3]) + material_size]; // (u8*)alloca(sizeof(vec4[3]) + material_size);
         copy_mem(data + 0,               &transform.position, sizeof(vec3));
         copy_mem(data + sizeof(vec4[1]), &transform.rotation, sizeof(vec4));
         copy_mem(data + sizeof(vec4[2]), &model.half_extents, sizeof(vec3));
@@ -1199,6 +1216,8 @@ namespace quark {
 
     for_every(i, context->material_types_count) {
       context->batch_sizes[i] = 0;
+      reset_arena(context->draw_batches[i]);
+      reset_arena(context->material_batches[i]);
     }
   }
 

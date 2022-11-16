@@ -1345,8 +1345,6 @@ namespace quark {
       // _context.material_effect_infos[color_material_effect_id] = color_material_effect_info;
     }
 
-    define_material(ColorMaterial2);
-
     declare_enum(AccessType, u32,
       Exclusive,
       Shared,
@@ -1536,7 +1534,11 @@ namespace quark {
       bind_resource_bundle(commands, effect->layout, &effect->resource_bundle, frame_index);
     }
 
+    define_material(ColorMaterial2);
     define_material_world_data(ColorMaterial2, {});
+
+    define_material(TextureMaterial2);
+    define_material_world_data(TextureMaterial2, {});
 
     void init_materials() {
       {
@@ -1685,6 +1687,7 @@ namespace quark {
       }
 
       update_material(ColorMaterial2, "color", "color");
+      update_material(TextureMaterial2, "texture", "texture");
       // MaterialEffectInfo ColorMaterial2_EFFECT_INFO = {
       //   .instance_data_size = sizeof(ColorMaterial2Instance),
       //   .world_data_size = 0,
