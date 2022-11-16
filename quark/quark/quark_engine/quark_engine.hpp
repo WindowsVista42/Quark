@@ -929,11 +929,21 @@ namespace quark {
     VkFramebuffer* framebuffers;
   };
 
+  struct SamplerInfo {
+    FilterMode filter_mode;
+    WrapMode wrap_mode;
+  };
+
+  struct Sampler {
+    VkSampler sampler;
+  };
+
   struct ResourceBinding {
     u32 count;
+    u32 max_count;
     Buffer** buffers;
     Image** images;
-    // Sampler* samplers[_FRAME_OVERLAP];
+    Sampler* sampler;
   };
 
   struct ResourceGroupInfo {
@@ -1020,6 +1030,9 @@ namespace quark {
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
 
+    Sampler texture_sampler;
+
+    u32 texture_count;
     Image textures[16];
 
     // RenderPass depth_prepass_render_pass;
@@ -1032,8 +1045,6 @@ namespace quark {
 
     // ImageInfo post_process_color_image_info;
     // Image post_process_color_images[_FRAME_OVERLAP];
-
-    VkSampler texture_sampler;
 
     Buffer staging_buffer;
 
@@ -1074,10 +1085,16 @@ namespace quark {
   };
   declare_resource(engine_var, WorldData);
 
-  struct FrustumCullData {
-    vec4 cull_planes[6];
+  struct FrustumPlanes {
+    vec4 planes[6];
   };
-  declare_resource(engine_var, FrustumCullData);
+  declare_resource(engine_var, FrustumPlanes);
+
+  engine_api FrustumPlanes get_frustum_planes(Camera3D* camera);
+
+  engine_api bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius);
+
+  engine_api f32 get_aabb_radius2(Aabb aabb);
 
   // inline MeshInstance get_mesh_instance(MeshId id) {
   //   return get_resource(Resource<MeshRegistry> {})->instances[id.pool_index][id.index];
@@ -1089,15 +1106,24 @@ namespace quark {
   
   // namespace internal {
     // Frustum culling data
-    struct GpuCullData {
+    struct CullData {
       mat4 view;
     
       f32 p00, p22, znear, zfar;
       f32 frustum[4];
-      f32 lod_base, lod_step;
+      // f32 lod_base, lod_step;
     
-      int dist_cull;
+      // int dist_cull;
     };
+
+    struct Sphere {
+      vec3 position;
+      f32 radius;
+    };
+
+    engine_api CullData get_cull_data(Camera3D* camera);
+
+    engine_api bool is_sphere_visible(CullData* cull_data, vec3 position, f32 radius);
 
     // engine_var GpuCullData _cull_data; //
     // engine_var vec4 _cull_planes[6]; //
@@ -1142,6 +1168,9 @@ namespace quark {
 
     engine_api VkCommandBuffer begin_quick_commands();
     engine_api void end_quick_commands(VkCommandBuffer command_buffer);
+
+    engine_api VkCommandBuffer begin_quick_commands2();
+    engine_api void end_quick_commands2(VkCommandBuffer commands);
     // engine_api AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage);
     // engine_api AllocatedImage create_allocated_image(u32 width, u32 height, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags aspect);
 
@@ -1215,6 +1244,8 @@ namespace quark {
 
   engine_api VkBufferCreateInfo get_buffer_create_info(BufferType type, u32 size);
   engine_api VmaAllocationCreateInfo get_buffer_alloc_info(BufferType type);
+
+  engine_api void copy_buffer_to_image(VkCommandBuffer commands, Image* dst, Buffer* src);
 
 //
 // Image API
@@ -1330,17 +1361,17 @@ namespace quark {
     }; \
  \
     create_buffers(name##WorldData_BUFFERS, 2, &buffer_info); \
-    dump_struct(&name##WorldData_BUFFERS[0]); \
  \
     Buffer* buffers[_FRAME_OVERLAP] = { \
       &name##WorldData_BUFFERS[0], \
       &name##WorldData_BUFFERS[1], \
     }; \
-\
+ \
     ResourceBinding bindings[1] = {}; \
     bindings[0].count = 1; \
+    bindings[0].max_count = 1; \
     bindings[0].buffers = buffers; \
-\
+ \
     ResourceGroupInfo resource_info { \
       .bindings_count = 1, \
       .bindings = bindings, \

@@ -2501,6 +2501,15 @@ namespace quark {
       },
     };
   }
+
+  vec4 operator *(mat4 a, vec4 b) {
+    return vec4 {
+      dot(a.xs, b),
+      dot(a.ys, b),
+      dot(a.zs, b),
+      dot(a.ws, b),
+    };
+  }
   
   void operator +=(mat4& a, mat4 b) {
     a = a + b;

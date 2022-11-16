@@ -45,7 +45,7 @@ namespace quark {
   // define_resource(MeshRegistry, {});
   // define_resource(TextureRegistry, {});
   define_resource(WorldData, {});
-  define_resource(FrustumCullData, {});
+  define_resource(FrustumPlanes, {});
 
   GraphicsContext _context = {};
 
@@ -554,9 +554,18 @@ namespace quark {
     void init_mesh_buffer() {
       BufferInfo staging_buffer_info = {
         .type = BufferType::Staging,
-        .size = 16 * MB,
+        .size = 64 * MB,
       };
       create_buffers(&_context.staging_buffer, 1, &staging_buffer_info);
+
+      // Info: 10 mil verts
+      u32 size = 10000000 * (u32)sizeof(VertexPNT);
+
+      BufferInfo vertex_info = {
+        .type = BufferType::Vertex,
+        .size = size,
+      };
+      create_buffers(&_context.vertex_buffer, 1, &vertex_info);
 
       // create_buffer(&buffer_info, "staging_buffer");
 
@@ -588,23 +597,23 @@ namespace quark {
     }
 
     void copy_meshes_to_gpu() {
-      LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
+      // LinearAllocationTracker old_tracker = _gpu_vertices_tracker;
     
-      destroy_linear_allocation_tracker(&_gpu_vertices_tracker);
-      _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
-      alloc(&_gpu_vertices_tracker, old_tracker.size);
+      // destroy_linear_allocation_tracker(&_gpu_vertices_tracker);
+      // _gpu_vertices_tracker = create_linear_allocation_tracker(old_tracker.size);
+      // alloc(&_gpu_vertices_tracker, old_tracker.size);
 
-      u32 size = (u32)old_tracker.size * (u32)sizeof(VertexPNT);
+      // u32 size = (u32)old_tracker.size * (u32)sizeof(VertexPNT);
 
-      BufferInfo vertex_info = {
-        .type = BufferType::Vertex,
-        .size = size,
-      };
-      create_buffers(&_context.vertex_buffer, 1, &vertex_info);
+      // BufferInfo vertex_info = {
+      //   .type = BufferType::Vertex,
+      //   .size = size,
+      // };
+      // create_buffers(&_context.vertex_buffer, 1, &vertex_info);
 
-      VkCommandBuffer commands = begin_quick_commands();
-      copy_buffer(commands, &_context.vertex_buffer, 0, &_context.staging_buffer, 0, size);
-      end_quick_commands(commands);
+      // VkCommandBuffer commands = begin_quick_commands();
+      // copy_buffer(commands, &_context.vertex_buffer, 0, &_context.staging_buffer, 0, size);
+      // end_quick_commands(commands);
     }
     
     void init_swapchain() {
@@ -1374,9 +1383,9 @@ namespace quark {
 
     VkDescriptorType get_image_descriptor_type(ImageType type) {
       VkDescriptorType image_lookup[] = {
-        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::Texture
-        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::RenderTargetColor
-        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, // ImageType::RenderTargetDepth
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // ImageType::Texture
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // ImageType::RenderTargetColor
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, // ImageType::RenderTargetDepth
       };
 
       return image_lookup[(u32)type];
@@ -1401,7 +1410,7 @@ namespace quark {
           panic("");
         }
 
-        layout_bindings[i].descriptorCount = bindings[i].count;
+        layout_bindings[i].descriptorCount = bindings[i].max_count;
         layout_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
       }
 
@@ -1442,35 +1451,41 @@ namespace quark {
           if(bindings[j].buffers != 0) {
             // Info: fill out array of buffers,
             // if there is only one item then this just fills out the one
-            VkDescriptorBufferInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorBufferInfo, res->count);
+            VkDescriptorBufferInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorBufferInfo, res->max_count);
             for_every(k, res->count) {
               infos[k].buffer = res->buffers[i][k].buffer;
               infos[k].offset = 0;
               infos[k].range = res->buffers[i][k].size;
             }
-
-            writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writes[j].dstSet = sets[i];
-            writes[j].dstBinding = j;
-            writes[j].dstArrayElement = 0;
-            writes[j].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            writes[j].descriptorCount = res->count;
-            writes[j].pBufferInfo = infos;
-          }
-          else if(bindings[j].images != 0) {
-            VkDescriptorImageInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorImageInfo, res->count);
-            for_every(k, res->count) {
-              infos[k].imageView = res->images[i][k].view;
-              infos[k].imageLayout = get_image_layout(ImageUsage::Texture);
-              infos[k].sampler = VK_NULL_HANDLE;
+            for_range(k, res->count, res->max_count) {
+              infos[k] = infos[0];
             }
 
             writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writes[j].dstSet = sets[i];
             writes[j].dstBinding = j;
             writes[j].dstArrayElement = 0;
-            writes[j].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            writes[j].descriptorCount = res->count;
+            writes[j].descriptorType = get_buffer_descriptor_type(res->buffers[i][0].type);
+            writes[j].descriptorCount = res->max_count;
+            writes[j].pBufferInfo = infos;
+          }
+          else if(bindings[j].images != 0) {
+            VkDescriptorImageInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorImageInfo, res->max_count);
+            for_every(k, res->count) {
+              infos[k].imageView = res->images[i][k].view;
+              infos[k].imageLayout = get_image_layout(ImageUsage::Texture);
+              infos[k].sampler = res->sampler->sampler;
+            }
+            for_range(k, res->count, res->max_count) {
+              infos[k] = infos[0];
+            }
+
+            writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[j].dstSet = sets[i];
+            writes[j].dstBinding = j;
+            writes[j].dstArrayElement = 0;
+            writes[j].descriptorType = get_image_descriptor_type(res->images[i][0].type);
+            writes[j].descriptorCount = res->max_count;
             writes[j].pImageInfo = infos;
           }
         }
@@ -1487,12 +1502,14 @@ namespace quark {
       group->bindings = push_array_zero_arena(arena, ResourceBinding, info->bindings_count);
       for_every(i, info->bindings_count) {
         group->bindings[i].count = info->bindings[i].count;
+        group->bindings[i].max_count = info->bindings[i].max_count;
 
         if(info->bindings[i].buffers != 0) {
           group->bindings[i].buffers = copy_array_arena(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
         }
         else if(info->bindings[i].images != 0) {
           group->bindings[i].images = copy_array_arena(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
+          group->bindings[i].sampler = info->bindings[i].sampler;
         }
       }
 
@@ -1533,9 +1550,8 @@ namespace quark {
 
       {
         VkDescriptorPoolSize pool_sizes[] = {
-          { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4096, },
+          { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096, },
           { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024, },
-          { VK_DESCRIPTOR_TYPE_SAMPLER, 64, },
         };
 
         VkDescriptorPoolCreateInfo info = {};
@@ -1557,17 +1573,17 @@ namespace quark {
         // world_data_binding_layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         // world_data_binding_layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        ImageInfo image_info = {
-          .resolution = { 1, 1 },
-          .format = ImageFormat::LinearRgba8,
-          .type = ImageType::Texture,
-          .samples = VK_SAMPLE_COUNT_1_BIT,
-        };
-        create_images(&_context.textures[0], 1, &image_info);
+        // ImageInfo image_info = {
+        //   .resolution = { 1, 1 },
+        //   .format = ImageFormat::LinearRgba8,
+        //   .type = ImageType::Texture,
+        //   .samples = VK_SAMPLE_COUNT_1_BIT,
+        // };
+        // create_images(&_context.textures[0], 1, &image_info);
 
-        VkCommandBuffer commands = begin_quick_commands2();
-        transition_image(commands, &_context.textures[0], ImageUsage::Texture);
-        end_quick_commands2(commands);
+        // VkCommandBuffer commands = begin_quick_commands2();
+        // transition_image(commands, &_context.textures[0], ImageUsage::Texture);
+        // end_quick_commands2(commands);
 
         Buffer* buffers[_FRAME_OVERLAP] = {
           &_context.world_data_buffers[0],
@@ -1581,12 +1597,16 @@ namespace quark {
 
         ResourceBinding bindings[2] = {};
         bindings[0].count = 1;
+        bindings[0].max_count = 1;
         bindings[0].buffers = buffers;
         bindings[0].images = 0;
+        bindings[0].sampler = 0;
 
-        bindings[1].count = 1;
+        bindings[1].count = _context.texture_count;
+        bindings[1].max_count = 1024;
         bindings[1].buffers = 0;
         bindings[1].images = images;
+        bindings[1].sampler = &_context.texture_sampler;
 
         ResourceGroupInfo resource_info {
           .bindings_count = count_of(bindings),
@@ -1681,20 +1701,15 @@ namespace quark {
       // _context.material_effect_infos[ColorMaterial2::MATERIAL_ID] = ColorMaterial2_EFFECT_INFO;
     }
 
-    struct SamplerInfo {
-      VkFilter filter_mode;
-      VkSamplerAddressMode wrap_mode;
-    };
-
-    void create_sampler(VkSampler* sampler, SamplerInfo* info) {
+    void create_samplers(Sampler* sampler, u32 n, SamplerInfo* info) {
       VkSamplerCreateInfo sampler_info = {};
       sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      sampler_info.magFilter = info->filter_mode;
-      sampler_info.minFilter = info->filter_mode;
+      sampler_info.magFilter = (VkFilter)info->filter_mode;
+      sampler_info.minFilter = (VkFilter)info->filter_mode;
       sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      sampler_info.addressModeU = info->wrap_mode;
-      sampler_info.addressModeV = info->wrap_mode;
-      sampler_info.addressModeW = info->wrap_mode;
+      sampler_info.addressModeU = (VkSamplerAddressMode)info->wrap_mode;
+      sampler_info.addressModeV = (VkSamplerAddressMode)info->wrap_mode;
+      sampler_info.addressModeW = (VkSamplerAddressMode)info->wrap_mode;
       sampler_info.mipLodBias = 0.0f;
       sampler_info.anisotropyEnable = VK_FALSE;
       sampler_info.maxAnisotropy = 1.0f;
@@ -1705,16 +1720,16 @@ namespace quark {
       sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
       sampler_info.unnormalizedCoordinates = VK_FALSE;
 
-      vk_check(vkCreateSampler(_context.device, &sampler_info, 0, sampler));
+      vk_check(vkCreateSampler(_context.device, &sampler_info, 0, &sampler->sampler));
     }
 
     void init_sampler() {
       SamplerInfo texture_sampler_info = {
-        .filter_mode = VK_FILTER_LINEAR,
-        .wrap_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .filter_mode = FilterMode::Linear,
+        .wrap_mode = WrapMode::Repeat,
       };
 
-      create_sampler(&_context.texture_sampler, &texture_sampler_info);
+      create_samplers(&_context.texture_sampler, 1, &texture_sampler_info);
     }
     
     // void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
@@ -2006,6 +2021,102 @@ namespace quark {
     
       return true;
     }
+
+    struct CullingOptions {
+      bool culling_enabled;
+      bool distance_cull;
+    };
+
+    bool is_sphere_visible(CullData* cull_data, vec3 position, f32 radius) {
+      // Info: get position to camera
+      position = swizzle(cull_data->view * as_vec4(position, 1.0f), 0, 1, 2);
+
+      bool visible = true;
+
+      visible = visible && ((position.y * cull_data->frustum[1]) - (abs(position.x) * cull_data->frustum[0]) > -radius);
+	    visible = visible && ((position.y * cull_data->frustum[3]) - (abs(position.z) * cull_data->frustum[2]) > -radius);
+
+      // Info: distance cull
+      // if(opts.distance_cull) {
+		    // visible = visible && position.y + radius > cull_data->znear && position.y - radius < cull_data->zfar;
+      // }
+
+      // Info: culling is disabled so we dont cull this object
+      // visible = visible || (opts.culling_enabled == false);
+
+      return visible;
+    }
+
+    CullData get_cull_data(Camera3D* camera) {
+      mat4 view = get_camera3d_view(camera);
+      mat4 projection = get_camera3d_projection(camera, get_window_aspect());
+      mat4 projection_matrix_t = transpose(projection);
+
+      auto normalize_plane = [](vec4 p) { return p / length(swizzle(p, 0, 1, 2)); };
+
+      // Info: right-left plane
+      vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
+
+      // Info: up-down plane
+      vec4 frustum_z = normalize_plane(projection_matrix_t[3] + projection_matrix_t[2]); // z + w < 0
+  
+      CullData cull_data ={};
+
+      cull_data.view = view;
+      // cull_data.p00 = projection[0][0];
+      // cull_data.p22 = projection[2][2];
+      cull_data.frustum[0] = frustum_x.x;
+      cull_data.frustum[1] = frustum_x.y;
+      cull_data.frustum[2] = frustum_z.z;
+      cull_data.frustum[3] = frustum_z.y;
+      // cull_data.znear = camera->z_near;
+      // cull_data.zfar = camera->z_far;
+      // cull_data.lod_base = 10.0f;
+      // cull_data.lod_step = 1.5f;
+
+      return cull_data;
+    }
+
+    FrustumPlanes get_frustum_planes(Camera3D* camera) {
+      mat4 view_projection = get_camera3d_view_projection(camera, get_window_aspect());
+      mat4 view_projection_t = transpose(view_projection);
+
+      FrustumPlanes frustum = {};
+      frustum.planes[0] = view_projection_t[3] + view_projection_t[0];
+      frustum.planes[1] = view_projection_t[3] - view_projection_t[0];
+      frustum.planes[2] = view_projection_t[3] + view_projection_t[1];
+      frustum.planes[3] = view_projection_t[3] - view_projection_t[1];
+      frustum.planes[4] = view_projection_t[3] + view_projection_t[2];
+      frustum.planes[5] = view_projection_t[3] - view_projection_t[2];
+
+      return frustum;
+    }
+
+    f32 plane_point_distance(vec4 plane, vec3 point) {
+      return dot(as_vec4(point, 1.0), plane);
+    }
+     
+    bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius) {
+      f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
+      f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
+      f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
+
+      f32 dist = min(min(dist01, dist23), dist45);
+      f32 dist2 = dist * dist;
+      dist2 = copysign(dist2, dist);
+     
+      return (dist2 + radius) > 0.0f;
+    }
+
+    f32 get_aabb_radius2(Aabb aabb) {
+      vec3 diff = aabb.half_extents;
+
+      f32 longest = max(max(diff.x, diff.y), diff.z);
+      f32 shortest = min(min(diff.x, diff.y), diff.z);
+      f32 middle = diff.x + diff.y + diff.z - longest - shortest;
+
+      return length2(vec2 { longest, middle });
+    }
     
     // Mesh loading
     MeshInstance create_mesh(void* data, usize size, usize elemsize) {
@@ -2022,7 +2133,11 @@ namespace quark {
 
       u32 dst_offset = elemsize * mesh.offset;
       u32 src_size = elemsize * mesh.count;
-      write_buffer(&_context.staging_buffer, dst_offset, data, 0, src_size);
+      write_buffer(&_context.staging_buffer, 0, data, 0, src_size);
+
+      VkCommandBuffer commands = begin_quick_commands();
+      copy_buffer(commands, &_context.vertex_buffer, dst_offset, &_context.staging_buffer, 0, src_size);
+      end_quick_commands(commands);
       // write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
 
       // void* ptr;
@@ -2031,6 +2146,23 @@ namespace quark {
       // vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
 
       return mesh;
+    }
+
+    void copy_buffer_to_image(VkCommandBuffer commands, Image* dst, Buffer* src) {
+      transition_image(commands, dst, ImageUsage::Dst);
+
+      VkBufferImageCopy copy_region = {};
+      copy_region.bufferOffset = 0;
+      copy_region.bufferRowLength = 0;
+      copy_region.bufferImageHeight = 0;
+  
+      copy_region.imageSubresource.aspectMask = get_image_aspect(dst->format);
+      copy_region.imageSubresource.mipLevel = 0;
+      copy_region.imageSubresource.baseArrayLayer = 0;
+      copy_region.imageSubresource.layerCount = 1;
+      copy_region.imageExtent = VkExtent3D { (u32)dst->resolution.x, (u32)dst->resolution.y, 1 };
+
+      vkCmdCopyBufferToImage(commands, src->buffer, dst->image, get_image_layout(dst->current_usage), 1, &copy_region);
     }
 
     // template <typename T>

@@ -885,6 +885,8 @@ namespace quark {
   
   bool operator ==(mat4 a, mat4 b);
   bool operator !=(mat4 a, mat4 b);
+
+  vec4 operator *(mat4 a, vec4 b);
   
 //
 // Math Constants

@@ -876,16 +876,47 @@ namespace quark {
   void load_png_file(const char* path, const char* name) {
     // using namespace internal;
 
-    // int width, height, channels;
-    // stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+    int width, height, channels;
+    stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
 
-    // if(!pixels) {
-    //   printf("Failed to load texture file \"%s\"\n", path);
-    //   panic("");
-    // }
+    if(!pixels) {
+      printf("Failed to load texture file \"%s\"\n", path);
+      panic("");
+    } else {
+      printf("Loading: \"%s\"\n", name);
+    }
 
-    // // copy texture to cpu only memory
-    // u64 image_size = width * height * 4;
+    // copy texture to cpu only memory
+    u64 image_size = width * height * 4;
+
+    ImageInfo info = {
+      .resolution = { width, height },
+      .format = ImageFormat::LinearRgba8,
+      .type = ImageType::Texture,
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+    };
+
+    printf("here!\n");
+    Image* image = &_context->textures[_context->texture_count];
+    create_images(image, 1, &info);
+
+    printf("here!\n");
+    write_buffer(&_context->staging_buffer, 0, pixels, 0, image_size);
+    printf("here!\n");
+
+    printf("here!\n");
+    VkCommandBuffer commands = begin_quick_commands2();
+    copy_buffer_to_image(commands, image, &_context->staging_buffer);
+    printf("here!\n");
+    transition_image(commands, image, ImageUsage::Texture);
+    end_quick_commands2(commands);
+    printf("here!\n");
+
+    stbi_image_free(pixels);
+
+    // Texture texture = {};
+
+    _context->texture_count += 1;
 
     // AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
@@ -1110,6 +1141,10 @@ namespace quark {
 
     DrawBatchContext* context = get_draw_batch_context();
 
+    MainCamera* camera = get_resource(Resource<MainCamera> {});
+    // CullData cull_data = get_cull_data(camera);
+    FrustumPlanes frustum = get_frustum_planes(camera);
+
     for_every(i, context->material_types_count) {
       MaterialEffect* effect = &_context->material_effects[i];
       bind_effect(_main_cmd_buf[_frame_index], effect);
@@ -1130,11 +1165,20 @@ namespace quark {
         unmap_buffer(material_world_data_buffer);
       }
 
+      u32 cull_count = 0;
+
       for_every(j, batch_size) {
         u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         Transform transform = draw_batch[j].transform;
         Model model = draw_batch[j].model;
         u8* material_data = &material_batch[i * material_size];
+
+        f32 radius2 = get_aabb_radius2(Aabb { transform.position, model.half_extents });
+        if(!is_sphere_visible(&frustum, transform.position, radius2)) {
+          // printf("culled, %u!\n", cull_count);
+          cull_count += 1;
+          continue;
+        }
 
         // Info: I think its probably best to only call vkCmdPushConstants once,
         // so we do the weird stuff here to avoid calling it twice

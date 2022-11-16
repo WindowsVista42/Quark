@@ -1,5 +1,5 @@
 // INCLUDE: DEFAULT
-// SHADER_TYPE: SIMPLE
+// SHADER_TYPE: DEFAULT
 // PUSH_CONSTANT: CUSTOM
 // WORLD_DATA: SIMPLE
 
@@ -18,6 +18,8 @@ layout (set = 0, binding = 0) uniform WorldData {
   f32 time;
 };
 
+layout (set = 0, binding = 1) uniform sampler2D textures[1024];
+
 layout (set = 1, binding = 0) uniform ColorData {
   vec4 cd_tint;
 };
@@ -25,15 +27,16 @@ layout (set = 1, binding = 0) uniform ColorData {
 // SECTION: VERTEX
 
 void main() {
-  const vec4 position = CUSTOM_PUSH.position;
+  const vec3 position = CUSTOM_PUSH.position.xyz;
   const vec4 rotation = CUSTOM_PUSH.rotation;
-  const vec4 scale = CUSTOM_PUSH.scale;
-  const vec3 world_position = rotate(VERTEX_POSITION * scale.xyz, rotation) + position.xyz;
-  // WORLD_NORMAL = rotate(VERTEX_NORMAL, MODEL_ROTATION);
-  // WORLD_UV = VERTEX_UV;
+  const vec3 scale = CUSTOM_PUSH.scale.xyz;
+
+  WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
+  WORLD_NORMAL = rotate(VERTEX_NORMAL, rotation);
+  WORLD_UV = VERTEX_UV;
 
   // vec3 world_position = rotate(VERTEX_POSITION * position.xyz, rotation) + position.xyz;
-  POSITION = main_view_projection * vec4(world_position, 1.0f);
+  POSITION = main_view_projection * vec4(WORLD_POSITION, 1.0f);
   // POSITION = CUSTOM_PUSH.world_view_projection * vec4(VERTEX_POSITION, 1.0f); // + vec3(sin(time + VERTEX_POSITION.x), cos(time + VERTEX_POSITION.y), tan(time + VERTEX_POSITION.z)), 1.0f); //main_view_projection * vec4(world_position, 1.0f);
 }
 
@@ -75,5 +78,5 @@ vec4 aces(vec4 in_color) {
 }
 
 void main() {
-  COLOR = aces(CUSTOM_PUSH.color) + cd_tint;
+  COLOR = aces(texture(textures[2], WORLD_UV));
 }
