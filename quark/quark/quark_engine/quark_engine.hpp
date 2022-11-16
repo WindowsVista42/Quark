@@ -19,9 +19,7 @@ namespace quark {
     quat rotation;
   };
 
-  struct MeshId {
-    u32 index;
-  };
+  enum struct MeshId : u32 {};
 
   struct Model {
     vec3 half_extents;
@@ -1146,6 +1144,7 @@ namespace quark {
 
     // mesh data
     engine_var LinearAllocationTracker _gpu_vertices_tracker;
+    engine_var LinearAllocationTracker _gpu_indices_tracker;
     // this buffer starts out as being a 
     // engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
     
@@ -1208,6 +1207,7 @@ namespace quark {
     engine_api bool box_in_frustum(vec3 pos, vec3 Scl); // refactor
 
     engine_api MeshInstance create_mesh(void* data, usize size, usize memsize);
+    engine_api MeshInstance create_mesh2(VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count);
 
     // Texture loading
     // engine_api void create_image(void* data, usize width, usize height, VkFormat format, Image* image);

@@ -25,7 +25,7 @@ namespace quark {
     MeshId id = *get_asset<MeshId>(mesh_name);
 
     return Model {
-      .half_extents = _context->mesh_scales[id.index],
+      .half_extents = _context->mesh_scales[(u32)id],
       .id = id,
     };
   }
@@ -733,6 +733,49 @@ namespace quark {
     }
   }
 
+  bool operator==(const VertexPNT& s, const VertexPNT& other) {
+    return (s.position == other.position) && (s.normal == other.normal);//  && (s.texture == other.texture);
+  }
+
+  namespace {
+    template<> struct std::hash<vec3> {
+      size_t operator()(vec3 const& v) const {
+        union bits {
+          f32 f;
+          u32 u;
+        };
+
+        bits x = { .f = v.x };
+        bits y = { .f = v.y };
+        bits z = { .f = v.z };
+
+        return x.u | (y.u << 1) ^ (z.u >> 1);
+      }
+    };
+
+    template<> struct std::hash<vec2> {
+      size_t operator()(vec2 const& v) const {
+        union bits {
+          f32 f;
+          u32 u;
+        };
+
+        bits x = { .f = v.x };
+        bits y = { .f = v.y };
+
+        return x.u | (y.u << 1);
+      }
+    };
+
+    template<> struct std::hash<VertexPNT> {
+      size_t operator()(VertexPNT const& vertex) const {
+        return ((hash<vec3>()(vertex.position) ^
+           (hash<vec3>()(vertex.normal) << 1)) >> 1); //  ^
+           // (hash<vec2>()(vertex.texture) << 1);
+      }
+    };
+  }
+
   void load_obj_file(const char* path, const char* name) {
     TempStack stack = begin_scratch(0, 0);
     defer(end_scratch(stack));
@@ -756,26 +799,24 @@ namespace quark {
       exit(1);
     }
   
-    usize size = 0;
-    for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
+    // usize size = 0;
+    // for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
   
-    usize memsize = size * sizeof(VertexPNT);
-    VertexPNT* vertex_data = (VertexPNT*)push_arena(stack.arena, memsize);
+    // usize memsize = size * sizeof(VertexPNT);
+    // VertexPNT* vertex_data = (VertexPNT*)push_arena(stack.arena, memsize);
 
-    usize vertex_count = attrib.vertices.size();
-    VertexPNT* vertex_data2 = push_array_arena(stack.arena, VertexPNT, vertex_count);
+    // usize vertex_count = attrib.vertices.size();
+    // VertexPNT* vertex_data2 = push_array_arena(stack.arena, VertexPNT, vertex_count);
 
-    vec3 max_ext = {0.0f, 0.0f, 0.0f};
-    vec3 min_ext = {0.0f, 0.0f, 0.0f};
+    vec3 max_extents = { 0.0f, 0.0f, 0.0f };
+    vec3 min_extents = { 0.0f, 0.0f, 0.0f };
 
-    std::unordered_map<VertexPNT, uint32_t> unique_vertices{};
+    std::unordered_map<VertexPNT, u32> unique_vertices{};
     std::vector<VertexPNT> vertices = {};
-    std::vector<u32> indices= {};
+    std::vector<u32> indices = {};
     
     for (const auto& shape : shapes) {
       for (const auto& idx : shape.mesh.indices) {
-        VertexPNT vertex = {};
-  
         // vertex position
         f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
         f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
@@ -789,53 +830,58 @@ namespace quark {
         f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
   
         // copy it into our vertex
-        VertexPNT new_vert;
-        new_vert.position.x = vx;
-        new_vert.position.y = vy;
-        new_vert.position.z = vz;
+        VertexPNT vertex = {};
+        vertex.position.x = vx;
+        vertex.position.y = vy;
+        vertex.position.z = vz;
   
-        new_vert.normal.x = nx;
-        new_vert.normal.y = ny;
-        new_vert.normal.z = nz;
+        vertex.normal.x = nx;
+        vertex.normal.y = ny;
+        vertex.normal.z = nz;
   
-        new_vert.texture.x = tx;
-        new_vert.texture.y = 1.0f - ty; // Info: flipped cus .obj
+        vertex.texture.x = tx;
+        vertex.texture.y = 1.0f - ty; // Info: flipped cus .obj
+
+        // vertices.push_back(vertex);
+        // indices.push_back(indices.size());
   
         if(unique_vertices.count(vertex) == 0) {
           unique_vertices[vertex] = (u32)vertices.size();
           vertices.push_back(vertex);
+          // printf("new vertex!\n");
+          // dump_struct(&vertex);
 
-          // Info: find mesh extents
-          max_ext.x = max(max_ext.x, vertex.position.x);
-          min_ext.x = min(min_ext.x, vertex.position.x);
+        //   // Info: find mesh extents
+          max_extents.x = max(max_extents.x, vertex.position.x);
+          max_extents.y = max(max_extents.y, vertex.position.y);
+          max_extents.z = max(max_extents.z, vertex.position.z);
 
-          max_ext.y = max(max_ext.y, vertex.position.y);
-          min_ext.y = min(min_ext.y, vertex.position.y);
-
-          max_ext.z = max(max_ext.z, vertex.position.z);
-          min_ext.z = min(min_ext.z, vertex.position.z);
+          min_extents.x = min(min_extents.x, vertex.position.x);
+          min_extents.y = min(min_extents.y, vertex.position.y);
+          min_extents.z = min(min_extents.z, vertex.position.z);
         }
   
         indices.push_back(unique_vertices[vertex]);
+        printf("index: %d\n", indices[indices.size() - 1]);
       }
     }
   
-    vec3 ext;
-    ext.x = (max_ext.x - min_ext.x);
-    ext.y = (max_ext.y - min_ext.y);
-    ext.z = (max_ext.z - min_ext.z);
+    vec3 extents = {};
+    extents.x = (max_extents.x - min_extents.x);
+    extents.y = (max_extents.y - min_extents.y);
+    extents.z = (max_extents.z - min_extents.z);
 
     for_every(i, vertices.size()) {
-      vertices[i].position /= (ext * 0.5f);
+      vertices[i].position /= (extents * 0.5f);
     }
 
-    MeshId id = (MeshId)_context->mesh_counts
+    MeshId id = (MeshId)_context->mesh_counts;
     _context->mesh_counts += 1;
 
     struct MeshScale : vec3 {};
 
-    _context->mesh_instances[id.index] = create_mesh(vertex_data, size, sizeof(VertexPNT));
-    _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
+    _context->mesh_instances[(u32)id] = create_mesh2(vertices.data(), vertices.size(), indices.data(), indices.size());
+    _context->mesh_scales[(u32)id] = normalize_max_length(extents, 2.0f);
 
     add_asset(name, id);
 
@@ -1153,6 +1199,7 @@ namespace quark {
 
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &_context->vertex_buffer.buffer, &offset);
+    vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     DrawBatchContext* context = get_draw_batch_context();
 
@@ -1206,7 +1253,9 @@ namespace quark {
         copy_mem(data + sizeof(vec4[3]), material_data, material_size);
 
         vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(vec4[3]) + material_size, data);
-        vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[model.id.index].count, 1, _context->mesh_instances[model.id.index].offset, 0);
+        // vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[(u32)model.id].count, 1, _context->mesh_instances[(u32)model.id].offset, 0);
+        vkCmdDrawIndexed(_main_cmd_buf[_frame_index],
+            _context->mesh_instances[(u32)model.id].count, 1, _context->mesh_instances[(u32)model.id].offset, 0, 0);
       }
     }
   }

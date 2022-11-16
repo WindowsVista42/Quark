@@ -239,6 +239,7 @@ namespace quark {
     VkFence _render_fence[_FRAME_OVERLAP] = {};
 
     LinearAllocationTracker _gpu_vertices_tracker = create_linear_allocation_tracker(100 * MB);
+    LinearAllocationTracker _gpu_indices_tracker = create_linear_allocation_tracker(100 * MB);
     
     VkDescriptorSet _global_constants_sets[_FRAME_OVERLAP] = {};
 
@@ -563,9 +564,15 @@ namespace quark {
 
       BufferInfo vertex_info = {
         .type = BufferType::Vertex,
-        .size = size,
+        .size = 10000000 * (u32)sizeof(VertexPNT),
       };
       create_buffers(&_context.vertex_buffer, 1, &vertex_info);
+
+      BufferInfo index_info = {
+        .type = BufferType::Index,
+        .size = 10000000 * (u32)sizeof(u32),
+      };
+      create_buffers(&_context.index_buffer, 1, &index_info);
 
       // create_buffer(&buffer_info, "staging_buffer");
 
@@ -2120,35 +2127,77 @@ namespace quark {
 
       return length2(vec2 { longest, middle });
     }
+
+    MeshInstance create_mesh2(VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count) {
+      usize vertex_offset = alloc(&_gpu_vertices_tracker, vertex_count);
+      usize index_offset = alloc(&_gpu_indices_tracker, index_count);
+
+      // if(index_count < 100) {
+        for_every(i, index_count) {
+          indices[i] += index_offset;
+        }
+      // }
+
+      printf("created mesh -- index offset: %d\n", (u32)index_offset);
+      printf("created mesh -- index count: %d\n", (u32)index_count);
+      printf("created mesh -- vertex offset: %d\n", (u32)vertex_offset);
+      printf("created mesh -- vertex count: %d\n", (u32)vertex_count);
+
+      MeshInstance mesh = {};
+      mesh.count = index_count;
+      mesh.offset = (u32)index_offset; //  * sizeof(VertexPNT);
+
+      VkCommandBuffer commands = begin_quick_commands();
+
+      u32 vertex_src_size = sizeof(VertexPNT) * vertex_count;
+      write_buffer(&_context.staging_buffer, 0, vertices, 0, vertex_src_size);
+
+      u32 vertex_dst_offset = sizeof(VertexPNT) * vertex_offset;
+      copy_buffer(commands, &_context.vertex_buffer, vertex_dst_offset, &_context.staging_buffer, 0, vertex_src_size);
+
+      end_quick_commands(commands);
+
+      commands = begin_quick_commands();
+
+      u32 index_src_size = sizeof(u32) * index_count;
+      write_buffer(&_context.staging_buffer, 0, indices, 0, index_src_size);
+
+      u32 index_dst_offset = sizeof(u32) * index_offset;
+      copy_buffer(commands, &_context.index_buffer, index_dst_offset, &_context.staging_buffer, 0, index_src_size);
+
+      end_quick_commands(commands);
+
+      return mesh;
+    }
     
     // Mesh loading
     MeshInstance create_mesh(void* data, usize size, usize elemsize) {
-      MeshInstance mesh = {};
-      mesh.count = size;
-      mesh.offset = alloc(&_gpu_vertices_tracker, size);
+      // MeshInstance mesh = {};
+      // mesh.count = size;
+      // mesh.offset = alloc(&_gpu_vertices_tracker, size);
 
-      // BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
-      Buffer* gpu_verts = &_context.staging_buffer; //get_buffer("staging_buffer");
+      // // BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
+      // Buffer* gpu_verts = &_context.staging_buffer; //get_buffer("staging_buffer");
     
-      // void* ptr = map_buffer("staging_buffer");
-      // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
-      // unmap_buffer("staging_buffer");
+      // // void* ptr = map_buffer("staging_buffer");
+      // // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
+      // // unmap_buffer("staging_buffer");
 
-      u32 dst_offset = elemsize * mesh.offset;
-      u32 src_size = elemsize * mesh.count;
-      write_buffer(&_context.staging_buffer, 0, data, 0, src_size);
+      // u32 dst_offset = elemsize * mesh.offset;
+      // u32 src_size = elemsize * mesh.count;
+      // write_buffer(&_context.staging_buffer, 0, data, 0, src_size);
 
-      VkCommandBuffer commands = begin_quick_commands();
-      copy_buffer(commands, &_context.vertex_buffer, dst_offset, &_context.staging_buffer, 0, src_size);
-      end_quick_commands(commands);
-      // write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
+      // VkCommandBuffer commands = begin_quick_commands();
+      // copy_buffer(commands, &_context.vertex_buffer, dst_offset, &_context.staging_buffer, 0, src_size);
+      // end_quick_commands(commands);
+      // // write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
 
-      // void* ptr;
-      // vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
-      // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
-      // vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
+      // // void* ptr;
+      // // vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
+      // // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
+      // // vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
 
-      return mesh;
+      // return mesh;
     }
 
     void copy_buffer_to_image(VkCommandBuffer commands, Image* dst, Buffer* src) {

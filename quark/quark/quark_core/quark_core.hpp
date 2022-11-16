@@ -484,6 +484,9 @@ namespace quark {
   void operator *=(vec2& a, f32 b);
   void operator /=(vec2& a, f32 b);
   
+  bool operator ==(vec2 a, f32 b);
+  bool operator !=(vec2 a, f32 b);
+  
   vec2 operator +(vec2 a, vec2 b);
   vec2 operator -(vec2 a, vec2 b);
   vec2 operator *(vec2 a, vec2 b);
