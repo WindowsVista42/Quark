@@ -814,10 +814,10 @@ namespace quark {
 
     // std::unordered_map<VertexPNT, u32> unique_vertices{};
     // std::vector<VertexPNT> vertices = {};
-    std::vector<vec3> positions = {};
-    std::vector<vec3> normals = {};
-    std::vector<vec2> uvs = {};
-    std::vector<u32> indices = {};
+    std::vector<vec3> positions_unmapped = {};
+    std::vector<vec3> normals_unmapped = {};
+    std::vector<vec2> uvs_unmapped = {};
+    std::vector<u32> indices_unmapped = {};
     
     for (const auto& shape : shapes) {
       for (const auto& idx : shape.mesh.indices) {
@@ -829,7 +829,7 @@ namespace quark {
           .z = attrib.vertices[(3 * idx.vertex_index) + 2],
         };
 
-        positions.push_back(position);
+        positions_unmapped.push_back(position);
 
         vec3 normal = vec3 {
           .x = attrib.normals[(3 * idx.normal_index) + 0],
@@ -837,7 +837,7 @@ namespace quark {
           .z = attrib.normals[(3 * idx.normal_index) + 2],
         };
 
-        normals.push_back(normal);
+        normals_unmapped.push_back(normal);
 
         // f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
         // f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
@@ -849,9 +849,9 @@ namespace quark {
           .y = attrib.texcoords[(2 * idx.texcoord_index) + 1],
         };
 
-        uvs.push_back(uv);
+        uvs_unmapped.push_back(uv);
 
-        indices.push_back(positions.size() - 1);
+        // indices_unmapped.push_back(positions_unmapped.size() - 1);
   
         // copy it into our vertex
         // VertexPNT vertex = {};
@@ -895,19 +895,34 @@ namespace quark {
     extents.y = (max_extents.y - min_extents.y);
     extents.z = (max_extents.z - min_extents.z);
 
-    for_every(i, positions.size()) {
-      positions[i] /= (extents * 0.5f);
+    for_every(i, positions_unmapped.size()) {
+      positions_unmapped[i] /= (extents * 0.5f);
     }
 
     meshopt_Stream streams[] = {
-      {positions.data(), sizeof(vec3), sizeof(vec3)},
-      {normals.data(), sizeof(vec3), sizeof(vec3)},
-      {uvs.data(), sizeof(vec2), sizeof(vec2)},
+      { positions_unmapped.data(), sizeof(vec3), sizeof(vec3) },
+      { normals_unmapped.data(), sizeof(vec3), sizeof(vec3) },
+      { uvs_unmapped.data(), sizeof(vec2), sizeof(vec2) },
     };
 
     // Todo: Finish this
-    std::vector<u32> remap(indices.size());
-    meshopt_generateVertexRemapMulti(remap.data(), NULL, indices.size(), indices.size(), streams, 3);
+    usize index_count = positions_unmapped.size(); // indices_unmapped.size();
+    std::vector<u32> remap(index_count);
+    usize vertex_count = meshopt_generateVertexRemapMulti(remap.data(), NULL, index_count, index_count, streams, 3);
+
+    std::vector<u32> indices(index_count);
+    meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
+
+    std::vector<vec3> positions(vertex_count);
+    std::vector<vec3> normals(vertex_count);
+    std::vector<vec2> uvs(vertex_count);
+
+    meshopt_remapVertexBuffer(positions.data(), positions_unmapped.data(), index_count, sizeof(vec3), remap.data());
+    meshopt_remapVertexBuffer(normals.data(), normals_unmapped.data(), index_count, sizeof(vec3), remap.data());
+    meshopt_remapVertexBuffer(uvs.data(), uvs_unmapped.data(), index_count, sizeof(vec2), remap.data());
+
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+    // meshopt_optimizeVertexFetch()
 
     MeshId id = (MeshId)_context->mesh_counts;
     _context->mesh_counts += 1;
@@ -1270,18 +1285,14 @@ namespace quark {
         unmap_buffer(material_world_data_buffer);
       }
 
-      u32 cull_count = 0;
-
       for_every(j, batch_size) {
         u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         Transform transform = ((DrawableInstance*)draw_batch->ptr)[j].transform;
         Model model = ((DrawableInstance*)draw_batch->ptr)[j].model;
         u8* material_data = &((u8*)material_batch->ptr)[j * material_size];
 
-        f32 radius2 = get_aabb_radius2(Aabb { transform.position, model.half_extents * 2.0f });
+        f32 radius2 = length2(model.half_extents);
         if(!is_sphere_visible(&frustum, transform.position, radius2)) {
-          // printf("culled, %u!\n", cull_count);
-          cull_count += 1;
           continue;
         }
 
@@ -1294,9 +1305,9 @@ namespace quark {
         copy_mem(data + sizeof(vec4[3]), material_data, material_size);
 
         vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(vec4[3]) + material_size, data);
-        // vkCmdDraw(_main_cmd_buf[_frame_index], _context->mesh_instances[(u32)model.id].count, 1, _context->mesh_instances[(u32)model.id].offset, 0);
-        vkCmdDrawIndexed(_main_cmd_buf[_frame_index],
-            _context->mesh_instances[(u32)model.id].count, 1, _context->mesh_instances[(u32)model.id].offset, 0, 0);
+
+        MeshInstance* mesh_instance = &_context->mesh_instances[(u32)model.id];
+        vkCmdDrawIndexed(_main_cmd_buf[_frame_index], mesh_instance->count, 1, mesh_instance->offset, 0, 0);
       }
     }
   }

@@ -2167,26 +2167,13 @@ namespace quark {
       return (dist2 + radius) > 0.0f;
     }
 
-    f32 get_aabb_radius2(Aabb aabb) {
-      vec3 diff = aabb.half_extents;
-
-      f32 longest = max(max(diff.x, diff.y), diff.z);
-      f32 shortest = min(min(diff.x, diff.y), diff.z);
-      f32 middle = diff.x + diff.y + diff.z - longest - shortest;
-
-      return length2(vec2 { longest, middle });
-    }
-
     MeshInstance create_mesh2(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count) {
-      // VertexPNT* vertices, usize vertex_count, u32* indices, usize index_count) {
       usize vertex_offset = alloc(&_gpu_vertices_tracker, vertex_count);
       usize index_offset = alloc(&_gpu_indices_tracker, index_count);
 
-      // if(index_count < 100) {
-        for_every(i, index_count) {
-          indices[i] += index_offset;
-        }
-      // }
+      for_every(i, index_count) {
+        indices[i] += vertex_offset;
+      }
 
       printf("created mesh -- index offset: %d\n", (u32)index_offset);
       printf("created mesh -- index count: %d\n", (u32)index_count);
@@ -2198,7 +2185,7 @@ namespace quark {
       // mesh.offset = (u32)vertex_offset; // index_offset; //  * sizeof(VertexPNT);
                                         //
       mesh.count = index_count;
-      mesh.offset = (u32)index_offset; //  * sizeof(VertexPNT);
+      mesh.offset = (u32)index_offset;
 
       auto copy_into_buffer = [&](Buffer* dst, usize dst_offset, void* src, usize src_size) {
         VkCommandBuffer commands = begin_quick_commands();
