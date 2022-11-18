@@ -216,17 +216,17 @@ namespace common {
   //static Input global_input = {};
   //template <> Input* Resource<Input>::value = &global_input;
   
-  void init(View<Transform, Model, Tag, ColorMaterial, Iden> view0, View<Transform> view1) {
+  void init() {
     for_every(i, 10) {
       //create_entity_add_comp(view0, Transform {.position = {0.0f, 0.0f, 2.0f}}, Color {}, Tag {}, Iden {Iden::global_value});
-      entity_id e = create_entity();
-      add_entity_comp(view0, e, {.position = {0.0f, i * 1.0f, 2.0f}, .rotation = quat{0,0,0,1}}, create_model("suzanne", VEC3_ONE), {}, ColorMaterial {}, {Iden::global_value});
-      //add_entity_comp(view0, e, Tag {}, Iden {Iden::global_value});
-      //begin_entity();
-      //add_entity_comp(view0, Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
-      //end_entity();
-      //view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
-      Iden::global_value += 1;
+      // entity_id e = create_entity();
+      // add_entity_comp(view0, e, {.position = {0.0f, i * 1.0f, 2.0f}, .rotation = quat{0,0,0,1}}, create_model("suzanne", VEC3_ONE), {}, ColorMaterial {}, {Iden::global_value});
+      // //add_entity_comp(view0, e, Tag {}, Iden {Iden::global_value});
+      // //begin_entity();
+      // //add_entity_comp(view0, Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
+      // //end_entity();
+      // //view0.create(Transform{.position = {0.0f, 0.0f, 2.0f}}, Color{}, Tag{}, Iden {Iden::global_value});
+      // Iden::global_value += 1;
     }
 
     // auto thread_work = []() {
@@ -402,6 +402,8 @@ namespace common {
     create_action("pause");
     create_action("ui_exit");
 
+    create_action("b");
+
     create_action("look_right", 0.0f);
     create_action("look_left",  0.0f);
     create_action("look_up",    0.0f);
@@ -422,7 +424,8 @@ namespace common {
     bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 64.0f);
     bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 64.0f);
 
-    update_component(Thing);
+    bind_action("b", KeyCode::B);
+
     update_component(Transform2);
     update_component(Model2);
   }
@@ -450,184 +453,144 @@ namespace common {
 #define component_ptr(type, name, i) type* name = (type*)ptrs[i]
 
   void init_ecs() {
-    EcsContext* ctx = get_ecs_context2();
+    // EcsContext* ctx = get_resource(EcsContext);
 
-    static u32 x[16] = {};
-    static f32 dt = delta();
+    // static u32 x[16] = {};
+    // static f32 dt = delta();
 
-    dt = delta();
+    // dt = delta();
 
-    for(int i = 0; i < 16; i += 1) {
-      x[i] = 0;
-    }
+    // for(int i = 0; i < 16; i += 1) {
+    //   x[i] = 0;
+    // }
 
-    {
-      static u32 offsets[17] = {};
-      offsets[0] = 0;
-      for(int i = 0; i <= 16; i += 1) {
-        offsets[i] = 0;
-      }
-      // if(ctx->ecs_entity_count != 0) {
-      // for(int i = 1; i < 16; i += 1) {
-      //   offsets[i] = (u32)((((f32)ctx->ecs_entity_count / 16.0f) * (f32)i) / 32.0f);
-      //   // printf("%d\n", offsets[i]);
-      // }
-      // offsets[16] = ctx->ecs_entity_count / 32 + 1;
-      // }
+    // {
+    //   static u32 offsets[17] = {};
+    //   offsets[0] = 0;
+    //   for(int i = 0; i <= 16; i += 1) {
+    //     offsets[i] = 0;
+    //   }
+    //   // if(ctx->ecs_entity_count != 0) {
+    //   // for(int i = 1; i < 16; i += 1) {
+    //   //   offsets[i] = (u32)((((f32)ctx->ecs_entity_count / 16.0f) * (f32)i) / 32.0f);
+    //   //   // printf("%d\n", offsets[i]);
+    //   // }
+    //   // offsets[16] = ctx->ecs_entity_count / 32 + 1;
+    //   // }
 
-      // it(a, 0, 1);
-      // it(b, 1, 2);
-      // it(c, 2, 3);
-      // it(d, 3, 4);
-      // it(e, 4, 5);
-      // it(f, 5, 6);
-      // it(g, 6, 7);
-      // it(h, 7, 8);
+    //   // it(a, 0, 1);
+    //   // it(b, 1, 2);
+    //   // it(c, 2, 3);
+    //   // it(d, 3, 4);
+    //   // it(e, 4, 5);
+    //   // it(f, 5, 6);
+    //   // it(g, 6, 7);
+    //   // it(h, 7, 8);
 
-      // it(i, 8, 9);
-      // it(j, 9, 10);
-      // it(k, 10, 11);
-      // it(l, 11, 12);
-      // it(m, 12, 13);
-      // it(n, 13, 14);
-      // it(o, 14, 15);
-      // it(p, 15, 16);
+    //   // it(i, 8, 9);
+    //   // it(j, 9, 10);
+    //   // it(k, 10, 11);
+    //   // it(l, 11, 12);
+    //   // it(m, 12, 13);
+    //   // it(n, 13, 14);
+    //   // it(o, 14, 15);
+    //   // it(p, 15, 16);
 
-      // add_threadpool_work(a);
-      // add_threadpool_work(b);
-      // add_threadpool_work(c);
-      // add_threadpool_work(d);
-      // add_threadpool_work(e);
-      // add_threadpool_work(f);
-      // add_threadpool_work(g);
-      // add_threadpool_work(h);
+    //   // add_threadpool_work(a);
+    //   // add_threadpool_work(b);
+    //   // add_threadpool_work(c);
+    //   // add_threadpool_work(d);
+    //   // add_threadpool_work(e);
+    //   // add_threadpool_work(f);
+    //   // add_threadpool_work(g);
+    //   // add_threadpool_work(h);
 
-      // add_threadpool_work(i);
-      // add_threadpool_work(j);
-      // add_threadpool_work(k);
-      // add_threadpool_work(l);
-      // add_threadpool_work(m);
-      // add_threadpool_work(n);
-      // add_threadpool_work(o);
-      // add_threadpool_work(p);
-      // join_threadpool();
+    //   // add_threadpool_work(i);
+    //   // add_threadpool_work(j);
+    //   // add_threadpool_work(k);
+    //   // add_threadpool_work(l);
+    //   // add_threadpool_work(m);
+    //   // add_threadpool_work(n);
+    //   // add_threadpool_work(o);
+    //   // add_threadpool_work(p);
+    //   // join_threadpool();
 
-      static int s = 0;
+    //   static int s = 0;
 
-      if(get_action("move_left").just_down && false) { s += 1; s %= 3; printf("opts: %d\n", s); }
+    //   if(get_action("move_left").just_down && false) { s += 1; s %= 3; printf("opts: %d\n", s); }
 
-      for(int i = 0; i < 1; i += 1) {
-        if(s == 0) {
-          for_archetype_t(u32 exclude[0] = {}; static void update(u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
-            x[0] += 1;
-            t->position.x += dt;
-            t->position.y += dt;
+    //   for(int i = 0; i < 1; i += 1) {
+    //     if(s == 0) {
+    //       for_archetype(u32 exclude[0] = {}; static void update(u32 id, Transform2* t, Model2* m, ColorMaterial2* c) {
+    //         x[0] += 1;
+    //         t->position.x += dt;
+    //         t->position.y += dt;
 
-            c->color.x = sinf(T);
-            c->color.y = cosf(T);
-          });
-        }
-        if(s == 1) {
-          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID };
-          u32 excl[] = {};
-          for_archetype(comps, 3, excl, 0, {
-            component_ptr(Transform2, t, 0); component_ptr(Model2, m, 1); component_ptr(ColorMaterial2, c, 2);
+    //         c->color.x = sinf(T);
+    //         c->color.y = cosf(T);
+    //       });
+    //     }
+    //   }
+    // }
 
-            x[0] += 1;
-            t->position.x += dt;
-            t->position.y += dt;
+    // static u32 count = 0;
+    // // static u32 highest = 10000;
+    // // static u32 lowest = 0;
 
-            c->color.x = sinf(T);
-            c->color.y = cosf(T);
-          });
-        }
-        if(s == 2) {
-          u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID, ColorMaterial2::COMPONENT_ID };
-          u32 excl[] = {};
-          for_archetype_f2(comps, 3, excl, 0, [](u32 entity_i, void** ptrs) {
-            component_ptr(Transform2, t, 0); component_ptr(Model2, m, 1); component_ptr(ColorMaterial2, c, 2);
+    // if(get_action("move_forward").down && false) {
+    //   for_archetype(u32 exclude[0] = {}; static void update(u32 id) {
+    //     if(rand() % 1000 < 1) {
+    //       destroy_entity2(id);
+    //       count -= 1;
+    //     }
+    //     x[1] += 1;
+    //   });
+    // }
 
-            x[0] += 1;
-            t->position.x += dt;
-            // t->position.y += dt;
+    // if(get_action("move_backward").just_down && false) {
+    //   Transform* p = (Transform*)get_component2(0, Transform2::COMPONENT_ID);
+    //   f64 elt = 0;
+    //   for(int z = 0; z < 1; z += 1) {
+    //     Timestamp t0 = get_timestamp();
+    //     for(int i = 0; i < 64 * KB; i += 1) {
+    //       u32 id = create_entity2();
+    //       add_components2(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
+    //       // if(rand() % 10 < 1) {
+    //         add_flag2(id, ECS_ACTIVE_FLAG);
+    //       //}
+    //     }
+    //     Timestamp t1 = get_timestamp();
+    //     count += 64 * KB;
+    //     // for(int i = 0; i < count; i += 1) {
+    //     //   count -= 1;
+    //     //   destroy_entity(count);
+    //     //   // rem_comp(count - 1, Transform2::COMPONENT_ID);
+    //     // }
+    //     elt += get_timestamp_difference(t0, t1);
+    //   }
+    //   printf("adding 64k comp took: %fms\n", (f32)(elt / 100.0f) * 1000.0f);
+    // }
 
-            // c->color.x = sinf(T);
-            // c->color.y = cosf(T);
-          });
-        }
-      }
+    // if(get_action("move_right").just_down && false) {
+    //   for(usize i = count; i < ECS_MAX_STORAGE; i += 1) {
+    //     u32 id = create_entity2();
+    //     add_components2(id, Transform2 {{2, 2}, {}}, Model2 {}, ColorMaterial2 {});
+    //     add_flag2(id, ctx->ecs_active_flag);
+    //     count += 1;
+    //   }
+    // }
 
-      // for_archetype3(Transform, t, Model, m, ColorMaterial, c, {
-      //   t->position.x += dt;
-      // });
-    }
+    // Transform2* t = get_component(0, Transform2);
+    // ColorMaterial2* c = get_component(0, ColorMaterial2);
 
-    static u32 count = 0;
-    // static u32 highest = 10000;
-    // static u32 lowest = 0;
+    // static f64 tttz = 0.0f;
+    // // tttz += dt;
+    // if(tttz > 0.05f) {
+    //   tttz -= 0.05f;
+    //   printf("pos: %f, %f, %f\ncolor: %f, %f, %f\n\n", t->position.x, t->position.y, t->position.z, c->color.x, c->color.y, c->color.z);
+    // }
 
-    if(get_action("move_forward").down && false) {
-      for_archetype_t(u32 exclude[0] = {}; static void update(u32 id) {
-        if(rand() % 1000 < 1) {
-          destroy_entity2(id);
-          count -= 1;
-        }
-        x[1] += 1;
-      });
-      // for(int i = 0; (i < 97) && (count != 0); i += 1) {
-      //   // u32 id = rand() % 1000000;
-      //   count -= 1;
-      //   // rem_comp(count - 1, Transform2::COMPONENT_ID);
-      //   // destroy_entity(count);
-      // }
-    }
-
-    if(get_action("move_backward").just_down && false) {
-      Transform* p = (Transform*)get_component2(0, Transform2::COMPONENT_ID);
-      f64 elt = 0;
-      for(int z = 0; z < 1; z += 1) {
-        Timestamp t0 = get_timestamp();
-        for(int i = 0; i < 64 * KB; i += 1) {
-          u32 id = create_entity2();
-          add_components2(id, Transform2 {{p->position.x, 2}, {}}, Model2 {}, ColorMaterial2 {});
-          // if(rand() % 10 < 1) {
-            add_flag2(id, ECS_ACTIVE_FLAG);
-          //}
-        }
-        Timestamp t1 = get_timestamp();
-        count += 64 * KB;
-        // for(int i = 0; i < count; i += 1) {
-        //   count -= 1;
-        //   destroy_entity(count);
-        //   // rem_comp(count - 1, Transform2::COMPONENT_ID);
-        // }
-        elt += get_timestamp_difference(t0, t1);
-      }
-      printf("adding 64k comp took: %fms\n", (f32)(elt / 100.0f) * 1000.0f);
-    }
-
-    if(get_action("move_right").just_down && false) {
-      for(usize i = count; i < ECS_MAX_STORAGE; i += 1) {
-        u32 id = create_entity2();
-        add_components2(id, Transform2 {{2, 2}, {}}, Model2 {}, ColorMaterial2 {});
-        add_flag2(id, ctx->ecs_active_flag);
-        count += 1;
-      }
-    }
-
-    // ctx->ecs_entity_count = count;
-
-    Transform2* t = (Transform2*)get_component2(0, Transform2::COMPONENT_ID);
-    ColorMaterial2* c = (ColorMaterial2*)get_component2(0, ColorMaterial2::COMPONENT_ID);
-
-    static f64 tttz = 0.0f;
-    // tttz += dt;
-    if(tttz > 0.05f) {
-      tttz -= 0.05f;
-      printf("pos: %f, %f, %f\ncolor: %f, %f, %f\n\n", t->position.x, t->position.y, t->position.z, c->color.x, c->color.y, c->color.z);
-    }
-
-    bool equal = true;
+    // bool equal = true;
 
     // for(u32 i = 0; i < count; i += 1) {
     //   if(((Transform2*)ecs_comp_table[Transform2::COMP_ID])[i].position.x != z) {
@@ -638,22 +601,22 @@ namespace common {
     // printf("%f, %f\n", t->position.x, t->position.y);
     // printf("count: %u\n", count);
 
-    static f64 tttt = 0.0f;
-    if(tttt > 1.0f) {
-      tttt -= 1.0f;
-      printf("total entity count: %u\n", count);
+    // static f64 tttt = 0.0f;
+    // if(tttt > 1.0f) {
+    //   tttt -= 1.0f;
+    //   printf("total entity count: %u\n", count);
 
-      u32 v = 0;
-      for(int i = 0; i < 16; i += 1) {
-        v += x[i];
-      }
+    //   u32 v = 0;
+    //   for(int i = 0; i < 16; i += 1) {
+    //     v += x[i];
+    //   }
 
-      printf("archetype count: %u\n", x[0]);
-      printf("other: %u\n", x[1]);
+    //   printf("archetype count: %u\n", x[0]);
+    //   printf("other: %u\n", x[1]);
 
-      printf("ecs tail: %u\n", ctx->ecs_entity_tail);
-    }
-    tttt += delta();
+    //   printf("ecs tail: %u\n", ctx->ecs_entity_tail);
+    // }
+    // tttt += delta();
   }
 
   // void a() {
@@ -690,64 +653,109 @@ void assert2(bool v) {
   }
 }
 
-  void update0(View<Include<Transform, ColorMaterial, const Tag>> view, Resource<MainCamera> res) {
+  void update0() {
     //auto& input = input_res.get();
   
-    if(!get_action("pause").down) {
-      // u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID };
-      // u32 excl[] = {};
-      // for_archetype(comps, 2, excl, 0, {
-      //   component_ptr(Transform2, transform, 0);
-      //   component_ptr(Model2, model, 1);
-      //   component_ptr(ColorMaterial2, material, 2);
+    // if(!get_action("pause").down) {
+    //   // u32 comps[] = { Transform2::COMPONENT_ID, Model2::COMPONENT_ID };
+    //   // u32 excl[] = {};
+    //   // for_archetype(comps, 2, excl, 0, {
+    //   //   component_ptr(Transform2, transform, 0);
+    //   //   component_ptr(Model2, model, 1);
+    //   //   component_ptr(ColorMaterial2, material, 2);
 
-      //   transform->position.z = sinf(T + transform->position.y);
+    //   //   transform->position.z = sinf(T + transform->position.y);
 
-      //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-      //   material->color.y = 0.0f;
-      //   material->color.z = 0.0f;
-      // })
+    //   //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+    //   //   material->color.y = 0.0f;
+    //   //   material->color.z = 0.0f;
+    //   // })
 
-      // for_archetype_t(u32 exclude[0] = {}; static void update(u32 e, Transform2* transform, Model2* model, ColorMaterial* material) {
-      //   transform->position.z = sinf(T + transform->position.y);
+    //   // for_archetype_t(u32 exclude[0] = {}; static void update(u32 e, Transform2* transform, Model2* model, ColorMaterial* material) {
+    //   //   transform->position.z = sinf(T + transform->position.y);
 
-      //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-      //   material->color.y = 0.0f;
-      //   material->color.z = 0.0f;
-      // })
+    //   //   material->color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+    //   //   material->color.y = 0.0f;
+    //   //   material->color.z = 0.0f;
+    //   // })
 
-      // for(auto [e, transform, model, material] : get_view_each(View<Include<Transform, Model, ColorMaterial>, Exclude<>> {})) {
-      // }
+    //   // for(auto [e, transform, model, material] : get_view_each(View<Include<Transform, Model, ColorMaterial>, Exclude<>> {})) {
+    //   // }
 
-      // for(auto [e, transform, material] : get_view_each(view)) {
-      //   transform.position.z = sinf(T + transform.position.y);
+    //   // for(auto [e, transform, material] : get_view_each(view)) {
+    //   //   transform.position.z = sinf(T + transform.position.y);
 
-      //   material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
-      //   material.color.y = 0.0f;
-      //   material.color.z = 0.0f;
-      // }
-      T += delta();
-    }
+    //   //   material.color.x = powf(((sinf(time() * 0.5f) + 1.0f) / 2.0f) * 1000.0f, 1.0f / 2.0f);
+    //   //   material.color.y = 0.0f;
+    //   //   material.color.z = 0.0f;
+    //   // }
+    //   T += delta();
+    // }
 
-    DrawableInstance drawable_instance = {
-      .transform = {
-        .position = { 300.0f, 300.0f, 0.0f },
-        .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
-      },
-      .model = create_model("suzanne", {1.0f, 1.0f, 1.0f}),
+    static bool first = true;
+    static ColorMaterial2 color_material_instance = {
+      .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },
     };
-    ColorMaterial2 color_material = {
-      .color = { 0.0f, 1.0f, sinf(T) / 2.0f + 0.5f, 1.0f },
-    };
+    static u32 color_material_index = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
+    static u32 color_material_index2 = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
 
-    for_every(x, 100) {
-      for_every(y, 100) {
-        add_drawable(ColorMaterial2::MATERIAL_ID, &drawable_instance, &color_material);
-        drawable_instance.transform.position.y -= 3;
+    u32 draw_count = 10;
+    f32 draw_inst_dist = 3.0f;
+    f32 draw_dim_size = draw_inst_dist * draw_count;
+
+    for(usize i = get_action("v").just_down ? 10 : 0; i > 0; i -= 1) {
+      // printf("v pressed!\n");
+      static f32 pz = 0.0f;
+
+      f32 px = draw_inst_dist;
+      f32 py = draw_inst_dist;
+
+      Model2 m2 = Model2 {
+        .half_extents = {1.0f, 1.0f, 1.0f},
+        .id = (MeshId)0,
+      };
+
+      for_every(x, draw_count) {
+        for_every(y, draw_count) {
+          u32 entity_id = create_entity2();
+          Transform2 t = {
+            .position = { px, py, pz },
+            .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
+          };
+          add_component2(entity_id, Transform2::COMPONENT_ID, &t);
+
+          add_component2(entity_id, Model2::COMPONENT_ID, &m2);
+
+          ColorMaterial2Index i = { color_material_index2 };
+          add_component2(entity_id, ColorMaterial2Index::COMPONENT_ID, &i);
+
+          add_flag2(entity_id, ECS_ACTIVE_FLAG);
+
+          py += draw_inst_dist;
+        }
+
+        py = draw_inst_dist;
+        px += draw_inst_dist;
       }
-      drawable_instance.transform.position.y = 3 * 100;
-      drawable_instance.transform.position.x -= 3;
+
+      pz += 3.0f;
     }
+
+    if(get_action("b").just_down) {
+      static u32 asdf = 0;
+      asdf = 0;
+      for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, ColorMaterial2Index* i) {
+        if(asdf % 3 == 0) {
+          destroy_entity2(entity_id);
+        }
+        asdf += 1;
+      });
+    }
+
+    Drawable drawable_instance  ={
+      .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
+      .model = create_model("cube", VEC3_ONE),
+    };
 
     drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
     TextureMaterial2 texture_material = {
@@ -757,12 +765,28 @@ void assert2(bool v) {
       .offset = { sinf(T), cosf(T) },
     };
 
-    add_drawable(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
+    push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
 
-    get_resource(Resource<ColorMaterial2WorldData> {})->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
+    // drawable_instance.transform.position = { 5.0f, 5.0f, 5.0f };
+    // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
+
+    // get_resource(ColorMaterial2World)->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
     // printf("Added drawable!\n");
 
-    init_ecs();
+    for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, ColorMaterial2Index* i) {
+      Drawable drawable = {
+        .transform = *(Transform*)t,
+        .model = *(Model*)m,
+      };
+
+      // ColorMaterial2 cm = {
+      //   .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },
+      // };
+
+      push_drawable(ColorMaterial2::MATERIAL_ID, &drawable, i->value);
+    });
+
+    // init_ecs();
 
     //for_every(i, 1000) {
     //  View<const Transform, const Color, Iden> v0;
@@ -783,7 +807,7 @@ void assert2(bool v) {
       //Resource<render::Camera> main_camera_res = {};
       //render::Camera* main_camera = main_camera_res.value;
       //resource(Camera3D) main_camera_res;
-      Camera3D* main_camera = (Camera3D*)get_resource(res);
+      Camera3D* main_camera = (Camera3D*)get_resource(MainCamera);
 
       vec2 move_dir = {0.0f, 0.0f};
       static eul3 dir = main_camera->rotation;
@@ -835,15 +859,15 @@ void assert2(bool v) {
 
       move_dir = rotate_point(move_dir, main_camera->rotation.yaw);
 
-      main_camera->position.x += move_dir.x * delta();
-      main_camera->position.y += move_dir.y * delta();
+      main_camera->position.x += move_dir.x * delta() * 100.0f;
+      main_camera->position.y += move_dir.y * delta() * 100.0f;
   
-      main_camera->position.z += get_action("up").value * delta();
-      main_camera->position.z -= get_action("down").value * delta();
+      main_camera->position.z += get_action("up").value * delta() * 100.0f;
+      main_camera->position.z -= get_action("down").value * delta() * 100.0f;
 
       static f32 strength = 1.0f;
       if(get_key_down(KeyCode::B)) {
-        dir.roll += delta();
+        // dir.roll += delta();
         // main_camera->rotation.pitch += ((f32)(rand() % 100000) / 100000.0f) * strength;
         // main_camera->rotation.yaw   += ((f32)(rand() % 100000) / 100000.0f) * strength;
         // main_camera->rotation.roll  += ((f32)(rand() % 100000) / 100000.0f) * strength;
@@ -867,7 +891,7 @@ void assert2(bool v) {
     }
   }
   
-  void update1(Resource<MainCamera> main_camera) {
+  void update1() {
     vec2 move_dir = {0.0f, 0.0f};
   
     //move_dir.x += get_action("d").value;

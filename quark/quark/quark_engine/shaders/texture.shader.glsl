@@ -38,3 +38,20 @@ void main() {
 void main() {
   COLOR = aces(texture(TEXTURES[MODEL_TEXTURE_ID], (WORLD_UV * tiling) + offset) + MODEL_TINT);
 }
+
+// layout (push_constant) uniform PushConstantData {
+//   vec3 MODEL_POSITION;
+//   vec4 MODEL_ROTATION;
+//   vec3 MODEL_SCALE;
+//   u32 MATERIAL_INDEX;
+// };
+// 
+// // set = 0 is for world information
+// // set = 1 is for material information
+// //
+// 
+// layout (set = 1, binding = 0) readonly buffer MaterialInstances {
+// };
+// 
+// layout (set = 1, binding = 1) uniform MaterialWorldData {
+// };

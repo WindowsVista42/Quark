@@ -466,6 +466,7 @@ namespace quark {
 
   struct ArenaPool {
     Arena arenas[32] = {};
+    bool thread_locks_initted = false;
     i64 thread_locks[32] = {
       -1,-1,-1,-1,
       -1,-1,-1,-1,
@@ -479,7 +480,6 @@ namespace quark {
     bool allocated[32] = {};
   };
   
-  const usize alignment = 8;
   const usize max_arena_count = 32;
   const usize virtual_reserve_size = 8 * GB;
   ArenaPool pool = {};
@@ -551,63 +551,11 @@ namespace quark {
     // zero_struct(arena);
   }
   
-  u8* push_arena(Arena* arena, usize size) {
-    usize new_size = align_forward(arena->pos + size, alignment);
-  
-    u8* ptr = arena->ptr + arena->pos;
-    arena->pos = new_size;
-  
-    // lazy
-    while(arena->pos > arena->commit_size) {
-      os_commit_mem(arena->ptr + arena->commit_size, arena->commit_size);
-      arena->commit_size *= 2;
-    }
-  
-    return ptr;
-  }
-  
-  u8* push_zero_arena(Arena* arena, usize size) {
-    u8* ptr = push_arena(arena, size);
-    zero_mem(ptr, size);
-    return ptr;
-  }
-
-  u8* copy_mem_arena(Arena* arena, void* src, usize size) {
-    u8* ptr = push_arena(arena, size);
-    copy_mem(ptr, src, size);
-    return ptr;
-  }
-  
-  void pop_arena(Arena* arena, usize size) {
-    arena->pos -= size;
-    arena->pos = align_forward(arena->pos, alignment);
-  }
-  
-  usize get_arena_pos(Arena* arena) {
-    return arena->pos;
-  }
-  
-  void set_arena_pos(Arena* arena, usize size) {
-    arena->pos = size;
-    arena->pos = align_forward(arena->pos, alignment);
-  }
-  
-  void clear_arena(Arena* arena) {
-    arena->pos = 0;
-  }
-  
-  void clear_zero_arena(Arena* arena) {
-    zero_mem(arena->ptr, arena->pos);
-    arena->pos = 0;
-  }
-  
-  void reset_arena(Arena* arena) {
-    os_decommit_mem(arena->ptr + 2 * MB, arena->pos - 2 * MB);
-  
-    arena->pos = 0;
-    arena->commit_size = 2 * MB;
-    zero_mem(arena->ptr, arena->commit_size);
-  }
+  // u8* push_zero_arena(Arena* arena, usize size) {
+  //   u8* ptr = push_arena(arena, size);
+  //   zero_mem(ptr, size);
+  //   return ptr;
+  // }
   
   TempStack begin_temp_stack(Arena* arena) {
     return TempStack {

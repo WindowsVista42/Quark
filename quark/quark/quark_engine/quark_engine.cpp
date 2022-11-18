@@ -9,18 +9,10 @@
 #include <meshoptimizer.h>
 
 namespace quark {
-  template <typename A, typename B>
-  A force_type(B b) {
-    return *(A*)&b;
-  }
 
-  define_resource(Registry, {});
   define_resource(AssetServer, {});
-  define_resource(ScratchAllocator, force_type<ScratchAllocator>(create_linear_allocator(8 * MB)));
-  // define_resource(ParIterCtxTypeMap, {});
-  define_resource(DrawBatchPool, {});
 
-  GraphicsContext* _context = get_graphics_context();
+  static GraphicsContext* _context = get_resource(GraphicsContext);
 
   Model create_model(const char* mesh_name, vec3 scale) {
     MeshId id = *get_asset<MeshId>(mesh_name);
@@ -488,17 +480,13 @@ namespace quark {
 // ECS API
 //
 
-  EcsContext ecs_context = {};
-
-  EcsContext* get_ecs_context2() {
-    return &ecs_context;
-  }
+  define_resource(EcsContext, {});
 
   const u32 ECS_ACTIVE_FLAG = 0;
   const u32 ECS_EMPTY_FLAG = 1;
 
   u32 add_ecs_table2(u32 component_size) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
   
     if(ctx->ecs_comp_table == 0) {
       ctx->ecs_entity_capacity = 128 * KB;
@@ -591,7 +579,7 @@ namespace quark {
   }
 
   u32 create_entity2() {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
 
     u32 entity_id = ctx->ecs_empty_head;
     unset_ecs_bit(ctx, entity_id, ctx->ecs_empty_flag);
@@ -632,7 +620,7 @@ namespace quark {
   }
 
   void destroy_entity2(u32 entity_id) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
 
     set_ecs_bit(ctx, entity_id, ctx->ecs_empty_flag);
 
@@ -649,7 +637,7 @@ namespace quark {
   }
 
   void add_component2(u32 entity_id, u32 component_id, void* data) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
 
     set_ecs_bit(ctx, entity_id, component_id);
     void* dst = get_comp_ptr(ctx, entity_id, component_id);
@@ -662,29 +650,23 @@ namespace quark {
   }
 
   void add_flag2(u32 entity_id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
     set_ecs_bit(ctx, entity_id, component_id);
   }
 
   void remove_flag2(u32 entity_id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
     unset_ecs_bit(ctx, entity_id, component_id);
   }
 
   void* get_component2(u32 entity_id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
     return get_comp_ptr(ctx, entity_id, component_id);
   }
 
   bool has_component2(u32 entity_id, u32 component_id) {
-    EcsContext* ctx = get_ecs_context2();
+    EcsContext* ctx = get_resource(EcsContext);
     return get_ecs_bit(ctx, entity_id, component_id) > 0;
-  }
-
-  void for_archetype_f2(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(u32, void**)) {
-    for_archetype(comps, comps_count, excl, excl_count, {
-      f(entity_i, ptrs);
-    });
   }
 
 //
@@ -732,49 +714,6 @@ namespace quark {
         load_asset_path(it->path());
       }
     }
-  }
-
-  bool operator==(const VertexPNT& s, const VertexPNT& other) {
-    return (s.position == other.position) && (s.normal == other.normal);//  && (s.texture == other.texture);
-  }
-
-  namespace {
-    template<> struct std::hash<vec3> {
-      size_t operator()(vec3 const& v) const {
-        union bits {
-          f32 f;
-          u32 u;
-        };
-
-        bits x = { .f = v.x };
-        bits y = { .f = v.y };
-        bits z = { .f = v.z };
-
-        return x.u | (y.u << 1) ^ (z.u >> 1);
-      }
-    };
-
-    template<> struct std::hash<vec2> {
-      size_t operator()(vec2 const& v) const {
-        union bits {
-          f32 f;
-          u32 u;
-        };
-
-        bits x = { .f = v.x };
-        bits y = { .f = v.y };
-
-        return x.u | (y.u << 1);
-      }
-    };
-
-    template<> struct std::hash<VertexPNT> {
-      size_t operator()(VertexPNT const& vertex) const {
-        return ((hash<vec3>()(vertex.position) ^
-           (hash<vec3>()(vertex.normal) << 1)) >> 1); //  ^
-           // (hash<vec2>()(vertex.texture) << 1);
-      }
-    };
   }
 
   void load_obj_file(const char* path, const char* name) {
@@ -1123,14 +1062,14 @@ namespace quark {
 
   int read_file_bytes(Arena* arena, void** data, isize* size);
 
-  Bytes read_file_bytes(const char* path) {
+  Bytes read_file_bytes(Arena* arena, const char* path) {
     FILE* fp = fopen(path, "rb");
   
     fseek(fp, 0, SEEK_END);
     int size = ftell(fp);
     rewind(fp);
   
-    u8* buffer = (u8*)alloc(get_resource(Resource<ScratchAllocator> {}), size * sizeof(u8));
+    u8* buffer = push_arena(arena, size);
   
     fread(buffer, size, 1, fp);
   
@@ -1140,7 +1079,10 @@ namespace quark {
   }
 
   VkShaderModule create_shader_module(const char* path) {
-    auto [buffer, size] = read_file_bytes(path);
+    TempStack scratch = begin_scratch(0, 0);
+    defer(end_scratch(scratch));
+
+    auto [buffer, size] = read_file_bytes(scratch.arena, path);
   
     VkShaderModuleCreateInfo module_create_info = {};
     module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1151,8 +1093,6 @@ namespace quark {
     if(vkCreateShaderModule(_context->device, &module_create_info, 0, &module) != VK_SUCCESS) {
       panic("create shader module!\n");
     };
-  
-    reset_alloc(get_resource(Resource<ScratchAllocator> {}));
   
     return module;
   }
@@ -1181,58 +1121,71 @@ namespace quark {
   //   type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
   // }
 
-  DrawBatchContext _draw_batch_context = {};
+  define_resource(DrawBatchContext, {});
 
-  DrawBatchContext* get_draw_batch_context() {
-    return &_draw_batch_context;
-  }
+  u32 add_material_type(MaterialInfo* info) {
+    DrawBatchContext* context = get_resource(DrawBatchContext); // get_draw_batch_context();
 
-  u32 add_material_type(u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers) {
-    DrawBatchContext* context = get_draw_batch_context();
+    if(context->arena == 0) {
+      context->arena = get_arena();
+    }
 
-    usize i = context->material_types_count;
+    usize i = context->materials_count;
+    context->materials_count += 1;
 
-    context->material_sizes[i] = material_size;
-    context->batch_sizes[i] = 0;
-    context->batch_capacities[i] = 0;
+    context->infos[i] = *info;
 
-    // Todo: be a bit better with memory
-    context->draw_batches[i] = get_arena(); // (DrawableInstance*)malloc(context->batch_capacities[i] * sizeof(DrawableInstance));
-    context->material_batches[i] = get_arena(); // malloc(context->batch_capacities[i] * material_size);
+    MaterialBatch* batch = &context->batches[i];
 
-    context->material_world_data_sizes[i] = material_world_size;
-    context->material_world_data_ptrs[i] = world_data_ptr;
-    context->material_world_data_buffers[i] = buffers;
+    batch->material_instance_count = 0;
+    batch->material_instances = push_zero_arena(context->arena, info->material_instance_capacity * info->material_size);
 
-    context->material_types_count += 1;
+    batch->batch_count = 0;
+    batch->drawables_batch = (Drawable*)push_zero_arena(context->arena, info->batch_capacity * sizeof(Drawable));
+    batch->materials_batch = push_zero_arena(context->arena,  info->batch_capacity * info->material_size);
 
     return i;
   }
 
-  void add_drawable(u32 material_id, DrawableInstance* drawable, void* material) {
-    DrawBatchContext* context = get_draw_batch_context(); // get_resource(DrawBatchContext);
+  u32 add_material_instance(u32 material_id, void* instance) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
 
-    usize* batch_size = &context->batch_sizes[material_id];
-    usize batch_capacity = context->batch_capacities[material_id];
-    Arena* draw_batch = context->draw_batches[material_id];
-    Arena* material_batch = context->material_batches[material_id];
-    usize material_size = context->material_sizes[material_id];
+    usize i = batch->material_instance_count;
+    batch->material_instance_count += 1;
 
-    // Info: pointer math to get correct positions
-    copy_mem_arena(draw_batch, drawable, sizeof(DrawableInstance));
-    // copy_mem(&draw_batch[*batch_size], drawable, sizeof(DrawableInstance));
-    copy_mem_arena(material_batch, material, material_size);
-    // copy_mem(material_batch + (*batch_size * material_size), material, material_size);
+    copy_mem(&batch->material_instances[i * type->material_size], instance, type->material_size);
 
-    *batch_size += 1;
+    return i;
+  }
 
-    // Info: we need to resize
-    if(*batch_size == batch_capacity) {
+  void push_drawable_instance(u32 material_id, Drawable* drawable, void* material) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
+
+    u32 i = batch->batch_count;
+    batch->batch_count += 1;
+
+    if(i > type->batch_capacity) {
+      panic("Attempted to draw more than a material batch could handle!\n");
     }
+
+    batch->drawables_batch[i] = *drawable;
+    copy_mem(&batch->materials_batch[i * type->material_size], material, type->material_size);
+  }
+
+  void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* info = &context->infos[material_id];
+
+    push_drawable_instance(material_id, drawable, &batch->material_instances[material_instance_index * info->material_size]);
   }
 
   void draw_material_batches() {
-    WorldData* world_data = get_resource(Resource<WorldData> {});
+    WorldData* world_data = get_resource(WorldData);
     Buffer* current_world_data_buffer = &_context->world_data_buffers[_frame_index];
 
     world_data->main_view_projection = _main_view_projection;
@@ -1257,72 +1210,82 @@ namespace quark {
     vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 3, buffers, offsets);
     vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    DrawBatchContext* context = get_draw_batch_context();
+    DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
 
-    MainCamera* camera = get_resource(Resource<MainCamera> {});
+    MainCamera* camera = get_resource(MainCamera);
     // CullData cull_data = get_cull_data(camera);
     FrustumPlanes frustum = get_frustum_planes(camera);
 
-    for_every(i, context->material_types_count) {
+    for_every(i, _batch_context->materials_count) {
       MaterialEffect* effect = &_context->material_effects[i];
       bind_effect(_main_cmd_buf[_frame_index], effect);
 
-      usize batch_size = context->batch_sizes[i];
-      usize batch_capacity = context->batch_capacities[i];
-
-      Arena* draw_batch = context->draw_batches[i];
-      Arena* material_batch = context->material_batches[i];
-
-      usize material_size = context->material_sizes[i];
-      usize material_world_data_size = context->material_world_data_sizes[i];
-      void* material_world_data_ptr = context->material_world_data_ptrs[i];
-      Buffer* material_world_data_buffer = &context->material_world_data_buffers[i][_frame_index];
+      MaterialInfo* info = &_batch_context->infos[i];
+      MaterialBatch* batch = &_batch_context->batches[i];
 
       // Info: update material world data
       {
-        void* ptr = map_buffer(material_world_data_buffer);
-        copy_mem(ptr, material_world_data_ptr, material_world_data_size);
-        unmap_buffer(material_world_data_buffer);
+        Buffer* material_world_buffer = &info->world_buffers[_frame_index];
+        void* material_world_ptr = info->world_ptr;
+        usize material_world_size = info->world_size;
+
+        void* ptr = map_buffer(material_world_buffer);
+        copy_mem(ptr, material_world_ptr, material_world_size);
+        unmap_buffer(material_world_buffer);
       }
 
-      for_every(j, batch_size) {
-        u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        Transform transform = ((DrawableInstance*)draw_batch->ptr)[j].transform;
-        Model model = ((DrawableInstance*)draw_batch->ptr)[j].model;
-        u8* material_data = &((u8*)material_batch->ptr)[j * material_size];
+      u32 draw_count = 0;
 
-        f32 radius2 = length2(model.half_extents);
+      u8 push_constants[sizeof(vec4[3]) + info->material_size];
+
+      for_every(j, batch->batch_count) {
+        u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        // printf("%llu\n", j);
+
+        Transform transform = batch->drawables_batch[j].transform;
+        Model model = batch->drawables_batch[j].model;
+        u8* material = &batch->materials_batch[j * info->material_size]; // &((u8*)->ptr)[j * material_size];
+
+        f32 radius2 = length2(model.half_extents) * 1.5f;
         if(!is_sphere_visible(&frustum, transform.position, radius2)) {
           continue;
         }
 
         // Info: I think its probably best to only call vkCmdPushConstants once,
         // so we do the weird stuff here to avoid calling it twice
-        u8 data[sizeof(vec4[3]) + material_size]; // (u8*)alloca(sizeof(vec4[3]) + material_size);
-        copy_mem(data + 0,               &transform.position, sizeof(vec3));
-        copy_mem(data + sizeof(vec4[1]), &transform.rotation, sizeof(vec4));
-        copy_mem(data + sizeof(vec4[2]), &model.half_extents, sizeof(vec3));
-        copy_mem(data + sizeof(vec4[3]), material_data, material_size);
+        copy_mem(push_constants + 0,               &transform.position, sizeof(vec3));
+        copy_mem(push_constants + sizeof(vec4[1]), &transform.rotation, sizeof(vec4));
+        copy_mem(push_constants + sizeof(vec4[2]), &model.half_extents, sizeof(vec3));
+        copy_mem(push_constants + sizeof(vec4[3]), material, info->material_size);
 
-        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(vec4[3]) + material_size, data);
+        vkCmdPushConstants(_main_cmd_buf[_frame_index], effect->layout, stage_flags, 0, sizeof(vec4[3]) + info->material_size, push_constants);
 
         MeshInstance* mesh_instance = &_context->mesh_instances[(u32)model.id];
         vkCmdDrawIndexed(_main_cmd_buf[_frame_index], mesh_instance->count, 1, mesh_instance->offset, 0, 0);
+
+        draw_count += 1;
+      }
+
+      static Timestamp t0 = get_timestamp();
+      Timestamp t1 = get_timestamp();
+      if(get_timestamp_difference(t0, t1) > 1.0f) {
+        t0 = t1;
+        printf("draw_count: %d\n", draw_count);
       }
     }
   }
 
   void reset_material_batches() {
-    DrawBatchContext* context = get_draw_batch_context();
+    DrawBatchContext* context = get_resource(DrawBatchContext);
 
-    for_every(i, context->material_types_count) {
-      context->batch_sizes[i] = 0;
-      reset_arena(context->draw_batches[i]);
-      reset_arena(context->material_batches[i]);
+    for_every(i, context->materials_count) {
+      // usize batch_capacity = context->infos[i].batch_capacity;
+      // usize material_size = context->infos[i].material_size;
+
+      context->batches[i].batch_count = 0;
+      // zero_mem(context->batches[i].drawables_batch, batch_capacity * sizeof(DrawableInstance));
+      // zero_mem(context->batches[i].materials_batch, batch_capacity * material_size);
     }
-  }
-
-  void end_effects() {
-    // end_everything();
   }
 };

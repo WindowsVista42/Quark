@@ -131,6 +131,25 @@ static ReflectionInfo __make_reflection_info_##type() { \
   return __current_reflection_info; \
 } \
 
+#define __make_reflection_maker2(type) \
+ReflectionInfo type::__make_reflection_info() { \
+  __new_reflection = 1; \
+  __reflection_depth = 0; \
+  __current_reflection_info.name = 0; \
+  __current_reflection_info.size = sizeof(type); \
+  __current_reflection_info.fields_size = 0; \
+  __current_reflection_info.fields = (ReflectionFieldInfo*)malloc(sizeof(ReflectionFieldInfo) * __reflection_capacity); \
+ \
+  type* x = (type*)__builtin_alloca(sizeof(type)); \
+  __builtin_dump_struct(x, &__parse_reflection); \
+  ReflectionFieldInfo* new_fields = (ReflectionFieldInfo*)malloc(sizeof(ReflectionFieldInfo) * __current_reflection_info.fields_size); \
+  memcpy(new_fields, __current_reflection_info.fields, sizeof(ReflectionFieldInfo) * __current_reflection_info.fields_size); \
+  free(__current_reflection_info.fields); \
+  __current_reflection_info.fields = new_fields; \
+ \
+  return __current_reflection_info; \
+} \
+
 // MAIN API
 
 #define declare_struct(type, x...) \

@@ -16,9 +16,6 @@
 
 #include "../quark_core/module.hpp"
 
-
-//lkjlkjlkjlkj
-
 #define vk_check(x)                                                                                                                                  \
   do {                                                                                                                                               \
     VkResult err = x;                                                                                                                                \
@@ -30,7 +27,6 @@
   } while (0)
 
 namespace quark {
-  // using namespace internal;
 
   define_resource(MainCamera, {{
     .position = VEC3_ZERO,
@@ -42,16 +38,18 @@ namespace quark {
   }});
   define_resource(UICamera, {});
   define_resource(SunCamera, {});
+  define_resource(WorldData, {});
+  define_resource(MainCameraFrustum, {});
+
+  define_resource(GraphicsContext, {});
+
+  static GraphicsContext* _context = get_resource(GraphicsContext);
+
+
   // define_resource(MeshRegistry, {});
   // define_resource(TextureRegistry, {});
-  define_resource(WorldData, {});
-  define_resource(FrustumPlanes, {});
 
-  GraphicsContext _context = {};
-
-  GraphicsContext* get_graphics_context() {
-    return &_context;
-  }
+  // GraphicsContext _context = {};
 
   void init_graphics_context() {
     init_vulkan();
@@ -120,16 +118,18 @@ namespace quark {
     // }
 
   void update_cameras() {
-    _main_view_projection = get_camera3d_view_projection(get_resource(Resource<MainCamera> {}), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
+    _main_view_projection = get_camera3d_view_projection(get_resource(MainCamera), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
   }
 
   void begin_frame() {
+    GraphicsContext* _context = get_resource(GraphicsContext);
+
     // TODO Sean: dont block the thread
-    vk_check(vkWaitForFences(_context.device, 1, &_render_fence[_frame_index], true, _OP_TIMEOUT));
-    vk_check(vkResetFences(_context.device, 1, &_render_fence[_frame_index]));
+    vk_check(vkWaitForFences(_context->device, 1, &_render_fence[_frame_index], true, _OP_TIMEOUT));
+    vk_check(vkResetFences(_context->device, 1, &_render_fence[_frame_index]));
   
     // TODO Sean: dont block the thread
-    VkResult result = vkAcquireNextImageKHR(_context.device, _context.swapchain, _OP_TIMEOUT, _present_semaphore[_frame_index], 0, &_swapchain_image_index);
+    VkResult result = vkAcquireNextImageKHR(_context->device, _context->swapchain, _OP_TIMEOUT, _present_semaphore[_frame_index], 0, &_swapchain_image_index);
   
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       resize_swapchain();
@@ -150,15 +150,17 @@ namespace quark {
   }
   
   void end_frame() {
+    GraphicsContext* _context = get_resource(GraphicsContext);
+
     // blit image
     Image swapchain_image = {
-      .image = _context.swapchain_images[_swapchain_image_index],
-      .view = _context.swapchain_image_views[_swapchain_image_index],
+      .image = _context->swapchain_images[_swapchain_image_index],
+      .view = _context->swapchain_image_views[_swapchain_image_index],
       .current_usage = ImageUsage::Unknown,
       .resolution = get_window_dimensions(),
       .format = ImageFormat::LinearBgra8,
     };
-    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context.material_color_images[_frame_index], FilterMode::Nearest);
+    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images[_frame_index], FilterMode::Nearest);
     transition_image(_main_cmd_buf[_frame_index], &swapchain_image, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -178,18 +180,18 @@ namespace quark {
   
     // submit command buffer to the queue and execute it
     // render fence will block until the graphics commands finish
-    vk_check(vkQueueSubmit(_context.graphics_queue, 1, &submit_info, _render_fence[_frame_index]));
+    vk_check(vkQueueSubmit(_context->graphics_queue, 1, &submit_info, _render_fence[_frame_index]));
   
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.swapchainCount = 1;
-    present_info.pSwapchains = &_context.swapchain;
+    present_info.pSwapchains = &_context->swapchain;
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = &_render_semaphore[_frame_index];
     present_info.pImageIndices = &_swapchain_image_index;
     present_info.pNext = 0;
   
-    VkResult result = vkQueuePresentKHR(_context.graphics_queue, &present_info);
+    VkResult result = vkQueuePresentKHR(_context->graphics_queue, &present_info);
   
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _framebuffer_resized) {
       _framebuffer_resized = false;
@@ -207,11 +209,13 @@ namespace quark {
       { .color = CYAN },
       { .depth = 1, .stencil = 0 },
     };
-    begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context.main_render_pass, clear_values);
+    begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass, clear_values);
   }
 
   void end_drawing_materials() {
-    end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context.main_render_pass);
+    GraphicsContext* _context = get_resource(GraphicsContext);
+
+    end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass);
   }
 
   void begin_drawing_post_process() {
@@ -355,7 +359,7 @@ namespace quark {
       allocate_info.commandBufferCount = 1;
     
       VkCommandBuffer command_buffer;
-      vk_check(vkAllocateCommandBuffers(_context.device, &allocate_info, &command_buffer));
+      vk_check(vkAllocateCommandBuffers(_context->device, &allocate_info, &command_buffer));
     
       VkCommandBufferBeginInfo begin_info = {};
       begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -375,10 +379,10 @@ namespace quark {
       submit_info.commandBufferCount = 1;
       submit_info.pCommandBuffers = &command_buffer;
     
-      vk_check(vkQueueSubmit(_context.transfer_queue, 1, &submit_info, 0));
-      vkQueueWaitIdle(_context.transfer_queue);
+      vk_check(vkQueueSubmit(_context->transfer_queue, 1, &submit_info, 0));
+      vkQueueWaitIdle(_context->transfer_queue);
     
-      vkFreeCommandBuffers(_context.device, _transfer_cmd_pool, 1, &command_buffer);
+      vkFreeCommandBuffers(_context->device, _transfer_cmd_pool, 1, &command_buffer);
     }
 
     VkCommandBuffer begin_quick_commands2() {
@@ -389,7 +393,7 @@ namespace quark {
       allocate_info.commandBufferCount = 1;
     
       VkCommandBuffer command_buffer;
-      vk_check(vkAllocateCommandBuffers(_context.device, &allocate_info, &command_buffer));
+      vk_check(vkAllocateCommandBuffers(_context->device, &allocate_info, &command_buffer));
     
       VkCommandBufferBeginInfo begin_info = {};
       begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -410,10 +414,10 @@ namespace quark {
       submit_info.commandBufferCount = 1;
       submit_info.pCommandBuffers = &command_buffer;
     
-      vk_check(vkQueueSubmit(_context.graphics_queue, 1, &submit_info, 0));
-      vkQueueWaitIdle(_context.graphics_queue);
+      vk_check(vkQueueSubmit(_context->graphics_queue, 1, &submit_info, 0));
+      vkQueueWaitIdle(_context->graphics_queue);
     
-      vkFreeCommandBuffers(_context.device, _graphics_cmd_pool[0], 1, &command_buffer);
+      vkFreeCommandBuffers(_context->device, _graphics_cmd_pool[0], 1, &command_buffer);
     }
     
     // AllocatedBuffer create_allocated_buffer(usize size, VkBufferUsageFlags vk_usage, VmaMemoryUsage vma_usage) {
@@ -490,10 +494,10 @@ namespace quark {
     
       vkb::Instance vkb_inst = inst_ret.value();
     
-      _context.instance = vkb_inst.instance;
-      _context.debug_messenger = vkb_inst.debug_messenger;
+      _context->instance = vkb_inst.instance;
+      _context->debug_messenger = vkb_inst.debug_messenger;
     
-      glfwCreateWindowSurface(_context.instance, get_window_ptr(), 0, &_context.surface);
+      glfwCreateWindowSurface(_context->instance, get_window_ptr(), 0, &_context->surface);
     
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;
@@ -502,7 +506,7 @@ namespace quark {
     
       vkb::PhysicalDeviceSelector selector{vkb_inst};
       selector = selector.set_minimum_version(1, 0);
-      selector = selector.set_surface(_context.surface);
+      selector = selector.set_surface(_context->surface);
       selector = selector.set_required_features(device_features);
       selector = selector.allow_any_gpu_device_type();
       vkb::PhysicalDevice vkb_physical_device = selector.select().value();
@@ -512,41 +516,41 @@ namespace quark {
       vkb::Device vkb_device = device_builder.build().value();
       timer_end("window surface");
     
-      _context.device = vkb_device.device;
-      _context.physical_device = vkb_device.physical_device;
+      _context->device = vkb_device.device;
+      _context->physical_device = vkb_device.physical_device;
     
       // Init VMA
       VmaAllocatorCreateInfo vma_alloc_info = {};
-      vma_alloc_info.physicalDevice = _context.physical_device;
-      vma_alloc_info.device = _context.device;
-      vma_alloc_info.instance = _context.instance;
+      vma_alloc_info.physicalDevice = _context->physical_device;
+      vma_alloc_info.device = _context->device;
+      vma_alloc_info.instance = _context->instance;
 
-      vk_check(vmaCreateAllocator(&vma_alloc_info, &_context.gpu_alloc));
+      vk_check(vmaCreateAllocator(&vma_alloc_info, &_context->gpu_alloc));
 
-      _context.graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
-      _context.present_queue = vkb_device.get_queue(vkb::QueueType::present).value();
+      _context->graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
+      _context->present_queue = vkb_device.get_queue(vkb::QueueType::present).value();
 
-      _context.graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
-      _context.present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
+      _context->graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+      _context->present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
 
       // We check if the selected DEVICE has a transfer queue, otherwise we set it as the graphics queue.
       auto transfer_queue_value = vkb_device.get_queue(vkb::QueueType::transfer);
       if (transfer_queue_value.has_value()) {
-        _context.transfer_queue = transfer_queue_value.value();
+        _context->transfer_queue = transfer_queue_value.value();
       } else {
-        _context.transfer_queue = _context.graphics_queue;
+        _context->transfer_queue = _context->graphics_queue;
       }
 
       auto transfer_queue_family_value = vkb_device.get_queue_index(vkb::QueueType::transfer);
       if (transfer_queue_family_value.has_value()) {
-        _context.transfer_queue_family = transfer_queue_family_value.value();
+        _context->transfer_queue_family = transfer_queue_family_value.value();
       } else {
-        _context.transfer_queue_family = _context.graphics_queue_family;
+        _context->transfer_queue_family = _context->graphics_queue_family;
       }
 
-      _context.arena = get_arena();
-      _context.mesh_instances = push_array_arena(_context.arena, MeshInstance, 1024);
-      _context.mesh_scales = push_array_arena(_context.arena, vec3, 1024);
+      _context->arena = get_arena();
+      _context->mesh_instances = push_array_arena(_context->arena, MeshInstance, 1024);
+      _context->mesh_scales = push_array_arena(_context->arena, vec3, 1024);
 
       // _render_alloc = create_linear_allocator(100 * MB);
       //_render_alloc.init(100 * MB);
@@ -557,7 +561,7 @@ namespace quark {
         .type = BufferType::Staging,
         .size = 64 * MB,
       };
-      create_buffers(&_context.staging_buffer, 1, &staging_buffer_info);
+      create_buffers(&_context->staging_buffer, 1, &staging_buffer_info);
 
       // Info: 10 mil vertices and indices
       u32 vertex_count = 10000000;
@@ -571,25 +575,25 @@ namespace quark {
         .type = BufferType::Vertex,
         .size = positions_size,
       };
-      create_buffers(&_context.vertex_positions_buffer, 1, &positions_buffer_info);
+      create_buffers(&_context->vertex_positions_buffer, 1, &positions_buffer_info);
 
       BufferInfo normals_buffer_info = {
         .type = BufferType::Vertex,
         .size = normals_size,
       };
-      create_buffers(&_context.vertex_normals_buffer, 1, &normals_buffer_info);
+      create_buffers(&_context->vertex_normals_buffer, 1, &normals_buffer_info);
 
       BufferInfo uvs_buffer_info = {
         .type = BufferType::Vertex,
         .size = uvs_size,
       };
-      create_buffers(&_context.vertex_uvs_buffer, 1, &uvs_buffer_info);
+      create_buffers(&_context->vertex_uvs_buffer, 1, &uvs_buffer_info);
 
       BufferInfo index_info = {
         .type = BufferType::Index,
         .size = index_count * (u32)sizeof(u32)
       };
-      create_buffers(&_context.index_buffer, 1, &index_info);
+      create_buffers(&_context->index_buffer, 1, &index_info);
 
       // create_buffer(&buffer_info, "staging_buffer");
 
@@ -642,7 +646,7 @@ namespace quark {
     
     void init_swapchain() {
       // Swapchain creation
-      vkb::SwapchainBuilder swapchain_builder{_context.physical_device, _context.device, _context.surface};
+      vkb::SwapchainBuilder swapchain_builder{_context->physical_device, _context->device, _context->surface};
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
       swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
@@ -655,15 +659,15 @@ namespace quark {
       std::vector<VkImageView> swapchain_image_views = vkb_swapchain.get_image_views().value();
       VkFormat swapchain_format = vkb_swapchain.image_format;
 
-      _context.swapchain = vkb_swapchain.swapchain;
-      _context.swapchain_format = swapchain_format;
-      _context.swapchain_image_count = swapchain_images.size();
+      _context->swapchain = vkb_swapchain.swapchain;
+      _context->swapchain_format = swapchain_format;
+      _context->swapchain_image_count = swapchain_images.size();
 
-      _context.swapchain_images = push_array_arena(_context.arena, VkImage, swapchain_images.size());
-      copy_array(_context.swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
+      _context->swapchain_images = push_array_arena(_context->arena, VkImage, swapchain_images.size());
+      copy_array(_context->swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
 
-      _context.swapchain_image_views = push_array_arena(_context.arena, VkImageView, swapchain_image_views.size());
-      copy_array(_context.swapchain_image_views, swapchain_image_views.data(), VkImageView, swapchain_image_views.size());
+      _context->swapchain_image_views = push_array_arena(_context->arena, VkImageView, swapchain_image_views.size());
+      copy_array(_context->swapchain_image_views, swapchain_image_views.data(), VkImageView, swapchain_image_views.size());
     }
 
     VmaAllocationCreateInfo get_image_alloc_info() {
@@ -723,19 +727,19 @@ namespace quark {
     
     void init_command_pools_and_buffers() {
       {
-        auto command_pool_info = get_cmd_pool_info(_context.graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        auto command_pool_info = get_cmd_pool_info(_context->graphics_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     
         for_every(i, _FRAME_OVERLAP) {
-          vk_check(vkCreateCommandPool(_context.device, &command_pool_info, 0, &_graphics_cmd_pool[i]));
+          vk_check(vkCreateCommandPool(_context->device, &command_pool_info, 0, &_graphics_cmd_pool[i]));
     
           auto command_allocate_info = get_cmd_alloc_info(_graphics_cmd_pool[i], 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-          vk_check(vkAllocateCommandBuffers(_context.device, &command_allocate_info, &_main_cmd_buf[i]));
+          vk_check(vkAllocateCommandBuffers(_context->device, &command_allocate_info, &_main_cmd_buf[i]));
         }
       }
     
       {
-        auto command_pool_info = get_cmd_pool_info(_context.transfer_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-        vk_check(vkCreateCommandPool(_context.device, &command_pool_info, 0, &_transfer_cmd_pool));
+        auto command_pool_info = get_cmd_pool_info(_context->transfer_queue_family, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        vk_check(vkCreateCommandPool(_context->device, &command_pool_info, 0, &_transfer_cmd_pool));
       }
     }
 
@@ -744,10 +748,10 @@ namespace quark {
         VkImageCreateInfo image_info = get_image_info(info);
         VmaAllocationCreateInfo alloc_info = get_image_alloc_info();
 
-        vk_check(vmaCreateImage(_context.gpu_alloc, &image_info, &alloc_info, &images[i].image, &images[i].allocation, 0));
+        vk_check(vmaCreateImage(_context->gpu_alloc, &image_info, &alloc_info, &images[i].image, &images[i].allocation, 0));
 
         VkImageViewCreateInfo view_info = get_image_view_info(info, images[i].image);
-        vk_check(vkCreateImageView(_context.device, &view_info, 0, &images[i].view));
+        vk_check(vkCreateImageView(_context->device, &view_info, 0, &images[i].view));
 
         images[i].current_usage = ImageUsage::Unknown; // current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         images[i].resolution = info->resolution;
@@ -982,7 +986,7 @@ namespace quark {
       create_info.subpassCount = 1;
       create_info.pSubpasses = &subpass_desc;
 
-      vk_check(vkCreateRenderPass(_context.device, &create_info, 0, render_pass));
+      vk_check(vkCreateRenderPass(_context->device, &create_info, 0, render_pass));
     }
 
     struct FramebufferInfo {
@@ -1011,7 +1015,7 @@ namespace quark {
 
         framebuffer_info.pAttachments = attachments;
 
-        vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &framebuffers[i]);
+        vkCreateFramebuffer(_context->device, &framebuffer_info, 0, &framebuffers[i]);
       }
     }
 
@@ -1108,23 +1112,23 @@ namespace quark {
     // void end_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target);
     
     void init_render_passes() {
-      _context.render_resolution = get_window_dimensions() / 1;
+      _context->render_resolution = get_window_dimensions() / 1;
 
-      _context.material_color_image_info = {
-        .resolution = _context.render_resolution,
+      _context->material_color_image_info = {
+        .resolution = _context->render_resolution,
         .format = ImageFormat::LinearRgba16,
         .type = ImageType::RenderTargetColor,
         .samples = VK_SAMPLE_COUNT_1_BIT,
       };
-      create_images(_context.material_color_images, _FRAME_OVERLAP, &_context.material_color_image_info);
+      create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
-      _context.main_depth_image_info = {
-        .resolution = _context.render_resolution,
+      _context->main_depth_image_info = {
+        .resolution = _context->render_resolution,
         .format = ImageFormat::LinearD24S8,
         .type = ImageType::RenderTargetDepth,
         .samples = VK_SAMPLE_COUNT_1_BIT,
       };
-      create_images(_context.main_depth_images, _FRAME_OVERLAP, &_context.main_depth_image_info);
+      create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 
       // Image* images[] = {
       //   _context.material_color_images,
@@ -1146,8 +1150,8 @@ namespace quark {
       // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
 
       Image* images[2] = {
-        _context.material_color_images,
-        _context.main_depth_images,
+        _context->material_color_images,
+        _context->main_depth_images,
       };
 
       VkAttachmentLoadOp load_ops[2] = {
@@ -1171,7 +1175,7 @@ namespace quark {
       };
 
       RenderPassInfo render_pass_info = {
-        .resolution = _context.render_resolution,
+        .resolution = _context->render_resolution,
         .attachment_count = 2,
 
         .attachments = images,
@@ -1183,7 +1187,7 @@ namespace quark {
         .final_usage = final_usages,
       };
 
-      create_render_pass(_context.arena, &_context.main_render_pass, &render_pass_info);
+      create_render_pass(_context->arena, &_context->main_render_pass, &render_pass_info);
     }
     
     void init_framebuffers() {
@@ -1219,9 +1223,9 @@ namespace quark {
       semaphore_info.pNext = 0;
     
       for_every(i, _FRAME_OVERLAP) {
-        vk_check(vkCreateFence(_context.device, &fence_info, 0, &_render_fence[i]));
-        vk_check(vkCreateSemaphore(_context.device, &semaphore_info, 0, &_present_semaphore[i]));
-        vk_check(vkCreateSemaphore(_context.device, &semaphore_info, 0, &_render_semaphore[i]));
+        vk_check(vkCreateFence(_context->device, &fence_info, 0, &_render_fence[i]));
+        vk_check(vkCreateSemaphore(_context->device, &semaphore_info, 0, &_present_semaphore[i]));
+        vk_check(vkCreateSemaphore(_context->device, &semaphore_info, 0, &_render_semaphore[i]));
       }
     }
 
@@ -1247,7 +1251,7 @@ namespace quark {
       layout_info.pushConstantRangeCount = 1;
       layout_info.pPushConstantRanges = &push_constant_info;
 
-      vk_check(vkCreatePipelineLayout(_context.device, &layout_info, 0, &effect->layout));
+      vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &effect->layout));
 
       VkVertexInputBindingDescription binding_descriptions[3] = {};
       // Info: positions data
@@ -1296,8 +1300,8 @@ namespace quark {
       input_assembly_info.primitiveRestartEnable = VK_FALSE;
 
       // Info: what region of the image to render to
-      VkViewport viewport = get_viewport(_context.render_resolution);
-      VkRect2D scissor = get_scissor(_context.render_resolution);
+      VkViewport viewport = get_viewport(_context->render_resolution);
+      VkRect2D scissor = get_scissor(_context->render_resolution);
 
       VkPipelineViewportStateCreateInfo viewport_info = {};
       viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1320,7 +1324,7 @@ namespace quark {
       // Info: msaa support
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = _context.material_color_image_info.samples;
+      multisample_info.rasterizationSamples = _context->material_color_image_info.samples;
       multisample_info.sampleShadingEnable = VK_FALSE;
       multisample_info.alphaToCoverageEnable = VK_FALSE;
       multisample_info.alphaToOneEnable = VK_FALSE;
@@ -1379,9 +1383,9 @@ namespace quark {
       pipeline_info.pDepthStencilState = &depth_info;
       pipeline_info.pColorBlendState = &color_blend_info;
       pipeline_info.layout = effect->layout;
-      pipeline_info.renderPass = _context.main_render_pass.render_pass;
+      pipeline_info.renderPass = _context->main_render_pass.render_pass;
 
-      vk_check(vkCreateGraphicsPipelines(_context.device, 0, 1, &pipeline_info, 0, &effect->pipeline));
+      vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &effect->pipeline));
     }
    
     void init_pipelines() {
@@ -1473,7 +1477,7 @@ namespace quark {
       layout_info.bindingCount = n;
       layout_info.pBindings = layout_bindings;
 
-      vk_check(vkCreateDescriptorSetLayout(_context.device, &layout_info, 0, layout));
+      vk_check(vkCreateDescriptorSetLayout(_context->device, &layout_info, 0, layout));
     }
 
     void allocate_descriptor_sets(VkDescriptorSet* sets, VkDescriptorSetLayout layout) {
@@ -1484,11 +1488,11 @@ namespace quark {
 
       VkDescriptorSetAllocateInfo alloc_info = {};
       alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-      alloc_info.descriptorPool = _context.main_descriptor_pool;
+      alloc_info.descriptorPool = _context->main_descriptor_pool;
       alloc_info.descriptorSetCount = _FRAME_OVERLAP;
       alloc_info.pSetLayouts = layouts;
 
-      vk_check(vkAllocateDescriptorSets(_context.device, &alloc_info, sets));
+      vk_check(vkAllocateDescriptorSets(_context->device, &alloc_info, sets));
     }
 
     void update_descriptor_sets(VkDescriptorSet* sets, ResourceBinding* bindings, u32 n) {
@@ -1544,7 +1548,7 @@ namespace quark {
           }
         }
 
-        vkUpdateDescriptorSets(_context.device, n, writes, 0, 0);
+        vkUpdateDescriptorSets(_context->device, n, writes, 0, 0);
       }
     }
 
@@ -1591,10 +1595,10 @@ namespace quark {
     }
 
     define_material(ColorMaterial2);
-    define_material_world_data(ColorMaterial2, {});
+    define_material_world(ColorMaterial2, {});
 
     define_material(TextureMaterial2);
-    define_material_world_data(TextureMaterial2, {});
+    define_material_world(TextureMaterial2, {});
 
     void init_materials() {
       {
@@ -1603,7 +1607,7 @@ namespace quark {
           .size = sizeof(WorldData),
         };
 
-        create_buffers(_context.world_data_buffers, 2, &info);
+        create_buffers(_context->world_data_buffers, 2, &info);
       }
 
       {
@@ -1618,7 +1622,7 @@ namespace quark {
         info.pPoolSizes = pool_sizes;
         info.maxSets = 128;
 
-        vk_check(vkCreateDescriptorPool(_context.device, &info, 0, &_context.main_descriptor_pool));
+        vk_check(vkCreateDescriptorPool(_context->device, &info, 0, &_context->main_descriptor_pool));
       }
 
       {
@@ -1644,13 +1648,13 @@ namespace quark {
         // end_quick_commands2(commands);
 
         Buffer* buffers[_FRAME_OVERLAP] = {
-          &_context.world_data_buffers[0],
-          &_context.world_data_buffers[1],
+          &_context->world_data_buffers[0],
+          &_context->world_data_buffers[1],
         };
 
         Image* images[_FRAME_OVERLAP] = {
-          _context.textures,
-          _context.textures,
+          _context->textures,
+          _context->textures,
         };
 
         ResourceBinding bindings[2] = {};
@@ -1660,18 +1664,18 @@ namespace quark {
         bindings[0].images = 0;
         bindings[0].sampler = 0;
 
-        bindings[1].count = _context.texture_count;
+        bindings[1].count = _context->texture_count;
         bindings[1].max_count = 1024;
         bindings[1].buffers = 0;
         bindings[1].images = images;
-        bindings[1].sampler = &_context.texture_sampler;
+        bindings[1].sampler = &_context->texture_sampler;
 
         ResourceGroupInfo resource_info {
           .bindings_count = count_of(bindings),
           .bindings = bindings,
         };
 
-        create_resource_group(_context.arena, &_context.global_resources_group, &resource_info);
+        create_resource_group(_context->arena, &_context->global_resources_group, &resource_info);
 
         // // Info: Textures
         // VkDescriptorSetLayoutBinding textures_binding_layout = {};
@@ -1742,8 +1746,11 @@ namespace quark {
         // }
       }
 
-      update_material(ColorMaterial2, "color", "color");
-      update_material(TextureMaterial2, "texture", "texture");
+      update_material(ColorMaterial2, "color", "color", 128 * 128, 128);
+      update_material(TextureMaterial2, "texture", "texture", 128 * 128, 128);
+
+      // update_material(ColorMaterial2, "color", "color", 128 * 128);
+      // update_material(TextureMaterial2, "texture", "texture", 128 * 128);
       // MaterialEffectInfo ColorMaterial2_EFFECT_INFO = {
       //   .instance_data_size = sizeof(ColorMaterial2Instance),
       //   .world_data_size = 0,
@@ -1779,7 +1786,7 @@ namespace quark {
       sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
       sampler_info.unnormalizedCoordinates = VK_FALSE;
 
-      vk_check(vkCreateSampler(_context.device, &sampler_info, 0, &sampler->sampler));
+      vk_check(vkCreateSampler(_context->device, &sampler_info, 0, &sampler->sampler));
     }
 
     void init_sampler() {
@@ -1788,7 +1795,7 @@ namespace quark {
         .wrap_mode = WrapMode::Repeat,
       };
 
-      create_samplers(&_context.texture_sampler, 1, &texture_sampler_info);
+      create_samplers(&_context->texture_sampler, 1, &texture_sampler_info);
     }
     
     // void transition_image_layout(VkCommandBuffer commands, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
@@ -2190,70 +2197,20 @@ namespace quark {
       auto copy_into_buffer = [&](Buffer* dst, usize dst_offset, void* src, usize src_size) {
         VkCommandBuffer commands = begin_quick_commands();
 
-        write_buffer(&_context.staging_buffer, 0, src, 0, src_size);
+        write_buffer(&_context->staging_buffer, 0, src, 0, src_size);
 
-        copy_buffer(commands, dst, dst_offset, &_context.staging_buffer, 0, src_size);
+        copy_buffer(commands, dst, dst_offset, &_context->staging_buffer, 0, src_size);
 
         end_quick_commands(commands);
       };
 
-      copy_into_buffer(&_context.vertex_positions_buffer, vertex_offset * sizeof(vec3), positions, vertex_count * sizeof(vec3));
-      copy_into_buffer(&_context.vertex_normals_buffer, vertex_offset * sizeof(vec3), normals, vertex_count * sizeof(vec3));
-      copy_into_buffer(&_context.vertex_uvs_buffer, vertex_offset * sizeof(vec2), uvs, vertex_count * sizeof(vec2));
+      copy_into_buffer(&_context->vertex_positions_buffer, vertex_offset * sizeof(vec3), positions, vertex_count * sizeof(vec3));
+      copy_into_buffer(&_context->vertex_normals_buffer, vertex_offset * sizeof(vec3), normals, vertex_count * sizeof(vec3));
+      copy_into_buffer(&_context->vertex_uvs_buffer, vertex_offset * sizeof(vec2), uvs, vertex_count * sizeof(vec2));
 
-      copy_into_buffer(&_context.index_buffer, index_offset * sizeof(u32), indices, index_count * sizeof(u32));
-
-      // VkCommandBuffer commands = begin_quick_commands();
-
-      // u32 vertex_src_size = sizeof(VertexPNT) * vertex_count;
-      // write_buffer(&_context.staging_buffer, 0, vertices, 0, vertex_src_size);
-
-      // u32 vertex_dst_offset = sizeof(VertexPNT) * vertex_offset;
-      // copy_buffer(commands, &_context.vertex_buffer, vertex_dst_offset, &_context.staging_buffer, 0, vertex_src_size);
-
-      // end_quick_commands(commands);
-
-      // commands = begin_quick_commands();
-
-      // u32 index_src_size = sizeof(u32) * index_count;
-      // write_buffer(&_context.staging_buffer, 0, indices, 0, index_src_size);
-
-      // u32 index_dst_offset = sizeof(u32) * index_offset;
-      // copy_buffer(commands, &_context.index_buffer, index_dst_offset, &_context.staging_buffer, 0, index_src_size);
-
-      // end_quick_commands(commands);
+      copy_into_buffer(&_context->index_buffer, index_offset * sizeof(u32), indices, index_count * sizeof(u32));
 
       return mesh;
-    }
-    
-    // Mesh loading
-    MeshInstance create_mesh(void* data, usize size, usize elemsize) {
-      // MeshInstance mesh = {};
-      // mesh.count = size;
-      // mesh.offset = alloc(&_gpu_vertices_tracker, size);
-
-      // // BufferResource* gpu_verts = &BufferResource::cache_one.get("staging_buffer");
-      // Buffer* gpu_verts = &_context.staging_buffer; //get_buffer("staging_buffer");
-    
-      // // void* ptr = map_buffer("staging_buffer");
-      // // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
-      // // unmap_buffer("staging_buffer");
-
-      // u32 dst_offset = elemsize * mesh.offset;
-      // u32 src_size = elemsize * mesh.count;
-      // write_buffer(&_context.staging_buffer, 0, data, 0, src_size);
-
-      // VkCommandBuffer commands = begin_quick_commands();
-      // copy_buffer(commands, &_context.vertex_buffer, dst_offset, &_context.staging_buffer, 0, src_size);
-      // end_quick_commands(commands);
-      // // write_buffer_adv("staging_buffer", dst_offset, data, 0, src_size);
-
-      // // void* ptr;
-      // // vmaMapMemory(_gpu_alloc, gpu_verts->allocation, &ptr);
-      // // memcpy((u8*)ptr + (elemsize * mesh.offset), data, elemsize * mesh.count);
-      // // vmaUnmapMemory(_gpu_alloc, gpu_verts->allocation);
-
-      // return mesh;
     }
 
     void copy_buffer_to_image(VkCommandBuffer commands, Image* dst, Buffer* src) {
@@ -2588,10 +2545,10 @@ namespace quark {
     
     void deinit_sync_objects() {
       for_every(i, _FRAME_OVERLAP) {
-        vkDestroyFence(_context.device, _render_fence[i], 0);
+        vkDestroyFence(_context->device, _render_fence[i], 0);
     
-        vkDestroySemaphore(_context.device, _present_semaphore[i], 0);
-        vkDestroySemaphore(_context.device, _render_semaphore[i], 0);
+        vkDestroySemaphore(_context->device, _present_semaphore[i], 0);
+        vkDestroySemaphore(_context->device, _render_semaphore[i], 0);
       }
     }
     
@@ -2619,7 +2576,7 @@ namespace quark {
     void deinit_allocators() {
       // destroy_linear_allocator(&_render_alloc);
       // vmaDestroyBuffer(_gpu_alloc, _gpu_vertices.buffer, _gpu_vertices.alloc);
-      vmaDestroyAllocator(_context.gpu_alloc);
+      vmaDestroyAllocator(_context->gpu_alloc);
     }
     
     // void deinit_pipelines() {
@@ -2641,22 +2598,22 @@ namespace quark {
     // void deinit_render_passes() { vkDestroyRenderPass(_device, _default_render_pass, 0); }
     
     void deinit_command_pools_and_buffers() {
-      for_every(i, _FRAME_OVERLAP) { vkDestroyCommandPool(_context.device, _graphics_cmd_pool[i], 0); }
-      vkDestroyCommandPool(_context.device, _transfer_cmd_pool, 0);
+      for_every(i, _FRAME_OVERLAP) { vkDestroyCommandPool(_context->device, _graphics_cmd_pool[i], 0); }
+      vkDestroyCommandPool(_context->device, _transfer_cmd_pool, 0);
     }
     
     void deinit_swapchain() {
       // Destroy depth texture
-      vkDestroySwapchainKHR(_context.device, _context.swapchain, 0);
+      vkDestroySwapchainKHR(_context->device, _context->swapchain, 0);
     
-      for_every(index, _context.swapchain_image_count) { vkDestroyImageView(_context.device, _context.swapchain_image_views[index], 0); }
+      for_every(index, _context->swapchain_image_count) { vkDestroyImageView(_context->device, _context->swapchain_image_views[index], 0); }
     }
     
     void deinit_vulkan() {
-      vkDestroyDevice(_context.device, 0);
-      vkDestroySurfaceKHR(_context.instance, _context.surface, 0);
-      vkb::destroy_debug_utils_messenger(_context.instance, _context.debug_messenger);
-      vkDestroyInstance(_context.instance, 0);
+      vkDestroyDevice(_context->device, 0);
+      vkDestroySurfaceKHR(_context->instance, _context->surface, 0);
+      vkb::destroy_debug_utils_messenger(_context->instance, _context->debug_messenger);
+      vkDestroyInstance(_context->instance, 0);
     }
     
     void resize_swapchain() {
@@ -3359,7 +3316,7 @@ namespace quark {
       VmaAllocationCreateInfo alloc_info = get_buffer_alloc_info(info->type);
 
       Buffer buffer = {};
-      vk_check(vmaCreateBuffer(_context.gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
+      vk_check(vmaCreateBuffer(_context->gpu_alloc, &buffer_info, &alloc_info, &buffer.buffer, &buffer.allocation, 0));
 
       buffer.type = info->type;
       buffer.size = info->size;
@@ -3370,12 +3327,12 @@ namespace quark {
 
   void* map_buffer(Buffer* buffer) {
     void* ptr;
-    vmaMapMemory(_context.gpu_alloc, buffer->allocation, &ptr);
+    vmaMapMemory(_context->gpu_alloc, buffer->allocation, &ptr);
     return ptr;
   }
 
   void unmap_buffer(Buffer* buffer) {
-    vmaUnmapMemory(_context.gpu_alloc, buffer->allocation);
+    vmaUnmapMemory(_context->gpu_alloc, buffer->allocation);
   }
 
   void write_buffer(Buffer* dst, u32 dst_offset_bytes, void* src, u32 src_offset_bytes, u32 size) {
@@ -3391,893 +3348,6 @@ namespace quark {
     copy_region.size = size;
 
     vkCmdCopyBuffer(commands, src->buffer, dst->buffer, 1, &copy_region);
-  }
-
-  // VmaAllocationCreateInfo BufferResource::Info::_alloc_info() {
-  //   return get_buffer_alloc_info(type);
-  // }
-
-  // BufferResource BufferResource::Info::_create() {
-  //   auto buf_info = this->_buf_info();
-  //   auto alloc_info = this->_alloc_info();
-
-  //   BufferResource res = {};
-  //   vk_check(vmaCreateBuffer(_gpu_alloc, &buf_info, &alloc_info, &res.buffer, &res.allocation, 0));
-
-  //   return res;
-  // }
-
-  // void BufferResource::create_one(BufferResource::Info& info, std::string name) {
-  //   add_name_association(name, internal::ResourceType::BufferResourceOne);
-
-  //   BufferResource res = info._create();
-
-  //   cache_one.add(name, res);
-  //   Info::cache_one.add(name, info);
-
-  //   print_tempstr(create_tempstr() + "Created buffer res!\n");
-  // }
-
-  // void BufferResource::create_array(BufferResource::Info& info, std::string name) {
-  //   add_name_association(name, internal::ResourceType::BufferResourceArray);
-
-  //   BufferResource res = info._create();
-
-  //   // append to list
-  //   if(Info::cache_array.has(name)) {
-  //     cache_array.get(name).push_back(res);
-  //     Info::cache_array.get(name).push_back(info);
-  //     return;
-  //   }
-
-  //   // create new list
-  //   cache_array.add(name, {res});
-  //   Info::cache_array.add(name, {info});
-  //   return;
-  // }
-
-  // void BufferResource::create_one_per_frame(BufferResource::Info& info, std::string name) {
-  //   add_name_association(name, internal::ResourceType::BufferResourceOnePerFrame);
-
-  //   cache_one_per_frame.add(name, {});
-  //   Info::cache_one_per_frame.add(name, info);
-
-  //   for_every(index, _FRAME_OVERLAP) {
-  //     BufferResource res = info._create();
-  //     cache_one_per_frame.get(name)[index] = res;
-  //   }
-  // }
-
-  // void create_mesh_pool(MeshPool* pool, Arena* arena, MeshPoolInfo* info) {
-  //   u32 vertex_size = info->vertex_count * info->vertex_size;
-  //   u32 index_size = info->vertex_count * sizeof(u32);
-
-  //   VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-  //   if(info->usage == MeshPoolType::Gpu) {
-  //     memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-  //   } else if(info->usage == MeshPoolType::CpuToGpu) {
-  //     memory_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-  //   } else {
-  //     panic((create_tempstr() + "Failed to create mesh pool resource: " + "Mesh resource type was not valid!").data);
-  //   }
-
-  //   VkBufferCreateInfo vertex_info = {};
-  //   vertex_info.size = vertex_size;
-  //   vertex_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-  //   VmaAllocationCreateInfo vertex_alloc_info = {};
-  //   vertex_alloc_info.usage = memory_usage;
-
-  //   // VkBufferCreateInfo index_info = {};
-  //   // index_info.size = index_size;
-  //   // index_info.flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-
-  //   // VmaAllocationCreateInfo index_alloc_info = {};
-  //   // index_alloc_info.usage = memory_usage;
-
-  //   MeshPool resource = {};
-  //   vk_check(vmaCreateBuffer(_gpu_alloc, &vertex_info, &vertex_alloc_info, &resource.vertex_buffer.buffer, &resource.vertex_buffer.allocation, 0));
-  //   // vk_check(vmaCreateBuffer(_gpu_alloc, &index_info, &index_alloc_info, &resource.index_buffer, &resource.index_allocation, 0));
-
-  //   resource.index_buffer = {0, 0};
-
-  //   resource.instances = push_array_arena(arena, MeshInstance, 1024);
-  //   resource.scales = push_array_arena(arena, vec3, 1024);
-  //   // get_resource(Resource<MeshRegistry> {})->pool_count += 1;
-
-  //   return resource;
-  // }
-
-  // void copy_mesh_pool_vertices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
-  //   const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
-  //   // const Buffer* buffer = get_buffer(buffer_src);
-
-  //   copy_buffer(pool->vertex_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
-  // }
-
-  // void copy_mesh_pool_indices(const char* mesh_pool_dst, u32 dst_offset_bytes, const char* buffer_src, u32 src_offset_bytes, u32 size_bytes) {
-  //   const MeshPool* pool = get_mesh_pool(mesh_pool_dst);
-  //   const Buffer* buffer = get_buffer(buffer_src);
-
-  //   copy_buffer(pool->index_buffer, dst_offset_bytes, buffer->buffer, src_offset_bytes, size_bytes);
-  // }
-
-//  VkSamplerCreateInfo SamplerResource::Info::_sampler_info() {
-//    VkSamplerCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-//    info.magFilter = (VkFilter)this->filter_mode;
-//    info.minFilter = (VkFilter)this->filter_mode;
-//    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-//    info.addressModeU = (VkSamplerAddressMode)this->wrap_mode;
-//    info.addressModeV = (VkSamplerAddressMode)this->wrap_mode;
-//    info.addressModeW = (VkSamplerAddressMode)this->wrap_mode;
-//    info.mipLodBias = 0.0f;
-//    info.anisotropyEnable = VK_FALSE;
-//    info.maxAnisotropy = 1.0f;
-//    info.compareEnable = VK_FALSE;
-//    info.compareOp = VK_COMPARE_OP_ALWAYS;
-//    info.minLod = 0.0f;
-//    info.maxLod = 0.0f;
-//    info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-//    info.unnormalizedCoordinates = VK_FALSE;
-//
-//    return info;
-//  }
-//
-//  SamplerResource SamplerResource::Info::_create() {
-//    auto sampler_info = this->_sampler_info();
-//
-//    SamplerResource res = {};
-//    vk_check(vkCreateSampler(_context.device, &sampler_info, 0, &res.sampler));
-//
-//    return res;
-//  }
-//
-//  void SamplerResource::create_one(SamplerResource::Info& info, std::string name) {
-//    add_name_association(name, internal::ResourceType::SamplerResourceOne);
-//
-//    SamplerResource res = info._create();
-//
-//    cache_one.add(name, res);
-//    Info::cache_one.add(name, info);
-//
-//    print_tempstr(create_tempstr() + "Created sampler res!\n");
-//  }
-//
-//  void SamplerResource::create_array(SamplerResource::Info& info, std::string name) {
-//    add_name_association(name, internal::ResourceType::SamplerResourceArray);
-//
-//    SamplerResource res = info._create();
-//
-//    // append to list
-//    if(Info::cache_array.has(name)) {
-//      cache_array.get(name).push_back(res);
-//      Info::cache_array.get(name).push_back(info);
-//      return;
-//    }
-//
-//    // create new list
-//    cache_array.add(name, {res});
-//    Info::cache_array.add(name, {info});
-//    return;
-//  }
-
-  //str operator +(str s, ivec2 i) {
-  //  return s + "(x: " + i.x + ", y: " + i.y + ")";
-  //}
-
-//   tempstr operator +(tempstr s, RenderImageSamples i) {
-//     switch(i) {
-//       case(RenderImageSamples::One): { return s + "ImageSamples::One"; };
-//       case(RenderImageSamples::Two): { return s + "ImageSamples::Two"; };
-//       case(RenderImageSamples::Four): { return s + "ImageSamples::Four"; };
-//       case(RenderImageSamples::Eight): { return s + "ImageSamples::Eight"; };
-//       case(RenderImageSamples::Sixteen): { return s + "ImageSamples::Sixteen"; };
-//     }
-// 
-//     return s;
-//   }
-
-//  void RenderTarget::Info::_validate() {
-//    // validate counts
-//    if (this->image_resources.size() == 0) {
-//      panic(create_tempstr() + "Size of 'RenderTarget::image_resources' list must not be zero!" + "\n"
-//           + "Did you forgot to put resources?\n");
-//    }
-//
-//    // validate counts
-//    if (this->next_usage_modes.size() == 0) {
-//      panic(create_tempstr() + "Size of 'RenderTarget::usage_modes' list must not be zero!" + "\n"
-//           + "Did you forgot to put usage modes?\n");
-//    }
-//
-//    // validate counts
-//    if (this->image_resources.size() != this->next_usage_modes.size()) {
-//      panic(create_tempstr() + "There must be at least one usage mode per image resource!" + "\n"
-//           + "Did you forgot some usage modes or resources?\n");
-//    }
-//
-//    for_every(i, this->image_resources.size() - 1) {
-//      // validate we have 'one_per_frame' resources
-//      if (!ImageResource::Info::cache_one_per_frame.has(this->image_resources[i])) {
-//        panic(create_tempstr() + "Image resources need to be 'one_per_frame' type resources!" + "\n"
-//             + "Did you make your image resources using 'ImageResource::create_one_per_frame()'?\n");
-//      }
-//
-//      auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
-//
-//      // validate we have color resources
-//      if (!res._is_color()) {
-//        panic(create_tempstr() + "Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
-//             + "Did you forgot to put a depth resource at the end?\n");
-//      }
-//    }
-//
-//    // validate that a depth resource is at the last pos
-//    if (ImageResource::Info::cache_one_per_frame[this->image_resources[this->image_resources.size() - 1]]._is_color()) {
-//      panic(create_tempstr()
-//          + "Depth image resources need to be the last resource in a 'RenderTarget::image_resources' list!" + "\n"
-//          + "Did you forgot to put a depth resource at the end?\n");
-//    }
-//
-//    for_every(i, this->image_resources.size()) {
-//      auto res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]];
-//
-//      // validate all images are render targets
-//      if ((res.usage & ImageUsage::RenderTarget) == (ImageUsage)0) {
-//        panic(create_tempstr() + "Image resources need to have 'ImageUsage::RenderTarget' set when used in a 'RenderTarget::image_resources' list!" + "\n"
-//             + "Did you forget to add this flag?\n");
-//      }
-//
-//      //if (((res.usage & ImageUsage::Texture) != 0) && this->usage_modes[i] != UsageMode::ClearStore) {
-//      //  panic2("Image resources with 'ImageUsage::Texture' must use 'UsageMode::ClearStore' when used in a 'RenderTarget'");
-//      //}
-//    }
-//
-//    // validate all images are the same resolution and same sample count
-//    ivec2 resolution = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
-//    ImageSamples samples = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].samples;
-//    for_range(i, 1, this->image_resources.size()) {
-//      ivec2 other_res = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].resolution;
-//      ImageSamples other_samp = ImageResource::Info::cache_one_per_frame[this->image_resources[i]].samples;
-//
-//      if (resolution != other_res) {
-//        panic(create_tempstr() + "All image resources in 'RenderTarget::image_resources' must be the same resolution!" + "\n"
-//             + "Mismatched resolution: " + resolution + " and " +  other_res + "\n"
-//             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?\n");
-//      }
-//
-//      if (samples != other_samp) {
-//        panic(create_tempstr() + "All image resources in 'RenderTarget::image_resources' must have the same ImageSamples count!" + "\n"
-//             + "Mismatched sample count: " + samples + " and " +  other_samp + "\n"
-//             + "Did you forgot to make '" + this->image_resources[0].c_str() + "' and '" + this->image_resources[i].c_str() + "' the same resolution?\n");
-//      }
-//    }
-//  }
-//
-//  std::vector<VkAttachmentDescription> RenderTarget::Info::_attachment_desc() {
-//    usize size = this->image_resources.size();
-//
-//    std::vector<VkAttachmentDescription> attachment_desc;
-//    attachment_desc.resize(size);
-//
-//    // color attachments
-//    for_every(index, size - 1) {
-//      auto& img_info = ImageResource::Info::cache_one_per_frame[this->image_resources[index]];
-//
-//      attachment_desc[index].format = (VkFormat)img_info.format;
-//      attachment_desc[index].samples = (VkSampleCountFlagBits)img_info.samples;
-//      attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-//      attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-//
-//      attachment_desc[index].loadOp = (VkAttachmentLoadOp)this->load_modes[index];
-//      attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index];
-//
-//      attachment_desc[index].initialLayout = internal::color_initial_layout_lookup[(usize)this->load_modes[index]];
-//      attachment_desc[index].finalLayout   = internal::image_usage_vk_layout(this->next_usage_modes[index], img_info._is_color());
-//    }
-//
-//    // depth attachment
-//    {
-//      usize index = size - 1;
-//
-//      auto& img_info = ImageResource::Info::cache_one_per_frame[this->image_resources[index]];
-//
-//      attachment_desc[index].format = (VkFormat)img_info.format;
-//      attachment_desc[index].samples = (VkSampleCountFlagBits)img_info.samples;
-//      attachment_desc[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-//      attachment_desc[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-//
-//      attachment_desc[index].loadOp = (VkAttachmentLoadOp)this->load_modes[index]; //internal::depth_attachment_lookup[lookup_index].load_op;
-//      attachment_desc[index].storeOp = (VkAttachmentStoreOp)this->store_modes[index]; //internal::depth_attachment_lookup[lookup_index].store_op;
-//
-//      attachment_desc[index].initialLayout = internal::depth_initial_layout_lookup[(usize)this->load_modes[index]];
-//      attachment_desc[index].finalLayout   = internal::image_usage_vk_layout(this->next_usage_modes[index], img_info._is_color()); //internal::depth_final_layout_lookup[(usize)this->next_usage_modes[index]];
-//    }
-//
-//    return attachment_desc;
-//  }
-//
-//  void transition(const char* name, ImageTYpe next_usage_mode) {
-//  }
-//
-//  std::vector<VkAttachmentReference> RenderTarget::Info::_color_attachment_refs() {
-//    usize size = this->image_resources.size() - 1;
-//
-//    std::vector<VkAttachmentReference> attachment_refs;
-//    attachment_refs.resize(size);
-//
-//    for_every(i, size) {
-//      attachment_refs[i].attachment = i; // attachment index
-//      attachment_refs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // subpass layout
-//    }
-//
-//    return attachment_refs;
-//  }
-//
-//  VkAttachmentReference RenderTarget::Info::_depth_attachment_ref() {
-//    VkAttachmentReference attachment_ref = {};
-//
-//    usize i = this->image_resources.size() - 1;
-//
-//    attachment_ref.attachment = i; // attachment index
-//    attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // subpass layout
-//
-//    return attachment_ref;
-//  }
-//
-//  VkSubpassDescription RenderTarget::Info::_subpass_desc(std::vector<VkAttachmentReference>& color_attachment_refs, VkAttachmentReference* depth_attachment_ref) {
-//    VkSubpassDescription desc = {};
-//    desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-//    desc.colorAttachmentCount = color_attachment_refs.size();
-//    desc.pColorAttachments = color_attachment_refs.data();
-//
-//    // TODO(sean): MAKE THIS CONDITIONAL ON MULTISAMPLING
-//    // desc.pResolveAttachments
-//
-//    desc.pDepthStencilAttachment = depth_attachment_ref;
-//
-//    return desc;
-//  }
-//
-//  VkRenderPassCreateInfo RenderTarget::Info::_render_pass_info(std::vector<VkAttachmentDescription>& attachment_descs, VkSubpassDescription* subpass_desc) {
-//    VkRenderPassCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-//    info.attachmentCount = attachment_descs.size();
-//    info.pAttachments = attachment_descs.data();
-//    info.subpassCount = 1;
-//    info.pSubpasses = subpass_desc;
-//
-//    return info;
-//  }
-//
-//  std::vector<VkImageView> RenderTarget::Info::_image_views(usize index) {
-//    usize size = this->image_resources.size();
-//
-//    std::vector<VkImageView> image_views(size);
-//    image_views.resize(size);
-//
-//    for_every(j, size) {
-//      image_views[j] = ImageResource::cache_one_per_frame[this->image_resources[j]][index].view;
-//    }
-//
-//    return image_views;
-//  }
-//
-//  VkFramebufferCreateInfo RenderTarget::Info::_framebuffer_info(std::vector<VkImageView>& attachments, VkRenderPass render_pass) {
-//    VkFramebufferCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-//    info.renderPass = render_pass;
-//
-//    ivec2 resolution = ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
-//    info.width = resolution.x;
-//    info.height = resolution.y;
-//    info.layers = 1;
-//
-//    info.attachmentCount = attachments.size();
-//    info.pAttachments = attachments.data();
-//
-//    return info;
-//  }
-//
-//  RenderTarget RenderTarget::Info::_create() {
-//    RenderTarget render_target = {};
-//
-//    //#ifdef DEBUG
-//      this->_validate();
-//    //#endif
-//
-//    auto attachment_descs = this->_attachment_desc();
-//    auto color_attachment_ref = this->_color_attachment_refs();
-//    auto depth_attachment_ref = this->_depth_attachment_ref();
-//    auto subpass_desc = this->_subpass_desc(color_attachment_ref, &depth_attachment_ref);
-//    auto render_pass_info = this->_render_pass_info(attachment_descs, &subpass_desc);
-//    vk_check(vkCreateRenderPass(_context.device, &render_pass_info, 0, &render_target.render_pass));
-//    for_every(index, _FRAME_OVERLAP) {
-//      auto attachments = this->_image_views(index);
-//      auto framebuffer_info = this->_framebuffer_info(attachments, render_target.render_pass);
-//
-//      vk_check(vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &render_target.framebuffers[index]));
-//    }
-//
-//    return render_target;
-//  }
-//  
-//  VkViewport RenderTarget::Info::_viewport() {
-//    ivec2 res = this->_resolution();
-//
-//    VkViewport viewport = {};
-//    viewport.x = 0;
-//    viewport.y = 0;
-//    viewport.width = res.x;
-//    viewport.height = res.y;
-//    viewport.minDepth = 0.0f;
-//    viewport.maxDepth = 1.0f;
-//
-//    return viewport;
-//  }
-//
-//  VkRect2D RenderTarget::Info::_scissor() {
-//    ivec2 res = this->_resolution();
-//
-//    VkRect2D scissor = {};
-//    scissor.offset = {0, 0};
-//    scissor.extent = {(u32)res.x, (u32)res.y};
-//
-//    return scissor;
-//  }
-//
-//  ImageSamples RenderTarget::Info::_samples() {
-//    return ImageResource::Info::cache_one_per_frame[this->image_resources[0]].samples;
-//  }
-//
-//  ivec2 RenderTarget::Info::_resolution() {
-//    return ImageResource::Info::cache_one_per_frame[this->image_resources[0]].resolution;
-//  }
-//
-//  void RenderTarget::create(RenderTarget::Info& info, std::string name) {
-//    if(Info::cache.has(name)) {
-//      panic(create_tempstr() + "Attempted to create RenderTarget with name: '" + name.c_str() + "' which already exists!\n");
-//    }
-//
-//    auto render_target = info._create();
-//
-//    RenderTarget::Info::cache.add(name, info);
-//    RenderTarget::cache.add(name, render_target);
-//
-//    print_tempstr(create_tempstr() + "Created render target!\n");
-//  }
-
-//  ResourceGroup ResourceGroup::Info::_create() {
-//    ResourceGroup resource_group = {};
-//    resource_group.sets = {};
-//    resource_group.layout = 0;
-//
-//    return resource_group;
-//  }
-//
-//  void ResourceGroup::create(ResourceGroup::Info& info, std::string name) {
-//    panic(create_tempstr() + "Cant create 'ResourceGroup' yet!\n");
-//  }
-//
-//  void PushConstant::create(PushConstant::Info& info, std::string name) {
-//    if(Info::cache.has(name)) {
-//      panic(create_tempstr() + "Attempted to create PushConstant with name: '" + name.c_str() + "' which already exists!\n");
-//    }
-//
-//    PushConstant::Info::cache.add(name, info);
-//  }
-//
-//  VkPipelineLayoutCreateInfo ResourceBundle::Info::_layout_info(std::vector<VkDescriptorSetLayout> set_layouts, VkPushConstantRange* push_constant) {
-//    VkPipelineLayoutCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-//    info.setLayoutCount = set_layouts.size();
-//    info.pSetLayouts = set_layouts.data();
-//
-//    if (push_constant != 0) {
-//      info.pushConstantRangeCount = 1;
-//      info.pPushConstantRanges = push_constant;
-//    }
-//
-//    return info;
-//  }
-//
-//  VkPushConstantRange ResourceBundle::Info::_push_constant() {
-//    if (this->push_constant == "") {
-//      return {};
-//    }
-//
-//    VkPushConstantRange push_constant = {};
-//    push_constant.offset = 0;
-//    push_constant.size = PushConstant::Info::cache.get(this->push_constant).size;
-//    push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-//
-//    return push_constant;
-//  }
-
-//  std::vector<VkDescriptorSetLayout> ResourceBundle::Info::_set_layouts() {
-//    return {};
-//  }
-//
-//  ResourceBundle ResourceBundle::Info::_create() {
-//    ResourceBundle resource_bundle = {};
-//
-//    if (this->resource_groups.size() > 4) {
-//      panic(create_tempstr() + "Resource groups cannot be more than 4\n");
-//    }
-//
-//    for_every(i, 4) {
-//      if (this->resource_groups[i] != "") {
-//        panic(create_tempstr() + "resource group not \"\"\n");
-//      }
-//    }
-//
-//    auto set_layouts = this->_set_layouts();
-//    auto push_constant = this->_push_constant();
-//    auto layout_info = this->push_constant != "" ? this->_layout_info(set_layouts, &push_constant) : this->_layout_info(set_layouts, 0);
-//
-//    vk_check(vkCreatePipelineLayout(_context.device, &layout_info, 0, &resource_bundle.layout));
-//
-//    return resource_bundle;
-//  }
-//
-//  void ResourceBundle::create(ResourceBundle::Info& info, std::string name) {
-//    if (Info::cache.has(name)) {
-//      panic(create_tempstr() + "Attempted to create ResourceBundle with name: '" + name.c_str() + "' which already exists!\n");
-//    }
-//
-//    auto resource_bundle = info._create();
-//
-//    ResourceBundle::Info::cache.add(name, info);
-//    ResourceBundle::cache.add(name, resource_bundle);
-//  }
-
-//  VkPipelineVertexInputStateCreateInfo RenderMode::Info::_vertex_input_info() {
-//    VkPipelineVertexInputStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-//    info.vertexBindingDescriptionCount = 1;
-//    info.pVertexBindingDescriptions = get_vertex_pnt_input_description()->bindings;//VertexPNT::input_description.bindings;
-//    info.vertexAttributeDescriptionCount = 3;
-//    info.pVertexAttributeDescriptions = get_vertex_pnt_input_description()->attributes; //VertexPNT::input_description.attributes;
-//
-//    return info;
-//  }
-//
-//  VkPipelineInputAssemblyStateCreateInfo RenderMode::Info::_input_assembly_info() {
-//    VkPipelineInputAssemblyStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-//    info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-//    info.primitiveRestartEnable = VK_FALSE;
-//
-//    return info;
-//  }
-//
-//  VkPipelineViewportStateCreateInfo RenderMode::Info::_viewport_info(VkViewport* viewport, VkRect2D* scissor) {
-//    VkPipelineViewportStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-//    info.viewportCount = 1;
-//    info.pViewports = viewport;
-//    info.scissorCount = 1;
-//    info.pScissors = scissor;
-//
-//    return info;
-//  }
-//
-//  VkPipelineRasterizationStateCreateInfo RenderMode::Info::_rasterization_info() {
-//    VkPipelineRasterizationStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-//    info.depthClampEnable = VK_FALSE;
-//    info.rasterizerDiscardEnable = VK_FALSE;
-//    info.polygonMode = (VkPolygonMode)this->fill_mode;
-//    info.cullMode = (VkCullModeFlagBits)this->cull_mode;
-//    info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-//    info.depthBiasEnable = VK_FALSE;
-//    info.lineWidth = this->draw_width;
-//
-//    return info;
-//  }
-//
-//  VkPipelineMultisampleStateCreateInfo RenderMode::Info::_multisample_info(RenderImageSamples samples) {
-//    VkPipelineMultisampleStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-//    info.rasterizationSamples = (VkSampleCountFlagBits)samples;
-//    info.sampleShadingEnable = VK_FALSE;
-//    info.alphaToCoverageEnable = VK_FALSE;
-//    info.alphaToOneEnable = VK_FALSE;
-//    
-//    return info;
-//  }
-//
-//  VkPipelineDepthStencilStateCreateInfo RenderMode::Info::_depth_info() {
-//    VkPipelineDepthStencilStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-//    info.depthTestEnable = VK_TRUE;
-//    info.depthWriteEnable = VK_TRUE;
-//    info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-//    info.depthBoundsTestEnable = VK_FALSE;
-//    info.stencilTestEnable = VK_FALSE;
-//    info.minDepthBounds = 0.0f;
-//    info.maxDepthBounds = 1.0f;
-//
-//    return info;
-//  }
-//
-//  std::vector<VkPipelineColorBlendAttachmentState> RenderMode::Info::_color_blend_attachments(u32 count) {
-//    VkPipelineColorBlendAttachmentState info = {};
-//    info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-//
-//    if (this->alpha_blend_mode == AlphaBlendMode::Off) {
-//      info.blendEnable = VK_FALSE;
-//    } else {
-//      info.blendEnable = VK_TRUE;
-//      info.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-//      info.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-//      info.colorBlendOp = VK_BLEND_OP_ADD;
-//      info.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-//      info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-//      info.alphaBlendOp = VK_BLEND_OP_ADD;
-//    }
-//
-//    std::vector<VkPipelineColorBlendAttachmentState> attachments;
-//    attachments.resize(count);
-//
-//    for_every(index, count) {
-//      attachments[index] = info;
-//    }
-//
-//    return attachments;
-//  }
-//
-//  VkPipelineColorBlendStateCreateInfo RenderMode::Info::_color_blend_info(std::vector<VkPipelineColorBlendAttachmentState>& attachments) {
-//    VkPipelineColorBlendStateCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-//    info.logicOpEnable = VK_FALSE;
-//    info.attachmentCount = attachments.size();
-//    info.pAttachments = attachments.data();
-//
-//    return info;
-//  }
-
-//  void RenderMode::create(RenderMode::Info& info, std::string name) {
-//    if (Info::cache.has(name)) {
-//      panic(create_tempstr() + "Attempted to create RenderMode with name: '" + name.c_str() + "' which already exists!\n");
-//    }
-//
-//    RenderMode::Info::cache.add(name, info);
-//
-//    print_tempstr(create_tempstr() + "Created RenderMode: " + name.c_str() + "!\n");
-//  }
-//
-//  VkPipelineShaderStageCreateInfo RenderEffect::Info::_vertex_stage(const char* entry_name) {
-//    VkPipelineShaderStageCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-//    info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-//    info.module = *(VkShaderModule*)get_asset<VertexShaderModule>(this->vertex_shader.c_str());
-//    info.pName = entry_name;
-//
-//    return info;
-//  }
-//
-//  VkPipelineShaderStageCreateInfo RenderEffect::Info::_fragment_stage(const char* entry_name) {
-//    VkPipelineShaderStageCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-//    info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-//    info.module = *(VkShaderModule*)get_asset<FragmentShaderModule>(this->fragment_shader.c_str());
-//    info.pName = entry_name;
-//
-//    return info;
-//  }
-//
-//  RenderEffect RenderEffect::Info::_create() {
-//    //this->_validate();
-//
-//    auto& render_mode_info = RenderMode::Info::cache.get(this->render_mode);
-//    auto& render_target_info = RenderTarget::Info::cache.get(this->render_target);
-//    auto& render_target = RenderTarget::cache.get(this->render_target);
-//
-//
-//    RenderEffect render_effect = {};
-//    render_effect.render_pass = render_target.render_pass;
-//    render_effect.framebuffers = render_target.framebuffers;
-//    render_effect.image_resources = render_target_info.image_resources;
-//    render_effect.next_usage_modes = render_target_info.next_usage_modes;
-//
-//    render_effect.resolution = render_target_info._resolution();
-//
-//    render_effect.layout = ResourceBundle::cache[this->resource_bundle].layout;
-//
-//    //for_every(index, ResourceBundle::Info::cache[this->resource_bundle].resource_groups.size()) {
-//    //  // TODO(sean): do this cache thing
-//    //  //ResourceGroup::cache[ResourceBundle::Info::cache[this->resource_bundle].resource_groups]
-//    //  render_effect.descriptor_sets[index] = {};
-//    //}
-//
-//    render_effect.vertex_buffer_resource = get_mesh_pool(this->mesh_pool.c_str())->vertex_buffer;//BufferResource::cache_one[this->vertex_buffer_resource].buffer;
-//    render_effect.index_buffer_resource = get_mesh_pool(this->mesh_pool.c_str())->index_buffer;
-//    // if(this->index_buffer_resource != "") {
-//    //   render_effect.index_buffer_resource = BufferResource::cache_one[this->index_buffer_resource].buffer;
-//    // }
-//
-//    auto vertex_input_info = render_mode_info._vertex_input_info();
-//    auto input_assembly_info = render_mode_info._input_assembly_info();
-//    auto viewport = render_target_info._viewport();
-//    auto scissor = render_target_info._scissor();
-//    auto viewport_info = render_mode_info._viewport_info(&viewport, &scissor);
-//    auto rasterization_info = render_mode_info._rasterization_info();
-//    auto multisample_info = render_mode_info._multisample_info(render_target_info._samples());
-//    auto depth_info = render_mode_info._depth_info();
-//    auto color_blend_attachments = render_mode_info._color_blend_attachments(render_target_info.image_resources.size() - 1);
-//    auto color_blend_info = render_mode_info._color_blend_info(color_blend_attachments);
-//
-//    const char* entry_name = "main";
-//
-//    u32 shader_count = 1;
-//    VkPipelineShaderStageCreateInfo shader_stages[2] = {{}, {}};
-//    shader_stages[0] = this->_vertex_stage(entry_name);
-//    if (fragment_shader != "") {
-//      shader_stages[1] = this->_fragment_stage(entry_name);
-//      shader_count += 1;
-//    }
-//
-//    VkGraphicsPipelineCreateInfo info = {};
-//    info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-//    info.stageCount = shader_count;
-//    info.pStages = shader_stages;
-//    info.pVertexInputState = &vertex_input_info;
-//    info.pInputAssemblyState = &input_assembly_info;
-//    info.pViewportState = &viewport_info;
-//    info.pRasterizationState = &rasterization_info;
-//    info.pMultisampleState = &multisample_info;
-//    info.pDepthStencilState = &depth_info;
-//    info.pColorBlendState = &color_blend_info;
-//    info.layout = render_effect.layout;
-//    info.renderPass = render_effect.render_pass;
-//
-//    vk_check(vkCreateGraphicsPipelines(_context.device, 0, 1, &info, 0, &render_effect.pipeline));
-//
-//    return render_effect;
-//  }
-//
-//  void RenderEffect::create(std::string name) {
-//    auto info = Info::cache.get(name);
-//
-//    auto render_effect = info._create();
-//
-//    RenderEffect::_mutex.lock();
-//
-//    RenderEffect::cache.add(name, render_effect);
-//
-//    print_tempstr(create_tempstr() + "Created RenderEffect!\n");
-//
-//    RenderEffect::_mutex.unlock();
-//  }
-//
-//  static std::unordered_set<std::string> initialized_images = {};
-//  static bool started_render_pass = false;
-
-  void begin_rendering() {
-    // // color
-    // for_every (index, re.image_resources.size() - 1) {
-    //   VkClearValue clear_value = {};
-    //   clear_value.color = {0.0f, 0.0f, 0.0f, 1.0f};
-    //   clear_values.push_back(clear_value);
-    // }
-
-    // // depth
-    // {
-    //   VkClearValue clear_value = {};
-    //   clear_value.depthStencil.depth = 1.0f;
-    //   clear_values.push_back(clear_value);
-    // }
-
-    // VkRenderPassBeginInfo begin_info = {};
-    // begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    // begin_info.renderPass = re.render_pass;
-    // begin_info.renderArea.offset.x = 0;
-    // begin_info.renderArea.offset.y = 0;
-    // begin_info.renderArea.extent.width = re.resolution.x;
-    // begin_info.renderArea.extent.height = re.resolution.y;
-    // begin_info.framebuffer = re.framebuffers[_frame_index];
-    // begin_info.clearValueCount = clear_values.size();
-    // begin_info.pClearValues = clear_values.data();
-  }
-
-  void begin(std::string name) {
-    // RenderEffect& re = RenderEffect::cache.get(name);
-
-    // if (internal::current_re.render_pass != re.render_pass) {
-    //   if (internal::current_re.render_pass != 0) {
-    //     // end render pass
-    //     vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
-
-    //     // update layouts of images
-    //     for_every(i, internal::current_re.image_resources.size()) {
-    //       auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
-    //       img.current_usage = current_re.next_usage_modes[i];
-
-    //       if (initialized_images.find(current_re.image_resources[i]) != initialized_images.end()) {
-    //         initialized_images.insert(current_re.image_resources[i]);
-    //       }
-    //     }
-    //   } else {
-    //     initialized_images = {};
-    //   }
-
-    //   std::vector<VkClearValue> clear_values;
-
-    //   // color
-    //   for_every (index, re.image_resources.size() - 1) {
-    //     VkClearValue clear_value = {};
-    //     clear_value.color = {0.0f, 0.0f, 0.0f, 1.0f};
-    //     clear_values.push_back(clear_value);
-    //   }
-
-    //   // depth
-    //   {
-    //     VkClearValue clear_value = {};
-    //     clear_value.depthStencil.depth = 1.0f;
-    //     clear_values.push_back(clear_value);
-    //   }
-
-    //   VkRenderPassBeginInfo begin_info = {};
-    //   begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    //   begin_info.renderPass = re.render_pass;
-    //   begin_info.renderArea.offset.x = 0;
-    //   begin_info.renderArea.offset.y = 0;
-    //   begin_info.renderArea.extent.width = re.resolution.x;
-    //   begin_info.renderArea.extent.height = re.resolution.y;
-    //   begin_info.framebuffer = re.framebuffers[_frame_index];
-    //   begin_info.clearValueCount = clear_values.size();
-    //   begin_info.pClearValues = clear_values.data();
-
-    //   // init render pass
-    //   vkCmdBeginRenderPass(_main_cmd_buf[_frame_index], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    //   started_render_pass = true;
-
-    //   // set layouts of images
-    //   for_every(i, re.image_resources.size()) {
-    //     if (internal::current_re.render_pass != 0) {
-    //       if (initialized_images.find(current_re.image_resources[i]) == initialized_images.end()) {
-    //         ImageResource::get(re.image_resources[i], -1).current_usage = ImageUsage::Unknown;
-    //       }
-    //     } else {
-    //       ImageResource::get(re.image_resources[i], -1).current_usage = ImageUsage::Unknown;
-    //     }
-    //   }
-    // }
-
-    // if (internal::current_re.pipeline != re.pipeline) {
-    //   vkCmdBindPipeline(_main_cmd_buf[_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, re.pipeline);
-    // }
-
-    // if (internal::current_re.descriptor_sets[_frame_index] != re.descriptor_sets[_frame_index]) {
-    // }
-
-    // if (internal::current_re.vertex_buffer_resource != re.vertex_buffer_resource) {
-    //   VkDeviceSize offset = 0;
-    //   //vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &re.vertex_buffer_resource, &offset);
-    //   vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 1, &re.vertex_buffer_resource, &offset);
-    // }
-
-    // internal::current_re = re;
-  }
-
-  void end_everything() {
-    // if(started_render_pass) {
-    //   started_render_pass = false;
-    //   vkCmdEndRenderPass(_main_cmd_buf[_frame_index]);
-    // }
-
-    // for_every(i, internal::current_re.image_resources.size()) {
-    //   auto& img = ImageResource::cache_one_per_frame.get(current_re.image_resources[i])[_frame_index];
-    //   img.current_usage = current_re.next_usage_modes[i];
-    // }
-
-    // //ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Dst);
-    // ImageResource::get("swapchain", _swapchain_image_index).current_usage = ImageUsage::Unknown;
-    // ImageResource::blit("main_color", -1, "swapchain", _swapchain_image_index, FilterMode::Nearest);
-    // ImageResource::transition("swapchain", _swapchain_image_index, ImageUsage::Present);
-    // // set all image layouts for render targets to VK_IMAGE_LAYOUT_UNDEFINED
   }
 };
 

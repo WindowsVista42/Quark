@@ -3,6 +3,7 @@
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
+#include "quark_engine.hpp"
 
 namespace quark {
   // Delta time between frames

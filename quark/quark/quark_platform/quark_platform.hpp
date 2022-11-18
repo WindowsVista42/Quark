@@ -306,59 +306,6 @@ namespace quark {
   #define copy_array2(dst, src, count) copy_mem((dst), (src), (count) * sizeof((src)[0]))
 
 //
-// Arena API
-//
-
-  struct Arena {
-    u8* ptr;
-    usize pos;
-    usize commit_size;
-  };
-  
-  platform_api Arena* get_arena();
-  platform_api void free_arena(Arena* arena);
-
-  platform_api u8* push_arena(Arena* arena, usize size);
-  platform_api u8* push_zero_arena(Arena* arena, usize size);
-  
-  #define push_array_arena(arena, type, count) (type*)push_arena((arena), (count) * sizeof(type))
-  #define push_array_zero_arena(arena, type, count) (type*)push_zero_arena((arena), (count) * sizeof(type))
-  
-  #define push_struct_arena(arena, type) (type*)push_arena((arena), sizeof(type))
-  #define push_struct_zero_arena(arena, type) (type*)push_zero_arena((arena), sizeof(type))
-
-  platform_api u8* copy_mem_arena(Arena* arena, void* src, usize size);
-  #define copy_array_arena(arena, src, type, count) (type*)copy_mem_arena((arena), (src), sizeof(type) * (count))
-  
-  platform_api void pop_arena(Arena* arena, usize size);
-
-  platform_api usize get_arena_pos(Arena* arena);
-  platform_api void set_arena_pos(Arena* arena, usize size);
-
-  platform_api void clear_arena(Arena* arena);
-  platform_api void clear_zero_arena(Arena* arena);
-  platform_api void reset_arena(Arena* arena);
-
-//
-// Temp Stack API
-//
-
-  struct TempStack {
-    Arena* arena;
-    usize restore_pos;
-  };
-  
-  platform_api TempStack begin_temp_stack(Arena* arena);
-  platform_api void end_temp_stack(TempStack stack);
-
-//
-// Local Stack API
-//
-
-  platform_api TempStack begin_scratch(Arena** conflicts, usize conflict_count);
-  #define end_scratch(stack) end_temp_stack(stack)
-
-//
 // Alignment Helpers
 //
 
@@ -384,6 +331,61 @@ namespace quark {
   
     return p;
   }
+
+//
+// Arena API
+//
+
+  struct Arena {
+    u8* ptr;
+    usize pos;
+    usize commit_size;
+  };
+
+  constexpr usize PTR_ALIGNMENT = 8;
+  
+  platform_api Arena* get_arena();
+  platform_api void free_arena(Arena* arena);
+
+  inline u8* push_arena(Arena* arena, usize size);
+  inline u8* push_zero_arena(Arena* arena, usize size);
+  
+  #define push_array_arena(arena, type, count) (type*)push_arena((arena), (count) * sizeof(type))
+  #define push_array_zero_arena(arena, type, count) (type*)push_zero_arena((arena), (count) * sizeof(type))
+  
+  #define push_struct_arena(arena, type) (type*)push_arena((arena), sizeof(type))
+  #define push_struct_zero_arena(arena, type) (type*)push_zero_arena((arena), sizeof(type))
+
+  inline u8* copy_mem_arena(Arena* arena, void* src, usize size);
+  #define copy_array_arena(arena, src, type, count) (type*)copy_mem_arena((arena), (src), sizeof(type) * (count))
+  
+  inline void pop_arena(Arena* arena, usize size);
+
+  inline usize get_arena_pos(Arena* arena);
+  inline void set_arena_pos(Arena* arena, usize size);
+
+  inline void clear_arena(Arena* arena);
+  inline void clear_zero_arena(Arena* arena);
+  inline void reset_arena(Arena* arena);
+
+//
+// Temp Stack API
+//
+
+  struct TempStack {
+    Arena* arena;
+    usize restore_pos;
+  };
+  
+  platform_api TempStack begin_temp_stack(Arena* arena);
+  platform_api void end_temp_stack(TempStack stack);
+
+//
+// Local Stack API
+//
+
+  platform_api TempStack begin_scratch(Arena** conflicts, usize conflict_count);
+  #define end_scratch(stack) end_temp_stack(stack)
 
 //
 // Allocator API
@@ -426,4 +428,66 @@ namespace quark {
   [[noreturn]] platform_api void panic_real(const char* message, const char* file, usize line);
 
   #define panic(message) panic_real((message), __FILE__, __LINE__)
+
+//
+// Arena API Definitions
+//
+
+  inline u8* push_arena(Arena* arena, usize size) {
+    usize new_size = align_forward(arena->pos + size, PTR_ALIGNMENT);
+  
+    u8* ptr = arena->ptr + arena->pos;
+    arena->pos = new_size;
+  
+    // lazy
+    while(arena->pos > arena->commit_size) {
+      os_commit_mem(arena->ptr + arena->commit_size, arena->commit_size);
+      arena->commit_size *= 2;
+    }
+  
+    return ptr;
+  }
+
+  inline u8* push_zero_arena(Arena* arena, usize size) {
+    u8* ptr = push_arena(arena, size);
+    zero_mem(ptr, size);
+    return ptr;
+  }
+
+  inline u8* copy_mem_arena(Arena* arena, void* src, usize size) {
+    u8* ptr = push_arena(arena, size);
+    copy_mem(ptr, src, size);
+    return ptr;
+  }
+  
+  inline void pop_arena(Arena* arena, usize size) {
+    arena->pos -= size;
+    arena->pos = align_forward(arena->pos, PTR_ALIGNMENT);
+  }
+  
+  inline usize get_arena_pos(Arena* arena) {
+    return arena->pos;
+  }
+  
+  inline void set_arena_pos(Arena* arena, usize size) {
+    arena->pos = size;
+    arena->pos = align_forward(arena->pos, PTR_ALIGNMENT);
+  }
+  
+  inline void clear_arena(Arena* arena) {
+    arena->pos = 0;
+  }
+  
+  inline void clear_zero_arena(Arena* arena) {
+    zero_mem(arena->ptr, arena->pos);
+    arena->pos = 0;
+  }
+  
+  inline void reset_arena(Arena* arena) {
+    os_decommit_mem(arena->ptr + 2 * MB, arena->pos - 2 * MB);
+  
+    arena->pos = 0;
+    arena->commit_size = 2 * MB;
+    zero_mem(arena->ptr, arena->commit_size);
+  }
 };

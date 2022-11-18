@@ -8,6 +8,9 @@
 #include <array>
 #include "reflection.hpp"
 
+#define api_decl engine_api
+#define var_decl engine_var
+
 namespace quark {
 
 //
@@ -214,6 +217,31 @@ namespace quark {
     VkShaderModule module;
   };
 
+//
+// Resource API
+//
+
+  #define declare_resource(name, x...) \
+    struct api_decl name { \
+      x; \
+      static name RESOURCE; \
+    }; \
+
+  #define define_resource(name, x...) \
+    name name::RESOURCE = x \
+
+  #define declare_resource_duplicate(name, inherits) \
+    struct api_decl name : inherits { \
+      static name RESOURCE; \
+    }; \
+
+  template <typename T>
+  T* get_res_t() {
+    return &T::RESOURCE;
+  }
+
+  #define get_resource(name) get_res_t<name>()
+
 // 
 // Camera Types
 //
@@ -238,45 +266,13 @@ namespace quark {
     f32 zoom;
   };
 
-  struct MainCamera : Camera3D {};
-  struct UICamera : Camera2D {};
-  struct SunCamera : Camera3D {};
+  declare_resource_duplicate(MainCamera, Camera3D);
+  declare_resource_duplicate(UICamera, Camera2D);
+  declare_resource_duplicate(SunCamera, Camera3D);
 
   mat4 get_camera3d_view(const Camera3D* camera);
   mat4 get_camera3d_projection(const Camera3D* camera, f32 aspect);
   mat4 get_camera3d_view_projection(const Camera3D* camera, f32 aspect);
-
-//
-// Resource API
-//
-
-  template <typename T>
-  struct Resource {
-    static T* value;
-  };
-
-  // Declare a resource in a header file
-  #define declare_resource(var_decl, type) \
-  var_decl type type##_RESOURCE; \
-  template<> inline type* quark::Resource<type>::value = &type##_RESOURCE; \
-  template<> inline const type* quark::Resource<const type>::value = &type##_RESOURCE
-
-  // Define the resource in a cpp file
-  #define define_resource(type, val...) \
-  type type##_RESOURCE = val
-
-  // Take a resource handle and get the resource value from it
-  //#define get_resource(resource_handle) resource_handle.value
-  template <typename T>
-  T* get_resource(Resource<T> res) {
-    return res.value;
-  }
-
-  // Take a resource handle and set the resource value in it
-  template <typename T>
-  void set_resource(Resource<T> res, T value) {
-    res.value = value;
-  }
 
 //
 // Action API
@@ -446,25 +442,31 @@ namespace quark {
 // ECS API
 //
 
-  #define declare_component(api_decl, var_decl, name, x...) \
+  #define declare_component(name, x...) \
     struct api_decl name { \
       x; \
       static u32 COMPONENT_ID; \
       static ReflectionInfo REFLECTION_INFO; \
+      static ReflectionInfo __make_reflection_info(); \
     }; \
 
   #define define_component(name) \
     u32 name::COMPONENT_ID; \
     ReflectionInfo name::REFLECTION_INFO; \
-    __make_reflection_maker(name); \
+    __make_reflection_maker2(name); \
 
   #define update_component(name) \
-    name::COMPONENT_ID = add_ecs_table2(sizeof(name)); \
-    name::REFLECTION_INFO = __make_reflection_info_##name(); \
+    update_component2<name>(); \
+
+  template <typename T>
+  void update_component2() {
+    T::COMPONENT_ID = add_ecs_table2(sizeof(T));
+    T::REFLECTION_INFO = T::__make_reflection_info();
+  }
 
   #define ECS_MAX_STORAGE 1000000
 
-  struct EcsContext {
+  declare_resource(EcsContext,
     u32 ecs_table_count = 0;
     u32 ecs_table_capacity = 0;
   
@@ -482,12 +484,12 @@ namespace quark {
     // u32 ecs_updated_flag = 0;
     u32 ecs_empty_flag = 0;
     u32 ecs_empty_head = 0;
-  };
+  );
 
   engine_var const u32 ECS_ACTIVE_FLAG;
   engine_var const u32 ECS_EMPTY_FLAG;
 
-  engine_api EcsContext* get_ecs_context2();
+  // engine_api EcsContext* get_ecs_context2();
   engine_api u32 add_ecs_table2(u32 component_size);
 
   engine_api u32 create_entity2();
@@ -500,13 +502,13 @@ namespace quark {
   engine_api void* get_component2(u32 entity_id, u32 component_id);
   engine_api bool has_component2(u32 entity_id, u32 component_id);
 
-  engine_api void for_archetype_f2(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(u32, void**));
+  #define get_component(entity_id, type) (type*)get_component2(entity_id, type::COMPONENT_ID)
 
   // #define for_archetype(comps, c, excl, e, f...)
   // #define for_archetype_t(f...)
 
-  #define for_archetype(comps, c, excl, e, f...) { \
-    EcsContext* ctx = get_ecs_context2(); \
+  #define for_archetype_internal(comps, c, excl, e, f...) { \
+    EcsContext* ctx = get_resource(EcsContext); \
     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
       u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i]; \
       for(u32 j = 0; j < (c); j += 1) { \
@@ -527,7 +529,7 @@ namespace quark {
   \
         u32 entity_i = adj_i + loc_i; \
   \
-        u32 inc = 0; \
+        u32 inc = (c) - 1; \
         void* ptrs[(c)]; \
         for(u32 i = 0; i < (c); i += 1) { \
           u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]]; \
@@ -539,18 +541,16 @@ namespace quark {
     } \
   } \
 
-  engine_api void for_archetype_f(u32* comps, u32 comps_count, u32* excl, u32 excl_count, void (*f)(void**));
-
   template <typename... T>
   void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count);
 
-  #define for_archetype_t(f...) { \
-    struct z { \
+  #define for_archetype(f...) { \
+    struct Archetype { \
       f \
     }; \
   \
-    z a = {}; \
-    for_archetype_template(z::update, a.exclude, sizeof(a.exclude) / sizeof(a.exclude[0])); \
+    Archetype archetype = {}; \
+    for_archetype_template(Archetype::update, archetype.exclude, sizeof(archetype.exclude) / sizeof(archetype.exclude[0])); \
   } \
 
   template <typename A> void add_components2(u32 id, A comp) {
@@ -564,9 +564,14 @@ namespace quark {
 
   template <typename... T> void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
     u32 comps[] = { T::COMPONENT_ID... };
-    for_archetype(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
-      u32 inc = (sizeof(comps) / sizeof(comps[0])) - 1;
-      std::tuple<u32, T*...> t = std::tuple(entity_i, (T*)ptrs[inc--]...);
+    for_archetype_internal(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
+      // u32 inc = (sizeof(comps) / sizeof(comps[0])) - 1;
+      std::tuple<u32, T*...> t = std::tuple_cat(std::tuple(entity_i), [&] {
+        u32 i = inc;
+        inc -= 1;
+        return std::tuple((T*)ptrs[i]);
+      } ()...);
+                                 //extract<T...>(entity_i, ptrs, 0); // std::tuple(entity_i, (T*)ptrs[inc--]...);
       std::apply(f, t);
     });
   }
@@ -576,35 +581,35 @@ namespace quark {
 // Registry API
 //
 
-  using entity_id = entt::entity;
-  using Registry = entt::basic_registry<entity_id>;
+  // using entity_id = entt::entity;
+  // using Registry = entt::basic_registry<entity_id>;
 
-  template <typename... T>
-  struct Exclude {};
+  // template <typename... T>
+  // struct Exclude {};
 
-  template <typename... T>
-  struct Include {};
+  // template <typename... T>
+  // struct Include {};
 
-  template <typename... T>
-  struct View {};
+  // template <typename... T>
+  // struct View {};
 
-  template <typename... T>
-  struct Handle {
-    entity_id entity;
-  };
+  // template <typename... T>
+  // struct Handle {
+  //   entity_id entity;
+  // };
 
-  template <typename T> decltype(auto) get_registry_storage();
+  // template <typename T> decltype(auto) get_registry_storage();
 
-  template <typename... T> void clear_registry();
-  template <typename... T> void compact_resgistry();
+  // template <typename... T> void clear_registry();
+  // template <typename... T> void compact_resgistry();
 
-  template <typename... T> decltype(auto) get_view_each(View<Include<T...>> view);
-  template <typename... T> decltype(auto) get_entity_comp(View<T...> view, entity_id e);
+  // template <typename... T> decltype(auto) get_view_each(View<Include<T...>> view);
+  // template <typename... T> decltype(auto) get_entity_comp(View<T...> view, entity_id e);
 
-  template <typename... I, typename... E> decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view);
-  template <typename... T, typename... I> decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>);
+  // template <typename... I, typename... E> decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view);
+  // template <typename... T, typename... I> decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>);
 
-  template <typename... T, typename... V> decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle);
+  // template <typename... T, typename... V> decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle);
 
   // Possible API additions
   // struct Seq {};
@@ -618,13 +623,13 @@ namespace quark {
 // Entity API
 //
 
-  static entity_id create_entity();
+  // static entity_id create_entity();
 
-  template <typename... T> entity_id create_entity_add_comp(View<T...> view, T... comps);
-  template <typename... T> void add_entity_comp(View<T...> view, entity_id e, T... comps);
+  // template <typename... T> entity_id create_entity_add_comp(View<T...> view, T... comps);
+  // template <typename... T> void add_entity_comp(View<T...> view, entity_id e, T... comps);
 
-  template <typename... T, typename... C> entity_id create_entity_add_comp(View<T...> view, C... comps);
-  template <typename... T, typename... C> void add_entity_comp(View<T...> view, entity_id e, C... comps);
+  // template <typename... T, typename... C> entity_id create_entity_add_comp(View<T...> view, C... comps);
+  // template <typename... T, typename... C> void add_entity_comp(View<T...> view, entity_id e, C... comps);
 
 //
 // Asset API
@@ -632,9 +637,9 @@ namespace quark {
 
   enum class asset_id : u32 {};
 
-  struct AssetServer {
+  declare_resource(AssetServer,
     std::unordered_map<type_hash, std::unordered_map<u32, u8>> data;
-  };
+  );
 
   template <typename T> void add_asset(const char* name, T data);
   template <typename T> T* get_asset(const char* name);
@@ -650,25 +655,18 @@ namespace quark {
 
   engine_api void load_vert_shader(const char* path, const char* name);
   engine_api void load_frag_shader(const char* path, const char* name);
-//
-// Scratch Allocator API
-//
-
-  struct ScratchAllocator : LinearAllocator {};
-
-  engine_api u8* alloc_scratch(usize count);
 
 //
 // Resource Declaration
 //
 
-  declare_resource(engine_var, Registry);
-  declare_resource(engine_var, ScratchAllocator);
-  declare_resource(engine_var, AssetServer);
+  // declare_resource(Registry);
+  // declare_resource(ScratchAllocator);
+  // declare_resource(AssetServer);
   
-  declare_resource(engine_var, MainCamera);
-  declare_resource(engine_var, UICamera);
-  declare_resource(engine_var, SunCamera);
+  // declare_resource(MainCamera);
+  // declare_resource(UICamera);
+  // declare_resource(SunCamera);
 
 //
 // Template API Definitions
@@ -691,79 +689,79 @@ namespace quark {
     return (V*)&map->at(get_type_hash<T>());
   }
 
-  template <typename T> decltype(auto) get_registry_storage() {
-    return get_resource(Resource<Registry> {})->storage<T>();
-  }
+  // template <typename T> decltype(auto) get_registry_storage() {
+  //   return get_resource(Registry)->storage<T>();
+  // }
 
-  template <typename... I, typename... E>
-  decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view) {
-    return get_resource(Resource<Registry> {})->view<I...>(entt::exclude<E...>).each();
-  }
+  // template <typename... I, typename... E>
+  // decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view) {
+  //   return get_resource(Registry)->view<I...>(entt::exclude<E...>).each();
+  // }
 
-  template <typename... T>
-  decltype(auto) get_view_each(View<Include<T...>> view) {
-    return get_resource(Resource<Registry> {})->view<T...>().each();
-  }
+  // template <typename... T>
+  // decltype(auto) get_view_each(View<Include<T...>> view) {
+  //   return get_resource(Registry)->view<T...>().each();
+  // }
 
-  template <typename... T>
-  decltype(auto) get_entity_comp(View<T...> view, entity_id e) {
-    return get_resource(Resource<Registry> {})->get<T...>(e);
-  }
+  // template <typename... T>
+  // decltype(auto) get_entity_comp(View<T...> view, entity_id e) {
+  //   return get_resource(Resource<Registry> {})->get<T...>(e);
+  // }
 
-  template <typename... T, typename... I>
-  decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>) {
-    // check that I... is a subset of T...
-    return get_resource(Resource<Registry> {})->get<I...>(e);
-  }
+  // template <typename... T, typename... I>
+  // decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>) {
+  //   // check that I... is a subset of T...
+  //   return get_resource(Resource<Registry> {})->get<I...>(e);
+  // }
 
-  template <typename... T, typename... V>
-  decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle) {
-    static_assert("get_handle_comp not supported yet!\n");
-    //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
-  }
+  // template <typename... T, typename... V>
+  // decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle) {
+  //   static_assert("get_handle_comp not supported yet!\n");
+  //   //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
+  // }
 
-  static entity_id create_entity() {
-    return get_resource(Resource<Registry> {})->create();
-  }
+  // static entity_id create_entity() {
+  //   return get_resource(Resource<Registry> {})->create();
+  // }
 
-  template <typename... T>
-  void add_entity_comp(View<T...> view, entity_id e, T... comps) {
-    (get_resource(Resource<Registry> {})->emplace<T>(e, comps),...); // emplace for each T in T...
-  }
+  // template <typename... T>
+  // void add_entity_comp(View<T...> view, entity_id e, T... comps) {
+  //   (get_resource(Resource<Registry> {})->emplace<T>(e, comps),...); // emplace for each T in T...
+  // }
 
-  template <typename... T, typename... C>
-  void add_entity_comp(View<T...> view, entity_id e, C... comps) {
-    static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
-    (get_resource(Resource<Registry> {})->emplace<C>(e, comps),...); // emplace for each T in T...
-  }
+  // template <typename... T, typename... C>
+  // void add_entity_comp(View<T...> view, entity_id e, C... comps) {
+  //   static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
+  //   (get_resource(Resource<Registry> {})->emplace<C>(e, comps),...); // emplace for each T in T...
+  // }
 
-  template <typename... T>
-  entity_id create_entity_add_comp(View<T...> view, T... comps) {
-    Registry* registry = get_resource(Resource<Registry> {});
-    entity_id e = registry->create();
-    (registry->emplace<T>(e, comps),...); // emplace for each T in T...
-    return e;
-  }
+  // template <typename... T>
+  // entity_id create_entity_add_comp(View<T...> view, T... comps) {
+  //   Registry* registry = get_resource(Resource<Registry> {});
+  //   entity_id e = registry->create();
+  //   (registry->emplace<T>(e, comps),...); // emplace for each T in T...
+  //   return e;
+  // }
 
-  template <typename... T, typename... C>
-  entity_id create_entity_add_comp(View<T...> view, C... comps) {
-    static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
+  // template <typename... T, typename... C>
+  // entity_id create_entity_add_comp(View<T...> view, C... comps) {
+  //   static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
 
-    Registry* registry = get_resource(Resource<Registry> {});
-    entity_id e = registry->create();
-    (registry->emplace<C>(e, comps),...); // emplace for each T in T...
-    return e;
-  }
+  //   Registry* registry = get_resource(Resource<Registry> {});
+  //   entity_id e = registry->create();
+  //   (registry->emplace<C>(e, comps),...); // emplace for each T in T...
+  //   return e;
+  // }
 
   template <typename T>
   void add_asset(const char* name, T data) {
-    static auto* map = create_cached_type_map<T>(&get_resource(Resource<AssetServer> {})->data, std::unordered_map<u32, T>());
+    static auto* map = create_cached_type_map<T>(&get_resource(AssetServer)->data, std::unordered_map<u32, T>());
     map->insert(std::make_pair(hash_str_fast(name), data));
   }
 
   template <typename T>
   T* get_asset(const char* name) {
-    static auto* map = create_cached_type_map<T>(&get_resource(Resource<AssetServer> {})->data, std::unordered_map<u32, T>());
+    static auto* map = create_cached_type_map<T>(&get_resource(AssetServer)->data, std::unordered_map<u32, T>());
     return &map->at(hash_str_fast(name));
   }
 };
@@ -994,7 +992,7 @@ namespace quark {
     VkPipeline pipeline;
   };
 
-  struct GraphicsContext {
+  declare_resource(GraphicsContext,
     Arena* arena;
     VmaAllocator gpu_alloc; 
 
@@ -1063,9 +1061,9 @@ namespace quark {
 
     MaterialEffectInfo material_effect_infos[16];
     MaterialEffect material_effects[16];
-  };
+  );
 
-  engine_api GraphicsContext* get_graphics_context();
+  // engine_api GraphicsContext* get_graphics_context();
 
   engine_api void init_graphics_context();
 
@@ -1077,19 +1075,19 @@ namespace quark {
   // };
   // declare_resource(engine_var, MeshRegistry);
 
-  struct WorldData {
+  declare_resource(WorldData,
     mat4 main_view_projection;
     mat4 sun_view_projection;
     vec4 tint;
     vec4 ambient;
     f32 time;
-  };
-  declare_resource(engine_var, WorldData);
+  );
+  // declare_resource(WorldData);
 
   struct FrustumPlanes {
     vec4 planes[6];
   };
-  declare_resource(engine_var, FrustumPlanes);
+  declare_resource_duplicate(MainCameraFrustum, FrustumPlanes);
 
   engine_api FrustumPlanes get_frustum_planes(Camera3D* camera);
 
@@ -1298,37 +1296,126 @@ namespace quark {
 // Materials API
 //
 
-  struct alignas(8) DrawableInstance {
+  struct alignas(8) Drawable {
     Transform transform;
     Model model;
   };
 
-  struct DrawBatchContext {
-    u32 material_types_count;
+  struct MaterialInfo {
+    u32 material_size;
 
-    usize batch_sizes[16];
-    usize batch_capacities[16];
-    Arena* draw_batches[16];
-    Arena* material_batches[16];
-    usize material_sizes[16];
+    u32 world_size;
+    void* world_ptr;
+    Buffer* world_buffers;
 
-    usize material_world_data_sizes[16];
-    void* material_world_data_ptrs[16];
-    Buffer* material_world_data_buffers[16];
+    u32 batch_capacity;
+    u32 material_instance_capacity;
   };
 
-  engine_api DrawBatchContext* get_draw_batch_context();
+  struct MaterialBatch {
+    u32 material_instance_count;
+    u8* material_instances;
 
-  engine_api u32 add_material_type(u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers);
+    u32 batch_count;
+    Drawable* drawables_batch;
+    u8* materials_batch;
+  };
 
-  engine_api void add_drawable(u32 material_id, DrawableInstance* drawable, void* material);
+  declare_resource(DrawBatchContext,
+    Arena* arena;
 
-  #define declare_material(api_decl, var_decl, name, x...) \
+    usize materials_count;
+
+    MaterialInfo infos[16];
+    MaterialBatch batches[16];
+  );
+
+  engine_api u32 add_material_type(MaterialInfo* info); // u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers, usize batch_capacity);
+
+  engine_api u32 add_material_instance(u32 material_id, void* instance);
+  engine_api void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
+  engine_api void push_drawable_instance(u32 material_id, Drawable* drawable, void* material_instance);
+
+  engine_api void draw_material_batches();
+  engine_api void reset_material_batches();
+  // engine_api void push_drawable(u32 material_id, DrawableInstance* drawable, void* material);
+
+  // struct alignas(8) Drawable {
+  //   vec3 position;
+  //   quat rotatin;
+  //   vec3 scale;
+  // };
+
+  // engine_api u32 add_material_instance(u32 material_id, void* material_instance);
+
+  // struct alignas(8) Drawable2 {
+  //   Transform transform;
+  //   Model mode;
+  // };
+
+  // struct MaterialInfo {
+  //   Buffer world_buffers[_FRAME_OVERLAP];
+  //   Buffer material_index_buffers[_FRAME_OVERLAP];
+  //   Buffer material_instance_buffers[_FRAME_OVERLAP];
+  //   ResourceGroup resource_group;
+  //   MaterialEffect effect;
+  // };
+
+  // struct MaterialEffectInfo2 {
+  //   const char* vertex_shader_name;
+  //   const char* fragment_shader_name;
+  // };
+
+  // struct MaterialInfo2 {
+  //   u32 max_draw_count;
+
+  //   // size of 2
+  //   Buffer* world_data_buffers;
+  //   Buffer* index_buffers;
+  //   Buffer* instance_buffers;
+  //   // ResourceGroup resource_group;
+  //   // MaterialEffect effect;
+  // };
+
+  // struct MaterialBatch {
+  //   u32 max_draw_count;
+
+  //   Drawable* drawables;
+  //   u32* indices;
+  //   u8* instances;
+
+  //   u32 const_materials_end;
+  //   u32 instance_count;
+
+  //   Buffer* drawables_buffer;
+  //   Buffer* world_data_buffers;
+  //   Buffer* index_buffers;
+  //   Buffer* instance_buffers;
+  // };
+
+  // struct MaterialBatchContext {
+  //   Arena* arena;
+
+  //   u32 batch_count;
+  //   MaterialBatch* batches;
+  // };
+
+  // MaterialBatchContext* get_material_batch_context();
+
+  // u32 add_material_type2(u32 material_size, MaterialInfo* info);
+
+  // u32 add_material_instance(u32 material_id, void* material_instance);
+
+  // void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
+  // void push_drawable2(u32 material_id, Drawable* drawable, void* material_instance);
+
+  #define declare_material(name, x...) \
     struct api_decl alignas(8) name { \
       x; \
       static u32 COMPONENT_ID; \
       static ReflectionInfo REFLECTION_INFO; \
       static u32 MATERIAL_ID; \
+      static ReflectionInfo __make_reflection_info(); \
     }; \
     struct alignas(8) name##Instance { \
       vec4 position; \
@@ -1336,88 +1423,118 @@ namespace quark {
       vec4 scale; \
       x; \
     }; \
+    struct api_decl name##Index { \
+      u32 value; \
+      static u32 COMPONENT_ID; \
+      static ReflectionInfo REFLECTION_INFO; \
+      static u32 MATERIAL_ID; \
+      static ReflectionInfo __make_reflection_info(); \
+    }
 
   #define define_material(name) \
     define_component(name); \
     u32 name::MATERIAL_ID; \
+    define_component(name##Index); \
+    u32 name##Index::MATERIAL_ID; \
 
-  #define declare_material_world_data(api_decl, var_decl, name, x...) \
-    struct alignas(8) name##WorldData { \
+  #define declare_material_world(name, x...) \
+    struct api_decl alignas(8) name##World { \
       x; \
-    }; \
-    declare_resource(var_decl, name##WorldData); \
-    var_decl Buffer name##WorldData_BUFFERS[_FRAME_OVERLAP]; \
-    var_decl ResourceGroup name##WorldData_RESOURCE_GROUP; \
+      static Buffer BUFFERS[_FRAME_OVERLAP]; \
+      static ResourceGroup RESOURCE_GROUP; \
+      static name##World RESOURCE; \
+    } \
 
-  #define define_material_world_data(name, value...) \
-    define_resource(name##WorldData, value); \
-    Buffer name##WorldData_BUFFERS[_FRAME_OVERLAP]; \
-    ResourceGroup name##WorldData_RESOURCE_GROUP; \
+  #define define_material_world(name, x...) \
+    name##World name##World::RESOURCE = x; \
+    Buffer name##World::BUFFERS[_FRAME_OVERLAP]; \
+    ResourceGroup name##World::RESOURCE_GROUP
 
-  #define update_material(name, vertex_shader_name, fragment_shader_name) \
-  { \
-    update_component(name); \
-    name::MATERIAL_ID = add_material_type(sizeof(name), sizeof(name##WorldData), &name##WorldData_RESOURCE, name##WorldData_BUFFERS); \
- \
-    BufferInfo buffer_info = { \
-      .type = BufferType::Uniform, \
-      .size = sizeof(name##WorldData), \
-    }; \
- \
-    create_buffers(name##WorldData_BUFFERS, 2, &buffer_info); \
- \
-    Buffer* buffers[_FRAME_OVERLAP] = { \
-      &name##WorldData_BUFFERS[0], \
-      &name##WorldData_BUFFERS[1], \
-    }; \
- \
-    ResourceBinding bindings[1] = {}; \
-    bindings[0].count = 1; \
-    bindings[0].max_count = 1; \
-    bindings[0].buffers = buffers; \
- \
-    ResourceGroupInfo resource_info { \
-      .bindings_count = 1, \
-      .bindings = bindings, \
-    }; \
- \
-    create_resource_group(_context.arena, &name##WorldData_RESOURCE_GROUP, &resource_info); \
- \
-    ResourceGroup* resource_groups[] = { \
-      &_context.global_resources_group, \
-      &name##WorldData_RESOURCE_GROUP, \
-    }; \
-    ResourceBundleInfo resource_bundle_info { \
-      .group_count = count_of(resource_groups), \
-      .groups = resource_groups \
-    }; \
-    MaterialEffectInfo effect_info = { \
-      .instance_data_size = sizeof(name##Instance), \
-      .world_data_size = 0, \
- \
-      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), \
-      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), \
-      .resource_bundle_info = resource_bundle_info, \
- \
-      .fill_mode = FillMode::Fill, \
-      .cull_mode = CullMode::Back, \
-      .blend_mode = BlendMode::Off, \
-    }; \
- \
-    create_material_effect(_context.arena, &_context.material_effects[name::MATERIAL_ID], &effect_info); \
-    _context.material_effect_infos[name::MATERIAL_ID] = effect_info; \
-  } \
+  template <typename T, typename TIndex, typename TInstance, typename TWorld>
+  void update_material2(const char* vertex_shader_name, const char* fragment_shader_name, u32 max_draw_count, u32 mat_inst_cap) {
+    GraphicsContext* context = get_resource(GraphicsContext);
+
+    update_component2<T>();
+    update_component2<TIndex>();
+
+    MaterialInfo mat_type = {
+      .material_size = sizeof(T),
+
+      .world_size = sizeof(TWorld),
+      .world_ptr = get_resource(TWorld),
+      .world_buffers = TWorld::BUFFERS,
+
+      .batch_capacity = max_draw_count,
+      .material_instance_capacity = mat_inst_cap,
+    };
+
+    T::MATERIAL_ID = add_material_type(&mat_type);
+    TIndex::MATERIAL_ID = T::MATERIAL_ID;
+
+    BufferInfo buffer_info = { 
+      .type = BufferType::Uniform, 
+      .size = sizeof(TWorld), 
+    }; 
+
+    create_buffers(TWorld::BUFFERS, 2, &buffer_info); 
+
+    Buffer* buffers[_FRAME_OVERLAP] = { 
+      &TWorld::BUFFERS[0], 
+      &TWorld::BUFFERS[1], 
+    }; 
+
+    ResourceBinding bindings[1] = {}; 
+    bindings[0].count = 1; 
+    bindings[0].max_count = 1; 
+    bindings[0].buffers = buffers; 
+ 
+    ResourceGroupInfo resource_info { 
+      .bindings_count = 1, 
+      .bindings = bindings, 
+    }; 
+
+    create_resource_group(context->arena, &TWorld::RESOURCE_GROUP, &resource_info); 
+
+    ResourceGroup* resource_groups[] = { 
+      &context->global_resources_group, 
+      &TWorld::RESOURCE_GROUP, 
+    }; 
+
+    ResourceBundleInfo resource_bundle_info { 
+      .group_count = count_of(resource_groups), 
+      .groups = resource_groups 
+    }; 
+
+    MaterialEffectInfo effect_info = { 
+      .instance_data_size = sizeof(TInstance), 
+      .world_data_size = sizeof(TWorld), 
+ 
+      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), 
+      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), 
+      .resource_bundle_info = resource_bundle_info, 
+ 
+      .fill_mode = FillMode::Fill, 
+      .cull_mode = CullMode::Back, 
+      .blend_mode = BlendMode::Off, 
+    }; 
+
+    create_material_effect(context->arena, &context->material_effects[T::MATERIAL_ID], &effect_info); 
+    context->material_effect_infos[T::MATERIAL_ID] = effect_info; 
+  } 
+
+  #define update_material(name, vertex_shader_name, fragment_shader_name, max_draw_count, max_material_instance_count) \
+    update_material2<name, name##Index, name##Instance, name##World>((vertex_shader_name), (fragment_shader_name), (max_draw_count), (max_material_instance_count));
 
   void init_materials();
 
-  declare_material(engine_api, engine_var, ColorMaterial2,
+  declare_material(ColorMaterial2,
     vec4 color;
   );
-  declare_material_world_data(engine_api, engine_var, ColorMaterial2,
+  declare_material_world(ColorMaterial2,
     vec4 tint;
   );
 
-  declare_material(engine_api, engine_var, TextureMaterial2,
+  declare_material(TextureMaterial2,
     vec4 tint;
     ImageId albedo;
     u32 _pad0;
@@ -1425,59 +1542,10 @@ namespace quark {
     vec2 tiling;
     vec2 offset;
   );
-
-  declare_material_world_data(engine_api, engine_var, TextureMaterial2,
+  declare_material_world(TextureMaterial2,
     vec4 something;
   );
-
-//
-// Draw Batch API
-//
-
-  struct DrawBatchInstanceInfo {
-    Transform transform;
-    Model model;
-
-    bool draw_shadows;
-    bool is_transparent;
-  };
-
-  // struct DrawableInstance {
-  //   Transform transform;
-  //   Model model;
-  // };
-
-  template <typename T>
-  struct DrawBatch {
-    std::vector<DrawBatchInstanceInfo> instance_info;
-    std::vector<T> instance_data;
-    u32 instance_data_size;
-    u32 count;
-  };
-
-  // TODO:
-  // [] opaque + shadow |--> 2 opqaue draw call
-  // [] opaque          |
-  //
-  // [] transparent + shadow |--> 2 transparent draw call
-  // [] transparent          |
-  //
-  // add way to persist static objects
-
-  using DrawBatchPool = std::unordered_map<type_hash, DrawBatch<u8>>;
-
-  declare_resource(engine_var, DrawBatchPool);
-
-  template <typename T> void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data);
-
-  engine_api void draw_material_batches();
-  engine_api void reset_material_batches();
-
-  template <typename T>
-  void add_to_draw_batch(DrawBatchInstanceInfo instance_info, T instance_data) {
-    static auto* batch = create_cached_type_map<T>(get_resource(Resource<DrawBatchPool> {}), DrawBatch<T> {{}, {}, sizeof(T), 0});
-    batch->instance_info.push_back(instance_info);
-    batch->instance_data.push_back(instance_data);
-    batch->count += 1;
-  }
 };
+
+#undef api_decl
+#undef var_decl
