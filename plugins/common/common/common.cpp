@@ -699,7 +699,18 @@ void assert2(bool v) {
     static u32 color_material_index = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
     static u32 color_material_index2 = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
 
-    u32 draw_count = 10;
+    static TextureMaterial2 texture_material_instance = {
+      .tint = {},
+      .albedo = *get_asset<ImageId>("bigtest"),
+      .tiling = { 1, 1 },
+      .offset = {},
+    };
+    static u32 texture_material_index = add_material_instance(TextureMaterial2::MATERIAL_ID, &texture_material_instance);
+
+    ((TextureMaterial2*)get_material_instance(TextureMaterial2::MATERIAL_ID, texture_material_index))->offset = { sinf(T), cosf(T) };
+    T += delta();
+
+    u32 draw_count = 100;
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
@@ -715,19 +726,23 @@ void assert2(bool v) {
         .id = (MeshId)0,
       };
 
+      f32 rotation = 0.0f;
+
       for_every(x, draw_count) {
         for_every(y, draw_count) {
           u32 entity_id = create_entity2();
           Transform2 t = {
             .position = { px, py, pz },
-            .rotation = { 0.0f, 0.0f, 0.0f, 1.0f },
+            .rotation = axis_angle_quat(VEC3_UNIT_Z, rotation),
           };
           add_component2(entity_id, Transform2::COMPONENT_ID, &t);
+          rotation += 0.07f;
 
           add_component2(entity_id, Model2::COMPONENT_ID, &m2);
 
-          ColorMaterial2Index i = { color_material_index2 };
-          add_component2(entity_id, ColorMaterial2Index::COMPONENT_ID, &i);
+          // ColorMaterial2Index i = { color_material_index2 };
+          TextureMaterial2Index i = { texture_material_index };
+          add_component2(entity_id, TextureMaterial2Index::COMPONENT_ID, &i);
 
           add_flag2(entity_id, ECS_ACTIVE_FLAG);
 
@@ -744,7 +759,7 @@ void assert2(bool v) {
     if(get_action("b").just_down) {
       static u32 asdf = 0;
       asdf = 0;
-      for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, ColorMaterial2Index* i) {
+      for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterial2Index* i) {
         if(asdf % 3 == 0) {
           destroy_entity2(entity_id);
         }
@@ -752,20 +767,20 @@ void assert2(bool v) {
       });
     }
 
-    Drawable drawable_instance  ={
-      .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
-      .model = create_model("cube", VEC3_ONE),
-    };
+    // Drawable drawable_instance  ={
+    //   .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
+    //   .model = create_model("cube", VEC3_ONE),
+    // };
 
-    drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
-    TextureMaterial2 texture_material = {
-      .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
-      .albedo = *get_asset<ImageId>("bigtest"),
-      .tiling = { 1, 1 },
-      .offset = { sinf(T), cosf(T) },
-    };
+    // drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
+    // TextureMaterial2 texture_material = {
+    //   .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
+    //   .albedo = *get_asset<ImageId>("bigtest"),
+    //   .tiling = { 1, 1 },
+    //   .offset = { sinf(T), cosf(T) },
+    // };
 
-    push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
+    // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
 
     // drawable_instance.transform.position = { 5.0f, 5.0f, 5.0f };
     // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
@@ -773,7 +788,7 @@ void assert2(bool v) {
     // get_resource(ColorMaterial2World)->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
     // printf("Added drawable!\n");
 
-    for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, ColorMaterial2Index* i) {
+    for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterial2Index* i) {
       Drawable drawable = {
         .transform = *(Transform*)t,
         .model = *(Model*)m,
@@ -783,7 +798,7 @@ void assert2(bool v) {
       //   .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },
       // };
 
-      push_drawable(ColorMaterial2::MATERIAL_ID, &drawable, i->value);
+      push_drawable(TextureMaterial2::MATERIAL_ID, &drawable, i->value);
     });
 
     // init_ecs();
@@ -1391,7 +1406,7 @@ struct A {
 // }
 
 mod_main() {
-  set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
+  // set_window_dimensions(ivec2 {1920 / 2, 1080 / 2});
 
   create_system("common_init", (void (*)())common::init);
   create_system("create_thing_test", common::create_thing_test);

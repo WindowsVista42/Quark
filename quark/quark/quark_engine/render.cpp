@@ -1746,8 +1746,8 @@ namespace quark {
         // }
       }
 
-      update_material(ColorMaterial2, "color", "color", 128 * 128, 128);
-      update_material(TextureMaterial2, "texture", "texture", 128 * 128, 128);
+      update_material(ColorMaterial2, "color", "color", 1024 * 1024 , 128);
+      update_material(TextureMaterial2, "texture", "texture", 1024 * 1024, 128);
 
       // update_material(ColorMaterial2, "color", "color", 128 * 128);
       // update_material(TextureMaterial2, "texture", "texture", 128 * 128);

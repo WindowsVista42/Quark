@@ -1160,6 +1160,14 @@ namespace quark {
     return i;
   }
 
+  void* get_material_instance(u32 material_id, u32 material_instance_index) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
+
+    return &batch->material_instances[material_instance_index * type->material_size];
+  }
+
   void push_drawable_instance(u32 material_id, Drawable* drawable, void* material) {
     DrawBatchContext* context = get_resource(DrawBatchContext);
     MaterialBatch* batch = &context->batches[material_id];

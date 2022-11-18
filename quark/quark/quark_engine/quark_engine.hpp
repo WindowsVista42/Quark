@@ -530,11 +530,6 @@ namespace quark {
         u32 entity_i = adj_i + loc_i; \
   \
         u32 inc = (c) - 1; \
-        void* ptrs[(c)]; \
-        for(u32 i = 0; i < (c); i += 1) { \
-          u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]]; \
-          ptrs[i] = &comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]]; \
-        } \
   \
         f \
       } \
@@ -565,17 +560,16 @@ namespace quark {
   template <typename... T> void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
     u32 comps[] = { T::COMPONENT_ID... };
     for_archetype_internal(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
-      // u32 inc = (sizeof(comps) / sizeof(comps[0])) - 1;
-      std::tuple<u32, T*...> t = std::tuple_cat(std::tuple(entity_i), [&] {
+      std::tuple<u32, T*...> t = std::tuple(entity_i, [&] {
         u32 i = inc;
         inc -= 1;
-        return std::tuple((T*)ptrs[i]);
+
+        u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]];
+        return (T*)&comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]];
       } ()...);
-                                 //extract<T...>(entity_i, ptrs, 0); // std::tuple(entity_i, (T*)ptrs[inc--]...);
       std::apply(f, t);
     });
   }
-  
 
 //
 // Registry API
@@ -1333,6 +1327,7 @@ namespace quark {
   engine_api u32 add_material_type(MaterialInfo* info); // u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers, usize batch_capacity);
 
   engine_api u32 add_material_instance(u32 material_id, void* instance);
+  engine_api void* get_material_instance(u32 material_id, u32 material_instance_index);
   engine_api void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
   engine_api void push_drawable_instance(u32 material_id, Drawable* drawable, void* material_instance);
 
