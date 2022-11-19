@@ -19,9 +19,9 @@ namespace quark {
   GLFWwindow* _window_ptr;
   std::string _window_name;
   ivec2 _window_dimensions;
-  bool _window_enable_cursor;
-  bool _window_enable_resizing;
-  bool _window_enable_raw_mouse;
+  bool _window_enable_cursor = false;
+  bool _window_enable_resizing = false;
+  bool _window_enable_raw_mouse = true;
 
   vec2 _window_mouse_pos_delta;
   vec2 _window_scroll_pos_delta;
@@ -47,6 +47,7 @@ namespace quark {
 
   // raw movement in pixels
   // reset at the end of update_window_inputs()
+  // Todo: High resolution mouse input?
   vec2 _mouse_accumulator = {};
   void mouse_callback(GLFWwindow* window, double x, double y) {
     static f64 last_x = 0.0f;
@@ -482,7 +483,7 @@ namespace quark {
   
   const usize max_arena_count = 32;
   const usize virtual_reserve_size = 8 * GB;
-  ArenaPool pool = {};
+  ArenaPool _arena_pool = {};
   
   #define CURRENT_THREAD_ID 1
   
@@ -490,13 +491,13 @@ namespace quark {
     Arena* arena = 0;
   
     for(int i = 0; i < max_arena_count; i += 1) {
-      if(pool.thread_locks[i] == search_thread_id || pool.thread_locks[i] == -1) {
+      if(_arena_pool.thread_locks[i] == search_thread_id || _arena_pool.thread_locks[i] == -1) {
   
         bool valid = true;
   
         // check if the selected pool is a conflicting pool
         for(int j = 0; j < conflict_count; j += 1) {
-          if(&pool.arenas[i] == conflicts[j]) {
+          if(&_arena_pool.arenas[i] == conflicts[j]) {
             valid = false;
             break;
           }
@@ -505,8 +506,8 @@ namespace quark {
         if (!valid) { continue; }
   
         // if we have no conflicts and are free, then use this pool
-        pool.thread_locks[i] = CURRENT_THREAD_ID;
-        arena = &pool.arenas[i];
+        _arena_pool.thread_locks[i] = CURRENT_THREAD_ID;
+        arena = &_arena_pool.arenas[i];
   
         break;
       }
@@ -516,9 +517,9 @@ namespace quark {
       return arena;
     }
   
-    usize i = arena - pool.arenas;
+    usize i = arena - _arena_pool.arenas;
   
-    if(!pool.allocated[i]) {
+    if(!_arena_pool.allocated[i]) {
       arena->ptr = os_reserve_mem(virtual_reserve_size);
       os_commit_mem(arena->ptr, 2 * MB);
   
@@ -526,7 +527,7 @@ namespace quark {
       arena->commit_size = 2 * MB;
     }
   
-    pool.allocated[i] = true;
+    _arena_pool.allocated[i] = true;
   
     return arena;
   }
@@ -543,9 +544,9 @@ namespace quark {
   }
   
   void free_arena(Arena* arena) {
-    usize i = (arena - pool.arenas);
+    usize i = (arena - _arena_pool.arenas);
   
-    pool.thread_locks[i] = -1;
+    _arena_pool.thread_locks[i] = -1;
   
     // os_release_mem(arena->ptr);
     // zero_struct(arena);

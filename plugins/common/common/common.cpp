@@ -1,5 +1,8 @@
 #define COMMON_IMPLEMENTATION
 #include "common.hpp"
+#include <unordered_set>
+#include <vector>
+#include <array>
 
 namespace common {
   void exit_on_esc() {
@@ -419,10 +422,10 @@ namespace common {
     bind_action("pause", KeyCode::P);
     bind_action("ui_exit", KeyCode::Escape);
 
-    bind_action("look_right", MouseAxisCode::MoveRight, 1.0f / 64.0f);
-    bind_action("look_left",  MouseAxisCode::MoveLeft,  1.0f / 64.0f);
-    bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 64.0f);
-    bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 64.0f);
+    bind_action("look_right", MouseAxisCode::MoveRight, 1.0f / 256.0f);
+    bind_action("look_left",  MouseAxisCode::MoveLeft,  1.0f / 256.0f);
+    bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 256.0f);
+    bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 256.0f);
 
     bind_action("b", KeyCode::B);
 
@@ -710,11 +713,11 @@ void assert2(bool v) {
     ((TextureMaterial2*)get_material_instance(TextureMaterial2::MATERIAL_ID, texture_material_index))->offset = { sinf(T), cosf(T) };
     T += delta();
 
-    u32 draw_count = 100;
+    u32 draw_count = 40;
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
-    for(usize i = get_action("v").just_down ? 10 : 0; i > 0; i -= 1) {
+    for(usize i = get_action("v").down ? 10 : 0; i > 0; i -= 1) {
       // printf("v pressed!\n");
       static f32 pz = 0.0f;
 
@@ -767,20 +770,20 @@ void assert2(bool v) {
       });
     }
 
-    // Drawable drawable_instance  ={
-    //   .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
-    //   .model = create_model("cube", VEC3_ONE),
-    // };
+    Drawable drawable_instance  ={
+      .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
+      .model = create_model("cube", VEC3_ONE),
+    };
 
-    // drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
-    // TextureMaterial2 texture_material = {
-    //   .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
-    //   .albedo = *get_asset<ImageId>("bigtest"),
-    //   .tiling = { 1, 1 },
-    //   .offset = { sinf(T), cosf(T) },
-    // };
+    drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
+    TextureMaterial2 texture_material = {
+      .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
+      .albedo = *get_asset<ImageId>("bigtest"),
+      .tiling = { 1, 1 },
+      .offset = { sinf(T), cosf(T) },
+    };
 
-    // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
+    push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
 
     // drawable_instance.transform.position = { 5.0f, 5.0f, 5.0f };
     // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
