@@ -1135,20 +1135,10 @@ namespace quark {
     add_asset(name, frag_module);
   }
 
-  // std::unordered_map<type_hash, std::string> type_effect_map = {};
-
-  // std::string get_type_effect(type_hash t) {
-  //   return type_effect_map.at(t);
-  // }
-
-  // void add_type_effect(type_hash t, const char* effect_name) {
-  //   type_effect_map.insert(std::make_pair(t, std::string(effect_name)));
-  // }
-
   define_resource(DrawBatchContext, {});
 
   u32 add_material_type(MaterialInfo* info) {
-    DrawBatchContext* context = get_resource(DrawBatchContext); // get_draw_batch_context();
+    DrawBatchContext* context = get_resource(DrawBatchContext);
 
     if(context->arena == 0) {
       context->arena = get_arena();
@@ -1184,38 +1174,6 @@ namespace quark {
     return i;
   }
 
-  void* get_material_instance(u32 material_id, u32 material_instance_index) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
-    MaterialBatch* batch = &context->batches[material_id];
-    MaterialInfo* type = &context->infos[material_id];
-
-    return &batch->material_instances[material_instance_index * type->material_size];
-  }
-
-  void push_drawable_instance(u32 material_id, Drawable* drawable, void* material) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
-    MaterialBatch* batch = &context->batches[material_id];
-    MaterialInfo* type = &context->infos[material_id];
-
-    u32 i = batch->batch_count;
-    batch->batch_count += 1;
-
-    if(i > type->batch_capacity) {
-      panic("Attempted to draw more than a material batch could handle!\n");
-    }
-
-    batch->drawables_batch[i] = *drawable;
-    copy_mem(&batch->materials_batch[i * type->material_size], material, type->material_size);
-  }
-
-  void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
-    MaterialBatch* batch = &context->batches[material_id];
-    MaterialInfo* info = &context->infos[material_id];
-
-    push_drawable_instance(material_id, drawable, &batch->material_instances[material_instance_index * info->material_size]);
-  }
-
   void draw_material_batches() {
     WorldData* world_data = get_resource(WorldData);
     Buffer* current_world_data_buffer = &_context->world_data_buffers[_frame_index];
@@ -1245,10 +1203,10 @@ namespace quark {
     DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
 
     MainCamera* camera = get_resource(MainCamera);
-    // CullData cull_data = get_cull_data(camera);
     FrustumPlanes frustum = get_frustum_planes(camera);
 
     u32 draw_count = 0;
+    u32 culled_count = 0;
 
     for_every(i, _batch_context->materials_count) {
       MaterialEffect* effect = &_context->material_effects[i];
@@ -1273,14 +1231,13 @@ namespace quark {
       for_every(j, batch->batch_count) {
         u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        // printf("%llu\n", j);
-
         Transform transform = batch->drawables_batch[j].transform;
         Model model = batch->drawables_batch[j].model;
         u8* material = &batch->materials_batch[j * info->material_size]; // &((u8*)->ptr)[j * material_size];
 
         f32 radius2 = length2(model.half_extents) * 1.5f;
         if(!is_sphere_visible(&frustum, transform.position, radius2)) {
+          culled_count += 1;
           continue;
         }
 
@@ -1304,7 +1261,9 @@ namespace quark {
     Timestamp t1 = get_timestamp();
     if(get_timestamp_difference(t0, t1) > 1.0f) {
       t0 = t1;
-      printf("draw_count: %d\n\n", draw_count);
+      printf("draw_count: %d\n", draw_count);
+      printf("culled_count: %d\n", culled_count);
+      printf("\n");
     }
   }
 
@@ -1312,12 +1271,12 @@ namespace quark {
     DrawBatchContext* context = get_resource(DrawBatchContext);
 
     for_every(i, context->materials_count) {
-      // usize batch_capacity = context->infos[i].batch_capacity;
+      // usize count = context->batches[i].batch_count;
       // usize material_size = context->infos[i].material_size;
 
       context->batches[i].batch_count = 0;
-      // zero_mem(context->batches[i].drawables_batch, batch_capacity * sizeof(DrawableInstance));
-      // zero_mem(context->batches[i].materials_batch, batch_capacity * material_size);
+      // zero_mem(context->batches[i].drawables_batch, count * sizeof(Drawable));
+      // zero_mem(context->batches[i].materials_batch, count * material_size);
     }
   }
 };

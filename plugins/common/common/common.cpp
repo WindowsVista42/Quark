@@ -479,17 +479,17 @@ namespace common {
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
+    Model2 m2 = Model2 {
+      .half_extents = {1.0f, 1.0f, 1.0f},
+      .id = *get_asset<MeshId>("tri"),
+    };
+
     for(usize i = get_action("v").down ? 10 : 0; i > 0; i -= 1) {
       // printf("v pressed!\n");
       static f32 pz = 0.0f;
 
       f32 px = draw_inst_dist;
       f32 py = draw_inst_dist;
-
-      Model2 m2 = Model2 {
-        .half_extents = {1.0f, 1.0f, 1.0f},
-        .id = (MeshId)2,
-      };
 
       f32 rotation = 0.0f;
 
@@ -505,17 +505,6 @@ namespace common {
             TextureMaterial2Index { texture_material_index },
             ECS_ACTIVE_FLAG
           );
-
-          // add_component2(entity_id, Transform2::COMPONENT_ID, &t);
-          // rotation += 0.07f;
-
-          // add_component2(entity_id, Model2::COMPONENT_ID, &m2);
-
-          // // ColorMaterial2Index i = { color_material_index2 };
-          // TextureMaterial2Index i = { texture_material_index };
-          // add_component2(entity_id, TextureMaterial2Index::COMPONENT_ID, &i);
-
-          // add_flag2(entity_id, ECS_ACTIVE_FLAG);
 
           py += draw_inst_dist;
         }
@@ -540,7 +529,7 @@ namespace common {
 
     Drawable drawable_instance  ={
       .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
-      .model = create_model("suzanne", VEC3_ONE),
+      .model = create_model("tri", VEC3_ONE),
     };
 
     drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };

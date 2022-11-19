@@ -583,60 +583,6 @@ namespace quark {
   }
 
 //
-// Registry API
-//
-
-  // using entity_id = entt::entity;
-  // using Registry = entt::basic_registry<entity_id>;
-
-  // template <typename... T>
-  // struct Exclude {};
-
-  // template <typename... T>
-  // struct Include {};
-
-  // template <typename... T>
-  // struct View {};
-
-  // template <typename... T>
-  // struct Handle {
-  //   entity_id entity;
-  // };
-
-  // template <typename T> decltype(auto) get_registry_storage();
-
-  // template <typename... T> void clear_registry();
-  // template <typename... T> void compact_resgistry();
-
-  // template <typename... T> decltype(auto) get_view_each(View<Include<T...>> view);
-  // template <typename... T> decltype(auto) get_entity_comp(View<T...> view, entity_id e);
-
-  // template <typename... I, typename... E> decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view);
-  // template <typename... T, typename... I> decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>);
-
-  // template <typename... T, typename... V> decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle);
-
-  // Possible API additions
-  // struct Seq {};
-  // struct Par {};
-  // void myfunc(Par p, View<float, int, char> fic_view, Resource<float> _res);
-  // void myfunc(Seq s, View<float, int, char> fic_view, Resource<float> _res);
-
-  // void myfunc(View<float, int, char> fic_view, Resource<float> _res);
-
-//
-// Entity API
-//
-
-  // static entity_id create_entity();
-
-  // template <typename... T> entity_id create_entity_add_comp(View<T...> view, T... comps);
-  // template <typename... T> void add_entity_comp(View<T...> view, entity_id e, T... comps);
-
-  // template <typename... T, typename... C> entity_id create_entity_add_comp(View<T...> view, C... comps);
-  // template <typename... T, typename... C> void add_entity_comp(View<T...> view, entity_id e, C... comps);
-
-//
 // Asset API
 //
 
@@ -662,18 +608,6 @@ namespace quark {
   engine_api void load_frag_shader(const char* path, const char* name);
 
 //
-// Resource Declaration
-//
-
-  // declare_resource(Registry);
-  // declare_resource(ScratchAllocator);
-  // declare_resource(AssetServer);
-  
-  // declare_resource(MainCamera);
-  // declare_resource(UICamera);
-  // declare_resource(SunCamera);
-
-//
 // Template API Definitions
 //
 
@@ -693,70 +627,6 @@ namespace quark {
 
     return (V*)&map->at(get_type_hash<T>());
   }
-
-  // template <typename T> decltype(auto) get_registry_storage() {
-  //   return get_resource(Registry)->storage<T>();
-  // }
-
-  // template <typename... I, typename... E>
-  // decltype(auto) get_view_each(View<Include<I...>, Exclude<E...>> view) {
-  //   return get_resource(Registry)->view<I...>(entt::exclude<E...>).each();
-  // }
-
-  // template <typename... T>
-  // decltype(auto) get_view_each(View<Include<T...>> view) {
-  //   return get_resource(Registry)->view<T...>().each();
-  // }
-
-  // template <typename... T>
-  // decltype(auto) get_entity_comp(View<T...> view, entity_id e) {
-  //   return get_resource(Resource<Registry> {})->get<T...>(e);
-  // }
-
-  // template <typename... T, typename... I>
-  // decltype(auto) get_entity_comp(View<T...> view, entity_id e, Include<I...>) {
-  //   // check that I... is a subset of T...
-  //   return get_resource(Resource<Registry> {})->get<I...>(e);
-  // }
-
-  // template <typename... T, typename... V>
-  // decltype(auto) get_handle_comp(View<V...> view, Handle<T...> handle) {
-  //   static_assert("get_handle_comp not supported yet!\n");
-  //   //return get_resource(Resource<Registry> {})->get<T...>(handle.entity);
-  // }
-
-  // static entity_id create_entity() {
-  //   return get_resource(Resource<Registry> {})->create();
-  // }
-
-  // template <typename... T>
-  // void add_entity_comp(View<T...> view, entity_id e, T... comps) {
-  //   (get_resource(Resource<Registry> {})->emplace<T>(e, comps),...); // emplace for each T in T...
-  // }
-
-  // template <typename... T, typename... C>
-  // void add_entity_comp(View<T...> view, entity_id e, C... comps) {
-  //   static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
-  //   (get_resource(Resource<Registry> {})->emplace<C>(e, comps),...); // emplace for each T in T...
-  // }
-
-  // template <typename... T>
-  // entity_id create_entity_add_comp(View<T...> view, T... comps) {
-  //   Registry* registry = get_resource(Resource<Registry> {});
-  //   entity_id e = registry->create();
-  //   (registry->emplace<T>(e, comps),...); // emplace for each T in T...
-  //   return e;
-  // }
-
-  // template <typename... T, typename... C>
-  // entity_id create_entity_add_comp(View<T...> view, C... comps) {
-  //   static_assert(template_is_subset<T..., C...>(), "Components added must be a subset of the view");
-
-  //   Registry* registry = get_resource(Resource<Registry> {});
-  //   entity_id e = registry->create();
-  //   (registry->emplace<C>(e, comps),...); // emplace for each T in T...
-  //   return e;
-  // }
 
   template <typename T>
   void add_asset(const char* name, T data) {
@@ -1100,16 +970,18 @@ namespace quark {
     return dot(as_vec4(point, 1.0), plane);
   }
 
-  inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius) {
+  inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2) {
     f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
     f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
     f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
 
     f32 dist = min(min(dist01, dist23), dist45);
     f32 dist2 = dist * dist;
-    dist2 = copysign(dist2, dist);
+    if(dist < 0.0f) {
+      dist2 = -dist2;
+    }
    
-    return (dist2 + radius) > 0.0f;
+    return (dist2 + radius2) > 0.0f;
   }
 
   engine_api f32 get_aabb_radius2(Aabb aabb);
@@ -1352,12 +1224,50 @@ namespace quark {
   engine_api u32 add_material_type(MaterialInfo* info); // u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers, usize batch_capacity);
 
   engine_api u32 add_material_instance(u32 material_id, void* instance);
-  engine_api void* get_material_instance(u32 material_id, u32 material_instance_index);
-  engine_api void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
-  engine_api void push_drawable_instance(u32 material_id, Drawable* drawable, void* material_instance);
+
+  inline void* get_material_instance(u32 material_id, u32 material_instance_index);
+  inline void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
+  inline void push_drawable_instance(u32 material_id, Drawable* drawable, void* material_instance);
 
   engine_api void draw_material_batches();
   engine_api void reset_material_batches();
+
+//
+// Materials API Inlines
+//
+
+  inline void* get_material_instance(u32 material_id, u32 material_instance_index) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
+
+    return &batch->material_instances[material_instance_index * type->material_size];
+  }
+
+  inline void push_drawable_instance(u32 material_id, Drawable* drawable, void* material) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
+
+    u32 i = batch->batch_count;
+    batch->batch_count += 1;
+
+    if(i > type->batch_capacity) {
+      panic("Attempted to draw more than a material batch could handle!\n");
+    }
+
+    batch->drawables_batch[i] = *drawable;
+    copy_mem(&batch->materials_batch[i * type->material_size], material, type->material_size);
+  }
+
+  inline void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
+    DrawBatchContext* context = get_resource(DrawBatchContext);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* info = &context->infos[material_id];
+
+    push_drawable_instance(material_id, drawable, &batch->material_instances[material_instance_index * info->material_size]);
+  }
+
   // engine_api void push_drawable(u32 material_id, DrawableInstance* drawable, void* material);
 
   // struct alignas(8) Drawable {
