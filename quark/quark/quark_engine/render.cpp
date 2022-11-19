@@ -2651,6 +2651,7 @@ namespace quark {
     //    return;
     //  }
     //
+
       static f32 timer = 0.0;
       static u32 frame_number = 0;
       static f32 low = 1.0;
@@ -2668,6 +2669,18 @@ namespace quark {
       if (delta() < low) {
         low = delta();
       }
+
+      static std::vector<f64> system_runtimes = std::vector<f64>(get_system_list("update")->systems.size() - 1, 0);
+
+      {
+        Timestamp* runtimes;
+        usize runtimes_count;
+        get_system_runtimes((system_list_id)hash_str_fast("update"), &runtimes, &runtimes_count);
+
+        for_every(i, system_runtimes.size()) {
+          system_runtimes[i] += runtimes[i].value;
+        }
+      }
     
       if (timer > threshold) {
         // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
@@ -2684,7 +2697,29 @@ namespace quark {
             high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
             low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
         );
-    
+
+        SystemListInfo* info = get_system_list("update");
+
+        std::vector<f64> avg_deltas = {};
+        f64 total = 0.0f;
+
+        for_range(i, 1, system_runtimes.size()) {
+          avg_deltas.push_back((system_runtimes[i] - system_runtimes[i - 1]) / (f64)frame_number);
+          total += avg_deltas[i];
+        }
+
+        printf("---- System Runtimes ----\n");
+        for_every(i, avg_deltas.size()) {
+          // printf("System: %-30s %.2lfms (%.2f%%)\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0, 100.0f * (avg_deltas[i] / total));
+          printf("System: %-30s %.2lfms\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0);
+        }
+
+        for_every(i, system_runtimes.size()) {
+          system_runtimes[i] = 0.0f;
+        }
+
+        printf("\n");
+
         timer -= threshold;
         frame_number = 0;
         low = 1.0;

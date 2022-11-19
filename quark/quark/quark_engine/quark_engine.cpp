@@ -203,6 +203,8 @@ namespace quark {
     run_system_list_id(name_hash);
   }
 
+  std::unordered_map<system_list_id, std::vector<Timestamp>> _system_runtimes;
+
   void run_system_list_id(system_list_id system_list) {
     if(_system_lists.find(system_list) == _system_lists.end()) {
       panic("Attempted to run a system list that does not exist!");
@@ -210,6 +212,12 @@ namespace quark {
 
     SystemListInfo* list = &_system_lists.at(system_list);
 
+    if(_system_runtimes.count(system_list) == 0) {
+      _system_runtimes[system_list] = {};
+    }
+
+    _system_runtimes[system_list].clear();
+    _system_runtimes[system_list].push_back(get_timestamp());
     for_every(i, list->systems.size()) {
       // Optionally log/time the functions being run
       WorkFunction system = _system_functions.at(list->systems[i]);
@@ -218,7 +226,21 @@ namespace quark {
         system();
         // print_tempstr(create_tempstr() + "Finished: " + _system_names.at(list->systems[i]).c_str() + "\n");
       }
+      _system_runtimes[system_list].push_back(get_timestamp());
     }
+  }
+
+  void get_system_runtimes(system_list_id id, Timestamp** timestamps, usize* count) {
+    *timestamps = _system_runtimes[id].data();
+    *count = _system_runtimes[id].size();
+  }
+
+  SystemListInfo* get_system_list(const char* name) {
+    return &_system_lists.at((system_list_id)hash_str_fast(name));
+  }
+
+  const char* get_system_name(system_id id) {
+    return _system_names.at(id).c_str();
   }
 
   void print_system_list(const char* system_list_name) {
@@ -1224,6 +1246,8 @@ namespace quark {
     // CullData cull_data = get_cull_data(camera);
     FrustumPlanes frustum = get_frustum_planes(camera);
 
+    u32 draw_count = 0;
+
     for_every(i, _batch_context->materials_count) {
       MaterialEffect* effect = &_context->material_effects[i];
       bind_effect(_main_cmd_buf[_frame_index], effect);
@@ -1241,8 +1265,6 @@ namespace quark {
         copy_mem(ptr, material_world_ptr, material_world_size);
         unmap_buffer(material_world_buffer);
       }
-
-      u32 draw_count = 0;
 
       u8 push_constants[sizeof(vec4[3]) + info->material_size];
 
@@ -1274,13 +1296,13 @@ namespace quark {
 
         draw_count += 1;
       }
+    }
 
-      static Timestamp t0 = get_timestamp();
-      Timestamp t1 = get_timestamp();
-      if(get_timestamp_difference(t0, t1) > 1.0f) {
-        t0 = t1;
-        printf("draw_count: %d\n", draw_count);
-      }
+    static Timestamp t0 = get_timestamp();
+    Timestamp t1 = get_timestamp();
+    if(get_timestamp_difference(t0, t1) > 1.0f) {
+      t0 = t1;
+      printf("draw_count: %d\n\n", draw_count);
     }
   }
 

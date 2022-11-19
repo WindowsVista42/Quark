@@ -726,7 +726,7 @@ void assert2(bool v) {
 
       Model2 m2 = Model2 {
         .half_extents = {1.0f, 1.0f, 1.0f},
-        .id = (MeshId)0,
+        .id = (MeshId)2,
       };
 
       f32 rotation = 0.0f;
@@ -734,20 +734,26 @@ void assert2(bool v) {
       for_every(x, draw_count) {
         for_every(y, draw_count) {
           u32 entity_id = create_entity2();
-          Transform2 t = {
-            .position = { px, py, pz },
-            .rotation = axis_angle_quat(VEC3_UNIT_Z, rotation),
-          };
-          add_component2(entity_id, Transform2::COMPONENT_ID, &t);
-          rotation += 0.07f;
+          add_components2(entity_id,
+            Transform2 {
+              .position = { px, py, pz },
+              .rotation = axis_angle_quat(VEC3_UNIT_Z, rotation),
+            },
+            m2,
+            TextureMaterial2Index { texture_material_index },
+            ECS_ACTIVE_FLAG
+          );
 
-          add_component2(entity_id, Model2::COMPONENT_ID, &m2);
+          // add_component2(entity_id, Transform2::COMPONENT_ID, &t);
+          // rotation += 0.07f;
 
-          // ColorMaterial2Index i = { color_material_index2 };
-          TextureMaterial2Index i = { texture_material_index };
-          add_component2(entity_id, TextureMaterial2Index::COMPONENT_ID, &i);
+          // add_component2(entity_id, Model2::COMPONENT_ID, &m2);
 
-          add_flag2(entity_id, ECS_ACTIVE_FLAG);
+          // // ColorMaterial2Index i = { color_material_index2 };
+          // TextureMaterial2Index i = { texture_material_index };
+          // add_component2(entity_id, TextureMaterial2Index::COMPONENT_ID, &i);
+
+          // add_flag2(entity_id, ECS_ACTIVE_FLAG);
 
           py += draw_inst_dist;
         }
@@ -772,7 +778,7 @@ void assert2(bool v) {
 
     Drawable drawable_instance  ={
       .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
-      .model = create_model("cube", VEC3_ONE),
+      .model = create_model("suzanne", VEC3_ONE),
     };
 
     drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
@@ -1421,7 +1427,7 @@ mod_main() {
   add_system("init", "common_init", "", -1);
   add_system("init", "create_thing_test", "", -1);
 
-  add_system("update", "update0", "" , 4);
+  add_system("update", "update0", "" , 3);
   // add_system("update", "render_things", "" , 7);
   add_system("update", "exit_on_esc", "" , -1);
 

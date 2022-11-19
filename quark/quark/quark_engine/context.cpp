@@ -125,7 +125,6 @@ namespace quark {
       add_system("quark_init", "init_materials", "", -1);
 
       // Update
-      add_system("update", "print_performance_statistics", "", -1);
       add_system("update", "update_window_inputs", "", -1);
       add_system("update", "update_all_actions", "", -1);
       add_system("update", "update_tag", "", -1);
@@ -142,6 +141,7 @@ namespace quark {
         // add_system("update", "draw_depth_prepass", "", -1);
       // add_system("update", "end_effects", "", -1);
       add_system("update", "end_frame", "", -1);
+      add_system("update", "print_performance_statistics", "", -1);
 
       // Quark 3D Pipeline
       //

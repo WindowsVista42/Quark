@@ -346,6 +346,8 @@ namespace quark {
   engine_api void destroy_system_list(const char* system_list_name);
   engine_api void run_system_list(const char* system_list_name);
 
+  engine_api void get_system_runtimes(system_list_id id, Timestamp** timestamps, usize* count);
+
   engine_api void run_system_list_id(system_list_id system_list);
   engine_api void print_system_list(const char* system_list_name);
 
@@ -354,6 +356,10 @@ namespace quark {
 
   engine_api void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position);
   engine_api void remove_system(const char* list_name, const char* system_name);
+
+  engine_api SystemListInfo* get_system_list(const char* name);
+
+  engine_api const char* get_system_name(system_id id);
 
 //
 // States API
@@ -549,7 +555,11 @@ namespace quark {
   } \
 
   template <typename A> void add_components2(u32 id, A comp) {
-    add_component2(id, A::COMPONENT_ID, &comp);
+    if constexpr (std::is_same_v<A, u32>) {
+      add_flag2(id, comp);
+    } else {
+      add_component2(id, A::COMPONENT_ID, &comp);
+    }
   }
 
   template <typename A, typename... T> void add_components2(u32 id, A comp, T... comps) {
