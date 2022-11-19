@@ -2158,22 +2158,6 @@ namespace quark {
       return frustum;
     }
 
-    f32 plane_point_distance(vec4 plane, vec3 point) {
-      return dot(as_vec4(point, 1.0), plane);
-    }
-     
-    bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius) {
-      f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
-      f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
-      f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
-
-      f32 dist = min(min(dist01, dist23), dist45);
-      f32 dist2 = dist * dist;
-      dist2 = copysign(dist2, dist);
-     
-      return (dist2 + radius) > 0.0f;
-    }
-
     MeshInstance create_mesh2(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count) {
       usize vertex_offset = alloc(&_gpu_vertices_tracker, vertex_count);
       usize index_offset = alloc(&_gpu_indices_tracker, index_count);
@@ -2650,7 +2634,6 @@ namespace quark {
     //  if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
     //    return;
     //  }
-    //
 
       static f32 timer = 0.0;
       static u32 frame_number = 0;
@@ -2686,10 +2669,12 @@ namespace quark {
         // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
         // to work
         printf("---- Performance Statistics ----\n"
+               "\n"
                "Target:  %.2fms (%.2f%%)\n"
                "Average: %.2fms (%.2f%%)\n"
                "High:    %.2fms (%.2f%%)\n"
                "Low:     %.2fms (%.2f%%)\n"
+               "\n"
                "\n",
             (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
             (1.0f / (f32)frame_number) * 1000.0f,
@@ -2705,20 +2690,32 @@ namespace quark {
 
         for_range(i, 1, system_runtimes.size()) {
           avg_deltas.push_back((system_runtimes[i] - system_runtimes[i - 1]) / (f64)frame_number);
-          total += avg_deltas[i];
+          total += avg_deltas[i - 1];
         }
 
         printf("---- System Runtimes ----\n");
+        printf("\n");
         for_every(i, avg_deltas.size()) {
-          // printf("System: %-30s %.2lfms (%.2f%%)\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0, 100.0f * (avg_deltas[i] / total));
-          printf("System: %-30s %.2lfms\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0);
+          f64 delta_ms = avg_deltas[i] * 1000.0;
+          f64 delta_ratio = 100.0f * (avg_deltas[i] / total);
+
+          char buf0[128];
+          int b0l = sprintf(buf0, "%.2lf ms", delta_ms);
+          int b0wl = strlen("100.00 ms");
+
+          char buf1[128];
+          int b1l = sprintf(buf1, "%.2lf%%", delta_ratio);
+          int b1wl = strlen("100.00%");
+
+          printf("%-30s | %*s%s | %*s%s\n", get_system_name(info->systems[i]), b0wl - b0l, "", buf0, b1wl - b1l, "", buf1);
+          // printf("System: %-30s %.2lfms\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0);
         }
 
         for_every(i, system_runtimes.size()) {
           system_runtimes[i] = 0.0f;
         }
 
-        printf("\n");
+        printf("\n\n");
 
         timer -= threshold;
         frame_number = 0;

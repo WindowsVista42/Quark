@@ -496,6 +496,7 @@ namespace quark {
   engine_var const u32 ECS_EMPTY_FLAG;
 
   // engine_api EcsContext* get_ecs_context2();
+  engine_api void init_ecs();
   engine_api u32 add_ecs_table2(u32 component_size);
 
   engine_api u32 create_entity2();
@@ -1095,7 +1096,21 @@ namespace quark {
 
   engine_api FrustumPlanes get_frustum_planes(Camera3D* camera);
 
-  engine_api bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius);
+  inline f32 plane_point_distance(vec4 plane, vec3 point) {
+    return dot(as_vec4(point, 1.0), plane);
+  }
+
+  inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius) {
+    f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
+    f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
+    f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
+
+    f32 dist = min(min(dist01, dist23), dist45);
+    f32 dist2 = dist * dist;
+    dist2 = copysign(dist2, dist);
+   
+    return (dist2 + radius) > 0.0f;
+  }
 
   engine_api f32 get_aabb_radius2(Aabb aabb);
 

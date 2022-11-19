@@ -507,32 +507,34 @@ namespace quark {
   const u32 ECS_ACTIVE_FLAG = 0;
   const u32 ECS_EMPTY_FLAG = 1;
 
+  void init_ecs() {
+    EcsContext* ctx = get_resource(EcsContext);
+
+    ctx->ecs_entity_capacity = 128 * KB;
+    u32 size = 64 * KB;
+  
+    ctx->ecs_comp_table = (void**)os_reserve_mem(size);
+    os_commit_mem((u8*)ctx->ecs_comp_table, size);
+  
+    ctx->ecs_bool_table = (u32**)os_reserve_mem(size);
+    os_commit_mem((u8*)ctx->ecs_bool_table, size);
+  
+    ctx->ecs_comp_sizes = (u32*)os_reserve_mem(size);
+    os_commit_mem((u8*)ctx->ecs_comp_sizes, size);
+  
+    ctx->ecs_table_capacity = size / sizeof(void*);
+  
+    ctx->ecs_active_flag = add_ecs_table2(0);
+    // ctx->ecs_created_flag = add_ecs_table(0);
+    // ctx->ecs_destroyed_flag = add_ecs_table(0);
+    // ctx->ecs_updated_flag = add_ecs_table(0);
+    ctx->ecs_empty_flag = add_ecs_table2(0);
+
+    memset(ctx->ecs_bool_table[ctx->ecs_empty_flag], 0xffffffff, 256 * KB);
+  }
+
   u32 add_ecs_table2(u32 component_size) {
     EcsContext* ctx = get_resource(EcsContext);
-  
-    if(ctx->ecs_comp_table == 0) {
-      ctx->ecs_entity_capacity = 128 * KB;
-      u32 size = 64 * KB;
-  
-      ctx->ecs_comp_table = (void**)os_reserve_mem(size);
-      os_commit_mem((u8*)ctx->ecs_comp_table, size);
-  
-      ctx->ecs_bool_table = (u32**)os_reserve_mem(size);
-      os_commit_mem((u8*)ctx->ecs_bool_table, size);
-  
-      ctx->ecs_comp_sizes = (u32*)os_reserve_mem(size);
-      os_commit_mem((u8*)ctx->ecs_comp_sizes, size);
-  
-      ctx->ecs_table_capacity = size / sizeof(void*);
-  
-      ctx->ecs_active_flag = add_ecs_table2(0);
-      // ctx->ecs_created_flag = add_ecs_table(0);
-      // ctx->ecs_destroyed_flag = add_ecs_table(0);
-      // ctx->ecs_updated_flag = add_ecs_table(0);
-      ctx->ecs_empty_flag = add_ecs_table2(0);
-
-      memset(ctx->ecs_bool_table[ctx->ecs_empty_flag], 0xffffffff, 256 * KB);
-    }
   
     u32 i = ctx->ecs_table_count;
     ctx->ecs_table_count += 1;

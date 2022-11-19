@@ -86,6 +86,7 @@ namespace quark {
       create_system("init_graphics_context", init_graphics_context);
       create_system("load_assets", load_assets);
       create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): load meshes before this!
+      create_system("init_ecs", init_ecs);
       create_system("init_materials", init_materials); // NOTE(sean): load shaders before this!
 
       //create_system("init_platform", init_platform);
@@ -97,7 +98,6 @@ namespace quark {
       //create_system("init_ecs_context", init_platform);
 
       // Update
-      create_system("print_performance_statistics", print_performance_statistics);
       create_system("update_window_inputs", update_window_inputs);
       create_system("update_all_actions", update_all_actions);
       create_system("update_tag", 0);
@@ -107,6 +107,7 @@ namespace quark {
       create_system("draw_material_batches", draw_material_batches);
       create_system("reset_material_batches", reset_material_batches);
       create_system("end_drawing_materials", end_drawing_materials);
+      create_system("print_performance_statistics", print_performance_statistics);
       // create_system("begin_post_process", begin_post_process);
       // //
       // create_system("end_post_process", end_post_process);
@@ -122,6 +123,7 @@ namespace quark {
       add_system("quark_init", "load_assets", "", -1);
       add_system("quark_init", "copy_meshes_to_gpu", "", -1);
       // add_system("quark_init", "init_pipelines", "", -1);
+      add_system("quark_init", "init_ecs", "", -1);
       add_system("quark_init", "init_materials", "", -1);
 
       // Update
