@@ -29,7 +29,7 @@ target_link_libraries(quark_engine
   quark_core
   quark_platform
   Vulkan::Vulkan
-  EnTT::EnTT
+  # EnTT::EnTT
   tinyobjloader
   vk-bootstrap::vk-bootstrap
   VulkanMemoryAllocator
