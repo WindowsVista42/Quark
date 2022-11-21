@@ -103,11 +103,17 @@ namespace quark {
       create_system("update_tag", 0);
       create_system("update_cameras", update_cameras);
       create_system("begin_frame", begin_frame);
+      create_system("update_global_world_data", update_global_world_data);
+      create_system("build_draw_batch_commands", build_draw_batch_commands);
       create_system("begin_drawing_materials", begin_drawing_materials);
       create_system("draw_material_batches", draw_material_batches);
       create_system("reset_material_batches", reset_material_batches);
       create_system("end_drawing_materials", end_drawing_materials);
       create_system("print_performance_statistics", print_performance_statistics);
+
+      create_system("begin_drawing_material_depth_prepass", begin_drawing_material_depth_prepass);
+      create_system("end_drawing_material_depth_prepass", end_drawing_material_depth_prepass);
+      create_system("draw_material_depth_prepass", draw_material_depth_prepass);
       // create_system("begin_post_process", begin_post_process);
       // //
       // create_system("end_post_process", end_post_process);
@@ -131,13 +137,17 @@ namespace quark {
       add_system("update", "update_all_actions", "", -1);
       add_system("update", "update_tag", "", -1);
       add_system("update", "update_cameras", "", -1);
+      add_system("update", "update_global_world_data", "", -1);
       add_system("update", "begin_frame", "", -1);
-        // add_system("update", "draw_shadows", "", -1);
-        // add_system("update", "draw_depth_prepass", "", -1);
-        add_system("update", "begin_drawing_materials", "", -1);
-          add_system("update", "draw_material_batches", "", -1);
-          add_system("update", "reset_material_batches", "", -1);
-        add_system("update", "end_drawing_materials", "", -1);
+        add_system("update", "build_draw_batch_commands", "", -1);
+          add_system("update", "begin_drawing_material_depth_prepass", "", -1);
+            add_system("update", "draw_material_depth_prepass", "", -1);
+          add_system("update", "end_drawing_material_depth_prepass", "", -1);
+
+          add_system("update", "begin_drawing_materials", "", -1);
+            add_system("update", "draw_material_batches", "", -1);
+          add_system("update", "end_drawing_materials", "", -1);
+        add_system("update", "reset_material_batches", "", -1);
       // Quark 3D Pipeline
         // add_system("update", "draw_sun_shadow", "", -1);
         // add_system("update", "draw_depth_prepass", "", -1);

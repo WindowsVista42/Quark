@@ -479,9 +479,10 @@ namespace common {
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
+    Model suzanne = create_model("suzanne", {1.0f, 1.0f, 1.0f});
     Model2 m2 = Model2 {
-      .half_extents = {1.0f, 1.0f, 1.0f},
-      .id = *get_asset<MeshId>("tri"),
+      .half_extents = suzanne.half_extents,
+      .id = suzanne.id,
     };
 
     for(usize i = get_action("v").just_down ? 1 : 0; i > 0; i -= 1) {
@@ -551,10 +552,11 @@ namespace common {
     // printf("Added drawable!\n");
 
     for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterial2Index* i) {
-      Drawable drawable = {
-        .transform = *(Transform*)t,
-        .model = *(Model*)m,
-      };
+      Drawable drawable;
+      drawable.transform.position = t->position;
+      drawable.transform.rotation = t->rotation;
+      drawable.model.half_extents = m->half_extents;
+      drawable.model.id = m->id;
 
       // ColorMaterial2 cm = {
       //   .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },

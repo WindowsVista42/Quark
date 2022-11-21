@@ -17,7 +17,7 @@ namespace quark {
 // Component Types
 //
 
-  struct Transform {
+  struct alignas(8) Transform {
     vec3 position;
     quat rotation;
   };
@@ -655,6 +655,10 @@ namespace quark {
   engine_api void begin_frame();
   engine_api void end_frame();
 
+  engine_api void begin_drawing_material_depth_prepass();
+  engine_api void draw_material_depth_prepass();
+  engine_api void end_drawing_material_depth_prepass();
+
   engine_api void begin_drawing_materials();
   engine_api void end_drawing_materials();
 
@@ -847,7 +851,7 @@ namespace quark {
   };
 
   struct MaterialEffectInfo {
-    u32 instance_data_size;
+    u32 material_data_size;
     u32 world_data_size;
     VertexShaderModule vertex_shader;
     FragmentShaderModule fragment_shader;
@@ -915,6 +919,7 @@ namespace quark {
 
     // RenderPass depth_prepass_render_pass;
     RenderPass main_render_pass;
+
     // RenderPass post_process_render_pass;
 
     // RenderPass shadow_render_pass;
@@ -944,7 +949,10 @@ namespace quark {
     MaterialEffectInfo material_effect_infos[16];
     MaterialEffect material_effects[16];
 
-    usize max_indirect_draw_count;
+    RenderPass main_depth_prepass_render_pass;
+    VkPipelineLayout main_depth_prepass_pipeline_layout;
+    VkPipeline main_depth_prepass_pipeline;
+    ResourceBundle main_depth_prepass_resource_bundles[16];
   );
 
   // engine_api GraphicsContext* get_graphics_context();
@@ -1203,12 +1211,12 @@ namespace quark {
 
   struct MaterialInfo {
     u32 material_size;
-    u32 material_instance_size;
 
     u32 world_size;
     void* world_ptr;
     Buffer* world_buffers;
-    Buffer* instance_buffers;
+    Buffer* material_buffers;
+    Buffer* transform_buffers;
 
     u32 batch_capacity;
     u32 material_instance_capacity;
@@ -1232,7 +1240,16 @@ namespace quark {
     MaterialBatch batches[16];
 
     Buffer indirect_commands[_FRAME_OVERLAP];
+
+    u32 total_draw_count;
+    u32 total_culled_count;
+    u32 material_draw_offset[16];
+    u32 material_draw_count[16];
+    u32 material_cull_count[16];
   );
+
+  engine_api void update_global_world_data();
+  engine_api void build_draw_batch_commands();
 
   engine_api u32 add_material_type(MaterialInfo* info); // u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers, usize batch_capacity);
 
@@ -1360,12 +1377,6 @@ namespace quark {
       static u32 MATERIAL_ID; \
       static ReflectionInfo __make_reflection_info(); \
     }; \
-    struct alignas(8) name##Instance { \
-      vec4 position; \
-      vec4 rotation; \
-      vec4 scale; \
-      x; \
-    }; \
     struct api_decl name##Index { \
       u32 value; \
       static u32 COMPONENT_ID; \
@@ -1384,7 +1395,8 @@ namespace quark {
     struct api_decl alignas(8) name##World { \
       x; \
       static Buffer BUFFERS[_FRAME_OVERLAP]; \
-      static Buffer INSTANCE_BUFFERS[_FRAME_OVERLAP]; \
+      static Buffer MATERIAL_BUFFERS[_FRAME_OVERLAP]; \
+      static Buffer TRANSFORM_BUFFERS[_FRAME_OVERLAP]; \
       static ResourceGroup RESOURCE_GROUP; \
       static name##World RESOURCE; \
     } \
@@ -1392,32 +1404,31 @@ namespace quark {
   #define define_material_world(name, x...) \
     name##World name##World::RESOURCE = x; \
     Buffer name##World::BUFFERS[_FRAME_OVERLAP]; \
-    Buffer name##World::INSTANCE_BUFFERS[_FRAME_OVERLAP]; \
+    Buffer name##World::MATERIAL_BUFFERS[_FRAME_OVERLAP]; \
+    Buffer name##World::TRANSFORM_BUFFERS[_FRAME_OVERLAP]; \
     ResourceGroup name##World::RESOURCE_GROUP
 
-  template <typename T, typename TIndex, typename TInstance, typename TWorld>
+  template <typename T, typename TIndex, typename TWorld>
   void update_material2(const char* vertex_shader_name, const char* fragment_shader_name, u32 max_draw_count, u32 mat_inst_cap) {
     GraphicsContext* context = get_resource(GraphicsContext);
 
     update_component2<T>();
     update_component2<TIndex>();
 
-    usize tinstance_size = align_forward(sizeof(TInstance), 16);
-
-    MaterialInfo mat_type = {
-      .material_size = sizeof(T),
-      .material_instance_size = (u32)align_forward(sizeof(TInstance), 16),
+    MaterialInfo info = {
+      .material_size = (u32)align_forward(sizeof(T), 16),
 
       .world_size = sizeof(TWorld),
       .world_ptr = get_resource(TWorld),
       .world_buffers = TWorld::BUFFERS,
-      .instance_buffers = TWorld::INSTANCE_BUFFERS,
+      .material_buffers = TWorld::MATERIAL_BUFFERS,
+      .transform_buffers = TWorld::TRANSFORM_BUFFERS,
 
       .batch_capacity = max_draw_count,
       .material_instance_capacity = mat_inst_cap,
     };
 
-    T::MATERIAL_ID = add_material_type(&mat_type);
+    T::MATERIAL_ID = add_material_type(&info);
     TIndex::MATERIAL_ID = T::MATERIAL_ID;
 
     BufferInfo world_buffer_info = { 
@@ -1427,31 +1438,47 @@ namespace quark {
 
     create_buffers(TWorld::BUFFERS, 2, &world_buffer_info); 
 
-    BufferInfo instance_buffer_info {
+    BufferInfo material_buffer_info {
       .type = BufferType::Staging,
-      .size = mat_type.material_instance_size * max_draw_count,
+      .size = info.material_size * max_draw_count,
     };
 
-    create_buffers(TWorld::INSTANCE_BUFFERS, 2, &instance_buffer_info);
+    create_buffers(TWorld::MATERIAL_BUFFERS, 2, &material_buffer_info);
+
+    BufferInfo transform_buffer_info {
+      .type = BufferType::Staging,
+      .size = (u32)sizeof(vec4[3]) * max_draw_count,
+    };
+
+    create_buffers(TWorld::TRANSFORM_BUFFERS, 2, &transform_buffer_info);
 
     Buffer* world_buffers[_FRAME_OVERLAP] = { 
       &TWorld::BUFFERS[0], 
       &TWorld::BUFFERS[1], 
     }; 
 
-    Buffer* instance_buffers[_FRAME_OVERLAP] = {
-      &TWorld::INSTANCE_BUFFERS[0],
-      &TWorld::INSTANCE_BUFFERS[1],
+    Buffer* material_buffers[_FRAME_OVERLAP] = {
+      &TWorld::MATERIAL_BUFFERS[0],
+      &TWorld::MATERIAL_BUFFERS[1],
     };
 
-    ResourceBinding bindings[2] = {}; 
+    Buffer* transform_buffers[_FRAME_OVERLAP] = {
+      &TWorld::TRANSFORM_BUFFERS[0],
+      &TWorld::TRANSFORM_BUFFERS[1],
+    };
+
+    ResourceBinding bindings[3] = {}; 
     bindings[0].count = 1; 
     bindings[0].max_count = 1; 
     bindings[0].buffers = world_buffers; 
 
     bindings[1].count = 1; 
     bindings[1].max_count = 1; 
-    bindings[1].buffers = instance_buffers; 
+    bindings[1].buffers = material_buffers; 
+
+    bindings[2].count = 1; 
+    bindings[2].max_count = 1; 
+    bindings[2].buffers = transform_buffers;
  
     ResourceGroupInfo resource_info { 
       .bindings_count = count_of(bindings),
@@ -1471,12 +1498,12 @@ namespace quark {
     };
 
     MaterialEffectInfo effect_info = { 
-      .instance_data_size = mat_type.material_instance_size, 
+      .material_data_size = info.material_size,
       .world_data_size = sizeof(TWorld), 
- 
-      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), 
-      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name), 
-      .resource_bundle_info = resource_bundle_info, 
+
+      .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name),
+      .fragment_shader = *get_asset<FragmentShaderModule>(fragment_shader_name),
+      .resource_bundle_info = resource_bundle_info, // this doesnt get copied!
  
       .fill_mode = FillMode::Fill, 
       .cull_mode = CullMode::Back, 
@@ -1485,10 +1512,35 @@ namespace quark {
 
     create_material_effect(context->arena, &context->material_effects[T::MATERIAL_ID], &effect_info); 
     context->material_effect_infos[T::MATERIAL_ID] = effect_info; 
+
+    // {
+    //   ResourceBinding bindings[1] = {};
+    //   bindings[0].count = 1;
+    //   bindings[0].max_count = 1;
+    //   bindings[0].buffers = transform_buffers;
+
+    //   ResourceGroupInfo info = {
+    //     .bindings_count = 1,
+    //     .bindings = bindings,
+    //   };
+
+    //   ResourceGroup rg;
+    //   create_resource_group(context->arena, &rg, &info);
+
+    //   ResourceGroup* resource_groups[] = { 
+    //     &context->global_resources_group,
+    //     &rg,
+    //   }; 
+
+    //   ResourceBundleInfo resource_bundle_info {
+    //     .group_count = count_of(resource_groups),
+    //     .groups = resource_groups
+    //   };
+    // }
   } 
 
   #define update_material(name, vertex_shader_name, fragment_shader_name, max_draw_count, max_material_instance_count) \
-    update_material2<name, name##Index, name##Instance, name##World>((vertex_shader_name), (fragment_shader_name), (max_draw_count), (max_material_instance_count));
+    update_material2<name, name##Index, name##World>((vertex_shader_name), (fragment_shader_name), (max_draw_count), (max_material_instance_count));
 
   void init_materials();
 

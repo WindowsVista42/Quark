@@ -57,7 +57,7 @@ namespace quark {
     init_command_pools_and_buffers();
     init_swapchain();
     init_render_passes();
-    init_framebuffers();
+    // init_framebuffers();
     init_sync_objects();
     init_sampler();
   };
@@ -204,8 +204,21 @@ namespace quark {
     _frame_index = _frame_count % _FRAME_OVERLAP;
   }
 
+  void begin_drawing_material_depth_prepass() {
+    ClearValue clear_values[] = {
+      { .depth = 1, .stencil = 0 },
+    };
+
+    begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_depth_prepass_render_pass, clear_values);
+  }
+
+  void end_drawing_material_depth_prepass() {
+    end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_depth_prepass_render_pass);
+    // transition_image(_main_cmd_buf[_frame_index], &_context->main_depth_images[_frame_index], ImageUsage::RenderTargetDepth);
+  }
+
   void begin_drawing_materials() {
-    ClearValue clear_values[2] = {
+    ClearValue clear_values[] = {
       { .color = CYAN },
       { .depth = 1, .stencil = 0 },
     };
@@ -213,8 +226,6 @@ namespace quark {
   }
 
   void end_drawing_materials() {
-    GraphicsContext* _context = get_resource(GraphicsContext);
-
     end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass);
   }
 
@@ -623,8 +634,11 @@ namespace quark {
     }
 
     VkImageAspectFlags get_image_aspect(ImageFormat format) {
-      if(eq_any(format, ImageFormat::LinearD32, ImageFormat::LinearD24S8, ImageFormat::LinearD16)) {
+      if(eq_any(format, ImageFormat::LinearD32, ImageFormat::LinearD16)) {
         return VK_IMAGE_ASPECT_DEPTH_BIT;
+      }
+      else if(eq_any(format, ImageFormat::LinearD24S8)) {
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
       }
 
       return VK_IMAGE_ASPECT_COLOR_BIT;
@@ -806,9 +820,9 @@ namespace quark {
 
     void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage) {
       // Info: we can no-op if we're the correct layout
-      if(image->current_usage == new_usage) {
-        return;
-      }
+      // if(image->current_usage == new_usage) {
+      //   return;
+      // }
 
       // Info: i'm using the fact that VkImageLayout is 0 - 7 for the flags that i want to use,
       // so i can just use it as an index into a lookup table.
@@ -820,7 +834,7 @@ namespace quark {
         VK_ACCESS_TRANSFER_WRITE_BIT,                 // ImageUsage::Dst
         VK_ACCESS_SHADER_READ_BIT,                    // ImageUsage::Texture
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,         // ImageUsage::RenderTargetColor
-        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, // ImageUsage::RenderTargetDepth
+        VK_ACCESS_SHADER_WRITE_BIT, // ImageUsage::RenderTargetDepth
         VK_ACCESS_NONE,                               // ImageUsage::Present
       };
 
@@ -1049,8 +1063,6 @@ namespace quark {
       render_pass->initial_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
       render_pass->final_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
 
-      //render_pass->attachments[0] = info->attachments[0];
-      //render_pass->attachments[1] = info->attachments[1];
       copy_array(render_pass->attachments, info->attachments, Image*, info->attachment_count);
       copy_array(render_pass->initial_usage, info->initial_usage, ImageUsage, info->attachment_count);
       copy_array(render_pass->final_usage, info->final_usage, ImageUsage, info->attachment_count);
@@ -1159,61 +1171,84 @@ namespace quark {
       // };
       // create_images(_context.post_process_color_images, _FRAME_OVERLAP, &_context.post_process_color_image_info);
 
-      Image* images[2] = {
-        _context->material_color_images,
-        _context->main_depth_images,
-      };
+      {
+        Image* images[] = {
+          _context->main_depth_images
+        };
 
-      VkAttachmentLoadOp load_ops[2] = {
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-      };
+        VkAttachmentLoadOp load_ops[] = {
+          VK_ATTACHMENT_LOAD_OP_CLEAR,
+        };
 
-      VkAttachmentStoreOp store_ops[2] = {
-        VK_ATTACHMENT_STORE_OP_STORE,
-        VK_ATTACHMENT_STORE_OP_STORE,
-      };
+        VkAttachmentStoreOp store_ops[] = {
+          VK_ATTACHMENT_STORE_OP_STORE,
+        };
 
-      ImageUsage initial_usages[2] = {
-        ImageUsage::Unknown,
-        ImageUsage::Unknown,
-      };
+        ImageUsage initial_usages[] = {
+          ImageUsage::Unknown,
+        };
 
-      ImageUsage final_usages[2] = {
-        ImageUsage::Texture,
-        ImageUsage::Texture,
-      };
+        ImageUsage final_usages[] = {
+          ImageUsage::RenderTargetDepth,
+        };
 
-      RenderPassInfo render_pass_info = {
-        .resolution = _context->render_resolution,
-        .attachment_count = 2,
+        RenderPassInfo render_pass_info = {
+          .resolution = _context->render_resolution,
 
-        .attachments = images,
+          .attachment_count = count_of(images),
+          .attachments = images,
 
-        .load_ops = load_ops,
-        .store_ops = store_ops,
+          .load_ops = load_ops,
+          .store_ops = store_ops,
 
-        .initial_usage = initial_usages,
-        .final_usage = final_usages,
-      };
+          .initial_usage = initial_usages,
+          .final_usage = final_usages,
+        };
 
-      create_render_pass(_context->arena, &_context->main_render_pass, &render_pass_info);
-    }
-    
-    void init_framebuffers() {
-      // Image* attachments[2] = {
-      //   _context.material_color_images,
-      //   _context.main_depth_images,
-      // };
+        create_render_pass(_context->arena, &_context->main_depth_prepass_render_pass, &render_pass_info);
+      }
 
-      // FramebufferInfo info = {
-      //   .resolution = _context.render_resolution,
-      //   .attachment_count = 2,
-      //   .attachments = attachments,
-      //   .render_pass = _context.main_render_pass,
-      // };
+      {
+        Image* images[] = {
+          _context->material_color_images,
+          _context->main_depth_images,
+        };
 
-      // create_framebuffers(_context.main_framebuffers, _FRAME_OVERLAP, &info);
+        VkAttachmentLoadOp load_ops[] = {
+          VK_ATTACHMENT_LOAD_OP_CLEAR,
+          VK_ATTACHMENT_LOAD_OP_LOAD
+        };
+
+        VkAttachmentStoreOp store_ops[] = {
+          VK_ATTACHMENT_STORE_OP_STORE,
+          VK_ATTACHMENT_STORE_OP_STORE,
+        };
+
+        ImageUsage initial_usages[] = {
+          ImageUsage::Unknown,
+          ImageUsage::RenderTargetDepth,
+        };
+
+        ImageUsage final_usages[] = {
+          ImageUsage::Texture,
+          ImageUsage::Texture,
+        };
+
+        RenderPassInfo render_pass_info = {
+          .resolution = _context->render_resolution,
+
+          .attachment_count = count_of(images),
+          .attachments = images,
+
+          .load_ops = load_ops,
+          .store_ops = store_ops,
+
+          .initial_usage = initial_usages,
+          .final_usage = final_usages,
+        };
+
+        create_render_pass(_context->arena, &_context->main_render_pass, &render_pass_info);
+      }
     }
 
     void bind_effect(VkCommandBuffer commands, MaterialEffect* effect) {
@@ -1239,17 +1274,133 @@ namespace quark {
       }
     }
 
-    void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info) {
-      // VkPushConstantRange push_constant_info = {
-      //   .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      //   .offset = 0,
-      //   .size = info->instance_data_size,
-      // };
-
-      VkDescriptorSetLayout set_layouts[info->resource_bundle_info.group_count];
-      for_every(i, info->resource_bundle_info.group_count) {
-        set_layouts[i] = info->resource_bundle_info.groups[i]->layout;
+    void copy_descriptor_set_layouts(VkDescriptorSetLayout* layouts, u32 count, ResourceGroup** groups) {
+      for_every(i, count) {
+        layouts[i] = groups[i]->layout;
       }
+    }
+
+    void get_pipeline_defaults(VkPipelineInputAssemblyStateCreateInfo* input_assembly_info) {
+      input_assembly_info->sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      input_assembly_info->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      input_assembly_info->primitiveRestartEnable = VK_FALSE;
+    }
+
+    void init_depth_prepass_pipeline() {
+      VkDescriptorSetLayout set_layouts[_context->material_effects[0].resource_bundle.group_count];
+      copy_descriptor_set_layouts(set_layouts, _context->material_effects[0].resource_bundle.group_count, _context->material_effects[0].resource_bundle.groups);
+
+      VkPipelineLayoutCreateInfo layout_info = {};
+      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      layout_info.setLayoutCount = _context->material_effects[0].resource_bundle.group_count;
+      layout_info.pSetLayouts = set_layouts;
+      layout_info.pushConstantRangeCount = 0;
+      layout_info.pPushConstantRanges = 0;
+
+      vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &_context->main_depth_prepass_pipeline_layout));
+
+      VkVertexInputBindingDescription binding_descriptions[1] = {};
+      // Info: positions data
+      binding_descriptions[0].binding = 0;
+      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      binding_descriptions[0].stride = sizeof(vec3);
+
+      VkVertexInputAttributeDescription attribute_descriptions[1] = {};
+      attribute_descriptions[0].binding = 0;
+      attribute_descriptions[0].location = 0;
+      attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attribute_descriptions[0].offset = 0;
+
+      // Info: layout of triangles
+      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
+      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
+      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
+      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
+      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
+
+      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
+      get_pipeline_defaults(&input_assembly_info);
+
+      // Info: what region of the image to render to
+      VkViewport viewport = get_viewport(_context->render_resolution);
+      VkRect2D scissor = get_scissor(_context->render_resolution);
+
+      VkPipelineViewportStateCreateInfo viewport_info = {};
+      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+      viewport_info.viewportCount = 1;
+      viewport_info.pViewports = &viewport;
+      viewport_info.scissorCount = 1;
+      viewport_info.pScissors = &scissor;
+
+      // Info: how the triangles get drawn
+      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
+      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+      rasterization_info.depthClampEnable = VK_FALSE;
+      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
+      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      rasterization_info.depthBiasEnable = VK_FALSE;
+      rasterization_info.lineWidth = 1.0f;
+
+      // Info: msaa support
+      VkPipelineMultisampleStateCreateInfo multisample_info = {};
+      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+      multisample_info.rasterizationSamples = _context->main_depth_image_info.samples;
+      multisample_info.sampleShadingEnable = VK_FALSE;
+      multisample_info.alphaToCoverageEnable = VK_FALSE;
+      multisample_info.alphaToOneEnable = VK_FALSE;
+
+      // Info: how depth gets handled
+      VkPipelineDepthStencilStateCreateInfo depth_info = {};
+      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depth_info.depthTestEnable = VK_TRUE;
+      depth_info.depthWriteEnable = VK_TRUE;
+      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_info.depthBoundsTestEnable = VK_FALSE;
+      depth_info.stencilTestEnable = VK_FALSE;
+      depth_info.minDepthBounds = 0.0f;
+      depth_info.maxDepthBounds = 1.0f;
+
+      // Todo: suppport different blend modes
+      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
+      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+      color_blend_info.logicOpEnable = VK_FALSE;
+      color_blend_info.attachmentCount = 0;
+      color_blend_info.pAttachments = 0;
+
+      // Info: vertex shader stage
+      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
+      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+      vertex_stage_info.module = get_asset<VertexShaderModule>("depth_only")->module;
+      vertex_stage_info.pName = "main";
+
+      VkPipelineShaderStageCreateInfo shader_stages[1] = {
+        vertex_stage_info,
+      };
+
+      VkGraphicsPipelineCreateInfo pipeline_info = {};
+      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+      pipeline_info.stageCount = count_of(shader_stages);
+      pipeline_info.pStages = shader_stages;
+      pipeline_info.pVertexInputState = &vertex_input_info;
+      pipeline_info.pInputAssemblyState = &input_assembly_info;
+      pipeline_info.pViewportState = &viewport_info;
+      pipeline_info.pRasterizationState = &rasterization_info;
+      pipeline_info.pMultisampleState = &multisample_info;
+      pipeline_info.pDepthStencilState = &depth_info;
+      pipeline_info.pColorBlendState = &color_blend_info;
+      pipeline_info.layout = _context->main_depth_prepass_pipeline_layout;
+      pipeline_info.renderPass = _context->main_depth_prepass_render_pass.render_pass;
+
+      vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &_context->main_depth_prepass_pipeline));
+    }
+
+    void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info) {
+      VkDescriptorSetLayout set_layouts[info->resource_bundle_info.group_count];
+      copy_descriptor_set_layouts(set_layouts, info->resource_bundle_info.group_count, info->resource_bundle_info.groups);
 
       effect->resource_bundle.group_count = info->resource_bundle_info.group_count;
       effect->resource_bundle.groups = copy_array_arena(arena, info->resource_bundle_info.groups, ResourceGroup*, info->resource_bundle_info.group_count);
@@ -1298,10 +1449,10 @@ namespace quark {
       // Info: data of triangles
       VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
       vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = 3;
-      vertex_input_info.pVertexBindingDescriptions = binding_descriptions; // get_vertex_pnt_input_description()->bindings;
-      vertex_input_info.vertexAttributeDescriptionCount = 3;
-      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions; // get_vertex_pnt_input_description()->attributes;
+      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
+      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
+      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
+      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
 
       // Info: layout of triangles
       VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
@@ -1383,7 +1534,7 @@ namespace quark {
 
       VkGraphicsPipelineCreateInfo pipeline_info = {};
       pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipeline_info.stageCount = 2;
+      pipeline_info.stageCount = count_of(shader_stages);
       pipeline_info.pStages = shader_stages;
       pipeline_info.pVertexInputState = &vertex_input_info;
       pipeline_info.pInputAssemblyState = &input_assembly_info;
@@ -1681,6 +1832,10 @@ namespace quark {
 
       update_material(ColorMaterial2, "color", "color", 1024 * 1024, 128);
       update_material(TextureMaterial2, "texture", "texture", 1024 * 1024, 128);
+
+      {
+        init_depth_prepass_pipeline();
+      }
     }
 
     void create_samplers(Sampler* sampler, u32 n, SamplerInfo* info) {
@@ -2367,7 +2522,7 @@ namespace quark {
           int b1l = sprintf(buf1, "%.2lf%%", delta_ratio);
           int b1wl = strlen("100.00%");
 
-          printf("%-30s | %*s%s | %*s%s\n", get_system_name(info->systems[i]), b0wl - b0l, "", buf0, b1wl - b1l, "", buf1);
+          printf("%-50s | %*s%s | %*s%s\n", get_system_name(info->systems[i]), b0wl - b0l, "", buf0, b1wl - b1l, "", buf1);
           // printf("System: %-30s %.2lfms\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0);
         }
 

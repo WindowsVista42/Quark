@@ -18,7 +18,7 @@ namespace quark {
     MeshId id = *get_asset<MeshId>(mesh_name);
 
     return Model {
-      .half_extents = _context->mesh_scales[(u32)id],
+      .half_extents = scale * _context->mesh_scales[(u32)id],
       .id = id,
     };
   }
@@ -1181,11 +1181,15 @@ namespace quark {
   	return res;
   }
 
-  void draw_material_batches() {
+  void update_global_world_data() {
+    // Info: update world data
     WorldData* world_data = get_resource(WorldData);
     Buffer* current_world_data_buffer = &_context->world_data_buffers[_frame_index];
 
-    world_data->main_view_projection = _main_view_projection;
+    MainCamera* camera = get_resource(MainCamera);
+    FrustumPlanes frustum = get_frustum_planes(camera);
+
+    world_data->main_view_projection = get_camera3d_view_projection(camera, get_window_aspect());
     world_data->sun_view_projection = _sun_view_projection;
     world_data->ambient = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
     world_data->tint = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1196,37 +1200,21 @@ namespace quark {
       copy_mem(ptr, world_data, sizeof(WorldData));
       unmap_buffer(current_world_data_buffer);
     }
+  }
 
-    VkDeviceSize offsets[3] = { 0, 0, 0 };
-    VkBuffer buffers[3] = {
-      _context->vertex_positions_buffer.buffer,
-      _context->vertex_normals_buffer.buffer,
-      _context->vertex_uvs_buffer.buffer,
-    };
-
-    vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, 3, buffers, offsets);
-    vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
+  void build_draw_batch_commands() {
     DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
 
     MainCamera* camera = get_resource(MainCamera);
     FrustumPlanes frustum = get_frustum_planes(camera);
 
-    u32 total_draw_count = 0;
-    u32 culled_count = 0;
-
     VkCommandBuffer commands = _main_cmd_buf[_frame_index];
 
-    Buffer* indirect_commands_buffer = &_batch_context->indirect_commands[_frame_index];
-    VkDrawIndexedIndirectCommand* indirect_commands = (VkDrawIndexedIndirectCommand*)map_buffer(indirect_commands_buffer);
+    VkDrawIndexedIndirectCommand* indirect_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&_batch_context->indirect_commands[_frame_index]);
     defer(unmap_buffer(&_batch_context->indirect_commands[_frame_index]));
 
+    // Info: build indirect commands and update material properties
     for_every(i, _batch_context->materials_count) {
-      u32 material_draw_count = 0;
-
-      MaterialEffect* effect = &_context->material_effects[i];
-      bind_effect(commands, effect);
-
       MaterialInfo* info = &_batch_context->infos[i];
       MaterialBatch* batch = &_batch_context->batches[i];
 
@@ -1242,14 +1230,18 @@ namespace quark {
       }
 
       // Info: map indirect draw commands buffer
-      u8* instance_data = (u8*)map_buffer(&info->instance_buffers[_frame_index]);
-      defer(unmap_buffer(&info->instance_buffers[_frame_index]));
+      u8* material_data = (u8*)map_buffer(&info->material_buffers[_frame_index]);
+      defer(unmap_buffer(&info->material_buffers[_frame_index]));
+
+      u8* transform_data = (u8*)map_buffer(&info->transform_buffers[_frame_index]);
+      defer(unmap_buffer(&info->transform_buffers[_frame_index]));
 
       u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
       for_every(j, batch->batch_count) {
-        Transform transform = batch->drawables_batch[j].transform;
-        Model model = batch->drawables_batch[j].model;
+        Drawable* drawable = &batch->drawables_batch[j];
+        // Transform transform = batch->drawables_batch[j].transform;
+        // Model model = batch->drawables_batch[j].model;
         u8* material = &batch->materials_batch[j * info->material_size];
 
         // Info: basic frustum culling
@@ -1257,49 +1249,76 @@ namespace quark {
         // This is kinda slow right now and for simple
         // materials its actually quicker to just render them instead of frustum culling
         // Info: this is slow!!
-        f32 radius2 = length2(model.half_extents) * 1.5f;
-        if(!is_sphere_visible(&frustum, transform.position, radius2)) {
-          culled_count += 1;
+        f32 radius2 = length2(drawable->model.half_extents) * 1.5f;
+        if(!is_sphere_visible(&frustum, drawable->transform.position, radius2)) {
+          _batch_context->material_cull_count[i] += 1;
           continue;
         }
 
-        MeshInstance* mesh_instance = &_context->mesh_instances[(u32)model.id];
+        MeshInstance* mesh_instance = &_context->mesh_instances[(u32)drawable->model.id];
 
         // Info: push draw command to indirect buffer
-        indirect_commands[total_draw_count + material_draw_count] = {
+        indirect_commands[_batch_context->total_draw_count + _batch_context->material_draw_count[i]] = {
           .indexCount = mesh_instance->count,
           .instanceCount = 1,
           .firstIndex = mesh_instance->offset,
           .vertexOffset = 0,
-          .firstInstance = material_draw_count, // material index
+          .firstInstance = _batch_context->material_draw_count[i], // material index
         };
 
-        // Info: push material instance data
-        copy_mem(instance_data + 0,               &transform.position, sizeof(vec3));
-        copy_mem(instance_data + sizeof(vec4[1]), &transform.rotation, sizeof(vec4));
-        copy_mem(instance_data + sizeof(vec4[2]), &model.half_extents, sizeof(vec3));
-        copy_mem(instance_data + sizeof(vec4[3]), material, info->material_size);
+        // Info: push material data
+        copy_mem(material_data, material, info->material_size);
+        copy_mem(transform_data, drawable, sizeof(Drawable));
+        // copy_mem(transform_data, &drawable->transform, sizeof(vec4[2]));
+        // copy_mem(transform_data + sizeof(vec4[2]), &drawable->model.half_extents, sizeof(vec3));
 
-        instance_data += info->material_instance_size; // , sizeof(vec4[3]) + info->material_size;
-        // instance_data = (u8*)align_forward((usize)instance_data, 16);
+        material_data += info->material_size;
+        // transform_data += sizeof(vec4[3]);
+        transform_data += sizeof(Drawable);
 
-        material_draw_count += 1;
+        _batch_context->material_draw_count[i] += 1;
       }
 
-      // Info: draw indirect
-      vkCmdDrawIndexedIndirect(
-          commands, indirect_commands_buffer->buffer, total_draw_count * sizeof(VkDrawIndexedIndirectCommand),
-          material_draw_count, sizeof(VkDrawIndexedIndirectCommand));
+      _batch_context->material_draw_offset[i] = _batch_context->total_draw_count;
+      _batch_context->total_draw_count += _batch_context->material_draw_count[i];
+      _batch_context->total_culled_count += _batch_context->material_cull_count[i];
+    }
+  }
 
-      total_draw_count += material_draw_count;
+  void draw_material_batches() {
+    DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
+    VkCommandBuffer commands = _main_cmd_buf[_frame_index];
+    VkBuffer indirect_commands_buffer = _batch_context->indirect_commands[_frame_index].buffer;
+
+    // Info: draw materials
+    {
+      VkDeviceSize offsets[] = { 0, 0, 0 };
+      VkBuffer buffers[] = {
+        _context->vertex_positions_buffer.buffer,
+        _context->vertex_normals_buffer.buffer,
+        _context->vertex_uvs_buffer.buffer,
+      };
+
+      vkCmdBindVertexBuffers(_main_cmd_buf[_frame_index], 0, count_of(buffers), buffers, offsets);
+      vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+      for_every(i, _batch_context->materials_count) {
+        MaterialEffect* effect = &_context->material_effects[i];
+        bind_effect(commands, effect);
+
+        vkCmdDrawIndexedIndirect(commands, indirect_commands_buffer,
+          _batch_context->material_draw_offset[i] * sizeof(VkDrawIndexedIndirectCommand),
+          _batch_context->material_draw_count[i], sizeof(VkDrawIndexedIndirectCommand));
+      }
     }
 
+    // Info: print some stats
     static Timestamp t0 = get_timestamp();
     Timestamp t1 = get_timestamp();
     if(get_timestamp_difference(t0, t1) > 1.0f) {
       t0 = t1;
-      printf("draw_count: %d\n", total_draw_count);
-      printf("culled_count: %d\n", culled_count);
+      printf("draw_count: %d\n", _batch_context->total_draw_count);
+      printf("culled_count: %d\n", _batch_context->total_culled_count);
       printf("\n");
     }
   }
@@ -1307,13 +1326,45 @@ namespace quark {
   void reset_material_batches() {
     DrawBatchContext* context = get_resource(DrawBatchContext);
 
-    for_every(i, context->materials_count) {
-      // usize count = context->batches[i].batch_count;
-      // usize material_size = context->infos[i].material_size;
+    context->total_draw_count = 0;
+    context->total_culled_count = 0;
 
+    for_every(i, context->materials_count) {
       context->batches[i].batch_count = 0;
-      // zero_mem(context->batches[i].drawables_batch, count * sizeof(Drawable));
-      // zero_mem(context->batches[i].materials_batch, count * material_size);
+
+      context->material_draw_count[i] = 0;
+      context->material_draw_offset[i] = 0;
+      context->material_cull_count[i] = 0;
+    }
+  }
+
+  void draw_material_depth_prepass() {
+    DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
+    VkCommandBuffer commands = _main_cmd_buf[_frame_index];
+    VkBuffer indirect_commands_buffer = _batch_context->indirect_commands[_frame_index].buffer;
+
+    // Info: draw depth only
+    {
+      VkDeviceSize offsets_depth_only[] = { 0, };
+      VkBuffer buffers_depth_only[] = {
+        _context->vertex_positions_buffer.buffer,
+      };
+
+      vkCmdBindVertexBuffers(commands, 0, count_of(buffers_depth_only), buffers_depth_only, offsets_depth_only);
+      vkCmdBindIndexBuffer(commands, _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+      VkPipeline pipeline = _context->main_depth_prepass_pipeline;
+      VkPipelineLayout layout = _context->main_depth_prepass_pipeline_layout;
+
+      vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+      for_every(i, _batch_context->materials_count) {
+        bind_resource_bundle(commands, layout, &_context->material_effects[i].resource_bundle, _frame_index);
+
+        vkCmdDrawIndexedIndirect(commands, indirect_commands_buffer,
+          _batch_context->material_draw_offset[i] * sizeof(VkDrawIndexedIndirectCommand),
+          _batch_context->material_draw_count[i], sizeof(VkDrawIndexedIndirectCommand));
+      }
     }
   }
 };

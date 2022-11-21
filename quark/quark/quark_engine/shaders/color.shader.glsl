@@ -4,11 +4,13 @@
 // WORLD_DATA: SIMPLE
 
 struct  ColorMaterialInstance {
+  vec4 color;
+};
+
+struct Transform {
   vec4 position;
   vec4 rotation;
   vec4 scale;
-
-  vec4 color;
 };
 
 layout (set = 1, binding = 0) uniform ColorMaterialWorldData {
@@ -19,14 +21,18 @@ layout (set = 1, binding = 1) readonly buffer ColorMaterialInstances {
   ColorMaterialInstance instances[];
 };
 
+layout (set = 1, binding = 2, std430) readonly buffer Transforms {
+  Transform transforms[];
+};
+
 // SECTION: VERTEX
 
 void main() {
   INDEX = BASE_INSTANCE;
 
-  const vec3 position = instances[INDEX].position.xyz;
-  const vec4 rotation = instances[INDEX].rotation;
-  const vec3 scale = instances[INDEX].scale.xyz;
+  const vec3 position = transforms[INDEX].position.xyz;
+  const vec4 rotation = transforms[INDEX].rotation;
+  const vec3 scale = transforms[INDEX].scale.xyz;
 
   WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
   WORLD_NORMAL = rotate(VERTEX_NORMAL, rotation);
