@@ -475,7 +475,7 @@ namespace common {
     ((TextureMaterial2*)get_material_instance(TextureMaterial2::MATERIAL_ID, texture_material_index))->offset = { sinf(T), cosf(T) };
     T += delta();
 
-    u32 draw_count = 40;
+    u32 draw_count = 32;
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
@@ -484,7 +484,7 @@ namespace common {
       .id = *get_asset<MeshId>("tri"),
     };
 
-    for(usize i = get_action("v").down ? 10 : 0; i > 0; i -= 1) {
+    for(usize i = get_action("v").just_down ? 1 : 0; i > 0; i -= 1) {
       // printf("v pressed!\n");
       static f32 pz = 0.0f;
 
@@ -496,15 +496,17 @@ namespace common {
       for_every(x, draw_count) {
         for_every(y, draw_count) {
           u32 entity_id = create_entity2();
-          add_components2(entity_id,
-            Transform2 {
-              .position = { px, py, pz },
-              .rotation = axis_angle_quat(VEC3_UNIT_Z, rotation),
-            },
-            m2,
-            TextureMaterial2Index { texture_material_index },
-            ECS_ACTIVE_FLAG
-          );
+
+          Transform2 transform = {
+            .position = vec3 { px, py, pz },
+            .rotation = axis_angle_quat(VEC3_UNIT_Z, rotation),
+          };
+
+          Model2 model = m2;
+
+          TextureMaterial2Index material_index = { texture_material_index };
+
+          add_components2(entity_id, transform, model, material_index, ECS_ACTIVE_FLAG);
 
           py += draw_inst_dist;
         }

@@ -3,24 +3,30 @@
 // PUSH_CONSTANT: CUSTOM
 // WORLD_DATA: SIMPLE
 
-layout (push_constant) uniform ColorMaterialInstance {
-  vec4 MODEL_POSITION;
-  vec4 MODEL_ROTATION;
-  vec4 MODEL_SCALE;
+struct  ColorMaterialInstance {
+  vec4 position;
+  vec4 rotation;
+  vec4 scale;
 
-  vec4 MODEL_COLOR;
+  vec4 color;
 };
 
 layout (set = 1, binding = 0) uniform ColorMaterialWorldData {
   vec4 CM_TINT;
 };
 
+layout (set = 1, binding = 1) readonly buffer ColorMaterialInstances {
+  ColorMaterialInstance instances[];
+};
+
 // SECTION: VERTEX
 
 void main() {
-  const vec3 position = MODEL_POSITION.xyz;
-  const vec4 rotation = MODEL_ROTATION;
-  const vec3 scale = MODEL_SCALE.xyz;
+  INDEX = BASE_INSTANCE;
+
+  const vec3 position = instances[INDEX].position.xyz;
+  const vec4 rotation = instances[INDEX].rotation;
+  const vec3 scale = instances[INDEX].scale.xyz;
 
   WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
   WORLD_NORMAL = rotate(VERTEX_NORMAL, rotation);
@@ -32,5 +38,6 @@ void main() {
 // SECTION: FRAGMENT
 
 void main() {
-  COLOR = aces(MODEL_COLOR); // texture(TEXTURES[0], WORLD_UV + TIME * 0.25f) + CM_TINT + MODEL_COLOR);
+  COLOR = aces(instances[INDEX].color);
 }
+

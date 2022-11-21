@@ -465,24 +465,30 @@ namespace quark {
     // }
     
     void init_vulkan() {
-      auto start = std::chrono::high_resolution_clock::now();
-      auto end = std::chrono::high_resolution_clock::now();
-      auto timer_start = [&]() {
-        start = std::chrono::high_resolution_clock::now();
-      };
-      auto timer_end = [&](const char* words) {
-        end = std::chrono::high_resolution_clock::now();
-        std::cout << words << " took: " << std::chrono::duration<f32>(end - start).count() << " s\n";
-      };
-
+      #define vkb_assign_if_valid(x, assignee) \
+        if(auto v = assignee; v.has_value()) { \
+          x = assignee.value(); \
+        } else { \
+          printf("Error: %s\n", v.error().message().c_str()); \
+        }
 
       u32 glfw_extension_count;
       const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
     
       vkb::InstanceBuilder builder;
-      builder = builder.set_app_name("My Game Engine");
+      builder = builder.set_app_name("");
+      builder = builder.set_engine_name("Quark");
       builder = builder.use_default_debug_messenger();
-      for_every(index, glfw_extension_count) { builder = builder.enable_extension(glfw_extensions[index]); }
+
+      for_every(index, glfw_extension_count) {
+        builder = builder.enable_extension(glfw_extensions[index]);
+      }
+
+      const u32 vk_api_version = VK_API_VERSION_1_2;
+      const u32 vk_api_major = 1;
+      const u32 vk_api_minor = 2;
+
+      builder.require_api_version(vk_api_version);
     
       #ifdef DEBUG
         builder = builder.request_validation_layers(true);
@@ -490,31 +496,33 @@ namespace quark {
         builder = builder.request_validation_layers(false);
       #endif
     
-      auto inst_ret = builder.build();
-    
-      vkb::Instance vkb_inst = inst_ret.value();
+      vkb::Instance vkb_inst;
+      vkb_assign_if_valid(vkb_inst, builder.build());
     
       _context->instance = vkb_inst.instance;
       _context->debug_messenger = vkb_inst.debug_messenger;
     
-      glfwCreateWindowSurface(_context->instance, get_window_ptr(), 0, &_context->surface);
+      vk_check(glfwCreateWindowSurface(_context->instance, get_window_ptr(), 0, &_context->surface));
     
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;
       device_features.wideLines = VK_TRUE;
       device_features.largePoints = VK_TRUE;
+      device_features.multiDrawIndirect = VK_TRUE;
     
       vkb::PhysicalDeviceSelector selector{vkb_inst};
       selector = selector.set_minimum_version(1, 0);
       selector = selector.set_surface(_context->surface);
       selector = selector.set_required_features(device_features);
       selector = selector.allow_any_gpu_device_type();
-      vkb::PhysicalDevice vkb_physical_device = selector.select().value();
+      selector = selector.prefer_gpu_device_type();
+
+      vkb::PhysicalDevice vkb_physical_device;
+      vkb_assign_if_valid(vkb_physical_device, selector.select());
     
       vkb::DeviceBuilder device_builder{vkb_physical_device};
-      timer_start();
-      vkb::Device vkb_device = device_builder.build().value();
-      timer_end("window surface");
+      vkb::Device vkb_device;
+      vkb_assign_if_valid(vkb_device, device_builder.build());
     
       _context->device = vkb_device.device;
       _context->physical_device = vkb_device.physical_device;
@@ -524,14 +532,15 @@ namespace quark {
       vma_alloc_info.physicalDevice = _context->physical_device;
       vma_alloc_info.device = _context->device;
       vma_alloc_info.instance = _context->instance;
+      vma_alloc_info.vulkanApiVersion = vk_api_version;
 
       vk_check(vmaCreateAllocator(&vma_alloc_info, &_context->gpu_alloc));
 
-      _context->graphics_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
-      _context->present_queue = vkb_device.get_queue(vkb::QueueType::present).value();
+      vkb_assign_if_valid(_context->graphics_queue, vkb_device.get_queue(vkb::QueueType::graphics));
+      vkb_assign_if_valid(_context->present_queue, vkb_device.get_queue(vkb::QueueType::present));
 
-      _context->graphics_queue_family = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
-      _context->present_queue_family = vkb_device.get_queue_index(vkb::QueueType::present).value();
+      vkb_assign_if_valid(_context->graphics_queue_family, vkb_device.get_queue_index(vkb::QueueType::graphics));
+      vkb_assign_if_valid(_context->present_queue_family, vkb_device.get_queue_index(vkb::QueueType::present));
 
       // We check if the selected DEVICE has a transfer queue, otherwise we set it as the graphics queue.
       auto transfer_queue_value = vkb_device.get_queue(vkb::QueueType::transfer);
@@ -552,8 +561,9 @@ namespace quark {
       _context->mesh_instances = push_array_arena(_context->arena, MeshInstance, 1024);
       _context->mesh_scales = push_array_arena(_context->arena, vec3, 1024);
 
-      // _render_alloc = create_linear_allocator(100 * MB);
-      //_render_alloc.init(100 * MB);
+      // _context->max_indirect_draw_count = vkb_physical_device.properties.limits.maxDrawIndirectCount;
+
+      // log("max indirect draw count: " + _context->max_indirect_draw_count);
     }
 
     void init_mesh_buffer() {
@@ -1230,11 +1240,11 @@ namespace quark {
     }
 
     void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info) {
-      VkPushConstantRange push_constant_info = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = 0,
-        .size = info->instance_data_size,
-      };
+      // VkPushConstantRange push_constant_info = {
+      //   .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+      //   .offset = 0,
+      //   .size = info->instance_data_size,
+      // };
 
       VkDescriptorSetLayout set_layouts[info->resource_bundle_info.group_count];
       for_every(i, info->resource_bundle_info.group_count) {
@@ -1248,8 +1258,8 @@ namespace quark {
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
       layout_info.setLayoutCount = info->resource_bundle_info.group_count;
       layout_info.pSetLayouts = set_layouts;
-      layout_info.pushConstantRangeCount = 1;
-      layout_info.pPushConstantRanges = &push_constant_info;
+      layout_info.pushConstantRangeCount = 0;
+      layout_info.pPushConstantRanges = 0;
 
       vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &effect->layout));
 
@@ -1601,6 +1611,18 @@ namespace quark {
     define_material_world(TextureMaterial2, {});
 
     void init_materials() {
+      DrawBatchContext* batch_context = get_resource(DrawBatchContext);
+
+      {
+        BufferInfo info ={
+          .type = BufferType::Commands,
+          .size = 1024 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+        };
+
+        // Todo: create this
+        create_buffers(batch_context->indirect_commands, _FRAME_OVERLAP, &info);
+      }
+
       {
         BufferInfo info = {
           .type = BufferType::Uniform,
@@ -1657,7 +1679,7 @@ namespace quark {
         create_resource_group(_context->arena, &_context->global_resources_group, &resource_info);
       }
 
-      update_material(ColorMaterial2, "color", "color", 1024 * 1024 , 128);
+      update_material(ColorMaterial2, "color", "color", 1024 * 1024, 128);
       update_material(TextureMaterial2, "texture", "texture", 1024 * 1024, 128);
     }
 

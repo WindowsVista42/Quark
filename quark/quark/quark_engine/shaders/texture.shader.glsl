@@ -3,13 +3,13 @@
 // PUSH_CONSTANT: CUSTOM
 // WORLD_DATA: SIMPLE
 
-layout (push_constant) uniform TextureMaterialInstance {
-  vec4 MODEL_POSITION;
-  vec4 MODEL_ROTATION;
-  vec4 MODEL_SCALE;
+struct TextureMaterialInstance {
+  vec4 position;
+  vec4 rotation;
+  vec4 scale;
 
-  vec4 MODEL_TINT;
-  u32 MODEL_TEXTURE_ID;
+  vec4 tint;
+  u32 texture_id;
 
   vec2 tiling;
   vec2 offset;
@@ -19,12 +19,18 @@ layout (set = 1, binding = 0) uniform TextureMaterialWorldData {
   vec4 TM_TINT;
 };
 
+layout (set = 1, binding = 1, std430) readonly buffer TextureMaterialInstances {
+  TextureMaterialInstance instances[];
+};
+
 // SECTION: VERTEX
 
 void main() {
-  const vec3 position = MODEL_POSITION.xyz;
-  const vec4 rotation = MODEL_ROTATION;
-  const vec3 scale = MODEL_SCALE.xyz;
+  INDEX = BASE_INSTANCE;
+
+  const vec3 position = instances[INDEX].position.xyz;
+  const vec4 rotation = instances[INDEX].rotation;
+  const vec3 scale = instances[INDEX].scale.xyz;
 
   WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
   WORLD_NORMAL = rotate(VERTEX_NORMAL, rotation);
@@ -36,22 +42,10 @@ void main() {
 // SECTION: FRAGMENT
 
 void main() {
-  COLOR = aces(texture(TEXTURES[MODEL_TEXTURE_ID], (WORLD_UV * tiling) + offset) + MODEL_TINT);
-}
+  const u32 texture_id = instances[INDEX].texture_id;
+  const vec2 tiling = instances[INDEX].tiling;
+  const vec2 offset = instances[INDEX].offset;
+  const vec4 tint = instances[INDEX].tint;
 
-// layout (push_constant) uniform PushConstantData {
-//   vec3 MODEL_POSITION;
-//   vec4 MODEL_ROTATION;
-//   vec3 MODEL_SCALE;
-//   u32 MATERIAL_INDEX;
-// };
-// 
-// // set = 0 is for world information
-// // set = 1 is for material information
-// //
-// 
-// layout (set = 1, binding = 0) readonly buffer MaterialInstances {
-// };
-// 
-// layout (set = 1, binding = 1) uniform MaterialWorldData {
-// };
+  COLOR = aces(texture(TEXTURES[texture_id], (WORLD_UV * tiling) + offset) + tint);
+}

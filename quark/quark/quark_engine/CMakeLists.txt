@@ -33,9 +33,9 @@ target_link_libraries(quark_engine
   tinyobjloader
   vk-bootstrap::vk-bootstrap
   VulkanMemoryAllocator
-  Bullet3Common
-  BulletDynamics
-  BulletCollision
-  LinearMath
+  # Bullet3Common
+  # BulletDynamics
+  # BulletCollision
+  # LinearMath
   meshoptimizer
 )

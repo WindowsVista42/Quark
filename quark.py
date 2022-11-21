@@ -273,9 +273,12 @@ def build_internal(mode):
     # COPY FILES
     print("- Copying " + mode + " build")
 
-    build_lib_dir = build_dir + "/lib"
+    # build_lib_dir = build_dir + "/lib"
 
-    shared_lib_paths = glob.glob(build_lib_dir + "/*.dll")
+    # print(glob.glob("*/*.txt", recursive=True))
+
+    shared_lib_paths = glob.glob(build_dir + "/**/*.dll", recursive=True)
+    print(shared_lib_paths)
     loader_path = build_dir + "/quark/quark/quark_loader/quark_loader.exe"
 
     copy_dir("quark", "build/current/quark")

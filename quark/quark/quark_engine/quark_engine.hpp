@@ -445,6 +445,13 @@ namespace quark {
   // [[noreturn]] engine_api void panic(tempstr s);
 
 //
+// Logging API
+//
+
+  #define log(x...) print_tempstr(create_tempstr() + x + "\n")
+  // #define error(x...) print_tempstr(create_tempstr() + x + "\n");
+
+//
 // ECS API
 //
 
@@ -470,7 +477,7 @@ namespace quark {
     T::REFLECTION_INFO = T::__make_reflection_info();
   }
 
-  #define ECS_MAX_STORAGE 1000000
+  #define ECS_MAX_STORAGE (1024 * 1024)
 
   declare_resource(EcsContext,
     u32 ecs_table_count = 0;
@@ -936,6 +943,8 @@ namespace quark {
 
     MaterialEffectInfo material_effect_infos[16];
     MaterialEffect material_effects[16];
+
+    usize max_indirect_draw_count;
   );
 
   // engine_api GraphicsContext* get_graphics_context();
@@ -1194,10 +1203,12 @@ namespace quark {
 
   struct MaterialInfo {
     u32 material_size;
+    u32 material_instance_size;
 
     u32 world_size;
     void* world_ptr;
     Buffer* world_buffers;
+    Buffer* instance_buffers;
 
     u32 batch_capacity;
     u32 material_instance_capacity;
@@ -1219,6 +1230,8 @@ namespace quark {
 
     MaterialInfo infos[16];
     MaterialBatch batches[16];
+
+    Buffer indirect_commands[_FRAME_OVERLAP];
   );
 
   engine_api u32 add_material_type(MaterialInfo* info); // u32 material_size, u32 material_world_size, void* world_data_ptr, Buffer* buffers, usize batch_capacity);
@@ -1371,6 +1384,7 @@ namespace quark {
     struct api_decl alignas(8) name##World { \
       x; \
       static Buffer BUFFERS[_FRAME_OVERLAP]; \
+      static Buffer INSTANCE_BUFFERS[_FRAME_OVERLAP]; \
       static ResourceGroup RESOURCE_GROUP; \
       static name##World RESOURCE; \
     } \
@@ -1378,6 +1392,7 @@ namespace quark {
   #define define_material_world(name, x...) \
     name##World name##World::RESOURCE = x; \
     Buffer name##World::BUFFERS[_FRAME_OVERLAP]; \
+    Buffer name##World::INSTANCE_BUFFERS[_FRAME_OVERLAP]; \
     ResourceGroup name##World::RESOURCE_GROUP
 
   template <typename T, typename TIndex, typename TInstance, typename TWorld>
@@ -1387,12 +1402,16 @@ namespace quark {
     update_component2<T>();
     update_component2<TIndex>();
 
+    usize tinstance_size = align_forward(sizeof(TInstance), 16);
+
     MaterialInfo mat_type = {
       .material_size = sizeof(T),
+      .material_instance_size = (u32)align_forward(sizeof(TInstance), 16),
 
       .world_size = sizeof(TWorld),
       .world_ptr = get_resource(TWorld),
       .world_buffers = TWorld::BUFFERS,
+      .instance_buffers = TWorld::INSTANCE_BUFFERS,
 
       .batch_capacity = max_draw_count,
       .material_instance_capacity = mat_inst_cap,
@@ -1401,42 +1420,58 @@ namespace quark {
     T::MATERIAL_ID = add_material_type(&mat_type);
     TIndex::MATERIAL_ID = T::MATERIAL_ID;
 
-    BufferInfo buffer_info = { 
+    BufferInfo world_buffer_info = { 
       .type = BufferType::Uniform, 
       .size = sizeof(TWorld), 
     }; 
 
-    create_buffers(TWorld::BUFFERS, 2, &buffer_info); 
+    create_buffers(TWorld::BUFFERS, 2, &world_buffer_info); 
 
-    Buffer* buffers[_FRAME_OVERLAP] = { 
+    BufferInfo instance_buffer_info {
+      .type = BufferType::Staging,
+      .size = mat_type.material_instance_size * max_draw_count,
+    };
+
+    create_buffers(TWorld::INSTANCE_BUFFERS, 2, &instance_buffer_info);
+
+    Buffer* world_buffers[_FRAME_OVERLAP] = { 
       &TWorld::BUFFERS[0], 
       &TWorld::BUFFERS[1], 
     }; 
 
-    ResourceBinding bindings[1] = {}; 
+    Buffer* instance_buffers[_FRAME_OVERLAP] = {
+      &TWorld::INSTANCE_BUFFERS[0],
+      &TWorld::INSTANCE_BUFFERS[1],
+    };
+
+    ResourceBinding bindings[2] = {}; 
     bindings[0].count = 1; 
     bindings[0].max_count = 1; 
-    bindings[0].buffers = buffers; 
+    bindings[0].buffers = world_buffers; 
+
+    bindings[1].count = 1; 
+    bindings[1].max_count = 1; 
+    bindings[1].buffers = instance_buffers; 
  
     ResourceGroupInfo resource_info { 
-      .bindings_count = 1, 
+      .bindings_count = count_of(bindings),
       .bindings = bindings, 
     }; 
 
     create_resource_group(context->arena, &TWorld::RESOURCE_GROUP, &resource_info); 
 
     ResourceGroup* resource_groups[] = { 
-      &context->global_resources_group, 
-      &TWorld::RESOURCE_GROUP, 
+      &context->global_resources_group,
+      &TWorld::RESOURCE_GROUP,
     }; 
 
-    ResourceBundleInfo resource_bundle_info { 
-      .group_count = count_of(resource_groups), 
-      .groups = resource_groups 
-    }; 
+    ResourceBundleInfo resource_bundle_info {
+      .group_count = count_of(resource_groups),
+      .groups = resource_groups
+    };
 
     MaterialEffectInfo effect_info = { 
-      .instance_data_size = sizeof(TInstance), 
+      .instance_data_size = mat_type.material_instance_size, 
       .world_data_size = sizeof(TWorld), 
  
       .vertex_shader = *get_asset<VertexShaderModule>(vertex_shader_name), 

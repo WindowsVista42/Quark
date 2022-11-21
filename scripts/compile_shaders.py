@@ -3,6 +3,7 @@ import os
 import glob
 import shutil
 import threading
+import re
 
 OUTPUT_PATH = "quark/shaders/"
 
@@ -17,6 +18,12 @@ FLAGS = [
     ["push_constant", "default"],
     ["world_data"   , "default"],
 ]
+
+# SECTION_TYPES = [
+#     "vertex",
+#     "fragment",
+#     "compute",
+# ]
 
 HEADER = """
 #version 460
@@ -53,13 +60,24 @@ def read_flag(input_text, flag, default):
     return read_flag
 
 def try_read(path, ext, flag):
-    try:
-        return open(path + ext, "r").read() + "\n"
-    except:
-        try:
-            return open(path + ".glsl", "r").read() + "\n"
-        except:
-            print("For flag: '" + flag[0].upper() + "' could not find option '" + flag[1].upper() + "'")
+    path0 = path + ext
+    path1 = path + ".glsl"
+
+    if(os.path.exists(path0)):
+        return open(path0, "r").read() + "\n"
+    elif(os.path.exists(path1)):
+        return open(path1, "r").read() + "\n"
+    else:
+        print("For flag: '" + flag[0].upper() + "' could not find option '" + flag[1].upper() + "'")
+        exit(-1)
+
+    # try:
+    #     return open(path + ext, "r").read() + "\n"
+    # except:
+    #     try:
+    #         return open(path + ".glsl", "r").read() + "\n"
+    #     except:
+    #         print("For flag: '" + flag[0].upper() + "' could not find option '" + flag[1].upper() + "'")
 
 def compile_ext_shader(path):
     PA = path
@@ -77,12 +95,26 @@ def compile_ext_shader(path):
         vert_top_text = vert_top_text + try_read(flag_path, ".vert", flag)
         frag_top_text = frag_top_text + try_read(flag_path, ".frag", flag)
 
-    vertex_shader_text = HEADER + "\n" + VERT_HEADER + "\n" + text[:text.find("// SECTION: VERTEX")] + vert_top_text + text[text.find("// SECTION: VERTEX"):text.find("// SECTION: FRAGMENT")]
-    fragment_shader_text = HEADER + "\n" + VERT_HEADER + "\n" + text[:text.find("// SECTION: VERTEX")]  + frag_top_text + text[text.find("// SECTION: FRAGMENT"):]
+    vertex_section_pos = text.find("// SECTION: VERTEX")
+    fragment_section_pos = text.find("// SECTION: FRAGMENT")
 
-    #print(PA)
-    #print(vertex_shader_text)
-    #print(fragment_shader_text)
+    vertex_shader_text = HEADER + "\n" + VERT_HEADER + "\n" + text[:vertex_section_pos] + vert_top_text + text[vertex_section_pos:fragment_section_pos]
+    fragment_shader_text = HEADER + "\n" + FRAG_HEADER + "\n" + text[:vertex_section_pos]  + frag_top_text + text[fragment_section_pos:]
+
+    print(PA)
+    i = 0;
+    for line in vertex_shader_text.splitlines():
+        print(str(i) + " " + line)
+        i += 1
+
+    i = 0;
+    for line in fragment_shader_text.splitlines():
+        print(str(i) + " " + line)
+        i += 1
+
+    # exit(0)
+
+    # print(fragment_shader_text)
 
     real_path = path.split(".")[0] + ".vert"
     f = open(real_path, "w")

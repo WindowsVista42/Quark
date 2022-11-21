@@ -56,7 +56,7 @@ add_subdirectory(lib/tinyobjloader)
 add_subdirectory(lib/vk-bootstrap)
 add_subdirectory(lib/VulkanMemoryAllocator)
 add_subdirectory(lib/meshoptimizer)
-add_subdirectory(lib/bullet3)
+# add_subdirectory(lib/bullet3)
 
 target_compile_options(VulkanMemoryAllocator PRIVATE -Wno-nullability-completeness)
 
@@ -69,7 +69,7 @@ include_directories(PUBLIC lib/vk-bootstrap/src)
 include_directories(PUBLIC lib/stb)
 include_directories(PUBLIC lib/qoi)
 # include_directories(PUBLIC lib/entt/src)
-include_directories(PUBLIC lib/bullet3/src)
+# include_directories(PUBLIC lib/bullet3/src)
 include_directories(PUBLIC lib/ThreadPool)
 include_directories(PUBLIC lib/meshoptimizer/src)
 
