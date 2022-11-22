@@ -16,40 +16,11 @@
 
 #include "../quark_core/module.hpp"
 
-#define vk_check(x)                                                                                                                                  \
-  do {                                                                                                                                               \
-    VkResult err = x;                                                                                                                                \
-    if (err) {                                                                                                                                       \
-      std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
-      std::cout << "Line: " << __LINE__ << ", File: " << __FILE__ << "\n"; \
-      panic("");                                                                                                                                     \
-    }                                                                                                                                                \
-  } while (0)
-
 namespace quark {
-
-  define_resource(MainCamera, {{
-    .position = VEC3_ZERO,
-    .rotation = {0, F32_PI_2, 0},
-    .fov = 90.0f,
-    .z_near = 0.01f,
-    .z_far = 10000.0f,
-    .projection_type = ProjectionType::Perspective,
-  }});
-  define_resource(UICamera, {});
-  define_resource(SunCamera, {});
-  define_resource(WorldData, {});
-  define_resource(MainCameraFrustum, {});
 
   define_resource(GraphicsContext, {});
 
   static GraphicsContext* _context = get_resource(GraphicsContext);
-
-
-  // define_resource(MeshRegistry, {});
-  // define_resource(TextureRegistry, {});
-
-  // GraphicsContext _context = {};
 
   void init_graphics_context() {
     init_vulkan();
@@ -57,78 +28,38 @@ namespace quark {
     init_command_pools_and_buffers();
     init_swapchain();
     init_render_passes();
-    // init_framebuffers();
     init_sync_objects();
     init_sampler();
   };
 
-    VkViewport get_viewport(ivec2 resolution) {
-      return VkViewport {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (f32)resolution.x,
-        .height = (f32)resolution.y,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-      };
-    }
-
-    VkRect2D get_scissor(ivec2 resolution) {
-      return VkRect2D {
-        .offset = { 0, 0 },
-        .extent = { (u32)resolution.x, (u32)resolution.y },
-      };
-    }
-
-    // NOTE: Calculate frustum culling data
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // NOTE: Dont get rid of this!!
-    // if (true) {
-    //   mat4 projection_matrix_t = transpose(projection);
-
-    //   auto normalize_plane = [](vec4 p) { return p / length(swizzle(p, 0, 1, 2)); };
-
-    //   vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
-    //   vec4 frustum_y = normalize_plane(projection_matrix_t[3] + projection_matrix_t[1]); // z + w < 0
-  
-    //   _cull_data.view = view;
-    //   _cull_data.p00 = projection[0][0];
-    //   _cull_data.p22 = projection[1][1];
-    //   _cull_data.frustum[0] = frustum_x.x;
-    //   _cull_data.frustum[1] = frustum_x.z;
-    //   _cull_data.frustum[2] = frustum_y.y;
-    //   _cull_data.frustum[3] = frustum_y.z;
-    //   _cull_data.lod_base = 10.0f;
-    //   _cull_data.lod_step = 1.5f;
-  
-    //   {
-    //     mat4 m = transpose(view_projection);
-    //     _cull_planes[0] = m[3] + m[0];
-    //     _cull_planes[1] = m[3] - m[0];
-    //     _cull_planes[2] = m[3] + m[1];
-    //     _cull_planes[3] = m[3] - m[1];
-    //     _cull_planes[4] = m[3] + m[2];
-    //     _cull_planes[5] = m[3] - m[2];
-    //   }
-    // }
-
-  void update_cameras() {
-    _main_view_projection = get_camera3d_view_projection(get_resource(MainCamera), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
+  VkViewport get_viewport(ivec2 resolution) {
+    return VkViewport {
+      .x = 0.0f,
+      .y = 0.0f,
+      .width = (f32)resolution.x,
+      .height = (f32)resolution.y,
+      .minDepth = 0.0f,
+      .maxDepth = 1.0f,
+    };
   }
+
+  VkRect2D get_scissor(ivec2 resolution) {
+    return VkRect2D {
+      .offset = { 0, 0 },
+      .extent = { (u32)resolution.x, (u32)resolution.y },
+    };
+  }
+
+  // void update_cameras() {
+  //   _main_view_projection = get_camera3d_view_projection(get_resource(MainCamera), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
+  // }
 
   void begin_frame() {
     GraphicsContext* _context = get_resource(GraphicsContext);
 
-    // TODO Sean: dont block the thread
     vk_check(vkWaitForFences(_context->device, 1, &_render_fence[_frame_index], true, _OP_TIMEOUT));
     vk_check(vkResetFences(_context->device, 1, &_render_fence[_frame_index]));
   
-    // TODO Sean: dont block the thread
     VkResult result = vkAcquireNextImageKHR(_context->device, _context->swapchain, _OP_TIMEOUT, _present_semaphore[_frame_index], 0, &_swapchain_image_index);
   
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -204,7 +135,7 @@ namespace quark {
     _frame_index = _frame_count % _FRAME_OVERLAP;
   }
 
-  void begin_drawing_material_depth_prepass() {
+  void begin_main_depth_prepass() {
     ClearValue clear_values[] = {
       { .depth = 1, .stencil = 0 },
     };
@@ -212,20 +143,19 @@ namespace quark {
     begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_depth_prepass_render_pass, clear_values);
   }
 
-  void end_drawing_material_depth_prepass() {
+  void end_main_depth_prepass() {
     end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_depth_prepass_render_pass);
-    // transition_image(_main_cmd_buf[_frame_index], &_context->main_depth_images[_frame_index], ImageUsage::RenderTargetDepth);
   }
 
-  void begin_drawing_materials() {
+  void begin_main_color_pass() {
     ClearValue clear_values[] = {
-      { .color = CYAN },
+      { .color = BLACK },
       { .depth = 1, .stencil = 0 },
     };
     begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass, clear_values);
   }
 
-  void end_drawing_materials() {
+  void end_main_color_pass() {
     end_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass);
   }
 
@@ -263,26 +193,6 @@ namespace quark {
     u32 _swapchain_image_index = {};
     
     bool _pause_frustum_culling = {};
-    
-    mat4 _main_view_projection = {};
-    mat4 _sun_view_projection = {};
-    
-    // CullData _cull_data = {};
-    vec4 _cull_planes[6] = {};
-    
-    // LinearAllocator _render_alloc = {};
-    // VmaAllocator _gpu_alloc = {};
-    
-    // FUNCTIONS
-    
-    // #define vk_check(x)                                                                                                                                  \
-    //   do {                                                                                                                                               \
-    //     VkResult err = x;                                                                                                                                \
-    //     if (err) {                                                                                                                                       \
-    //       std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
-    //       panic("");                                                                                                                                     \
-    //     }                                                                                                                                                \
-    //   } while (0)
     
     VkCommandPoolCreateInfo get_cmd_pool_info(u32 queue_family, VkCommandPoolCreateFlags create_flags) {
       VkCommandPoolCreateInfo command_pool_info = {};
@@ -415,7 +325,6 @@ namespace quark {
     
       return command_buffer;
     }
-
 
     void end_quick_commands2(VkCommandBuffer command_buffer) {
       vkEndCommandBuffer(command_buffer);
@@ -673,7 +582,7 @@ namespace quark {
       vkb::SwapchainBuilder swapchain_builder{_context->physical_device, _context->device, _context->surface};
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
-      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
+      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -1013,13 +922,6 @@ namespace quark {
       vk_check(vkCreateRenderPass(_context->device, &create_info, 0, render_pass));
     }
 
-    struct FramebufferInfo {
-      ivec2 resolution;
-      u32 attachment_count;
-      Image** attachments;
-      VkRenderPass render_pass;
-    };
-
     void create_framebuffers(VkFramebuffer* framebuffers, u32 n, FramebufferInfo* info) {
       for_every(i, n) {
         VkFramebufferCreateInfo framebuffer_info = {};
@@ -1091,47 +993,6 @@ namespace quark {
         render_pass->attachments[i][image_index].current_usage = render_pass->final_usage[i];
       }
     }
-
-    // struct RenderTargetInfo {
-    //   u32 attachment_count;
-    //   ivec2 resolution;
-    // };
-
-    // void create_render_targets(Arena* arena, RenderTarget* render_target, u32 n, RenderTargetInfo* info, Image** images) {
-    //   for_every(i, n) {
-    //     VkFramebufferCreateInfo framebuffer_info = {};
-    //     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    //     framebuffer_info.renderPass = info->render_pass;
-
-    //     framebuffer_info.width = info->resolution.x;
-    //     framebuffer_info.height = info->resolution.y;
-    //     framebuffer_info.layers = 1;
-
-    //     framebuffer_info.attachmentCount = info->attachment_count;
-
-    //     VkImageView attachments[info->attachment_count];
-    //     for_every(j, info->attachment_count) {
-    //       attachments[j] = images[j][i].view;
-    //     }
-
-    //     framebuffer_info.pAttachments = attachments;
-
-    //     vkCreateFramebuffer(_context.device, &framebuffer_info, 0, &render_target[i].framebuffer);
-
-    //     render_target[i].attachment_count = info->attachment_count;
-    //     render_target[i].images = (Image**)push_array_arena(arena, Image*, info->attachment_count);
-    //     for_every(j, info->attachment_count) {
-    //      render_target[i].images[j] = &info->attachments[j][i];
-    //     }
-
-    //     render_target[i].resolution = info->resolution;
-    //   }
-    // }
-
-    // void begin_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target, ClearValue* clear_values) {
-    // }
-
-    // void end_render_pass(VkCommandBuffer commands, RenderPass* render_pass, RenderTarget* target);
     
     void init_render_passes() {
       _context->render_resolution = get_window_dimensions() / 1;
@@ -1278,124 +1139,6 @@ namespace quark {
       for_every(i, count) {
         layouts[i] = groups[i]->layout;
       }
-    }
-
-    void get_pipeline_defaults(VkPipelineInputAssemblyStateCreateInfo* input_assembly_info) {
-      input_assembly_info->sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      input_assembly_info->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      input_assembly_info->primitiveRestartEnable = VK_FALSE;
-    }
-
-    void init_depth_prepass_pipeline() {
-      VkDescriptorSetLayout set_layouts[_context->material_effects[0].resource_bundle.group_count];
-      copy_descriptor_set_layouts(set_layouts, _context->material_effects[0].resource_bundle.group_count, _context->material_effects[0].resource_bundle.groups);
-
-      VkPipelineLayoutCreateInfo layout_info = {};
-      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = _context->material_effects[0].resource_bundle.group_count;
-      layout_info.pSetLayouts = set_layouts;
-      layout_info.pushConstantRangeCount = 0;
-      layout_info.pPushConstantRanges = 0;
-
-      vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &_context->main_depth_prepass_pipeline_layout));
-
-      VkVertexInputBindingDescription binding_descriptions[1] = {};
-      // Info: positions data
-      binding_descriptions[0].binding = 0;
-      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-      binding_descriptions[0].stride = sizeof(vec3);
-
-      VkVertexInputAttributeDescription attribute_descriptions[1] = {};
-      attribute_descriptions[0].binding = 0;
-      attribute_descriptions[0].location = 0;
-      attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-      attribute_descriptions[0].offset = 0;
-
-      // Info: layout of triangles
-      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
-      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
-      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
-      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
-      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
-
-      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
-      get_pipeline_defaults(&input_assembly_info);
-
-      // Info: what region of the image to render to
-      VkViewport viewport = get_viewport(_context->render_resolution);
-      VkRect2D scissor = get_scissor(_context->render_resolution);
-
-      VkPipelineViewportStateCreateInfo viewport_info = {};
-      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewport_info.viewportCount = 1;
-      viewport_info.pViewports = &viewport;
-      viewport_info.scissorCount = 1;
-      viewport_info.pScissors = &scissor;
-
-      // Info: how the triangles get drawn
-      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
-      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      rasterization_info.depthClampEnable = VK_FALSE;
-      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rasterization_info.depthBiasEnable = VK_FALSE;
-      rasterization_info.lineWidth = 1.0f;
-
-      // Info: msaa support
-      VkPipelineMultisampleStateCreateInfo multisample_info = {};
-      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = _context->main_depth_image_info.samples;
-      multisample_info.sampleShadingEnable = VK_FALSE;
-      multisample_info.alphaToCoverageEnable = VK_FALSE;
-      multisample_info.alphaToOneEnable = VK_FALSE;
-
-      // Info: how depth gets handled
-      VkPipelineDepthStencilStateCreateInfo depth_info = {};
-      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-      depth_info.depthTestEnable = VK_TRUE;
-      depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-      depth_info.depthBoundsTestEnable = VK_FALSE;
-      depth_info.stencilTestEnable = VK_FALSE;
-      depth_info.minDepthBounds = 0.0f;
-      depth_info.maxDepthBounds = 1.0f;
-
-      // Todo: suppport different blend modes
-      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
-      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      color_blend_info.logicOpEnable = VK_FALSE;
-      color_blend_info.attachmentCount = 0;
-      color_blend_info.pAttachments = 0;
-
-      // Info: vertex shader stage
-      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
-      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-      vertex_stage_info.module = get_asset<VertexShaderModule>("depth_only")->module;
-      vertex_stage_info.pName = "main";
-
-      VkPipelineShaderStageCreateInfo shader_stages[1] = {
-        vertex_stage_info,
-      };
-
-      VkGraphicsPipelineCreateInfo pipeline_info = {};
-      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipeline_info.stageCount = count_of(shader_stages);
-      pipeline_info.pStages = shader_stages;
-      pipeline_info.pVertexInputState = &vertex_input_info;
-      pipeline_info.pInputAssemblyState = &input_assembly_info;
-      pipeline_info.pViewportState = &viewport_info;
-      pipeline_info.pRasterizationState = &rasterization_info;
-      pipeline_info.pMultisampleState = &multisample_info;
-      pipeline_info.pDepthStencilState = &depth_info;
-      pipeline_info.pColorBlendState = &color_blend_info;
-      pipeline_info.layout = _context->main_depth_prepass_pipeline_layout;
-      pipeline_info.renderPass = _context->main_depth_prepass_render_pass.render_pass;
-
-      vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &_context->main_depth_prepass_pipeline));
     }
 
     void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info) {
@@ -1547,23 +1290,6 @@ namespace quark {
       pipeline_info.renderPass = _context->main_render_pass.render_pass;
 
       vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &effect->pipeline));
-    }
-   
-    void init_pipelines() {
-      // MaterialEffectInfo color_material_effect_info = {
-      //   .instance_data_size = sizeof(ColorMaterialInstance),
-      //   .world_data_size = 0,
-
-      //   .vertex_shader = *get_asset<VertexShaderModule>("color"),
-      //   .fragment_shader = *get_asset<FragmentShaderModule>("color"),
-
-      //   .fill_mode = FillMode::Fill,
-      //   .cull_mode = CullMode::Back,
-      //   .blend_mode = BlendMode::Off,
-      // };
-
-      // create_material_effect(&_context.material_effects[color_material_effect_id], &color_material_effect_info);
-      // _context.material_effect_infos[color_material_effect_id] = color_material_effect_info;
     }
 
     declare_enum(AccessType, u32,
@@ -1755,89 +1481,6 @@ namespace quark {
       bind_resource_bundle(commands, effect->layout, &effect->resource_bundle, frame_index);
     }
 
-    define_material(ColorMaterial2);
-    define_material_world(ColorMaterial2, {});
-
-    define_material(TextureMaterial2);
-    define_material_world(TextureMaterial2, {});
-
-    void init_materials() {
-      DrawBatchContext* batch_context = get_resource(DrawBatchContext);
-
-      {
-        BufferInfo info ={
-          .type = BufferType::Commands,
-          .size = 1024 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
-        };
-
-        // Todo: create this
-        create_buffers(batch_context->indirect_commands, _FRAME_OVERLAP, &info);
-      }
-
-      {
-        BufferInfo info = {
-          .type = BufferType::Uniform,
-          .size = sizeof(WorldData),
-        };
-
-        create_buffers(_context->world_data_buffers, 2, &info);
-      }
-
-      {
-        VkDescriptorPoolSize pool_sizes[] = {
-          { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096, },
-          { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024, },
-        };
-
-        VkDescriptorPoolCreateInfo info = {};
-        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        info.poolSizeCount = count_of(pool_sizes);
-        info.pPoolSizes = pool_sizes;
-        info.maxSets = 128;
-
-        vk_check(vkCreateDescriptorPool(_context->device, &info, 0, &_context->main_descriptor_pool));
-      }
-
-      {
-        Buffer* buffers[_FRAME_OVERLAP] = {
-          &_context->world_data_buffers[0],
-          &_context->world_data_buffers[1],
-        };
-
-        Image* images[_FRAME_OVERLAP] = {
-          _context->textures,
-          _context->textures,
-        };
-
-        ResourceBinding bindings[2] = {};
-        bindings[0].count = 1;
-        bindings[0].max_count = 1;
-        bindings[0].buffers = buffers;
-        bindings[0].images = 0;
-        bindings[0].sampler = 0;
-
-        bindings[1].count = _context->texture_count;
-        bindings[1].max_count = 1024;
-        bindings[1].buffers = 0;
-        bindings[1].images = images;
-        bindings[1].sampler = &_context->texture_sampler;
-
-        ResourceGroupInfo resource_info {
-          .bindings_count = count_of(bindings),
-          .bindings = bindings,
-        };
-
-        create_resource_group(_context->arena, &_context->global_resources_group, &resource_info);
-      }
-
-      update_material(ColorMaterial2, "color", "color", 1024 * 1024, 128);
-      update_material(TextureMaterial2, "texture", "texture", 1024 * 1024, 128);
-
-      {
-        init_depth_prepass_pipeline();
-      }
-    }
-
     void create_samplers(Sampler* sampler, u32 n, SamplerInfo* info) {
       VkSamplerCreateInfo sampler_info = {};
       sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1868,112 +1511,8 @@ namespace quark {
 
       create_samplers(&_context->texture_sampler, 1, &texture_sampler_info);
     }
-    
-    bool box_in_frustum(vec3 position, vec3 scale) {
-      struct Box {
-        vec3 min;
-        vec3 max;
-      };
-    
-      scale *= 1.5f;
-    
-      Box box = {
-        position - scale,
-        position + scale,
-      };
-    
-      for_every(i, 6) {
-        usize out = 0;
-        out += dot(_cull_planes[i], vec4{box.min.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += dot(_cull_planes[i], vec4{box.max.x, box.min.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
 
-        out += dot(_cull_planes[i], vec4{box.min.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += dot(_cull_planes[i], vec4{box.max.x, box.max.y, box.min.z, 1.0f}) < 0.0 ? 1 : 0;
-
-        out += dot(_cull_planes[i], vec4{box.max.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += dot(_cull_planes[i], vec4{box.min.x, box.min.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-
-        out += dot(_cull_planes[i], vec4{box.max.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-        out += dot(_cull_planes[i], vec4{box.min.x, box.max.y, box.max.z, 1.0f}) < 0.0 ? 1 : 0;
-        if (out == 8) {
-          return false;
-        }
-      }
-    
-      return true;
-    }
-
-    struct CullingOptions {
-      bool culling_enabled;
-      bool distance_cull;
-    };
-
-    bool is_sphere_visible(CullData* cull_data, vec3 position, f32 radius) {
-      // Info: get position to camera
-      position = swizzle(cull_data->view * as_vec4(position, 1.0f), 0, 1, 2);
-
-      bool visible = true;
-
-      visible = visible && ((position.y * cull_data->frustum[1]) - (abs(position.x) * cull_data->frustum[0]) > -radius);
-	    visible = visible && ((position.y * cull_data->frustum[3]) - (abs(position.z) * cull_data->frustum[2]) > -radius);
-
-      // Info: distance cull
-      // if(opts.distance_cull) {
-		    // visible = visible && position.y + radius > cull_data->znear && position.y - radius < cull_data->zfar;
-      // }
-
-      // Info: culling is disabled so we dont cull this object
-      // visible = visible || (opts.culling_enabled == false);
-
-      return visible;
-    }
-
-    CullData get_cull_data(Camera3D* camera) {
-      mat4 view = get_camera3d_view(camera);
-      mat4 projection = get_camera3d_projection(camera, get_window_aspect());
-      mat4 projection_matrix_t = transpose(projection);
-
-      auto normalize_plane = [](vec4 p) { return p / length(swizzle(p, 0, 1, 2)); };
-
-      // Info: right-left plane
-      vec4 frustum_x = normalize_plane(projection_matrix_t[3] + projection_matrix_t[0]); // x + w < 0
-
-      // Info: up-down plane
-      vec4 frustum_z = normalize_plane(projection_matrix_t[3] + projection_matrix_t[2]); // z + w < 0
-  
-      CullData cull_data ={};
-
-      cull_data.view = view;
-      // cull_data.p00 = projection[0][0];
-      // cull_data.p22 = projection[2][2];
-      cull_data.frustum[0] = frustum_x.x;
-      cull_data.frustum[1] = frustum_x.y;
-      cull_data.frustum[2] = frustum_z.z;
-      cull_data.frustum[3] = frustum_z.y;
-      // cull_data.znear = camera->z_near;
-      // cull_data.zfar = camera->z_far;
-      // cull_data.lod_base = 10.0f;
-      // cull_data.lod_step = 1.5f;
-
-      return cull_data;
-    }
-
-    FrustumPlanes get_frustum_planes(Camera3D* camera) {
-      mat4 view_projection = get_camera3d_view_projection(camera, get_window_aspect());
-      mat4 view_projection_t = transpose(view_projection);
-
-      FrustumPlanes frustum = {};
-      frustum.planes[0] = view_projection_t[3] + view_projection_t[0];
-      frustum.planes[1] = view_projection_t[3] - view_projection_t[0];
-      frustum.planes[2] = view_projection_t[3] + view_projection_t[1];
-      frustum.planes[3] = view_projection_t[3] - view_projection_t[1];
-      frustum.planes[4] = view_projection_t[3] + view_projection_t[2];
-      frustum.planes[5] = view_projection_t[3] - view_projection_t[2];
-
-      return frustum;
-    }
-
-    MeshInstance create_mesh2(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count) {
+    MeshInstance create_mesh(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count) {
       usize vertex_offset = alloc(&_gpu_vertices_tracker, vertex_count);
       usize index_offset = alloc(&_gpu_indices_tracker, index_count);
 
@@ -1981,10 +1520,10 @@ namespace quark {
         indices[i] += vertex_offset;
       }
 
-      printf("created mesh -- index offset: %d\n", (u32)index_offset);
-      printf("created mesh -- index count: %d\n", (u32)index_count);
-      printf("created mesh -- vertex offset: %d\n", (u32)vertex_offset);
-      printf("created mesh -- vertex count: %d\n", (u32)vertex_count);
+      // printf("created mesh -- index offset: %d\n", (u32)index_offset);
+      // printf("created mesh -- index count: %d\n", (u32)index_count);
+      // printf("created mesh -- vertex offset: %d\n", (u32)vertex_offset);
+      // printf("created mesh -- vertex count: %d\n", (u32)vertex_count);
 
       MeshInstance mesh = {};
       // mesh.count = vertex_count; // index_count;
@@ -2028,319 +1567,6 @@ namespace quark {
 
       vkCmdCopyBufferToImage(commands, src->buffer, dst->image, get_image_layout(dst->current_usage), 1, &copy_region);
     }
-
-    // template <typename T>
-    // T* make(T&& t) {
-    //   T* ta = (T*)malloc(sizeof(T));
-    //   *ta = t;
-    //   return ta;
-    // }
-    
-    // u32 load_obj_mesh(std::string* path) {
-    //   // TODO(sean): load obj model using tinyobjloader
-    //   tinyobj::attrib_t attrib;
-    //   std::vector<tinyobj::shape_t> shapes;
-    //   std::vector<tinyobj::material_t> materials;
-    // 
-    //   std::string warn;
-    //   std::string err;
-    // 
-    //   tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path->c_str(), 0);
-    // 
-    //   if (!warn.empty()) {
-    //     std::cout << "OBJ WARN: " << warn << std::endl;
-    //   }
-    // 
-    //   if (!err.empty()) {
-    //     std::cerr << err << std::endl;
-    //     exit(1);
-    //   }
-    // 
-    //   usize size = 0;
-    //   for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
-    // 
-    //   usize memsize = size * sizeof(VertexPNT);
-    //   VertexPNT* data = (VertexPNT*)alloc(&_render_alloc, memsize);
-    //   usize count = 0;
-    // 
-    //   vec3 max_ext = {0.0f, 0.0f, 0.0f};
-    //   vec3 min_ext = {0.0f, 0.0f, 0.0f};
-    // 
-    //   for_every(s, shapes.size()) {
-    //     isize index_offset = 0;
-    //     for_every(f, shapes[s].mesh.num_face_vertices.size()) {
-    //       isize fv = 3;
-    // 
-    //       for_every(v, fv) {
-    //         // access to vertex
-    //         tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-    // 
-    //         // vertex position
-    //         f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
-    //         f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
-    //         f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
-    //         // vertex normal
-    //         f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
-    //         f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
-    //         f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
-    // 
-    //         f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
-    //         f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
-    // 
-    //         // copy it into our vertex
-    //         VertexPNT new_vert;
-    //         new_vert.position.x = vx;
-    //         new_vert.position.y = vy;
-    //         new_vert.position.z = vz;
-    // 
-    //         new_vert.normal.x = nx;
-    //         new_vert.normal.y = ny;
-    //         new_vert.normal.z = nz;
-    // 
-    //         new_vert.texture.x = tx;
-    //         new_vert.texture.y = ty;
-    // 
-    //         if (new_vert.position.x > max_ext.x) {
-    //           max_ext.x = new_vert.position.x;
-    //         }
-    //         if (new_vert.position.y > max_ext.y) {
-    //           max_ext.y = new_vert.position.y;
-    //         }
-    //         if (new_vert.position.z > max_ext.z) {
-    //           max_ext.z = new_vert.position.z;
-    //         }
-    // 
-    //         if (new_vert.position.x < min_ext.x) {
-    //           min_ext.x = new_vert.position.x;
-    //         }
-    //         if (new_vert.position.y < min_ext.y) {
-    //           min_ext.y = new_vert.position.y;
-    //         }
-    //         if (new_vert.position.z < min_ext.z) {
-    //           min_ext.z = new_vert.position.z;
-    //         }
-    // 
-    //         // normalize vertex positions to -1, 1
-    //         // f32 current_distance = length(new_vert.position) / sqrt_3;
-    //         // if(current_distance > largest_distance) {
-    //         //  largest_distance = current_distance;
-    //         //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
-    //         //}
-    // 
-    //         data[count] = new_vert;
-    //         count += 1;
-    //       }
-    // 
-    //       index_offset += fv;
-    //     }
-    //   }
-    // 
-    //   vec3 ext;
-    //   ext.x = (max_ext.x - min_ext.x);
-    //   ext.y = (max_ext.y - min_ext.y);
-    //   ext.z = (max_ext.z - min_ext.z);
-    // 
-    //   // f32 largest_side = 0.0f;
-    //   // if(ext.x > largest_side) { largest_side = ext.x; }
-    //   // if(ext.y > largest_side) { largest_side = ext.y; }
-    //   // if(ext.z > largest_side) { largest_side = ext.z; }
-    // 
-    //   //auto path_path = std::filesystem::path(*path);
-    //   //_mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
-    //   //print("extents: ", ext);
-    // 
-    //   // normalize vertex positions to -1, 1
-    //   for (usize i = 0; i < size; i += 1) {
-    //     data[i].position /= (ext * 0.5f);
-    //   }
-    // 
-    //   // add mesh to _gpu_meshes
-    //   u32 mesh_id = _gpu_mesh_count;
-    //   _gpu_mesh_count += 1;
-
-    //   const char* name = "";
-
-    //   struct MeshScale : vec3 {};
-
-    //   //add_asset(name, _gpu_meshes[mesh_id], MeshScale { normalize_max_length(ext, 2.0f) });
-    //   //add_asset(, name);
-
-    //   AllocatedMesh* mesh = &_gpu_meshes[mesh_id];//(AllocatedMesh*)_render_alloc.alloc(sizeof(AllocatedMesh));
-    //   *mesh = create_mesh(data, size, sizeof(VertexPNT));
-
-    //   _gpu_mesh_scales[mesh_id] = normalize_max_length(ext, 2.0f);
-
-    //   return mesh_id;
-    // }
-    
-    // TODO(sean): do some kind of better file checking
-    //Mesh* load_vbo_mesh(std::string* path) {
-    //  // Sean: VBO file format:
-    //  // https://github.com/microsoft/DirectXMesh/blob/master/Meshconvert/Mesh.cpp
-    //  u32 vertex_count;
-    //  u32 index_count;
-    //  VertexPNC* vertices; // Sean: we initialize this to the count of indices
-    //  u16* indices;        // Sean: we alloc to the scratch buffer as we're not using index
-    //                       // buffers yet
-    //
-    //  FILE* fp = fopen(path->c_str(), "rb");
-    //
-    //  fread(&vertex_count, sizeof(u32), 1, fp);
-    //  fread(&index_count, sizeof(u32), 1, fp);
-    //
-    //  vertices = (VertexPNC*)RENDER_ALLOC.alloc(index_count * sizeof(VertexPNC));
-    //  indices = (u16*)scratch_alloc.alloc(index_count * sizeof(u16));
-    //
-    //  // Sean: we use this as a temporary buffer for vertices
-    //  VertexPNT* vert_list = (VertexPNT*)scratch_alloc.alloc(vertex_count * sizeof(VertexPNT));
-    //
-    //  fread(vert_list, sizeof(VertexPNT), vertex_count, fp);
-    //  fread(indices, sizeof(u16), index_count, fp);
-    //
-    //  fclose(fp);
-    //
-    //  for_every(i, index_count) {
-    //    vertices[i].position.x = vert_list[indices[i]].position.x;
-    //    vertices[i].position.y = vert_list[indices[i]].position.y;
-    //    vertices[i].position.z = vert_list[indices[i]].position.z;
-    //
-    //    vertices[i].normal.x = vert_list[indices[i]].normal.x;
-    //    vertices[i].normal.y = vert_list[indices[i]].normal.y;
-    //    vertices[i].normal.z = vert_list[indices[i]].normal.z;
-    //
-    //    vertices[i].color.x = vert_list[indices[i]].normal.x;
-    //    vertices[i].color.y = vert_list[indices[i]].normal.y;
-    //    vertices[i].color.z = vert_list[indices[i]].normal.z;
-    //  }
-    //
-    //  Mesh* mesh = (Mesh*)RENDER_ALLOC.alloc(sizeof(Mesh));
-    //
-    //  create_mesh(vertices, index_count, sizeof(VertexPNC), mesh);
-    //
-    //  scratch_alloc.reset();
-    //
-    //  return mesh;
-    //}
-    
-    // void unload_mesh(AllocatedMesh* mesh) {}
-    
-    // Texture loading
-    // void create_texture(void* data, usize width, usize height, VkFormat format, Texture* texture) {}
-    
-    // Texture* load_png_texture(std::string* path) {
-    //   int width, height, channels;
-    //   stbi_uc* pixels = stbi_load(path->c_str(), &width, &height, &channels, STBI_rgb_alpha);
-
-    //   if(!pixels) {
-    //     printf("Failed to load texture file \"%s\"\n", path->c_str());
-    //     panic("");
-    //   }
-
-    //   // copy texture to cpu only memory
-    //   u64 image_size = width * height * 4;
-
-    //   AllocatedBuffer staging_buffer = create_allocated_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    //   void* data;
-    //   vmaMapMemory(_gpu_alloc, staging_buffer.alloc, &data);
-    //   memcpy(data, pixels, (isize)image_size);
-    //   vmaUnmapMemory(_gpu_alloc, staging_buffer.alloc);
-
-    //   stbi_image_free(pixels);
-
-    //   //TODO(sean): transfer to gpu only memory
-    //   VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    //   AllocatedImage alloc_image = create_allocated_image(
-    //       width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, aspect);
-    // 
-    //   //TODO(sean): move this to the 
-    //   auto cmd = begin_quick_commands();
-    //   {
-    //     VkImageSubresourceRange range;
-    // 		range.aspectMask = aspect;
-    // 		range.baseMipLevel = 0;
-    // 		range.levelCount = 1;
-    // 		range.baseArrayLayer = 0;
-    // 		range.layerCount = 1;
-    // 
-    // 		VkImageMemoryBarrier barrier_to_writable = {};
-    // 		barrier_to_writable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // 
-    // 		barrier_to_writable.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    // 		barrier_to_writable.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    // 		barrier_to_writable.image = alloc_image.image;
-    // 		barrier_to_writable.subresourceRange = range;
-    // 
-    // 		barrier_to_writable.srcAccessMask = 0;
-    // 		barrier_to_writable.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    // 
-    // 		vkCmdPipelineBarrier(cmd,
-    //       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
-    //       0, 0, 
-    //       0, 0, 
-    //       1, &barrier_to_writable
-    //     );
-    // 
-    //     VkBufferImageCopy copy_region = {};
-    //     copy_region.bufferOffset = 0;
-    //     copy_region.bufferRowLength = 0;
-    //     copy_region.bufferImageHeight = 0;
-    // 
-    //     copy_region.imageSubresource.aspectMask = aspect;
-    //     copy_region.imageSubresource.mipLevel = 0;
-    //     copy_region.imageSubresource.baseArrayLayer = 0;
-    //     copy_region.imageSubresource.layerCount = 1;
-    //     copy_region.imageExtent = VkExtent3D{(u32)width, (u32)height, 1};
-    // 
-    //     vkCmdCopyBufferToImage(cmd, staging_buffer.buffer, alloc_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
-    // 
-    // 		VkImageMemoryBarrier barrier_to_readable = {};
-    // 		barrier_to_readable.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // 
-    // 		barrier_to_readable.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    // 		barrier_to_readable.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    // 		barrier_to_readable.image = alloc_image.image;
-    // 		barrier_to_readable.subresourceRange = range;
-    // 
-    // 		barrier_to_readable.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    // 		barrier_to_readable.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    // 
-    // 		vkCmdPipelineBarrier(cmd,
-    //       VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
-    //       0, 0, 
-    //       0, 0, 
-    //       1, &barrier_to_readable
-    //     );
-    //   }
-    //   end_quick_commands(cmd);
-    // 
-    //   vmaDestroyBuffer(_gpu_alloc, staging_buffer.buffer, staging_buffer.alloc);
-    // 
-    //   //TODO(sean): store our AllocatedImage in the global textures array and 
-    //   Texture* texture = (Texture*)alloc(&_render_alloc, sizeof(Texture));
-    //   // texture->id = (image_id)_global_constants_layout_info[2].count;
-    // 
-    //   // _gpu_images[_global_constants_layout_info[2].count] = alloc_image;
-    //   // _global_constants_layout_info[2].count += 1;
-    //   // printf("%llu\n", _global_constants_layout_info[2].count);
-    // 
-    //   return texture;
-    // }
-    
-    // Texture* load_qoi_texture(std::string* path) {
-    //   return 0;
-    // }
-    
-    // void unload_texture(Texture* texture) {
-    //   AllocatedImage* alloc_image = &_gpu_images[(u32)texture->id];
-    //   vkDestroyImageView(_context.device, alloc_image->view, 0);
-    //   vmaDestroyImage(_gpu_alloc, alloc_image->image, alloc_image->alloc);
-    // 
-    // #ifdef DEBUG
-    //   alloc_image->format = (VkFormat)0;
-    //   alloc_image->dimensions = {0,0};
-    // #endif
-    // }
     
     void deinit_sync_objects() {
       for_every(i, _FRAME_OVERLAP) {
@@ -2439,16 +1665,10 @@ namespace quark {
       //update_descriptor_sets();
     }
     
-    // void update_descriptor_sets() {
-    //   for_every(i, _FRAME_OVERLAP) {
-    //     update_desc_set(_global_constants_sets[i], _frame_index, _global_constants_layout_info, false);
-    //   }
-    // }
-    
     void print_performance_statistics() {
-    //  if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
-    //    return;
-    //  }
+      // if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
+      //   return;
+      // }
 
       static f32 timer = 0.0;
       static u32 frame_number = 0;
@@ -2538,7 +1758,6 @@ namespace quark {
         high = 0.0;
       }
     }
-  // };
 };
 
 // effect

@@ -9,12 +9,16 @@
 
 layout (location = 0) in vec3 VERTEX_POSITION;
 
-layout (set = 0, binding = 0) uniform WorldData {
+// layout (set = 0, binding = 0) uniform WorldData {
+//   mat4 MAIN_VP;
+//   mat4 SUN_VP;
+//   vec4 WORLD_TINT;
+//   vec4 WORLD_AMBIENT;
+//   float TIME;
+// };
+
+layout (push_constant) uniform PushConstants {
   mat4 MAIN_VP;
-  mat4 SUN_VP;
-  vec4 WORLD_TINT;
-  vec4 WORLD_AMBIENT;
-  float TIME;
 };
 
 struct Transform {

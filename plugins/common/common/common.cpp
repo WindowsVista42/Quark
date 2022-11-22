@@ -406,6 +406,7 @@ namespace common {
     create_action("ui_exit");
 
     create_action("b");
+    create_action("g");
 
     create_action("look_right", 0.0f);
     create_action("look_left",  0.0f);
@@ -428,6 +429,7 @@ namespace common {
     bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 256.0f);
 
     bind_action("b", KeyCode::B);
+    bind_action("g", KeyCode::LeftShift);
 
     update_component(Transform2);
     update_component(Model2);
@@ -458,24 +460,24 @@ namespace common {
 
   void update0() {
     static bool first = true;
-    static ColorMaterial2 color_material_instance = {
+    static ColorMaterial color_material_instance = {
       .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },
     };
-    static u32 color_material_index = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
-    static u32 color_material_index2 = add_material_instance(ColorMaterial2::MATERIAL_ID, &color_material_instance);
+    static u32 color_material_index = add_material_instance(ColorMaterial::MATERIAL_ID, &color_material_instance);
+    static u32 color_material_index2 = add_material_instance(ColorMaterial::MATERIAL_ID, &color_material_instance);
 
-    static TextureMaterial2 texture_material_instance = {
+    static TextureMaterial texture_material_instance = {
       .tint = {},
       .albedo = *get_asset<ImageId>("bigtest"),
       .tiling = { 1, 1 },
       .offset = {},
     };
-    static u32 texture_material_index = add_material_instance(TextureMaterial2::MATERIAL_ID, &texture_material_instance);
+    static u32 texture_material_index = add_material_instance(TextureMaterial::MATERIAL_ID, &texture_material_instance);
 
-    ((TextureMaterial2*)get_material_instance(TextureMaterial2::MATERIAL_ID, texture_material_index))->offset = { sinf(T), cosf(T) };
+    ((TextureMaterial*)get_material_instance(TextureMaterial::MATERIAL_ID, texture_material_index))->offset = { sinf(T), cosf(T) };
     T += delta();
 
-    u32 draw_count = 32;
+    u32 draw_count = 64;
     f32 draw_inst_dist = 3.0f;
     f32 draw_dim_size = draw_inst_dist * draw_count;
 
@@ -496,7 +498,7 @@ namespace common {
 
       for_every(x, draw_count) {
         for_every(y, draw_count) {
-          u32 entity_id = create_entity2();
+          u32 entity_id = create_entity();
 
           Transform2 transform = {
             .position = vec3 { px, py, pz },
@@ -505,9 +507,9 @@ namespace common {
 
           Model2 model = m2;
 
-          TextureMaterial2Index material_index = { texture_material_index };
+          TextureMaterialIndex material_index = { texture_material_index };
 
-          add_components2(entity_id, transform, model, material_index, ECS_ACTIVE_FLAG);
+          add_components(entity_id, transform, model, material_index, ECS_ACTIVE_FLAG);
 
           py += draw_inst_dist;
         }
@@ -522,9 +524,9 @@ namespace common {
     if(get_action("b").just_down) {
       static u32 asdf = 0;
       asdf = 0;
-      for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterial2Index* i) {
+      for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterialIndex* i) {
         if(asdf % 3 == 0) {
-          destroy_entity2(entity_id);
+          destroy_entity(entity_id);
         }
         asdf += 1;
       });
@@ -532,18 +534,18 @@ namespace common {
 
     Drawable drawable_instance  ={
       .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
-      .model = create_model("tri", VEC3_ONE),
+      .model = create_model("suzanne", VEC3_ONE),
     };
 
     drawable_instance.transform.position = { 0.0f, 5.0f, 5.0f };
-    TextureMaterial2 texture_material = {
+    TextureMaterial texture_material = {
       .tint = { 1.0f, 0.0f, 0.0f, 1.0f },
       .albedo = *get_asset<ImageId>("bigtest"),
       .tiling = { 1, 1 },
       .offset = { sinf(T), cosf(T) },
     };
 
-    push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
+    push_drawable_instance(TextureMaterial::MATERIAL_ID, &drawable_instance, &texture_material);
 
     // drawable_instance.transform.position = { 5.0f, 5.0f, 5.0f };
     // push_drawable_instance(TextureMaterial2::MATERIAL_ID, &drawable_instance, &texture_material);
@@ -551,7 +553,7 @@ namespace common {
     // get_resource(ColorMaterial2World)->tint.x = (sinf(T) / 2.0f + 0.5f) * 1.0f;
     // printf("Added drawable!\n");
 
-    for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterial2Index* i) {
+    for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterialIndex* i) {
       Drawable drawable;
       drawable.transform.position = t->position;
       drawable.transform.rotation = t->rotation;
@@ -562,7 +564,7 @@ namespace common {
       //   .color = vec4 { 1.0f, 0.0f, 0.0f, 1.0f },
       // };
 
-      push_drawable(TextureMaterial2::MATERIAL_ID, &drawable, i->value);
+      push_drawable(TextureMaterial::MATERIAL_ID, &drawable, i->value);
     });
 
     // init_ecs();
@@ -638,11 +640,16 @@ namespace common {
 
       move_dir = rotate_point(move_dir, main_camera->rotation.yaw);
 
-      main_camera->position.x += move_dir.x * delta() * 100.0f;
-      main_camera->position.y += move_dir.y * delta() * 100.0f;
+      f32 move_mult = 100.0f;
+      if(get_action("g").down) {
+        move_mult = 10.0f;
+      }
+
+      main_camera->position.x += move_dir.x * delta() * move_mult;
+      main_camera->position.y += move_dir.y * delta() * move_mult;
   
-      main_camera->position.z += get_action("up").value * delta() * 100.0f;
-      main_camera->position.z -= get_action("down").value * delta() * 100.0f;
+      main_camera->position.z += get_action("up").value * delta() * move_mult;
+      main_camera->position.z -= get_action("down").value * delta() * move_mult;
 
       static f32 strength = 1.0f;
       if(get_key_down(KeyCode::B)) {
