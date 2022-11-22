@@ -506,6 +506,7 @@ namespace common {
           };
 
           Model2 model = m2;
+          model.half_extents *= (rand() % 100) / 100.0f + 0.5f;
 
           TextureMaterialIndex material_index = { texture_material_index };
 
