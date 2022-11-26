@@ -14,6 +14,35 @@
 
 namespace quark {
 
+  struct MeshFileHeader {
+    u64 uuid_lo;
+    u64 uuid_hi;
+    u32 version;
+    u32 vertex_count;
+    u32 index_count;
+    u32 lod_count;
+    vec3 half_extents;
+    u32 _pad0;
+  };
+
+  struct MeshFileLod {
+    u32 vertex_offset;
+    u32 vertex_count;
+    u32 index_offset;
+    u32 index_count;
+    f32 threshold;
+    u32 _pad0;
+  };
+
+  struct MeshFile {
+    MeshFileHeader* header;
+    MeshFileLod* lods;
+    u32* indices;
+    vec3* positions;
+    vec3* normals;
+    vec2* uvs;
+  };
+
 //
 // Component Types
 //
@@ -399,6 +428,7 @@ namespace quark {
   // Todo: Move to render
   engine_api void load_obj_file(const char* path, const char* name);
   engine_api void load_png_file(const char* path, const char* name);
+  engine_api void load_qmesh_file(const char* path, const char* name);
 
   engine_api void load_vert_shader(const char* path, const char* name);
   engine_api void load_frag_shader(const char* path, const char* name);

@@ -534,7 +534,7 @@ namespace common {
     }
 
     Drawable drawable_instance  ={
-      .transform = { {0.0f, 3.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
+      .transform = { {3.0f, 34.0f, 4.0f}, { 0.0f, 0.0f, 0.0f, 1.0f }, },
       .model = create_model("suzanne", VEC3_ONE),
     };
 
@@ -641,9 +641,9 @@ namespace common {
 
       move_dir = rotate_point(move_dir, main_camera->rotation.yaw);
 
-      f32 move_mult = 100.0f;
+      f32 move_mult = 10.0f;
       if(get_action("g").down) {
-        move_mult = 10.0f;
+        move_mult = 100.0f;
       }
 
       main_camera->position.x += move_dir.x * delta() * move_mult;

@@ -6,4 +6,4 @@ layout (set = 0, binding = 0) uniform WorldData {
   f32 TIME;
 };
 
-layout (set = 0, binding = 1) uniform sampler2D TEXTURES[1024];
+layout (set = 0, binding = 1) uniform sampler2D TEXTURES[64];

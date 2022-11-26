@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 #include <stb_image.h>
 #include <meshoptimizer.h>
+#include <lz4.h>
 
 namespace quark {
   define_resource(MainCamera, {{
@@ -219,9 +220,9 @@ namespace quark {
       // Optionally log/time the functions being run
       WorkFunction system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
-        // print_tempstr(create_tempstr() + "Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
+        // log("Running: " + _system_names.at(list->systems[i]).c_str());
         system();
-        // print_tempstr(create_tempstr() + "Finished: " + _system_names.at(list->systems[i]).c_str() + "\n");
+        // log("Finished: " + _system_names.at(list->systems[i]).c_str());
       }
       _system_runtimes[system_list].push_back(get_timestamp());
     }
@@ -737,9 +738,11 @@ namespace quark {
     }
   }
 
+#define inc_bytes(buf, type, count) (type*)(buf); (buf) += sizeof(type) * (count)
+
   void load_obj_file(const char* path, const char* name) {
-    TempStack stack = begin_scratch(0, 0);
-    defer(end_scratch(stack));
+    TempStack scratch = begin_scratch(0, 0);
+    defer(end_scratch(scratch));
 
     // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
@@ -884,161 +887,139 @@ namespace quark {
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
     // meshopt_optimizeVertexFetch()
 
+    // MeshId id = (MeshId)_context->mesh_counts;
+    // _context->mesh_counts += 1;
+
+    // struct MeshScale : vec3 {};
+
+    // _context->mesh_instances[(u32)id] = create_mesh(positions.data(), normals.data(), uvs.data(), positions.size(), indices.data(), indices.size());
+    // //vertices.data(), vertices.size(), indices.data(), indices.size());
+    // _context->mesh_scales[(u32)id] = normalize_max_length(extents, 2.0f);
+
+    // add_asset(name, id);
+
+    char test[64];
+    sprintf(test, "quark/qmesh/%s.qmesh", name);
+
+    static uint64_t UUID_LO = 0xa70e90948be13cb1;
+    static uint64_t UUID_HI = 0x847f281e519ba44f;
+
+    FILE* f = fopen(test, "wb");
+    defer(fclose(f));
+
+    MeshFileHeader header = {};
+    header.uuid_lo = UUID_LO;
+    header.uuid_hi = UUID_HI;
+    header.version = 1;
+    header.vertex_count = positions.size();
+    header.index_count = indices.size();
+    header.lod_count = 1;
+    header.half_extents = extents;
+
+    fwrite(&header, sizeof(MeshFileHeader), 1, f);
+
+    // dump_struct(&header);
+
+    MeshFileLod lod0 = {};
+    lod0.vertex_offset = 0;
+    lod0.vertex_count = positions.size();
+    lod0.index_offset = 0;
+    lod0.index_count = indices.size();
+    lod0.threshold = 0.5f;
+
+    fwrite(&lod0, sizeof(MeshFileLod), 1, f);
+
+    // u8* decomp_bytes = push_arena(scratch.arena, 8 * MB);
+    u8* decomp_bytes = push_arena(scratch.arena, 0);
+    usize start = get_arena_pos(scratch.arena);
+    copy_array_arena(scratch.arena, indices.data(), u32, indices.size());
+    copy_array_arena(scratch.arena, positions.data(), vec3, positions.size());
+    copy_array_arena(scratch.arena, normals.data(), vec3, normals.size());
+    copy_array_arena(scratch.arena, uvs.data(), vec2, uvs.size());
+
+    // u32* indices2 = inc_bytes(decomp_bytes, u32, indices.size());
+    // copy_array(indices2, indices.data(), u32, indices.size());
+    usize end = get_arena_pos(scratch.arena);
+    i32 decomp_size = end - start;
+    printf("decomp_size: %d\n", decomp_size);
+
+    u8* comp_bytes = push_arena(scratch.arena, 8 * MB);
+    i32 comp_size = LZ4_compress_default((const char*)decomp_bytes, (char*)comp_bytes, decomp_size, 8 * MB);
+    printf("comp_size: %d\n", comp_size);
+    fwrite(comp_bytes, 1, comp_size, f);
+
+    // fwrite(indices.data(), sizeof(u32), indices.size(), f);
+    // fwrite(positions.data(), sizeof(vec3), positions.size(), f);
+    // fwrite(normals.data(), sizeof(vec3), normals.size(), f);
+    // fwrite(uvs.data(), sizeof(vec3), uvs.size(), f);
+  }
+
+  void load_qmesh_file(const char* path, const char* name) {
+    static uint64_t UUID_LO = 0xa70e90948be13cb1;
+    static uint64_t UUID_HI = 0x847f281e519ba44f;
+
+    FILE* f = fopen(path, "rb");
+    defer(fclose(f));
+
+    fseek(f, 0L, SEEK_END);
+    usize fsize = ftell(f);
+    fseek(f, 0L, SEEK_SET);
+
+    if(fsize < sizeof(MeshFileHeader)) {
+      log("Attempted to load mesh file: " + name + ".qmesh but it was too small to be a mesh file!\n");
+      panic("");
+    }
+
+    TempStack scratch = begin_scratch(0, 0);
+    defer(end_scratch(scratch));
+
+    u8* raw_bytes = push_arena(scratch.arena, fsize);
+    fread(raw_bytes, 1, fsize, f);
+
+    MeshFile file = {};
+
+    file.header = inc_bytes(raw_bytes, MeshFileHeader, 1);
+
+    // dump_struct(file.header);
+
+    if(file.header->uuid_lo != UUID_LO || file.header->uuid_hi != UUID_HI) {
+      log("Attempted to load mesh file: " + name + ".qmesh but it was not the correct format!\n");
+      panic("");
+    }
+
+    file.lods = inc_bytes(raw_bytes, MeshFileLod, file.header->lod_count);
+
+    u32 comp_size = fsize - sizeof(MeshFileHeader) - (sizeof(MeshFileLod) * file.header->lod_count);
+    // printf("comp_size: %u\n", comp_size);
+
+    // decompress
+    u8* decomp_bytes = push_arena(scratch.arena, 8 * MB);
+    i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 8 * MB);
+    // printf("decomp_size: %u\n", decomp_size);
+
+    file.indices = inc_bytes(decomp_bytes, u32, file.header->index_count);
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.positions = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.normals = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.uvs = inc_bytes(decomp_bytes, vec2, file.header->vertex_count);
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
     MeshId id = (MeshId)_context->mesh_counts;
     _context->mesh_counts += 1;
 
     struct MeshScale : vec3 {};
 
-    _context->mesh_instances[(u32)id] = create_mesh(positions.data(), normals.data(), uvs.data(), positions.size(), indices.data(), indices.size());
-    //vertices.data(), vertices.size(), indices.data(), indices.size());
-    _context->mesh_scales[(u32)id] = normalize_max_length(extents, 2.0f);
+    _context->mesh_instances[(u32)id] = create_mesh(file.positions, file.normals, file.uvs, file.header->vertex_count, file.indices, file.header->index_count);
+    _context->mesh_scales[(u32)id] = normalize_max_length(file.header->half_extents, 2.0f);
+
+    printf("%s: %d\n", name, file.header->index_count);
 
     add_asset(name, id);
-
-    // usize voffset = 0;
-    // for_every(v, vertex_count) {
-    //   vertex_data2[voffset] = VertexPNT {
-    //     .position = {
-    //       attrib.vertices[v * 3 + 0],
-    //       attrib.vertices[v * 3 + 1],
-    //       attrib.vertices[v * 3 + 2],
-    //     },
-    //     .normal = {
-    //       attrib.normals[v * 3 + 0],
-    //       attrib.normals[v * 3 + 1],
-    //       attrib.normals[v * 3 + 2],
-    //     },
-    //     .texture = {
-    //       attrib.texcoords[v * 2 + 0],
-    //       attrib.texcoords[v * 2 + 1],
-    //     },
-    //   };
-
-    //   // Info: find mesh extents
-    //   max_ext.x = max(max_ext.x, vertex_data2[voffset].position.x);
-    //   min_ext.x = min(min_ext.x, vertex_data2[voffset].position.x);
-
-    //   max_ext.y = max(max_ext.y, vertex_data2[voffset].position.y);
-    //   min_ext.y = min(min_ext.y, vertex_data2[voffset].position.y);
-
-    //   max_ext.z = max(max_ext.z, vertex_data2[voffset].position.z);
-    //   min_ext.z = min(min_ext.z, vertex_data2[voffset].position.z);
-
-    //   voffset += 1;
-    // }
-
-    // usize index_count = size;
-    // u32* index_data = push_array_arena(stack.arena, u32, index_count);
-
-    // usize ioffset = 0;
-    // for_every(s, shapes.size()) {
-    //   for_every(i, shapes[s].mesh.indices.size()) {
-    //     index_data[ioffset] = shapes[s].mesh.indices[i].vertex_index;
-    //     ioffset += 1;
-    //   }
-    // }
-
-    // usize index_memsize = size * sizeof(u32);
-    // u32* index_data = (u32*)push_arena(stack.arena, index_memsize);
-
-    // usize count = 0;
-  
-    // for_every(s, shapes.size()) {
-    //   isize index_offset = 0;
-    //   for_every(f, shapes[s].mesh.num_face_vertices.size()) {
-    //     isize fv = 3;
-  
-    //     for_every(v, fv) {
-    //       // access to vertex
-    //       tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-  
-    //       // vertex position
-    //       f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
-    //       f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
-    //       f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
-    //       // vertex normal
-    //       f32 nx = attrib.normals[(3 * idx.normal_index) + 0];
-    //       f32 ny = attrib.normals[(3 * idx.normal_index) + 1];
-    //       f32 nz = attrib.normals[(3 * idx.normal_index) + 2];
-  
-    //       f32 tx = attrib.texcoords[(2 * idx.texcoord_index) + 0];
-    //       f32 ty = attrib.texcoords[(2 * idx.texcoord_index) + 1];
-  
-    //       // copy it into our vertex
-    //       VertexPNT new_vert;
-    //       new_vert.position.x = vx;
-    //       new_vert.position.y = vy;
-    //       new_vert.position.z = vz;
-  
-    //       new_vert.normal.x = nx;
-    //       new_vert.normal.y = ny;
-    //       new_vert.normal.z = nz;
-  
-    //       new_vert.texture.x = tx;
-    //       new_vert.texture.y = ty;
-
-    //       if (new_vert.position.x > max_ext.x) {
-    //         max_ext.x = new_vert.position.x;
-    //       }
-    //       if (new_vert.position.y > max_ext.y) {
-    //         max_ext.y = new_vert.position.y;
-    //       }
-    //       if (new_vert.position.z > max_ext.z) {
-    //         max_ext.z = new_vert.position.z;
-    //       }
-  
-    //       if (new_vert.position.x < min_ext.x) {
-    //         min_ext.x = new_vert.position.x;
-    //       }
-    //       if (new_vert.position.y < min_ext.y) {
-    //         min_ext.y = new_vert.position.y;
-    //       }
-    //       if (new_vert.position.z < min_ext.z) {
-    //         min_ext.z = new_vert.position.z;
-    //       }
-  
-    //       // normalize vertex positions to -1, 1
-    //       // f32 current_distance = length(new_vert.position) / sqrt_3;
-    //       // if(current_distance > largest_distance) {
-    //       //  largest_distance = current_distance;
-    //       //  largest_scale_value = normalize(new_vert.position) / sqrt_3;
-    //       //}
-  
-    //       vertex_data[count] = new_vert;
-    //       count += 1;
-    //     }
-  
-    //     index_offset += fv;
-    //   }
-    // }
-  
-    // f32 largest_side = 0.0f;
-    // if(ext.x > largest_side) { largest_side = ext.x; }
-    // if(ext.y > largest_side) { largest_side = ext.y; }
-    // if(ext.z > largest_side) { largest_side = ext.z; }
-  
-    //auto path_path = std::filesystem::path(*path);
-    //_mesh_scales.insert(std::make_pair(path_path.filename().string(), ext));
-    //print("extents: ", ext);
-  
-    // normalize vertex positions to -1, 1
-    // for (usize i = 0; i < size; i += 1) {
-    //   vertex_data[i].position /= (ext * 0.5f);
-    // }
-
-    // MeshRegistry* meshes = get_resource(Resource<MeshRegistry> {});
-    // add mesh to _gpu_meshes
-     // MeshId id = {
-     //   .index = (u32)_context->mesh_counts,
-     // };
-     // _context->mesh_counts += 1;
-
-     // struct MeshScale : vec3 {};
-
-     // _context->mesh_instances[id.index] = create_mesh(vertex_data, size, sizeof(VertexPNT));
-     // _context->mesh_scales[id.index] = normalize_max_length(ext, 2.0f);
-
-     // add_asset(name, id);
   }
 
   void load_png_file(const char* path, const char* name) {

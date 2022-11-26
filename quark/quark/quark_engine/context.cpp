@@ -42,10 +42,16 @@ namespace quark {
     add_asset_file_loader(".frag.spv", load_frag_shader);
     add_asset_file_loader(".obj", load_obj_file);
     add_asset_file_loader(".png", load_png_file);
+    add_asset_file_loader(".qmesh", load_qmesh_file);
 
     load_asset_folder("quark/shaders");
-    load_asset_folder("quark/models");
+    // load_asset_folder("quark/models");
     load_asset_folder("quark/textures");
+    Timestamp t0 = get_timestamp();
+    load_asset_folder("quark/qmesh");
+    Timestamp t1 = get_timestamp();
+    f64 t = get_timestamp_difference(t0, t1);
+    printf("loading qmeshes took: %lf seconds!\n", t);
   }
 
   Timestamp frame_begin_time;

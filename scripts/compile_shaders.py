@@ -132,7 +132,7 @@ def compile_ext_shader(path):
 
 def compile_spv_shader(path):
     spv_path = path + ".spv"
-    cmd = "glsLangValidator " + path + " -V -o " + spv_path
+    cmd = "glsLangValidator "  + path + " -V --target-env vulkan1.2 -o " + spv_path
     os.system(cmd)
 
 if __name__ == "__main__":

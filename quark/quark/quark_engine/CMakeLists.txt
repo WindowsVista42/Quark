@@ -3,7 +3,10 @@ add_library(quark_engine SHARED
   quark_engine.cpp
   render.cpp
   materials.cpp
+  ../../../lib/lz4/lib/lz4.c
 )
+
+target_include_directories(quark_engine PRIVATE ../../../lib/lz4/lib)
 
 #target_precompile_headers(quark_engine PUBLIC
 #  <cstdint>

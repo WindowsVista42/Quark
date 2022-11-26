@@ -35,5 +35,9 @@ using namespace quark;
   template <typename T>
   T* get_asset(const char* name) {
     static auto* map = create_cached_type_map<T>(&get_resource(AssetServer)->data, std::unordered_map<u32, T>());
+    if(map->count(hash_str_fast(name)) == 0) {
+      log("Failed to find asset: " + name);
+      panic("");
+    }
     return &map->at(hash_str_fast(name));
   }

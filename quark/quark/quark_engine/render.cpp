@@ -391,24 +391,25 @@ namespace quark {
         } else { \
           printf("Error: %s\n", v.error().message().c_str()); \
         }
-
-      u32 glfw_extension_count;
-      const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
     
       vkb::InstanceBuilder builder;
       builder = builder.set_app_name("");
       builder = builder.set_engine_name("Quark");
       builder = builder.use_default_debug_messenger();
 
+      const u32 vk_api_version = VK_API_VERSION_1_2;
+      const u32 vk_api_major = 1;
+      const u32 vk_api_minor = 2;
+      builder.require_api_version(vk_api_version);
+
+      u32 glfw_extension_count;
+      const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
       for_every(index, glfw_extension_count) {
         builder = builder.enable_extension(glfw_extensions[index]);
       }
 
-      const u32 vk_api_version = VK_API_VERSION_1_2;
-      const u32 vk_api_major = 1;
-      const u32 vk_api_minor = 2;
-
-      builder.require_api_version(vk_api_version);
+      // const char* draw_param_ext = VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME;
+      // builder = builder.enable_extension(draw_param_ext);
     
       #ifdef DEBUG
         builder = builder.request_validation_layers(true);
@@ -429,11 +430,16 @@ namespace quark {
       device_features.wideLines = VK_TRUE;
       device_features.largePoints = VK_TRUE;
       device_features.multiDrawIndirect = VK_TRUE;
+
+
+      VkPhysicalDeviceVulkan11Features device_features_11 = {};
+      device_features_11.shaderDrawParameters = VK_TRUE;
     
       vkb::PhysicalDeviceSelector selector{vkb_inst};
-      selector = selector.set_minimum_version(1, 0);
+      selector = selector.set_minimum_version(vk_api_major, vk_api_minor);
       selector = selector.set_surface(_context->surface);
       selector = selector.set_required_features(device_features);
+      selector = selector.set_required_features_11(device_features_11);
       selector = selector.allow_any_gpu_device_type();
       selector = selector.prefer_gpu_device_type();
 
@@ -582,7 +588,7 @@ namespace quark {
       vkb::SwapchainBuilder swapchain_builder{_context->physical_device, _context->device, _context->surface};
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
-      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
+      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
