@@ -20,6 +20,10 @@ namespace quark {
     u32 version;
     u32 vertex_count;
     u32 index_count;
+    u32 indices_encoded_size;
+    u32 positions_encoded_size;
+    u32 normals_encoded_size;
+    u32 uvs_encoded_size;
     u32 lod_count;
     vec3 half_extents;
     u32 _pad0;

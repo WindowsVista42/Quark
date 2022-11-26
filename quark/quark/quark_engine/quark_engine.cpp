@@ -885,6 +885,38 @@ namespace quark {
     meshopt_remapVertexBuffer(uvs.data(), uvs_unmapped.data(), index_count, sizeof(vec2), remap.data());
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+
+    u8* buffer_i = push_arena(scratch.arena, 8 * MB);
+    usize buffer_i_size = meshopt_encodeIndexBuffer(buffer_i, 8 * MB, indices.data(), indices.size());
+
+    u8* buffer_p = push_arena(scratch.arena, 8 * MB);
+    usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
+
+    u8* buffer_n = push_arena(scratch.arena, 8 * MB);
+    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 8 * MB, normals.data(), normals.size(), sizeof(vec3));
+
+    u8* buffer_u = push_arena(scratch.arena, 8 * MB);
+    usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 8 * MB, uvs.data(), uvs.size(), sizeof(vec2));
+
+    // usize buffer_size = buffer_i_size + buffer_p_size + buffer_n_size + buffer_u_size;
+    u8* buffer = push_arena(scratch.arena, 0); // push_arena(scratch.arena, 8 * MB);
+    copy_mem_arena(scratch.arena, buffer_i, buffer_i_size);
+    copy_mem_arena(scratch.arena, buffer_p, buffer_p_size);
+    copy_mem_arena(scratch.arena, buffer_n, buffer_n_size);
+    copy_mem_arena(scratch.arena, buffer_u, buffer_u_size);
+    u8* end = push_arena(scratch.arena, 0);
+    usize buffer_size = (usize)(end - buffer);
+    // copy_mem(buffer, buffer_i, buffer_i_size);
+    // copy_mem(buffer + buffer_i_size, buffer_p, buffer_p_size);
+    // copy_mem(buffer + buffer_i_size + buffer_p_size, buffer_n, buffer_n_size);
+    // copy_mem(buffer + buffer_i_size + buffer_p_size + buffer_n_size, buffer_u, buffer_u_size);
+
+    u8* buffer2 = push_arena(scratch.arena, 8 * MB);
+    i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 8 * MB);
+
+    u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
+    printf("Compressed mesh %.2f%%\n", (1.0f - (buffer2_size / (f32)before_size)) * 100.0f);
+
     // meshopt_optimizeVertexFetch()
 
     // MeshId id = (MeshId)_context->mesh_counts;
@@ -913,6 +945,10 @@ namespace quark {
     header.version = 1;
     header.vertex_count = positions.size();
     header.index_count = indices.size();
+    header.indices_encoded_size = buffer_i_size;
+    header.positions_encoded_size = buffer_p_size;
+    header.normals_encoded_size = buffer_n_size;
+    header.uvs_encoded_size = buffer_u_size;
     header.lod_count = 1;
     header.half_extents = extents;
 
@@ -929,24 +965,28 @@ namespace quark {
 
     fwrite(&lod0, sizeof(MeshFileLod), 1, f);
 
+    // printf("%s\n", name);
+
     // u8* decomp_bytes = push_arena(scratch.arena, 8 * MB);
-    u8* decomp_bytes = push_arena(scratch.arena, 0);
-    usize start = get_arena_pos(scratch.arena);
-    copy_array_arena(scratch.arena, indices.data(), u32, indices.size());
-    copy_array_arena(scratch.arena, positions.data(), vec3, positions.size());
-    copy_array_arena(scratch.arena, normals.data(), vec3, normals.size());
-    copy_array_arena(scratch.arena, uvs.data(), vec2, uvs.size());
+    // u8* decomp_bytes = push_arena(scratch.arena, 0);
+    // usize start = get_arena_pos(scratch.arena);
+    // copy_array_arena(scratch.arena, indices.data(), u32, indices.size());
+    // copy_array_arena(scratch.arena, positions.data(), vec3, positions.size());
+    // copy_array_arena(scratch.arena, normals.data(), vec3, normals.size());
+    // copy_array_arena(scratch.arena, uvs.data(), vec2, uvs.size());
 
-    // u32* indices2 = inc_bytes(decomp_bytes, u32, indices.size());
-    // copy_array(indices2, indices.data(), u32, indices.size());
-    usize end = get_arena_pos(scratch.arena);
-    i32 decomp_size = end - start;
-    printf("decomp_size: %d\n", decomp_size);
+    // // u32* indices2 = inc_bytes(decomp_bytes, u32, indices.size());
+    // // copy_array(indices2, indices.data(), u32, indices.size());
+    // usize end = get_arena_pos(scratch.arena);
+    // i32 decomp_size = end - start;
+    // printf("decomp_size: %d\n", decomp_size);
 
-    u8* comp_bytes = push_arena(scratch.arena, 8 * MB);
-    i32 comp_size = LZ4_compress_default((const char*)decomp_bytes, (char*)comp_bytes, decomp_size, 8 * MB);
-    printf("comp_size: %d\n", comp_size);
-    fwrite(comp_bytes, 1, comp_size, f);
+    // u8* comp_bytes = push_arena(scratch.arena, 8 * MB);
+    // i32 comp_size = LZ4_compress_default((const char*)decomp_bytes, (char*)comp_bytes, decomp_size, 8 * MB);
+    // printf("comp_size: %d\n", comp_size);
+
+    // fwrite(comp_bytes, 1, comp_size, f);
+    fwrite(buffer2, 1, buffer2_size, f);
 
     // fwrite(indices.data(), sizeof(u32), indices.size(), f);
     // fwrite(positions.data(), sizeof(vec3), positions.size(), f);
@@ -997,17 +1037,48 @@ namespace quark {
     i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 8 * MB);
     // printf("decomp_size: %u\n", decomp_size);
 
-    file.indices = inc_bytes(decomp_bytes, u32, file.header->index_count);
+    file.indices = (u32*)push_arena(scratch.arena, 8 * MB);
+    meshopt_decodeIndexBuffer(file.indices, file.header->index_count, sizeof(u32), decomp_bytes, file.header->indices_encoded_size);
+    decomp_bytes += file.header->indices_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.positions = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    file.positions = (vec3*)push_arena(scratch.arena, 8 * MB);
+    meshopt_decodeVertexBuffer(file.positions, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->positions_encoded_size);
+    decomp_bytes += file.header->positions_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.normals = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    file.normals = (vec3*)push_arena(scratch.arena, 8 * MB);
+    meshopt_decodeVertexBuffer(file.normals, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->normals_encoded_size);
+    decomp_bytes += file.header->normals_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.uvs = inc_bytes(decomp_bytes, vec2, file.header->vertex_count);
+    file.uvs = (vec2*)push_arena(scratch.arena, 8 * MB);
+    meshopt_decodeVertexBuffer(file.uvs, file.header->vertex_count, sizeof(vec2), decomp_bytes, file.header->uvs_encoded_size);
+    decomp_bytes += file.header->uvs_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    printf("decomp_size: %d\n", decomp_size);
+
+    // u8* buffer_p = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
+
+    // u8* buffer_n = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, normals.data(), normals.size(), sizeof(vec3));
+
+    // u8* buffer_u = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, uvs.data(), uvs.size(), sizeof(vec2));
+
+    // file.indices = inc_bytes(decomp_bytes, u32, file.header->index_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.positions = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.normals = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.uvs = inc_bytes(decomp_bytes, vec2, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
     MeshId id = (MeshId)_context->mesh_counts;
     _context->mesh_counts += 1;

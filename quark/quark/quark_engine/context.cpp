@@ -45,7 +45,7 @@ namespace quark {
     add_asset_file_loader(".qmesh", load_qmesh_file);
 
     load_asset_folder("quark/shaders");
-    // load_asset_folder("quark/models");
+    load_asset_folder("quark/models");
     load_asset_folder("quark/textures");
     Timestamp t0 = get_timestamp();
     load_asset_folder("quark/qmesh");
