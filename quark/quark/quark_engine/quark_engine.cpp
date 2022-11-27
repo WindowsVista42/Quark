@@ -111,6 +111,11 @@ namespace quark {
   }
 
   Action get_action(const char* action_name) {
+    if(_action_state_map.count(action_name) == 0) {
+      log("Could not find action: " + action_name);
+      panic("Could not find action!\n");
+    }
+
     ActionState state = _action_state_map.at(action_name);
 
     return Action {

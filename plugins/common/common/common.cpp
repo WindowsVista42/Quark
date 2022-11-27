@@ -438,8 +438,8 @@ namespace common {
     bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 256.0f);
     bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 256.0f);
 
-    bind_action("add_entities",    KeyCode::B);
-    bind_action("remove_entities", KeyCode::V);
+    bind_action("add_entities",    KeyCode::V);
+    bind_action("remove_entities", KeyCode::B);
 
     bind_action("save", KeyCode::M);
     bind_action("load", KeyCode::N);
@@ -507,7 +507,7 @@ namespace common {
       .id = suzanne.id,
     };
 
-    for(usize i = get_action("v").just_down ? 1 : 0; i > 0; i -= 1) {
+    for(usize i = get_action("add_entities").just_down ? 1 : 0; i > 0; i -= 1) {
       // printf("v pressed!\n");
       static f32 pz = 0.0f;
 
@@ -542,7 +542,7 @@ namespace common {
       pz += 3.0f;
     }
 
-    if(get_action("b").just_down) {
+    if(get_action("remove_entities").just_down) {
       static u32 asdf = 0;
       asdf = 0;
       for_archetype(u32 exclude[0] = {}; static void update(u32 entity_id, Transform2* t, Model2* m, TextureMaterialIndex* i) {
@@ -662,15 +662,15 @@ namespace common {
       move_dir = rotate_point(move_dir, main_camera->rotation.yaw);
 
       f32 move_mult = 10.0f;
-      if(get_action("g").down) {
+      if(get_action("move_fast").down) {
         move_mult = 100.0f;
       }
 
       main_camera->position.x += move_dir.x * delta() * move_mult;
       main_camera->position.y += move_dir.y * delta() * move_mult;
   
-      main_camera->position.z += get_action("up").value * delta() * move_mult;
-      main_camera->position.z -= get_action("down").value * delta() * move_mult;
+      main_camera->position.z += get_action("move_up").value * delta() * move_mult;
+      main_camera->position.z -= get_action("move_down").value * delta() * move_mult;
 
       static f32 strength = 1.0f;
       if(get_key_down(KeyCode::B)) {
