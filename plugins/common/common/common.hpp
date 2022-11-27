@@ -22,7 +22,37 @@ namespace common {
     quat rotation;
   );
 
+  declare_component(Transform3,
+    vec3 position;
+    quat rotation;
+  );
+
+  declare_component(Transform4,
+    vec3 position;
+    quat rotation;
+  );
+
   declare_component(Model2,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model3,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model4,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model5,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model6,
     vec3 half_extents;
     MeshId id;
   );

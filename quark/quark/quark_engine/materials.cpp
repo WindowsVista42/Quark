@@ -139,7 +139,7 @@ namespace quark {
     {
       BufferInfo info ={
         .type = BufferType::Commands,
-        .size = 1024 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+        .size = 128 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
       };
 
       // Todo: create this
@@ -202,8 +202,8 @@ namespace quark {
       create_resource_group(_context->arena, &_context->global_resources_group, &resource_info);
     }
 
-    update_material(ColorMaterial, "color", "color", 1024 * 1024, 128);
-    update_material(TextureMaterial, "texture", "texture", 1024 * 1024, 128);
+    update_material(ColorMaterial, "color", "color", 128 * 1024, 128);
+    update_material(TextureMaterial, "texture", "texture", 128 * 1024, 128);
 
     {
       init_depth_prepass_pipeline();

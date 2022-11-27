@@ -500,8 +500,8 @@ namespace quark {
       create_buffers(&_context->staging_buffer, 1, &staging_buffer_info);
 
       // Info: 10 mil vertices and indices
-      u32 vertex_count = 10000000;
-      u32 index_count = 10000000;
+      u32 vertex_count = 1'000'000;
+      u32 index_count = 1'000'000;
 
       u32 positions_size = vertex_count * sizeof(vec3);
       u32 normals_size = vertex_count * sizeof(vec3);
@@ -511,7 +511,7 @@ namespace quark {
         .type = BufferType::Vertex,
         .size = positions_size,
       };
-      create_buffers(&_context->vertex_positions_buffer, 1, &positions_buffer_info);
+      create_buffers(&_context->vertex_positions_buffer, 2, &positions_buffer_info);
 
       BufferInfo normals_buffer_info = {
         .type = BufferType::Vertex,

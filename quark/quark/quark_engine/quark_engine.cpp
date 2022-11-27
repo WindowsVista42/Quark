@@ -544,16 +544,16 @@ namespace quark {
       u32 memsize = comp_count * component_size;
       memsize = (memsize / (64 * KB)) + 1;
       memsize *= 64 * KB;
-      printf("1 mil memsize eq: %d\n", memsize / (u32)(64 * KB));
+      printf("1 mil memsize eq: %d\n", memsize);
   
-      ctx->ecs_comp_table[i] = (void*)os_reserve_mem(memsize);
-      os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
+      ctx->ecs_comp_table[i] = malloc(memsize); // (void*)os_reserve_mem(memsize);
+      // os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
       zero_mem(ctx->ecs_comp_table[i], memsize);
     }
   
     u32 bt_size = 256 * KB;
-    ctx->ecs_bool_table[i] = (u32*)os_reserve_mem(bt_size);
-    os_commit_mem((u8*)ctx->ecs_bool_table[i], bt_size);
+    ctx->ecs_bool_table[i] = (u32*)malloc(bt_size); // os_reserve_mem(bt_size);
+    // os_commit_mem((u8*)ctx->ecs_bool_table[i], bt_size);
     zero_mem(ctx->ecs_bool_table[i], bt_size);
   
     ctx->ecs_comp_sizes[i] = component_size;
@@ -691,6 +691,156 @@ namespace quark {
     return get_ecs_bit(ctx, entity_id, component_id) > 0;
   }
 
+  struct FileBuffer {
+    Arena* arena;
+    u8* start;
+    usize size;
+    usize read_pos;
+  };
+
+  FileBuffer create_fileb(Arena* arena) {
+    return FileBuffer {
+      .arena = arena,
+      .start = push_arena(arena, 0),
+      .size = 0,
+      .read_pos = 0,
+    };
+  }
+
+  void write_fileb(FileBuffer* buffer, void* src, u32 element_size, u32 element_count) {
+    copy_mem_arena(buffer->arena, src, element_size * element_count);
+
+    buffer->size += element_size * element_count;
+    buffer->size = align_forward(buffer->size, 8);
+  }
+
+  void read_fileb(FileBuffer* buffer, void* dst, u32 element_size, u32 element_count) {
+    copy_mem(dst, buffer->start + buffer->read_pos, element_size * element_count);
+
+    buffer->read_pos += element_size * element_count;
+    buffer->read_pos = align_forward(buffer->read_pos, 8);
+  }
+
+  void write_fileb_comp(FileBuffer* buffer, void* src, u32 element_size, u32 element_count) {
+  }
+
+  void read_fileb_comp(FileBuffer* buffer, void* dst, u32 byte_size) {
+  }
+
+  // void save_fileb(FileBuffer* buffer, FILE* f) {
+  //   // FILE* f = fopen(file_name, "wb");
+  //   // defer(fclose(f));
+
+  //   // do lz4 compression here
+
+  //   fwrite(buffer->start, 1, buffer->size, f);
+  // }
+
+  // void load_fileb(FileBuffer* buffer, FILE* f, usize load_size) {
+  //   // do lz4 decompression here
+  //   // FILE* f = fopen(file_name, "rb");
+  //   // defer(fclose(f));
+
+  //   usize pos = get_arena_pos(buffer->arena);
+  //   u8* comp = push_arena(buffer->arena, load_size);
+
+  //   buffer->size = load_size;
+  //   fread(buffer->start, 1, load_size, f);
+
+  //   // do lz4 decompression here
+  // }
+
+  void save_ecs() {
+    FILE* f = fopen("game_state.qsave", "wb");
+    defer({
+      fclose(f);
+      log("Saved file!\n");
+    });
+
+    EcsContext* ctx = get_resource(EcsContext);
+
+    Arena* arena = get_arena();
+    defer(free_arena(arena));
+
+    FileBuffer b = create_fileb(arena);
+    write_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
+    write_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
+    for_every(i, ctx->ecs_table_count) {
+      // copy_mem_arena(arena, ctx->ecs_bool_table[i], sizeof(u32) * (ECS_MAX_STORAGE / 32));
+      // copy_mem_arena(arena, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i] * (ECS_MAX_STORAGE / 32));
+      write_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
+      write_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
+    }
+
+    u8* ptr = push_arena(arena, 8 * MB);
+    i32 compress_size = LZ4_compress_default((const char*)b.start, (char*)ptr, b.size, 8 * MB);
+
+    fwrite(ptr, 1, compress_size, f);
+    // save_fileb(&b, f);
+    // u8* data = push_arena(arena, 0);
+    // copy_mem_arena(arena, &ctx->ecs_entity_head, sizeof(u32));
+    // copy_mem_arena(arena, &ctx->ecs_entity_tail, sizeof(u32));
+    // fwrite(&ctx->ecs_entity_head, sizeof(u32), 1, f);
+    // fwrite(&ctx->ecs_entity_tail, sizeof(u32), 1, f);
+    // for_every(i, ctx->ecs_table_count) {
+    //   // copy_mem_arena(arena, ctx->ecs_bool_table[i], sizeof(u32) * (ECS_MAX_STORAGE / 32));
+    //   // copy_mem_arena(arena, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i] * (ECS_MAX_STORAGE / 32));
+    //   fwrite(ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32, f);
+    //   fwrite(ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE, f);
+    // }
+
+    // u8* data2 = push_arena(arena, 0);
+    // usize uncomp_size = (usize)(data2 - data);
+
+    // u8* dst = push_arena(arena, 8 * MB);
+    // LZ4_compress_default((const char*)data, (char*)dst, (i32)uncomp_size, 8 * MB);
+    // fwrite(data, 1, size, f);
+  }
+
+#define get_arena_scope(name) get_arena(); defer(free_arena(name));
+
+  void load_ecs() {
+    Arena* arena = get_arena();
+    defer(free_arena(arena));
+
+    FILE* f = fopen("game_state.qsave", "rb");
+    if(f == 0) {
+      return;
+    }
+    defer({
+      fclose(f);
+      log("Loaded file!\n");
+    });
+
+    EcsContext* ctx = get_resource(EcsContext);
+
+    FileBuffer b = create_fileb(arena);
+
+    fseek(f, 0L, SEEK_END);
+    usize fsize = ftell(f);
+    fseek(f, 0L, SEEK_SET);
+
+    u8* ptr = push_arena(arena, 8 * MB);
+    fread(ptr, 1, fsize, f);
+
+    b.start = push_arena(arena, 64 * MB);
+    b.size = LZ4_decompress_safe((const char*)ptr, (char*)b.start, fsize, 64 * MB);
+
+    read_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
+    read_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
+    for_every(i, ctx->ecs_table_count) {
+      read_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
+      read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
+    }
+
+    // fread(&ctx->ecs_entity_head, sizeof(u32), 1, f);
+    // fread(&ctx->ecs_entity_tail, sizeof(u32), 1, f);
+    // for_every(i, ctx->ecs_table_count) {
+    //   fread(ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32, f);
+    //   fread(ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE, f);
+    // }
+  }
+
 //
 // //
 //
@@ -742,7 +892,10 @@ namespace quark {
 
   void load_obj_file(const char* path, const char* name) {
     TempStack scratch = begin_scratch(0, 0);
-    defer(end_scratch(scratch));
+    defer({
+      end_scratch(scratch);
+      log("reset scratch!\n");
+    });
 
     // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
@@ -886,17 +1039,17 @@ namespace quark {
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
 
-    u8* buffer_i = push_arena(scratch.arena, 8 * MB);
-    usize buffer_i_size = meshopt_encodeIndexBuffer(buffer_i, 8 * MB, indices.data(), indices.size());
+    u8* buffer_i = push_arena(scratch.arena, 2 * MB);
+    usize buffer_i_size = meshopt_encodeIndexBuffer(buffer_i, 2 * MB, indices.data(), indices.size());
 
-    u8* buffer_p = push_arena(scratch.arena, 8 * MB);
-    usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
+    u8* buffer_p = push_arena(scratch.arena, 2 * MB);
+    usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 2 * MB, positions.data(), positions.size(), sizeof(vec3));
 
-    u8* buffer_n = push_arena(scratch.arena, 8 * MB);
-    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 8 * MB, normals.data(), normals.size(), sizeof(vec3));
+    u8* buffer_n = push_arena(scratch.arena, 2 * MB);
+    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 2 * MB, normals.data(), normals.size(), sizeof(vec3));
 
-    u8* buffer_u = push_arena(scratch.arena, 8 * MB);
-    usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 8 * MB, uvs.data(), uvs.size(), sizeof(vec2));
+    u8* buffer_u = push_arena(scratch.arena, 2 * MB);
+    usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 2 * MB, uvs.data(), uvs.size(), sizeof(vec2));
 
     // usize buffer_size = buffer_i_size + buffer_p_size + buffer_n_size + buffer_u_size;
     u8* buffer = push_arena(scratch.arena, 0); // push_arena(scratch.arena, 8 * MB);
@@ -911,8 +1064,8 @@ namespace quark {
     // copy_mem(buffer + buffer_i_size + buffer_p_size, buffer_n, buffer_n_size);
     // copy_mem(buffer + buffer_i_size + buffer_p_size + buffer_n_size, buffer_u, buffer_u_size);
 
-    u8* buffer2 = push_arena(scratch.arena, 8 * MB);
-    i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 8 * MB);
+    u8* buffer2 = push_arena(scratch.arena, 2 * MB);
+    i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 2 * MB);
 
     u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
     printf("Compressed mesh %.2f%%\n", (1.0f - (buffer2_size / (f32)before_size)) * 100.0f);
@@ -1033,26 +1186,26 @@ namespace quark {
     // printf("comp_size: %u\n", comp_size);
 
     // decompress
-    u8* decomp_bytes = push_arena(scratch.arena, 8 * MB);
-    i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 8 * MB);
+    u8* decomp_bytes = push_arena(scratch.arena, 2 * MB);
+    i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 2 * MB);
     // printf("decomp_size: %u\n", decomp_size);
 
-    file.indices = (u32*)push_arena(scratch.arena, 8 * MB);
+    file.indices = (u32*)push_arena(scratch.arena, 2 * MB);
     meshopt_decodeIndexBuffer(file.indices, file.header->index_count, sizeof(u32), decomp_bytes, file.header->indices_encoded_size);
     decomp_bytes += file.header->indices_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.positions = (vec3*)push_arena(scratch.arena, 8 * MB);
+    file.positions = (vec3*)push_arena(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.positions, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->positions_encoded_size);
     decomp_bytes += file.header->positions_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.normals = (vec3*)push_arena(scratch.arena, 8 * MB);
+    file.normals = (vec3*)push_arena(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.normals, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->normals_encoded_size);
     decomp_bytes += file.header->normals_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.uvs = (vec2*)push_arena(scratch.arena, 8 * MB);
+    file.uvs = (vec2*)push_arena(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.uvs, file.header->vertex_count, sizeof(vec2), decomp_bytes, file.header->uvs_encoded_size);
     decomp_bytes += file.header->uvs_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);

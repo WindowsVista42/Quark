@@ -123,7 +123,7 @@ namespace quark {
   #define define_component(name)        \ // defined in internal/ecs.hpp
   #define update_component(name)        \ // defined in internal/ecs.hpp
 
-  #define ECS_MAX_STORAGE (1024 * 1024)
+  #define ECS_MAX_STORAGE (128 * 1024)
 
   declare_resource(EcsContext,
     u32 ecs_table_count = 0;
@@ -160,6 +160,9 @@ namespace quark {
   engine_api void remove_flag_id(u32 entity_id, u32 component_id);
   engine_api void* get_component_id(u32 entity_id, u32 component_id);
   engine_api bool has_component_id(u32 entity_id, u32 component_id);
+
+  engine_api void save_ecs();
+  engine_api void load_ecs();
 
   // #define add_component(entity_id, x) // not defined here
   // #define remove_component(entity_id, type) // not defined here

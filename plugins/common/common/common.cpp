@@ -73,7 +73,13 @@ namespace common {
 
   define_component(Thing);
   define_component(Transform2);
+  define_component(Transform3);
+  define_component(Transform4);
   define_component(Model2);
+  define_component(Model3);
+  define_component(Model4);
+  define_component(Model5);
+  define_component(Model6);
 
   //
 
@@ -399,28 +405,32 @@ namespace common {
     create_action("move_backward");
     create_action("move_left");
     create_action("move_right");
-    create_action("up");
-    create_action("down");
-    create_action("v");
-    create_action("pause");
+    create_action("move_up");
+    create_action("move_down");
+
     create_action("ui_exit");
 
-    create_action("b");
-    create_action("g");
+    create_action("add_entities");
+    create_action("remove_entities");
+
+    create_action("move_fast");
+
+    create_action("save");
+    create_action("load");
 
     create_action("look_right", 0.0f);
     create_action("look_left",  0.0f);
     create_action("look_up",    0.0f);
     create_action("look_down",  0.0f);
 
-    bind_action("move_forward", KeyCode::W);
+    bind_action("move_forward",  KeyCode::W);
     bind_action("move_backward", KeyCode::S);
-    bind_action("move_left", KeyCode::A);
-    bind_action("move_right", KeyCode::D);
-    bind_action("up", KeyCode::Space);
-    bind_action("down", KeyCode::LeftControl);
-    bind_action("v", KeyCode::V);
-    bind_action("pause", KeyCode::P);
+    bind_action("move_left",     KeyCode::A);
+    bind_action("move_right",    KeyCode::D);
+    bind_action("move_up",       KeyCode::Space);
+    bind_action("move_down",     KeyCode::LeftControl);
+    bind_action("move_fast",     KeyCode::LeftShift);
+
     bind_action("ui_exit", KeyCode::Escape);
 
     bind_action("look_right", MouseAxisCode::MoveRight, 1.0f / 256.0f);
@@ -428,11 +438,21 @@ namespace common {
     bind_action("look_up",    MouseAxisCode::MoveUp,    1.0f / 256.0f);
     bind_action("look_down",  MouseAxisCode::MoveDown,  1.0f / 256.0f);
 
-    bind_action("b", KeyCode::B);
-    bind_action("g", KeyCode::LeftShift);
+    bind_action("add_entities",    KeyCode::B);
+    bind_action("remove_entities", KeyCode::V);
+
+    bind_action("save", KeyCode::M);
+    bind_action("load", KeyCode::N);
 
     update_component(Transform2);
+    update_component(Transform3);
+    update_component(Transform4);
     update_component(Model2);
+    update_component(Model3);
+    update_component(Model4);
+    update_component(Model5);
+    update_component(Model6);
+    update_component(Transform2);
   }
 
   static f32 T = 0.0f;
@@ -675,6 +695,14 @@ namespace common {
       //}
 
       // MAIN_CAMERA = *main_camera;//Resource<render::Camera>::value;
+    }
+
+    if(get_action("save").just_down) {
+      save_ecs();
+    }
+
+    if(get_action("load").just_down) {
+      load_ecs();
     }
   }
   
