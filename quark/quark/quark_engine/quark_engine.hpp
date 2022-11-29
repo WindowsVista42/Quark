@@ -161,6 +161,9 @@ namespace quark {
   engine_api void* get_component_id(u32 entity_id, u32 component_id);
   engine_api bool has_component_id(u32 entity_id, u32 component_id);
 
+  engine_var usize common2_size;
+  engine_var void* common2_ptr;
+
   engine_api void save_ecs();
   engine_api void load_ecs();
 

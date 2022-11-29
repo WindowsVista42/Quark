@@ -56,6 +56,58 @@ namespace common {
     vec3 half_extents;
     MeshId id;
   );
+
+  declare_component(Model7,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model8,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model9,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model10,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model11,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model12,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model13,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model14,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model15,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  declare_component(Model16,
+    vec3 half_extents;
+    MeshId id;
+  );
+
+  common_var Transform s_t;
 };
 
 #undef api_decl

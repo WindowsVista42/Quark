@@ -544,12 +544,10 @@ namespace quark {
   }
   
   void free_arena(Arena* arena) {
+    reset_arena(arena);
+
     usize i = (arena - _arena_pool.arenas);
-  
     _arena_pool.thread_locks[i] = -1;
-  
-    // os_release_mem(arena->ptr);
-    // zero_struct(arena);
   }
   
   // u8* push_zero_arena(Arena* arena, usize size) {

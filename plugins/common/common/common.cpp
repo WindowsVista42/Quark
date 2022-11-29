@@ -26,6 +26,10 @@ namespace common {
   }
 };
 
+#include <windows.h>
+#include <dbghelp.h>
+#include <stdio.h>
+
 //
 
 //#include "../../../quark/src/module.hpp"
@@ -80,6 +84,16 @@ namespace common {
   define_component(Model4);
   define_component(Model5);
   define_component(Model6);
+  define_component(Model7);
+  define_component(Model8);
+  define_component(Model9);
+  define_component(Model10);
+  define_component(Model11);
+  define_component(Model12);
+  define_component(Model13);
+  define_component(Model14);
+  define_component(Model15);
+  define_component(Model16);
 
   //
 
@@ -224,8 +238,79 @@ namespace common {
   
   //static Input global_input = {};
   //template <> Input* Resource<Input>::value = &global_input;
-  
+
+// #define def_section(name) __attribute__((section (#name))) usize name##_SECTION_SIZE = 0;
+#define def_global(section_name, type, name, x...) __attribute__((section (#section_name))) type name = x;
+
+// def_section(common2);
+
+#define serialize(name) static __attribute__((section (name)))
+
+// serialize("common2") Transform s_t = {
+//   .position = {1, 2, 1},
+//   .rotation = {0, 0, 0, 1},
+// };
+// 
+// def_global(common2, Transform, s_t2, {
+//   .position = {3, 2, 1},
+//   .rotation = {0, 1, 0, 1},
+// });
+// 
+// def_global(common2, Transform, s_t3, {
+//   .position = {3, 3, 3},
+//   .rotation = {1, 0, 1, 1},
+// });
+
+// __attribute__((section ("common2"))) Model5 Model5_ECS_STORAGE[ECS_MAX_STORAGE];
+
+#define static_save __attribute__((section (".common")))
+
+#pragma comment(lib, "dbghelp.lib")
+int f(void)
+{
+    HMODULE hMod = GetModuleHandleA("common.dll");
+    if (hMod)
+    {
+        PIMAGE_NT_HEADERS64 NtHeader = ImageNtHeader(hMod);
+        ULONGLONG ptr = NtHeader->OptionalHeader.ImageBase + NtHeader->OptionalHeader.SizeOfHeaders;
+        WORD NumSections = NtHeader->FileHeader.NumberOfSections;
+        PIMAGE_SECTION_HEADER Section = IMAGE_FIRST_SECTION(NtHeader);
+        for (WORD i = 0; i < NumSections; i++)
+        {
+          // if(strcmp((char*)Section->Name, "common2") == 0) {
+          // }
+
+          if(strcmp((char*)Section->Name, ".common") == 0) {
+            common2_size = Section->SizeOfRawData;
+            common2_ptr = (void*)(NtHeader->OptionalHeader.ImageBase + Section->VirtualAddress);
+          }
+          // ULONG_PTR a = (ULONG_PTR)(NtHeader) + ((LONG)(LONG_PTR) & (((IMAGE_NT_HEADERS *)0)->OptionalHeader)) + ((NtHeader))->FileHeader.SizeOfOptionalHeader + Section->PointerToRawData;
+          // printf("a: %llx\n", a);
+          printf("%-8s\t%llx\t%u\n", Section->Name, NtHeader->OptionalHeader.ImageBase + Section->VirtualAddress, Section->SizeOfRawData);
+          Section++;
+        }
+    }
+    return 0;
+}
+
   void init() {
+    // memset(Model5_ECS_STORAGE, 25, ECS_MAX_STORAGE * sizeof(Model5));
+    // usize section_size = update(0);
+    // u8 data[section_size];
+    // copy_mem(data, (u8*)&section_0, section_size);
+
+    // Transform t = *(Transform*)(data + s_t_SECTION_OFFSET);
+    // printf("t: \n");
+    // dump_struct(&t);
+    // printf("t: \n");
+
+    f();
+
+    // printf("%llx\n", &s_t);
+    // dump_struct(&s_t);
+    // ((Transform*)common2_ptr)->position = { 5, 5, 5 };
+    // dump_struct(&s_t);
+
     for_every(i, 10) {
       //create_entity_add_comp(view0, Transform {.position = {0.0f, 0.0f, 2.0f}}, Color {}, Tag {}, Iden {Iden::global_value});
       // entity_id e = create_entity();
@@ -452,6 +537,16 @@ namespace common {
     update_component(Model4);
     update_component(Model5);
     update_component(Model6);
+    update_component(Model7);
+    update_component(Model8);
+    update_component(Model9);
+    update_component(Model10);
+    update_component(Model11);
+    update_component(Model12);
+    update_component(Model13);
+    update_component(Model14);
+    update_component(Model15);
+    update_component(Model16);
     update_component(Transform2);
   }
 
@@ -509,7 +604,7 @@ namespace common {
 
     for(usize i = get_action("add_entities").just_down ? 1 : 0; i > 0; i -= 1) {
       // printf("v pressed!\n");
-      static f32 pz = 0.0f;
+      static static_save f32 pz = 0.0f;
 
       f32 px = draw_inst_dist;
       f32 py = draw_inst_dist;

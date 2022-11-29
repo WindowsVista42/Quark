@@ -164,7 +164,7 @@ namespace quark {
 
       add_system("update", "end_frame", "", -1);
 
-      add_system("update", "print_performance_statistics", "", -1);
+      // add_system("update", "print_performance_statistics", "", -1);
     }
 
     // Add states

@@ -10,6 +10,7 @@
 #include <lz4.h>
 
 namespace quark {
+
   define_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, F32_PI_2, 0},
@@ -755,8 +756,18 @@ namespace quark {
   //   // do lz4 decompression here
   // }
 
+  usize common2_size = 0;
+  void* common2_ptr = 0;
+
   void save_ecs() {
-    FILE* f = fopen("game_state.qsave", "wb");
+    Timestamp t0 = get_timestamp();
+    defer({
+      Timestamp t1 = get_timestamp();
+      f64 delta_time = get_timestamp_difference(t0, t1);
+      printf("Saving ECS took %fms\n", (f32)delta_time * 1000.0f);
+    });
+
+    FILE* f = fopen("quark/saves/game_state.qsave", "wb");
     defer({
       fclose(f);
       log("Saved file!\n");
@@ -768,8 +779,10 @@ namespace quark {
     defer(free_arena(arena));
 
     FileBuffer b = create_fileb(arena);
+    write_fileb(&b, common2_ptr, 1, common2_size);
     write_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     write_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
+    write_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
     for_every(i, ctx->ecs_table_count) {
       // copy_mem_arena(arena, ctx->ecs_bool_table[i], sizeof(u32) * (ECS_MAX_STORAGE / 32));
       // copy_mem_arena(arena, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i] * (ECS_MAX_STORAGE / 32));
@@ -805,10 +818,17 @@ namespace quark {
 #define get_arena_scope(name) get_arena(); defer(free_arena(name));
 
   void load_ecs() {
+    Timestamp t0 = get_timestamp();
+    defer({
+      Timestamp t1 = get_timestamp();
+      f64 delta_time = get_timestamp_difference(t0, t1);
+      printf("Loading ECS took %fms\n", (f32)delta_time * 1000.0f);
+    });
+
     Arena* arena = get_arena();
     defer(free_arena(arena));
 
-    FILE* f = fopen("game_state.qsave", "rb");
+    FILE* f = fopen("quark/saves/game_state.qsave", "rb");
     if(f == 0) {
       return;
     }
@@ -831,8 +851,10 @@ namespace quark {
     b.start = push_arena(arena, 64 * MB);
     b.size = LZ4_decompress_safe((const char*)ptr, (char*)b.start, fsize, 64 * MB);
 
+    read_fileb(&b, common2_ptr, 1, common2_size);
     read_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     read_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
+    read_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
     for_every(i, ctx->ecs_table_count) {
       read_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
       read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
