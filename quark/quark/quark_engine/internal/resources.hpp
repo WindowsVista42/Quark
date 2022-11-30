@@ -17,6 +17,9 @@ using namespace quark;
   
   #define define_resource(name, x...) \
     name name::RESOURCE = x \
+
+  #define define_savable_resource(name, x...) \
+    __attribute__((section (".static"))) name name::RESOURCE = x \
   
   #define declare_resource_duplicate(name, inherits) \
     struct api_decl name : inherits { \

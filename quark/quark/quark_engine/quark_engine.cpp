@@ -9,9 +9,13 @@
 #include <meshoptimizer.h>
 #include <lz4.h>
 
+#include <windows.h>
+#include <dbghelp.h>
+#include <stdio.h>
+
 namespace quark {
 
-  define_resource(MainCamera, {{
+  define_savable_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, F32_PI_2, 0},
     .fov = 90.0f,
@@ -19,17 +23,19 @@ namespace quark {
     .z_far = 10000.0f,
     .projection_type = ProjectionType::Perspective,
   }});
-  define_resource(SunCamera, {});
+  define_savable_resource(SunCamera, {});
 
-  define_resource(UICamera, {});
+  define_savable_resource(UICamera, {});
 
-  define_resource(MainCameraFrustum, {});
-  define_resource(SunCameraFrustum, {});
+  define_savable_resource(MainCameraFrustum, {});
+  define_savable_resource(SunCameraFrustum, {});
 
-  define_resource(MainCameraViewProj, {});
-  define_resource(SunCameraViewProj, {});
+  define_savable_resource(MainCameraViewProj, {});
+  define_savable_resource(SunCameraViewProj, {});
 
   define_resource(AssetServer, {});
+
+  define_savable_resource(TimeInfo, {});
 
   static GraphicsContext* _context = get_resource(GraphicsContext);
 
@@ -756,10 +762,47 @@ namespace quark {
   //   // do lz4 decompression here
   // }
 
-  usize common2_size = 0;
-  void* common2_ptr = 0;
+  #pragma comment(lib, "dbghelp.lib")
+  i32 find_static_section(const char* module_name, usize* static_size, void** static_ptr) {
+    printf("Loading .static section for %s!\n", module_name);
+
+    HMODULE hMod = GetModuleHandleA(module_name);
+    if (hMod) {
+      PIMAGE_NT_HEADERS64 NtHeader = ImageNtHeader(hMod);
+      ULONGLONG ptr = NtHeader->OptionalHeader.ImageBase + NtHeader->OptionalHeader.SizeOfHeaders;
+      WORD NumSections = NtHeader->FileHeader.NumberOfSections;
+      PIMAGE_SECTION_HEADER Section = IMAGE_FIRST_SECTION(NtHeader);
+      for (WORD i = 0; i < NumSections; i++) {
+        if(strcmp((char*)Section->Name, ".static") == 0) {
+          printf(".static section found with size: %ld\n", Section->SizeOfRawData);
+          *static_size = Section->SizeOfRawData;
+          *static_ptr = (void*)(NtHeader->OptionalHeader.ImageBase + Section->VirtualAddress);
+          return 0;
+        }
+        Section++;
+      }
+    }
+    return 1;
+  }
+
+  usize common_static_size = 0;
+  void* common_static_ptr = 0;
+  usize engine_static_size = 0;
+  void* engine_static_ptr = 0;
 
   void save_ecs() {
+    if(common_static_ptr == 0) {
+      if(find_static_section("common.dll", &common_static_size, &common_static_ptr)) {
+        panic("failed to find static section for common.dll!\n");
+      }
+    }
+
+    if(engine_static_ptr == 0) {
+      if(find_static_section("quark_engine.dll", &engine_static_size, &engine_static_ptr)) {
+        panic("failed to find static section for quark_engine.dll!\n");
+      }
+    }
+
     Timestamp t0 = get_timestamp();
     defer({
       Timestamp t1 = get_timestamp();
@@ -779,7 +822,8 @@ namespace quark {
     defer(free_arena(arena));
 
     FileBuffer b = create_fileb(arena);
-    write_fileb(&b, common2_ptr, 1, common2_size);
+    write_fileb(&b, common_static_ptr, 1, common_static_size);
+    write_fileb(&b, engine_static_ptr, 1, engine_static_size);
     write_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     write_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
     write_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
@@ -815,9 +859,19 @@ namespace quark {
     // fwrite(data, 1, size, f);
   }
 
-#define get_arena_scope(name) get_arena(); defer(free_arena(name));
-
   void load_ecs() {
+    if(common_static_ptr == 0 || common_static_size == 0) {
+      if(find_static_section("common.dll", &common_static_size, &common_static_ptr)) {
+        panic("failed to find static section for common.dll!\n");
+      }
+    }
+
+    if(engine_static_ptr == 0 || engine_static_size == 0) {
+      if(find_static_section("quark_engine.dll", &engine_static_size, &engine_static_ptr)) {
+        panic("failed to find static section for quark_engine.dll!\n");
+      }
+    }
+
     Timestamp t0 = get_timestamp();
     defer({
       Timestamp t1 = get_timestamp();
@@ -845,13 +899,15 @@ namespace quark {
     usize fsize = ftell(f);
     fseek(f, 0L, SEEK_SET);
 
+    Timestamp s0 = get_timestamp();
     u8* ptr = push_arena(arena, 8 * MB);
     fread(ptr, 1, fsize, f);
 
     b.start = push_arena(arena, 64 * MB);
     b.size = LZ4_decompress_safe((const char*)ptr, (char*)b.start, fsize, 64 * MB);
 
-    read_fileb(&b, common2_ptr, 1, common2_size);
+    read_fileb(&b, common_static_ptr, 1, common_static_size);
+    read_fileb(&b, engine_static_ptr, 1, engine_static_size);
     read_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     read_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
     read_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
@@ -859,6 +915,8 @@ namespace quark {
       read_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
       read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
+    Timestamp s1 = get_timestamp();
+    printf("Time to read_fileb: %fms\n", (f32)get_timestamp_difference(s0, s1));
 
     // fread(&ctx->ecs_entity_head, sizeof(u32), 1, f);
     // fread(&ctx->ecs_entity_tail, sizeof(u32), 1, f);

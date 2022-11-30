@@ -39,15 +39,6 @@ using namespace quark;
 // Archetype Iter Internal
 //
 
-  #define for_archetype(f...) { \
-    struct Archetype { \
-      f \
-    }; \
-  \
-    Archetype archetype = {}; \
-    for_archetype_template(Archetype::update, archetype.exclude, sizeof(archetype.exclude) / sizeof(archetype.exclude[0])); \
-  } \
-
   #define for_archetype_internal(comps, c, excl, e, f...) { \
     EcsContext* ctx = get_resource(EcsContext); \
     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
@@ -77,9 +68,6 @@ using namespace quark;
     } \
   } \
 
-  template <typename... T>
-  void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count);
-
 //
 // Ecs API Inlines (Internal)
 //
@@ -97,16 +85,50 @@ using namespace quark;
     add_components<T...>(id, comps...);
   }
 
-  template <typename... T> void for_archetype_template(void (*f)(u32 id, T*...), u32* excl, u32 excl_count) {
-    u32 comps[] = { T::COMPONENT_ID... };
-    for_archetype_internal(comps, sizeof(comps) / sizeof(comps[0]), excl, excl_count, {
-      std::tuple<u32, T*...> t = std::tuple(entity_i, [&] {
-        u32 i = inc;
-        inc -= 1;
+  template <typename... I, typename... E, typename F>
+  void for_archetype(Include<I...> incl, Exclude<E...> excl, F f) {
+    u32 includes[] = { I::COMPONENT_ID... };
+    u32 excludes[] = { E::COMPONENT_ID... };
 
-        u8* comp_table = (u8*)ctx->ecs_comp_table[comps[i]];
-        return (T*)&comp_table[entity_i * ctx->ecs_comp_sizes[comps[i]]];
-      } ()...);
-      std::apply(f, t);
-    });
+    u32 includes_size = sizeof(includes) / sizeof(includes[0]);
+    u32 excludes_size = sizeof(excludes) / sizeof(excludes[0]);
+
+    EcsContext* ctx = get_resource(EcsContext);
+    for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) {
+      u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+
+      for(u32 j = 0; j < (includes_size); j += 1) {
+        archetype &= ctx->ecs_bool_table[includes[j]][i]; 
+      }
+
+      if ((includes_size) != 0 || (excludes_size) != 0) {
+        archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i];
+      }
+
+      for(u32 j = 0; j < (excludes_size); j += 1) {
+        archetype &= ~ctx->ecs_bool_table[excludes[j]][i]; 
+      }
+ 
+      u32 global_index = i * 32;
+ 
+      while(archetype != 0) {
+        u32 local_index = __builtin_ctz(archetype);
+        archetype ^= 1 << local_index;
+ 
+        u32 entity_index = global_index + local_index;
+ 
+        u32 inc = (includes_size) - 1;
+ 
+        {
+          std::tuple<u32, I*...> t = std::tuple(entity_index, [&] {
+            u32 i = inc;
+            inc -= 1;
+
+            u8* comp_table = (u8*)ctx->ecs_comp_table[includes[i]];
+            return (I*)&comp_table[entity_index * ctx->ecs_comp_sizes[includes[i]]];
+          } ()...);
+          std::apply(f, t);
+        }
+      }
+    }
   }

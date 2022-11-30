@@ -105,6 +105,7 @@ namespace quark {
 
   #define declare_resource(name, x...) \ // defined in internal/resources.hpp
   #define define_resource(name)        \ // defined in internal/resources.hpp
+  #define define_savable_resource(name)        \ // defined in internal/resources.hpp
 
   #define declare_resource_duplicate(name, inherits) \ // defined in internal/resources.hpp
 
@@ -114,6 +115,24 @@ namespace quark {
 
   // Internal definitions
   #include "internal/resources.hpp"
+
+  declare_resource(TimeInfo,
+    f64 delta;
+    f64 time;
+  );
+
+  // Delta time between frames
+  inline f32 delta() {
+    return get_resource(TimeInfo)->delta;
+  }
+
+  // Total time the program has been running
+  //
+  // Time is calculated in discrete steps every frame
+  inline f32 time() {
+    return get_resource(TimeInfo)->time;
+  }
+
 
 //
 // Ecs API
@@ -161,9 +180,6 @@ namespace quark {
   engine_api void* get_component_id(u32 entity_id, u32 component_id);
   engine_api bool has_component_id(u32 entity_id, u32 component_id);
 
-  engine_var usize common2_size;
-  engine_var void* common2_ptr;
-
   engine_api void save_ecs();
   engine_api void load_ecs();
 
@@ -176,8 +192,15 @@ namespace quark {
 
   #define get_component(entity_id, type) \ // defined in internal/ecs.hpp
 
-  // Docs:
-  #define for_archetype(f...) \ // defined in internal/ecs.hpp
+  // Archetype iteration
+  template <typename... T>
+  struct Include {};
+
+  template <typename... T>
+  struct Exclude {};
+
+  template <typename... I, typename... E, typename F>
+  void for_archetype(Include<I...> incl, Exclude<E...> excl, F f);
 
   // Internal Definitions
   #include "internal/ecs.hpp"

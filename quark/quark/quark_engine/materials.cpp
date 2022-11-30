@@ -6,7 +6,7 @@ namespace quark {
   static GraphicsContext* _context = get_resource(GraphicsContext);
 
   define_resource(DrawBatchContext, {});
-  define_resource(WorldData, {});
+  define_savable_resource(WorldData, {});
 
   define_material(ColorMaterial);
   define_material_world(ColorMaterial, {});

@@ -6,17 +6,6 @@
 #include "quark_engine.hpp"
 
 namespace quark {
-  f32 _delta = 0.0f;
-  f32 _time = 0.0f;
-
-  f32 delta() {
-    return _delta;
-  }
-
-  f32 time() {
-    return _time;
-  }
-
   // void add_asset_types() {
   //   add_asset_file_loader(".vert.spv", load_vert_shader);
   //   add_asset_file_loader(".frag.spv", load_frag_shader);
@@ -64,8 +53,8 @@ namespace quark {
   void end_frame_timer() {
     frame_end_time = get_timestamp();
 
-    _delta = (f32)get_timestamp_difference(frame_begin_time, frame_end_time);
-    _time = (f32)frame_end_time.value;
+    get_resource(TimeInfo)->delta = (f32)get_timestamp_difference(frame_begin_time, frame_end_time);
+    get_resource(TimeInfo)->time = (f32)frame_end_time.value;
   }
 
   void init() {
@@ -182,7 +171,8 @@ namespace quark {
       Timestamp t0 = get_timestamp();
       run_state();
       Timestamp t1 = get_timestamp();
-      _delta = get_timestamp_difference(t0, t1);
+      get_resource(TimeInfo)->delta = get_timestamp_difference(t0, t1);
+      get_resource(TimeInfo)->time += get_resource(TimeInfo)->delta;
     }
 
     run_state_deinit();
