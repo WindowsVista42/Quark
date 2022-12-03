@@ -285,9 +285,10 @@ namespace quark {
     defer(unmap_buffer(&_batch_context->indirect_commands[_frame_index]));
 
     MeshId lod0 = *get_asset<MeshId>("suzanne_lod0");
-    MeshId lod1 = *get_asset<MeshId>("suzanne_lod1");
-    MeshId lod2 = *get_asset<MeshId>("suzanne_lod2");
-    MeshId lod3 = *get_asset<MeshId>("suzanne_lod3");
+    MeshId lod1 = *get_asset<MeshId>("suzanne");
+    MeshId lod2 = *get_asset<MeshId>("suzanne_lod1");
+    MeshId lod3 = *get_asset<MeshId>("suzanne_lod2");
+    MeshId lod4 = *get_asset<MeshId>("suzanne_lod3");
 
     u32 triangle_count = 0;
 
@@ -297,11 +298,26 @@ namespace quark {
     f32 lod1_b = 6.0f / (f32)_context->mesh_instances[(u32)lod1].count;
     f32 lod2_b = 6.0f / (f32)_context->mesh_instances[(u32)lod2].count;
     f32 lod3_b = 6.0f / (f32)_context->mesh_instances[(u32)lod3].count;
+    f32 lod4_b = 6.0f / (f32)_context->mesh_instances[(u32)lod4].count;
 
     f32 lod0_thresh = base_rate / lod0_b;
     f32 lod1_thresh = base_rate / lod1_b;
     f32 lod2_thresh = base_rate / lod2_b;
     f32 lod3_thresh = base_rate / lod3_b;
+    f32 lod4_thresh = base_rate / lod4_b;
+
+    struct LodInfo {
+      MeshId id;
+      f32 threshold;
+    };
+
+    LodInfo lods[5] = {
+      { lod0, lod0_thresh, },
+      { lod1, lod1_thresh, },
+      { lod2, lod2_thresh, },
+      { lod3, lod3_thresh, },
+      { lod4, lod4_thresh, },
+    };
 
     // log("lod0_thresh: " + lod0_thresh);
     // log("lod1_thresh: " + lod1_thresh);
@@ -364,39 +380,42 @@ namespace quark {
 
         // a /= 30000.0f;
 
-        f32 base = 0.25f;
-        f32 growth = 0.33333f;
         f32 bias = 0.0f;
+
+        for_every(i, 5) {
+          if(a < lods[i].threshold + bias) {
+            mesh_instance = &_context->mesh_instances[(u32)lods[i].id];
+          }
+        }
 
         // printf("a: %f\n", a / rad(camera->fov));
         // printf("fov: %f\n", rad(camera->fov));
         // f32 base_ang = 0.08f;
         // log("base: " + base);
-        if(a > lod0_thresh + bias) { // base + bias) {
-          mesh_instance = &_context->mesh_instances[(u32)lod0];
-          // printf("lod0!\n");
-        }
+        // if(a > lod0_thresh + bias) { // base + bias) {
+        //   mesh_instance = &_context->mesh_instances[(u32)lod0];
+        // }
 
         // base *= growth;
         // log("base: " + base);
         // base *= growth;
         // log("base: " + base);
-        if(a < lod1_thresh + bias) { // base + bias) {
-          mesh_instance = &_context->mesh_instances[(u32)lod1];
-          // printf("lod1!\n");
-        }
-        // base *= growth;
-        // log("base: " + base);
-        if(a < lod2_thresh + bias) { // base + bias) {
-          mesh_instance = &_context->mesh_instances[(u32)lod2];
-          // printf("lod2!\n");
-        }
-        // base *= growth;
-        // log("base: " + base);
-        if(a < lod3_thresh + bias) { // base + bias) {
-          mesh_instance = &_context->mesh_instances[(u32)lod3];
-          // printf("lod3!\n");
-        }
+        // if(a < lod1_thresh + bias) { // base + bias) {
+        //   mesh_instance = &_context->mesh_instances[(u32)lod1];
+        //   // printf("lod1!\n");
+        // }
+        // // base *= growth;
+        // // log("base: " + base);
+        // if(a < lod2_thresh + bias) { // base + bias) {
+        //   mesh_instance = &_context->mesh_instances[(u32)lod2];
+        //   // printf("lod2!\n");
+        // }
+        // // base *= growth;
+        // // log("base: " + base);
+        // if(a < lod3_thresh + bias) { // base + bias) {
+        //   mesh_instance = &_context->mesh_instances[(u32)lod3];
+        //   // printf("lod3!\n");
+        // }
 
         triangle_count += mesh_instance->count;
 

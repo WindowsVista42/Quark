@@ -275,6 +275,47 @@ void sys(u32 entity_id, Transform2* t, Model2* b, TextureMaterialIndex* i) {
     if(get_action("load").just_down) {
       load_ecs();
     }
+
+    if(get_mouse_mode() != MouseMode::Captured) {
+      u32 blue_color = 0x000077FF;
+      u32 green_color = 0x007700FF;
+      u32 red_color = 0x770000FF;
+
+      u32 blue_highlight = 0x0000CCFF;
+      u32 green_highlight = 0x00CC00FF;
+      u32 red_highlight = 0xCC0000FF;
+
+      u32 blue_active = 0x0000FFFF;
+      u32 green_active = 0x00FF00FF;
+      u32 red_active = 0xFF0000FF;
+
+      auto insideof = [](f32 x, f32 y, f32 w, f32 h, f32 mx, f32 my) {
+        f32 hw = w / 2.0f + 0.0000001f;
+        f32 hh = h / 2.0f + 0.0000001f;
+
+        return (x + hw >= mx) && (x - hw <= mx) && (y + hh >= my) && (y - hh <= my);
+      };
+
+      if(get_mouse_button_down(MouseButtonCode::LeftButton)) {
+        blue_highlight = blue_active;
+        green_highlight = green_active;
+        red_highlight = red_active;
+      }
+
+      vec2 mouse_pos = get_mouse_position();
+      if(insideof(800, 400, 300, 200, mouse_pos.x, mouse_pos.y)) {
+        blue_color  = blue_highlight;
+      } else if (insideof(600, 300, 300, 200, mouse_pos.x, mouse_pos.y)) {
+        green_color = green_highlight;
+      } else if (insideof(400, 200, 300, 200, mouse_pos.x, mouse_pos.y)) {
+        red_color   = red_highlight;
+      }
+
+      push_ui_rect(600, 400, 600, 400, 0x888888FF);
+      push_ui_rect(860, 560, 30, 30, red_color);
+      // push_ui_rect(600, 300, 300, 200, green_color);
+      // push_ui_rect(800, 400, 300, 200, blue_color);
+    }
   }
   
   void update1() {

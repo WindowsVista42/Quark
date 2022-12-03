@@ -3,6 +3,7 @@ add_library(quark_engine SHARED
   quark_engine.cpp
   render.cpp
   materials.cpp
+  ui.cpp
   ../../../lib/lz4/lib/lz4.c
 )
 

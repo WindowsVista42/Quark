@@ -22,6 +22,14 @@ namespace quark {
 
   static GraphicsContext* _context = get_resource(GraphicsContext);
 
+  void init_vulkan();
+  void init_mesh_buffer();
+  void init_command_pools_and_buffers();
+  void init_swapchain();
+  void init_render_passes();
+  void init_sync_objects();
+  void init_sampler();
+
   void init_graphics_context() {
     init_vulkan();
     init_mesh_buffer();
@@ -494,7 +502,7 @@ namespace quark {
 
     void init_mesh_buffer() {
       BufferInfo staging_buffer_info = {
-        .type = BufferType::Staging,
+        .type = BufferType::Upload,
         .size = 64 * MB,
       };
       create_buffers(&_context->staging_buffer, 1, &staging_buffer_info);
@@ -511,7 +519,7 @@ namespace quark {
         .type = BufferType::Vertex,
         .size = positions_size,
       };
-      create_buffers(&_context->vertex_positions_buffer, 2, &positions_buffer_info);
+      create_buffers(&_context->vertex_positions_buffer, 1, &positions_buffer_info);
 
       BufferInfo normals_buffer_info = {
         .type = BufferType::Vertex,
@@ -588,7 +596,7 @@ namespace quark {
       vkb::SwapchainBuilder swapchain_builder{_context->physical_device, _context->device, _context->surface};
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
-      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
+      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -1526,14 +1534,7 @@ namespace quark {
         indices[i] += vertex_offset;
       }
 
-      // printf("created mesh -- index offset: %d\n", (u32)index_offset);
-      // printf("created mesh -- index count: %d\n", (u32)index_count);
-      // printf("created mesh -- vertex offset: %d\n", (u32)vertex_offset);
-      // printf("created mesh -- vertex count: %d\n", (u32)vertex_count);
-
       MeshInstance mesh = {};
-      // mesh.count = vertex_count; // index_count;
-      // mesh.offset = (u32)vertex_offset; // index_offset; //  * sizeof(VertexPNT);
                                         //
       mesh.count = index_count;
       mesh.offset = (u32)index_offset;
@@ -2333,7 +2334,7 @@ namespace quark {
       // Storage
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-      // Staging
+      // Upload
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
       // Vertex
@@ -2344,6 +2345,12 @@ namespace quark {
 
       // Commands
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+
+      // VertexUpload
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+
+      // IndexUpload
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
     };
 
     info.usage = lookup[(u32)type];
@@ -2365,7 +2372,7 @@ namespace quark {
       // Storage
       VMA_MEMORY_USAGE_GPU_ONLY,
 
-      // Staging
+      // Upload
       VMA_MEMORY_USAGE_CPU_TO_GPU,
 
       // Vertex
@@ -2375,6 +2382,12 @@ namespace quark {
       VMA_MEMORY_USAGE_GPU_ONLY,
 
       // Commands
+      VMA_MEMORY_USAGE_CPU_TO_GPU,
+
+      // VertexUpload
+      VMA_MEMORY_USAGE_CPU_TO_GPU,
+
+      // IndexUpload
       VMA_MEMORY_USAGE_CPU_TO_GPU,
     };
 

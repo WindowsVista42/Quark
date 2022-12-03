@@ -72,14 +72,14 @@ using namespace quark;
     create_buffers(TWorld::BUFFERS, 2, &world_buffer_info); 
 
     BufferInfo material_buffer_info {
-      .type = BufferType::Staging,
+      .type = BufferType::Upload,
       .size = info.material_size * max_draw_count,
     };
 
     create_buffers(TWorld::MATERIAL_BUFFERS, 2, &material_buffer_info);
 
     BufferInfo transform_buffer_info {
-      .type = BufferType::Staging,
+      .type = BufferType::Upload,
       .size = (u32)sizeof(vec4[3]) * max_draw_count,
     };
 

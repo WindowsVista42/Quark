@@ -481,12 +481,14 @@ namespace quark {
 //
 
   declare_enum(BufferType, u32,
-    Uniform  = 0,
-    Storage  = 1,
-    Staging  = 2,
-    Vertex   = 3,
-    Index    = 4,
-    Commands = 5,
+    Uniform      = 0,
+    Storage      = 1,
+    Upload       = 2,
+    Vertex       = 3,
+    Index        = 4,
+    Commands     = 5,
+    VertexUpload = 6,
+    IndexUpload  = 7,
   );
 
   struct BufferInfo {
@@ -785,6 +787,11 @@ namespace quark {
 // Graphics Context
 //
 
+  struct MeshLod {
+    u32 mesh_instance_ids[8];
+    f32 thresholds[8];
+  };
+
   declare_resource(GraphicsContext,
     Arena* arena;
     VmaAllocator gpu_alloc; 
@@ -840,6 +847,7 @@ namespace quark {
 
     u32 mesh_counts;
     MeshInstance* mesh_instances; // hot data
+    MeshLod* mesh_lods;
     vec3* mesh_scales = {}; // cold data
     Buffer vertex_positions_buffer;
     Buffer vertex_normals_buffer;
@@ -861,6 +869,11 @@ namespace quark {
     VkPipeline main_depth_prepass_pipeline;
     ResourceBundle main_depth_prepass_resource_bundles[16];
   );
+
+  struct UiVertex {
+    vec2 position;
+    u32 color;
+  };
 
   engine_api void init_graphics_context();
 
@@ -963,14 +976,6 @@ namespace quark {
 
   engine_api VkCommandBuffer begin_quick_commands2();
   engine_api void end_quick_commands2(VkCommandBuffer commands);
-
-  engine_api void init_vulkan();
-  engine_api void init_mesh_buffer();
-  engine_api void init_command_pools_and_buffers();
-  engine_api void init_swapchain();
-  engine_api void init_render_passes();
-  engine_api void init_sync_objects();
-  engine_api void init_sampler();
 
   // All textures must be loaded before the call to this function
   // engine_api void init_global_descriptors();
@@ -1143,6 +1148,24 @@ namespace quark {
   engine_api void reset_material_batches();
 
   #include "internal/materials_api.hpp"
+
+//
+// UI API
+//
+
+  declare_resource(UiContext,
+    u32 ui_vertex_capacity = 1024 * 64;
+    Buffer ui_vertex_buffers[_FRAME_OVERLAP];
+    VkPipelineLayout ui_pipeline_layout;
+    VkPipeline ui_pipeline;
+
+    u32 ui_vertex_count;
+    UiVertex* ptr;
+  );
+
+  engine_api void init_ui_context();
+  engine_api void draw_ui();
+  engine_api void push_ui_rect(u32 x, u32 y, u32 width, u32 height, u32 color);
 };
 
 #define vk_check(x)                                                                                                                                  \
