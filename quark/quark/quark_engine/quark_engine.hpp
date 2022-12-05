@@ -1151,6 +1151,7 @@ namespace quark {
   struct UiVertex {
     vec2 position;
     vec4 color;
+    vec2 normal;
   };
 
   // Bitset denoting functions to be applied to the widget

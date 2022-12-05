@@ -292,7 +292,7 @@ static_save Transform base_model_t = {
 
       Widget w = {};
       w.position = {100, 100};
-      w.dimensions = {50, 50};
+      w.dimensions = {30, 30};
       w.border_thickness = 0;
       w.function = WidgetFunction::Button;
       w.base_color = {1, 2, 3, 1};

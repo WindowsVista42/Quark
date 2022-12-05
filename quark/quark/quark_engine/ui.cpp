@@ -13,20 +13,17 @@ namespace quark {
   static ttf_glyph_t *glyph = 0;
   static ttf_mesh_t *mesh = 0;
 
-  struct GlyphTable {
-    u32 count;
-    u32* vert_counts;
-    vec2** verts;
-    ttf_glyph_t** glyphs;
-  };
-
-  // GlyphTable lowercase;
-  // GlyphTable uppercase;
-  // GlyphTable numbers;
+  // struct GlyphTable {
+  //   u32 count;
+  //   u32* vert_counts;
+  //   vec2** verts;
+  //   ttf_glyph_t** glyphs;
+  // };
 
   const u32 char_counts = 126 - 33;
   u32 text_counts[char_counts];
   vec2* text_verts[char_counts];
+  vec2* text_norms[char_counts];
   ttf_glyph_t* glyphs[char_counts];
 
   void init_ui_context() {
@@ -53,7 +50,7 @@ namespace quark {
       binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
       binding_descriptions[0].stride = sizeof(UiVertex);
 
-      VkVertexInputAttributeDescription attribute_descriptions[2] = {};
+      VkVertexInputAttributeDescription attribute_descriptions[3] = {};
       attribute_descriptions[0].binding = 0;
       attribute_descriptions[0].location = 0;
       attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -63,6 +60,11 @@ namespace quark {
       attribute_descriptions[1].location = 1;
       attribute_descriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
       attribute_descriptions[1].offset = offsetof(UiVertex, color);
+
+      attribute_descriptions[2].binding = 0;
+      attribute_descriptions[2].location = 2;
+      attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+      attribute_descriptions[2].offset = offsetof(UiVertex, normal);
 
       // Info: layout of triangles
       VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
@@ -121,7 +123,13 @@ namespace quark {
       // Info: alpha blending info
       VkPipelineColorBlendAttachmentState color_blend_state = {};
       color_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      color_blend_state.blendEnable = VK_FALSE;
+      color_blend_state.blendEnable = VK_TRUE;
+      color_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      color_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      color_blend_state.colorBlendOp = VK_BLEND_OP_ADD;
+      color_blend_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      color_blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      color_blend_state.alphaBlendOp = VK_BLEND_OP_ADD;
 
       // Todo: suppport different blend modes
       VkPipelineColorBlendStateCreateInfo color_blend_info = {};
@@ -183,6 +191,7 @@ namespace quark {
 
         text_counts[letter] = mesh->nfaces * 3;
         text_verts[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
+        text_norms[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
 
         u32 offset = 0;
         for_every(i, mesh->nfaces) {
@@ -193,6 +202,10 @@ namespace quark {
           text_verts[letter][(i * 3) + 0] = p1;
           text_verts[letter][(i * 3) + 1] = p2;
           text_verts[letter][(i * 3) + 2] = p3;
+
+          text_norms[letter][(i * 3) + 0] = (normalize(p1 - p2) + normalize(p1 - p3)) / 2.0f;;
+          text_norms[letter][(i * 3) + 1] = (normalize(p2 - p1) + normalize(p2 - p3)) / 2.0f;;
+          text_norms[letter][(i * 3) + 2] = (normalize(p3 - p1) + normalize(p3 - p2)) / 2.0f;;
         }
 
         ttf_free_mesh(mesh);
@@ -244,14 +257,14 @@ namespace quark {
     // u64 color16 = *(u64*)&color_v16; // get lower 64 bits for our 16 bpc color
 
     // Info: lower left triangle
-    _ui->ptr[_ui->ui_vertex_count + 0] = { .position = { left, top, },     .color = color };
-    _ui->ptr[_ui->ui_vertex_count + 1] = { .position = { left, bottom, },  .color = color };
-    _ui->ptr[_ui->ui_vertex_count + 2] = { .position = { right, bottom, }, .color = color };
+    _ui->ptr[_ui->ui_vertex_count + 0] = { .position = { left, top, },     .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 1] = { .position = { left, bottom, },  .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 2] = { .position = { right, bottom, }, .color = color, .normal = {1.0f, 1.0f} };
 
     // Info: upper right triangle
-    _ui->ptr[_ui->ui_vertex_count + 3] = { .position = { left, top, },     .color = color };
-    _ui->ptr[_ui->ui_vertex_count + 4] = { .position = { right, top, },    .color = color };
-    _ui->ptr[_ui->ui_vertex_count + 5] = { .position = { right, bottom, }, .color = color };
+    _ui->ptr[_ui->ui_vertex_count + 3] = { .position = { left, top, },     .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 4] = { .position = { right, top, },    .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 5] = { .position = { right, bottom, }, .color = color, .normal = {1.0f, 1.0f} };
 
     _ui->ui_vertex_count += 6;
     // printf("ui vert count: %d\n", _ui->ui_vertex_count);
@@ -283,7 +296,7 @@ namespace quark {
 
       for_every(i, text_counts[fi]) {
         vec2 pos = text_verts[fi][i] * scale + vec2 {left + xoffset, bottom};
-        _ui->ptr[_ui->ui_vertex_count + i] = { .position = pos, .color = color, };
+        _ui->ptr[_ui->ui_vertex_count + i] = { .position = pos, .color = color, .normal = text_norms[fi][i] };
       }
       _ui->ui_vertex_count += text_counts[fi];
 
