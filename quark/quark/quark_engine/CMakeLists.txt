@@ -5,6 +5,7 @@ add_library(quark_engine SHARED
   materials.cpp
   ui.cpp
   ../../../lib/lz4/lib/lz4.c
+  ../../../lib/ttf2mesh/ttf2mesh.c
 )
 
 target_include_directories(quark_engine PRIVATE ../../../lib/lz4/lib)

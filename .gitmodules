@@ -34,3 +34,6 @@
 [submodule "lib/lz4"]
 	path = lib/lz4
 	url = https://github.com/lz4/lz4
+[submodule "lib/ttf2mesh"]
+	path = lib/ttf2mesh
+	url = https://github.com/fetisov/ttf2mesh

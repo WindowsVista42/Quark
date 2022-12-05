@@ -870,11 +870,6 @@ namespace quark {
     ResourceBundle main_depth_prepass_resource_bundles[16];
   );
 
-  struct UiVertex {
-    vec2 position;
-    u32 color;
-  };
-
   engine_api void init_graphics_context();
 
 //
@@ -1153,6 +1148,57 @@ namespace quark {
 // UI API
 //
 
+  struct UiVertex {
+    vec2 position;
+    vec4 color;
+  };
+
+  // Bitset denoting functions to be applied to the widget
+  // when updated
+  declare_enum(WidgetFunction, u32,
+    Window    = 0x00,
+    Highlight = 0x01,
+    Activate  = 0x02,
+    Button    = Highlight | Activate,
+  );
+
+  declare_enum(WidgetShape, u32,
+    Rectangle = 0,
+    Circle    = 1,
+    Text      = 2,
+  );
+
+  enum struct FontId : u32 {};
+
+  struct Widget {
+    vec2 position;
+    vec4 base_color;
+
+    f32 border_thickness;
+
+    WidgetFunction function;
+
+    // Button
+    bool activated;
+    bool highlighted;
+
+    vec4 highlight_color;
+    vec4 active_color;
+
+    WidgetShape shape;
+    union {
+      // Rectangle, Font
+      vec2 dimensions;
+
+      // Circle
+      f32 radius;
+    };
+
+    const char* text;
+    FontId font;
+    f32 text_scale;
+  };
+
   declare_resource(UiContext,
     u32 ui_vertex_capacity = 1024 * 64;
     Buffer ui_vertex_buffers[_FRAME_OVERLAP];
@@ -1165,7 +1211,10 @@ namespace quark {
 
   engine_api void init_ui_context();
   engine_api void draw_ui();
-  engine_api void push_ui_rect(u32 x, u32 y, u32 width, u32 height, u32 color);
+  engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
+  engine_api void push_ui_widget(Widget* widget);
+
+  engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
 };
 
 #define vk_check(x)                                                                                                                                  \

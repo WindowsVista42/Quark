@@ -35,6 +35,8 @@ namespace quark {
 // Number Types
 //
 
+  using wchar = wchar_t;
+
   using f32   = float;
   using f64   = double;
   
@@ -327,6 +329,10 @@ namespace quark {
   inline name operator |(name a, name b) { return (name)((int_type)a | (int_type)b); } \
   inline name operator &(name a, name b) { return (name)((int_type)a & (int_type)b); } \
   inline name operator ^(name a, name b) { return (name)((int_type)a ^ (int_type)b); } \
+  inline bool operator != (name a, int_type b) { return (int_type)a != b; } \
+  inline bool operator && (name a, bool b) { return ((int_type)a != 0) && b; } \
+  inline bool operator || (name a, bool b) { return ((int_type)a != 0) || b; } \
+  inline bool operator ^ (name a, bool b) { return ((int_type)a != 0) ^ b; } \
 
 //
 // Array Count Of
@@ -913,6 +919,7 @@ namespace quark {
   static constexpr f32 F32_LN2         = 0.693147180559945309417;  // ln(2)
   static constexpr f32 F32_LN10        = 2.30258509299404568402;   // ln(10)
   static constexpr f32 F32_PI          = 3.14159265358979323846;   // pi
+  static constexpr f32 F32_2PI         = 3.14159265358979323846 * 2.0; // 2pi
   static constexpr f32 F32_PI_2        = 1.57079632679489661923;   // pi/2
   static constexpr f32 F32_PI_4        = 0.785398163397448309616;  // pi/4
   static constexpr f32 F32_1_PI        = 0.318309886183790671538;  // 1/pi

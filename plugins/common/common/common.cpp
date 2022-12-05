@@ -121,35 +121,6 @@ static_save Transform base_model_t = {
     update_component(Transform2);
   }
 
-  bool arr_is_subset(u32 c, const u32 a[c], u32 b, const u32 d[b]) {
-    for_every(i, c) {
-      bool found = false;
-      for_every(j, b) {
-        if(a[i] == d[j]) {
-          found = true;
-          break;
-        }
-      }
-      if(!found) { return false; }
-    }
-  
-    return true;
-  }
-  
-  void assert2(bool v) {
-    if(v) {
-      panic("AAA");
-    }
-  }
-
-  template <typename... T>
-  struct af {
-    void (*f)(T...);
-  };
-
-void sys(u32 entity_id, Transform2* t, Model2* b, TextureMaterialIndex* i) {
-}
-
   void update0() {
     static bool first = true;
     static ColorMaterial color_material_instance = {
@@ -293,10 +264,15 @@ void sys(u32 entity_id, Transform2* t, Model2* b, TextureMaterialIndex* i) {
         f32 hw = w / 2.0f + 0.0000001f;
         f32 hh = h / 2.0f + 0.0000001f;
 
-        return (x + hw >= mx) && (x - hw <= mx) && (y + hh >= my) && (y - hh <= my);
+        return
+          (x + hw >= mx) &&
+          (x - hw <= mx) &&
+          (y + hh >= my) &&
+          (y - hh <= my);
       };
 
-      if(get_mouse_button_down(MouseButtonCode::LeftButton)) {
+      bool mouse_click = get_mouse_button_down(MouseButtonCode::LeftButton);
+      if(mouse_click) {
         blue_highlight = blue_active;
         green_highlight = green_active;
         red_highlight = red_active;
@@ -311,16 +287,47 @@ void sys(u32 entity_id, Transform2* t, Model2* b, TextureMaterialIndex* i) {
         red_color   = red_highlight;
       }
 
-      push_ui_rect(600, 400, 600, 400, 0x888888FF);
-      push_ui_rect(860, 560, 30, 30, red_color);
-      // push_ui_rect(600, 300, 300, 200, green_color);
-      // push_ui_rect(800, 400, 300, 200, blue_color);
+      // push_ui_rect(600, 400, 600, 400, vec4 {0.5, 0.5, 0.5, 1.0f});
+      // push_ui_rect(860, 560, 30, 30, vec4 {sinf(time() * 2.0f * F32_2PI) * 32.0f + 32.0f, 2.0f, 2.0f, 1.0f});
+
+      Widget w = {};
+      w.position = {100, 100};
+      w.dimensions = {50, 50};
+      w.border_thickness = 0;
+      w.function = WidgetFunction::Button;
+      w.base_color = {1, 2, 3, 1};
+      w.highlight_color = w.base_color * 3.0f;
+      w.active_color = w.highlight_color * 3.0f;
+      w.shape = WidgetShape::Text;
+
+      char text[128];
+      sprintf(text, "fps: %.2f", 1.0f / delta());
+
+      w.text = text;
+
+      update_widget(&w, mouse_pos, mouse_click);
+      push_ui_widget(&w);
     }
   }
   
   void update1() {
     vec2 move_dir = {0.0f, 0.0f};
   }
+
+mod_main() {
+  create_system("common_init", common::init);
+
+  create_system("update0", common::update0);
+  create_system("exit_on_esc", common::exit_on_esc);
+
+  add_system("init", "common_init", "", -1);
+
+  add_system("update", "update0", "" , 3);
+  add_system("update", "exit_on_esc", "" , -1);
+
+  print_system_list("init");
+  print_system_list("update");
+}
   
   // Transform, const Color, const Tag0
   // Transform, const Color, const Tag1
@@ -568,55 +575,4 @@ void sys(u32 entity_id, Transform2* t, Model2* b, TextureMaterialIndex* i) {
     printf("Function dep build took: %f\n", (f32)diff);
     printf("fcount: %d\n", (i32)count_of(usage_arr));
   }
-};
-
-mod_main() {
-  create_system("common_init", (void (*)())common::init);
-  create_system("create_thing_test", common::create_thing_test);
-
-  create_system("update0", (void (*)())common::update0);
-  // create_system("render_things", common::render_things);
-  create_system("exit_on_esc", common::exit_on_esc);
-
-  add_system("init", "common_init", "", -1);
-  add_system("init", "create_thing_test", "", -1);
-
-  add_system("update", "update0", "" , 3);
-  add_system("update", "exit_on_esc", "" , -1);
-
-  print_system_list("init");
-  print_system_list("update");
 }
-
-// struct Paddle {};
-// struct Transform {};
-//
-// Get me all of the entities with a Transform AND Paddle
-//
-// Thread A (updating positions idk)
-// Uses just Transforms
-//
-// Thread B (frustum culling)
-// Uses Transforms and Models and ShouldCull
-//
-// Thread A and Thread B run at the same time
-// Thread B sees that something is out of view and tells it to be culled
-// Thread A moves something into view
-// Thread B has culled the object even though it is visible
-//
-// Thread A runs (updating positions idk)
-// Thread A finishes (updating positions idk)
-// Thread A runs (frustum culling)
-// Thread A finishes (frustum culling)
-//
-// 0: (update enemy ai (goblins)) -- const Transforms, const EnemyParam, Goblin
-// 1: (update enemy ai (trees)) -- const Transforms, const EnemyParam, Trees
-//
-// 0 and 1 can run in parallel
-//
-// 0: (update enemy ai (goblins)) -- const Transforms, EnemyParam, Goblin
-// 1: (update enemy ai (trees)) -- const Transforms, EnemyParam, Trees
-// Tell the engine that Goblin and Trees are mutually exclusive
-// Maybe also a way to enforce this condition in debug builds
-//
-// 0 and 1 can run in parallel
