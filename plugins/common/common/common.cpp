@@ -290,18 +290,23 @@ static_save Transform base_model_t = {
       // push_ui_rect(600, 400, 600, 400, vec4 {0.5, 0.5, 0.5, 1.0f});
       // push_ui_rect(860, 560, 30, 30, vec4 {sinf(time() * 2.0f * F32_2PI) * 32.0f + 32.0f, 2.0f, 2.0f, 1.0f});
 
+      // f32 s = sinf(time()) + 1.0f;
+      // s *= 20.0f;
+      // s += 20.0f;
+      f32 s = 30.0f;
+
       Widget w = {};
       w.position = {100, 100};
-      w.dimensions = {20, 20};
+      w.dimensions = {s, s};
       w.border_thickness = 0;
       w.function = WidgetFunction::Button;
-      w.base_color = {1, 2, 3, 1};
+      w.base_color = {1, 2, 3, 1.0f};
       w.highlight_color = w.base_color * 3.0f;
       w.active_color = w.highlight_color * 3.0f;
       w.shape = WidgetShape::Text;
 
       char text[128];
-      sprintf(text, "fps: 1234567890 000000000000000"); //%.2f", 1.0f / delta());
+      sprintf(text, "fps: %.2f\nabcdefghijklmnopqrstuvwxyz\nABCDEFGHIJKLMNOPQRSTUVWXYZ", 1.0f / delta()); //%.2f", 1.0f / delta());
 
       w.text = text;
 
