@@ -62,6 +62,20 @@ namespace quark {
   //   _main_view_projection = get_camera3d_view_projection(get_resource(MainCamera), get_window_aspect());//update_matrices(MAIN_CAMERA, get_window_dimensions().x, get_window_dimensions().y);
   // }
 
+    VkImageLayout get_image_layout(ImageUsage usage) {
+      VkImageLayout layout_lookup[] = {
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+      };
+
+      return layout_lookup[(u32)usage];
+    }
+
   void begin_frame() {
     GraphicsContext* _context = get_resource(GraphicsContext);
 
@@ -99,7 +113,34 @@ namespace quark {
       .resolution = get_window_dimensions(),
       .format = ImageFormat::LinearBgra8,
     };
-    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images[_frame_index], FilterMode::Nearest);
+
+
+    VkImageResolve resolve = {};
+    resolve.extent.width = swapchain_image.resolution.x;
+    resolve.extent.height = swapchain_image.resolution.y;
+    resolve.extent.depth = 1;
+
+    resolve.srcOffset.x = 0;
+    resolve.srcOffset.y = 0;
+    resolve.srcOffset.z = 0;
+
+    resolve.srcSubresource.mipLevel = 0;
+    resolve.srcSubresource.baseArrayLayer = 0;
+    resolve.srcSubresource.layerCount = 1;
+    resolve.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    resolve.dstOffset.x = 0;
+    resolve.dstOffset.y = 0;
+    resolve.dstOffset.z = 0;
+
+    resolve.dstSubresource.mipLevel = 0;
+    resolve.dstSubresource.baseArrayLayer = 0;
+    resolve.dstSubresource.layerCount = 1;
+    resolve.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    transition_image(_main_cmd_buf[_frame_index], &_context->material_color_images2[_frame_index], ImageUsage::Dst);
+    vkCmdResolveImage(_main_cmd_buf[_frame_index], _context->material_color_images[_frame_index].image, get_image_layout(_context->material_color_images[_frame_index].current_usage), _context->material_color_images2[_frame_index].image, get_image_layout(_context->material_color_images2[_frame_index].current_usage), 1, &resolve);
+    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images2[_frame_index], FilterMode::Nearest);
     transition_image(_main_cmd_buf[_frame_index], &swapchain_image, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -626,8 +667,6 @@ namespace quark {
     }
 
     VkImageCreateInfo get_image_info(ImageInfo* info) {
-
-
       VkImageCreateInfo image_info = {};
       image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       image_info.pNext = 0;
@@ -725,20 +764,6 @@ namespace quark {
           .layerCount = 1,
         },
       };
-    }
-
-    VkImageLayout get_image_layout(ImageUsage usage) {
-      VkImageLayout layout_lookup[] = {
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-      };
-
-      return layout_lookup[(u32)usage];
     }
 
     void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage) {
@@ -961,6 +986,7 @@ namespace quark {
 
     void create_render_pass(Arena* arena, RenderPass* render_pass, RenderPassInfo* info) {
       create_vk_render_pass(&render_pass->render_pass, info);
+
       FramebufferInfo framebuffer_info = {
         .resolution = info->resolution,
         .attachment_count = info->attachment_count,
@@ -1017,13 +1043,17 @@ namespace quark {
         .type = ImageType::RenderTargetColor,
         .samples = VK_SAMPLE_COUNT_1_BIT,
       };
+      create_images(_context->material_color_images2, _FRAME_OVERLAP, &_context->material_color_image_info);
+
+      _context->material_color_image_info.samples = VK_SAMPLE_COUNT_4_BIT,
+
       create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
       _context->main_depth_image_info = {
         .resolution = _context->render_resolution,
         .format = ImageFormat::LinearD24S8,
         .type = ImageType::RenderTargetDepth,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = VK_SAMPLE_COUNT_4_BIT,
       };
       create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 

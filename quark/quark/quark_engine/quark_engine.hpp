@@ -822,6 +822,7 @@ namespace quark {
 
     ImageInfo material_color_image_info;
     Image material_color_images[_FRAME_OVERLAP];
+    Image material_color_images2[_FRAME_OVERLAP];
 
     ImageInfo main_depth_image_info;
     Image main_depth_images[_FRAME_OVERLAP];
