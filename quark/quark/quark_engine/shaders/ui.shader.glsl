@@ -29,5 +29,10 @@ layout (location = 2) in vec2 in_normal;
 layout (location = 0) out vec4 out_color;
 
 void main() {
-  out_color = aces(vec4(in_color.xyz, pow(1.0f - length(in_normal), 0.25f)));
+  // out_color = aces(vec4((in_normal + 1.0f) / 2.0f, 0.0f, 1.0f));
+  // f32 alpha = pow(1.0f - length(in_normal), 2.0f);
+  // alpha = clamp(alpha, 0.0f, 0.4f);
+  // alpha *= (1.0f / 0.4f);
+  // out_color = aces(vec4(in_color.xyz, alpha));
+  out_color = aces(in_color);
 }

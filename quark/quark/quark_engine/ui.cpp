@@ -11,7 +11,7 @@ namespace quark {
 
   static ttf_t *font = 0;
   static ttf_glyph_t *glyph = 0;
-  static ttf_mesh_t *mesh = 0;
+  static ttf_mesh3d_t *mesh = 0;
 
   // struct GlyphTable {
   //   u32 count;
@@ -25,6 +25,22 @@ namespace quark {
   vec2* text_verts[char_counts];
   vec2* text_norms[char_counts];
   ttf_glyph_t* glyphs[char_counts];
+
+  void find_closest_2(vec2* points, u32 n, vec2 p, vec2* a, vec2* b) {
+    *a = points[0];
+    *b = points[1];
+  
+    f32 min_dist = distance2(points[0], p);
+  
+    for_every(i, n) {
+      f32 dist2 = distance2(points[i], p);
+      if(dist2 < min_dist) {
+        min_dist = dist2;
+        *a = *b;
+        *b = points[i];
+      }
+    }
+  }
 
   void init_ui_context() {
     BufferInfo ui_info = {
@@ -183,32 +199,96 @@ namespace quark {
       for_every(letter, char_counts) {
         int i = ttf_find_glyph(font, '!' + letter);
 
-        if(ttf_glyph2mesh(&font->glyphs[i], &mesh, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT) != TTF_DONE) {
+        
+        ttf_mesh_t* m;
+        if(ttf_glyph2mesh(&font->glyphs[i], &m, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT) != TTF_DONE) {
+          panic("");
+        }
+
+        if(ttf_glyph2mesh3d(&font->glyphs[i], &mesh, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT, 0.01f) != TTF_DONE) {
           panic("Failed to triangulate font!\n");
         }
 
         glyphs[letter] = &font->glyphs[i];
 
-        text_counts[letter] = mesh->nfaces * 3;
+        text_counts[letter] = (m->nfaces * 3);
         text_verts[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
         text_norms[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
 
         u32 offset = 0;
-        for_every(i, mesh->nfaces) {
+        for_every(i, m->nfaces) {
           vec2 p1 = vec2 { mesh->vert[mesh->faces[i].v1].x, mesh->vert[mesh->faces[i].v1].y };
           vec2 p2 = vec2 { mesh->vert[mesh->faces[i].v2].x, mesh->vert[mesh->faces[i].v2].y };
           vec2 p3 = vec2 { mesh->vert[mesh->faces[i].v3].x, mesh->vert[mesh->faces[i].v3].y };
+
+          vec2 n1 = {}; // = vec2 { mesh->normals[mesh->faces[i].v1].x, mesh->normals[mesh->faces[i].v1].y };
+          vec2 n2 = {}; // = vec2 { mesh->normals[mesh->faces[i].v2].x, mesh->normals[mesh->faces[i].v2].y };
+          vec2 n3 = {}; // = vec2 { mesh->normals[mesh->faces[i].v3].x, mesh->normals[mesh->faces[i].v3].y };
+
+          for_range(z, 0, mesh->nfaces) {
+            for_every(y, 3) {
+              i32 v;
+
+              if(y == 0) {
+                v = mesh->faces[z].v1;
+              } else if(y == 1) {
+                v = mesh->faces[z].v2;
+              } else {
+                v = mesh->faces[z].v3;
+              }
+
+              vec2 p = vec2 { mesh->vert[v].x, mesh->vert[v].y };
+              vec3 n = vec3 { mesh->normals[v].x, mesh->normals[v].y, mesh->normals[v].z };
+
+              // if(n.z != 0.0f) {
+              //   continue;
+              // }
+
+              if(p1 == p) {
+                n1 += swizzle(n, 0, 1);
+              }
+              if(p2 == p) {
+                n2 += swizzle(n, 0, 1);
+              }
+              if(p3 == p) {
+                n3 += swizzle(n, 0, 1);
+              }
+            }
+          }
+
+          n1 = normalize(n1);
+          n2 = normalize(n2);
+          n3 = normalize(n3);
+          // n1 /= n1n;
+          // n2 /= n2n;
+          // n3 /= n3n;
+
+          // n1 = normalize(n1);
+          // n2 = normalize(n2);
+          // n3 = normalize(n3);
+
+          // f32 y = mesh->normals[mesh->faces[i].v3].y;
+
+          // log("x: " + mesh->normals[mesh->faces[i + (mesh->nfaces / 2)].v1].x);
 
           text_verts[letter][(i * 3) + 0] = p1;
           text_verts[letter][(i * 3) + 1] = p2;
           text_verts[letter][(i * 3) + 2] = p3;
 
-          text_norms[letter][(i * 3) + 0] = (normalize(p1 - p2) + normalize(p1 - p3)) / 2.0f;;
-          text_norms[letter][(i * 3) + 1] = (normalize(p2 - p1) + normalize(p2 - p3)) / 2.0f;;
-          text_norms[letter][(i * 3) + 2] = (normalize(p3 - p1) + normalize(p3 - p2)) / 2.0f;;
+          text_norms[letter][(i * 3) + 0] = n1;
+          text_norms[letter][(i * 3) + 1] = n2;
+          text_norms[letter][(i * 3) + 2] = n3;
         }
 
-        ttf_free_mesh(mesh);
+        // for_every(i, mesh->nfaces * 3) {
+        //   vec2 p1 = text_verts[letter][i];
+        //   vec2 p2, p3;
+        //   find_closest_2(text_verts[letter], mesh->nfaces * 3, p1, &p2, &p3);
+        //   text_norms[letter][i] = (normalize(p1 - p2) + normalize(p1 - p3)) / 2.0f;;
+        // }
+
+        ttf_free_mesh3d(mesh);
+        ttf_free_mesh(m);
       }
     }
   }
@@ -257,14 +337,14 @@ namespace quark {
     // u64 color16 = *(u64*)&color_v16; // get lower 64 bits for our 16 bpc color
 
     // Info: lower left triangle
-    _ui->ptr[_ui->ui_vertex_count + 0] = { .position = { left, top, },     .color = color, .normal = {1.0f, 1.0f} };
-    _ui->ptr[_ui->ui_vertex_count + 1] = { .position = { left, bottom, },  .color = color, .normal = {1.0f, 1.0f} };
-    _ui->ptr[_ui->ui_vertex_count + 2] = { .position = { right, bottom, }, .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 0] = { .position = { left, top, },     .color = color, .normal = {0.0f, 0.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 1] = { .position = { left, bottom, },  .color = color, .normal = {0.0f, 0.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 2] = { .position = { right, bottom, }, .color = color, .normal = {0.0f, 0.0f} };
 
     // Info: upper right triangle
-    _ui->ptr[_ui->ui_vertex_count + 3] = { .position = { left, top, },     .color = color, .normal = {1.0f, 1.0f} };
-    _ui->ptr[_ui->ui_vertex_count + 4] = { .position = { right, top, },    .color = color, .normal = {1.0f, 1.0f} };
-    _ui->ptr[_ui->ui_vertex_count + 5] = { .position = { right, bottom, }, .color = color, .normal = {1.0f, 1.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 3] = { .position = { left, top, },     .color = color, .normal = {0.0f, 0.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 4] = { .position = { right, top, },    .color = color, .normal = {0.0f, 0.0f} };
+    _ui->ptr[_ui->ui_vertex_count + 5] = { .position = { right, bottom, }, .color = color, .normal = {0.0f, 0.0f} };
 
     _ui->ui_vertex_count += 6;
     // printf("ui vert count: %d\n", _ui->ui_vertex_count);

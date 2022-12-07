@@ -292,7 +292,7 @@ static_save Transform base_model_t = {
 
       Widget w = {};
       w.position = {100, 100};
-      w.dimensions = {30, 30};
+      w.dimensions = {50, 50};
       w.border_thickness = 0;
       w.function = WidgetFunction::Button;
       w.base_color = {1, 2, 3, 1};
@@ -301,7 +301,7 @@ static_save Transform base_model_t = {
       w.shape = WidgetShape::Text;
 
       char text[128];
-      sprintf(text, "fps: %.2f", 1.0f / delta());
+      sprintf(text, "fps: 1234567890 000000000000000"); //%.2f", 1.0f / delta());
 
       w.text = text;
 
@@ -314,7 +314,36 @@ static_save Transform base_model_t = {
     vec2 move_dir = {0.0f, 0.0f};
   }
 
+void find_closest_2(vec2* points, u32 n, vec2 p, vec2* a, vec2* b) {
+  *a = points[0];
+  *b = points[1];
+
+  f32 min_dist = distance2(points[0], p);
+
+  for_every(i, n) {
+    f32 dist2 = distance2(points[i], p);
+    if(dist2 < min_dist) {
+      min_dist = dist2;
+      *a = *b;
+      *b = points[i];
+    }
+  }
+}
+
 mod_main() {
+  vec2 points[] = {
+    {1, 2},
+    {2, 2},
+    {4, 2},
+    {4, 3},
+    {8, 4},
+    {1, 3},
+  };
+
+  vec2 a, b;
+  find_closest_2(points, count_of(points), {4, 4}, &a, &b);
+  printf("Closest two are: (%f, %f), (%f, %f)\n", a.x, a.y, b.x, b.y);
+
   create_system("common_init", common::init);
 
   create_system("update0", common::update0);
