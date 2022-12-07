@@ -359,6 +359,7 @@ namespace quark {
     vec2 scale = vec2 { width / (f32)resolution.x, height / (f32)resolution.y };
 
     f32 xoffset = 0.0f;
+    f32 yoffset = 0.0f;
 
     char c = text[0];
     u32 i = 0;
@@ -371,11 +372,20 @@ namespace quark {
 
         continue;
       }
+      if(c == '\n') {
+        yoffset -= 1.0f * scale.y;
+        xoffset = 0.0f;
+
+        i += 1;
+        c = text[i];
+
+        continue;
+      }
 
       u32 fi = c - '!';
 
       for_every(i, text_counts[fi]) {
-        vec2 pos = text_verts[fi][i] * scale + vec2 {left + xoffset, bottom};
+        vec2 pos = text_verts[fi][i] * scale + vec2 {left + xoffset, bottom + yoffset};
         _ui->ptr[_ui->ui_vertex_count + i] = { .position = pos, .color = color, .normal = text_norms[fi][i] };
       }
       _ui->ui_vertex_count += text_counts[fi];
