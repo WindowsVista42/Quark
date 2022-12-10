@@ -13,6 +13,8 @@ namespace quark {
   static ttf_glyph_t *glyph = 0;
   static ttf_mesh3d_t *mesh = 0;
 
+  static u32 _resource_index = 0;
+
   // struct GlyphTable {
   //   u32 count;
   //   u32* vert_counts;
@@ -47,9 +49,10 @@ namespace quark {
       .type = BufferType::VertexUpload,
       .size = _ui->ui_vertex_capacity * (u32)sizeof(UiVertex),
     };
-    create_buffers(_ui->ui_vertex_buffers, _FRAME_OVERLAP, &ui_info);
+    create_buffers(_ui->ui_vertex_buffers, 3, &ui_info);
 
     _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[0]);
+    // _ui->ptr = (UiVertex*)push_arena(_context->arena, _ui->ui_vertex_capacity * sizeof(UiVertex));
 
     {
       VkPipelineLayoutCreateInfo layout_info = {};
@@ -296,12 +299,15 @@ namespace quark {
   void draw_ui() {
     VkCommandBuffer commands = _main_cmd_buf[_frame_index];
 
-    unmap_buffer(&_ui->ui_vertex_buffers[_frame_index]);
+    // void* dst = map_buffer(&_ui->ui_vertex_buffers[_frame_index]);
+    // copy_array(dst, _ui->ptr, UiVertex, _ui->ui_vertex_count);
+    // unmap_buffer(&_ui->ui_vertex_buffers[_frame_index]);
+    unmap_buffer(&_ui->ui_vertex_buffers[_resource_index]);
 
     // Info: draw depth only
     VkDeviceSize offsets[] = { 0, };
     VkBuffer buffers[] = {
-      _ui->ui_vertex_buffers[_frame_index].buffer,
+      _ui->ui_vertex_buffers[_resource_index].buffer,
     };
 
     vkCmdBindVertexBuffers(commands, 0, count_of(buffers), buffers, offsets);
@@ -314,7 +320,11 @@ namespace quark {
     vkCmdDraw(commands, _ui->ui_vertex_count, 1, 0, 0);
 
     _ui->ui_vertex_count = 0;
-    _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[(_frame_index + 1) % _FRAME_OVERLAP]);
+
+    _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[(_resource_index + 1) % 3]);
+
+    _resource_index += 1;
+    _resource_index %= 3;
   }
 
   void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color) {
@@ -384,8 +394,11 @@ namespace quark {
 
       u32 fi = c - '!';
 
+      ivec2 wd = get_window_dimensions();
+
       for_every(i, text_counts[fi]) {
         vec2 pos = text_verts[fi][i] * scale + vec2 {left + xoffset, bottom + yoffset};
+
         _ui->ptr[_ui->ui_vertex_count + i] = { .position = pos, .color = color, .normal = text_norms[fi][i] };
       }
       _ui->ui_vertex_count += text_counts[fi];

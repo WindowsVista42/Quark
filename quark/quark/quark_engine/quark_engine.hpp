@@ -1122,6 +1122,9 @@ namespace quark {
     u32 material_draw_offset[16];
     u32 material_draw_count[16];
     u32 material_cull_count[16];
+
+    u32 saved_total_draw_count;
+    u32 saved_total_culled_count;
   );
 
   void init_materials();
@@ -1202,8 +1205,8 @@ namespace quark {
   };
 
   declare_resource(UiContext,
-    u32 ui_vertex_capacity = 1024 * 64;
-    Buffer ui_vertex_buffers[_FRAME_OVERLAP];
+    u32 ui_vertex_capacity = 1024 * 128;
+    Buffer ui_vertex_buffers[3];
     VkPipelineLayout ui_pipeline_layout;
     VkPipeline ui_pipeline;
 

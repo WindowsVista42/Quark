@@ -247,7 +247,8 @@ static_save Transform base_model_t = {
       load_ecs();
     }
 
-    if(get_mouse_mode() != MouseMode::Captured) {
+    // if(get_mouse_mode() != MouseMode::Captured) {
+    {
       u32 blue_color = 0x000077FF;
       u32 green_color = 0x007700FF;
       u32 red_color = 0x770000FF;
@@ -293,10 +294,10 @@ static_save Transform base_model_t = {
       // f32 s = sinf(time()) + 1.0f;
       // s *= 20.0f;
       // s += 20.0f;
-      f32 s = 30.0f;
+      f32 s = 50.0f;
 
       Widget w = {};
-      w.position = {100, 100};
+      w.position = {100, get_window_dimensions().y - 100.0f};
       w.dimensions = {s, s};
       w.border_thickness = 0;
       w.function = WidgetFunction::Button;
@@ -311,6 +312,31 @@ static_save Transform base_model_t = {
       w.text = text;
 
       update_widget(&w, mouse_pos, mouse_click);
+      push_ui_widget(&w);
+
+      s = 30.0f;
+      w.position.y -= 200.0f;
+      w.dimensions = {s, s};
+
+      push_ui_widget(&w);
+
+      s = 20.0f;
+      w.position.y -= 200.0f;
+      w.dimensions = {s, s};
+
+      push_ui_widget(&w);
+
+      // s = 15.0f;
+      // w.position.y -= 200.0f;
+      // w.dimensions = {s, s};
+
+      // push_ui_widget(&w);
+
+      w.position.y -= 200.0f;
+      w.dimensions = {20, 20};
+      sprintf(text, "Draw count: %d\nCull count: %d\n", get_resource(DrawBatchContext)->saved_total_draw_count, get_resource(DrawBatchContext)->saved_total_culled_count);
+      w.text = text;
+
       push_ui_widget(&w);
     }
   }

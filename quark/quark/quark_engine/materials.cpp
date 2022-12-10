@@ -493,6 +493,9 @@ namespace quark {
   void reset_material_batches() {
     DrawBatchContext* context = get_resource(DrawBatchContext);
 
+    context->saved_total_draw_count = context->total_draw_count;
+    context->saved_total_culled_count = context->total_culled_count;
+
     context->total_draw_count = 0;
     context->total_culled_count = 0;
 

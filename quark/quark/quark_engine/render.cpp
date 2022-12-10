@@ -22,6 +22,9 @@ namespace quark {
 
   static GraphicsContext* _context = get_resource(GraphicsContext);
 
+  static bool resolve_src = false;
+  static bool resolve_dst = false;
+
   void init_vulkan();
   void init_mesh_buffer();
   void init_command_pools_and_buffers();
@@ -115,32 +118,39 @@ namespace quark {
     };
 
 
-    VkImageResolve resolve = {};
-    resolve.extent.width = swapchain_image.resolution.x;
-    resolve.extent.height = swapchain_image.resolution.y;
-    resolve.extent.depth = 1;
+    VkImageResolve img_resolve = {};
+    img_resolve.extent.width = swapchain_image.resolution.x;
+    img_resolve.extent.height = swapchain_image.resolution.y;
+    img_resolve.extent.depth = 1;
 
-    resolve.srcOffset.x = 0;
-    resolve.srcOffset.y = 0;
-    resolve.srcOffset.z = 0;
+    img_resolve.srcOffset.x = 0;
+    img_resolve.srcOffset.y = 0;
+    img_resolve.srcOffset.z = 0;
 
-    resolve.srcSubresource.mipLevel = 0;
-    resolve.srcSubresource.baseArrayLayer = 0;
-    resolve.srcSubresource.layerCount = 1;
-    resolve.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    img_resolve.srcSubresource.mipLevel = 0;
+    img_resolve.srcSubresource.baseArrayLayer = 0;
+    img_resolve.srcSubresource.layerCount = 1;
+    img_resolve.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    resolve.dstOffset.x = 0;
-    resolve.dstOffset.y = 0;
-    resolve.dstOffset.z = 0;
+    img_resolve.dstOffset.x = 0;
+    img_resolve.dstOffset.y = 0;
+    img_resolve.dstOffset.z = 0;
 
-    resolve.dstSubresource.mipLevel = 0;
-    resolve.dstSubresource.baseArrayLayer = 0;
-    resolve.dstSubresource.layerCount = 1;
-    resolve.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    img_resolve.dstSubresource.mipLevel = 0;
+    img_resolve.dstSubresource.baseArrayLayer = 0;
+    img_resolve.dstSubresource.layerCount = 1;
+    img_resolve.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
+    // resolve_dst = true;
     transition_image(_main_cmd_buf[_frame_index], &_context->material_color_images2[_frame_index], ImageUsage::Dst);
-    vkCmdResolveImage(_main_cmd_buf[_frame_index], _context->material_color_images[_frame_index].image, get_image_layout(_context->material_color_images[_frame_index].current_usage), _context->material_color_images2[_frame_index].image, get_image_layout(_context->material_color_images2[_frame_index].current_usage), 1, &resolve);
+    // resolve_dst = false;
+    transition_image(_main_cmd_buf[_frame_index], &_context->material_color_images[_frame_index], ImageUsage::Src);
+    vkCmdResolveImage(_main_cmd_buf[_frame_index], _context->material_color_images[_frame_index].image, get_image_layout(_context->material_color_images[_frame_index].current_usage), _context->material_color_images2[_frame_index].image, get_image_layout(_context->material_color_images2[_frame_index].current_usage), 1, &img_resolve);
+    // resolve_src = true;
     blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images2[_frame_index], FilterMode::Nearest);
+
+    // blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images[_frame_index], FilterMode::Nearest);
+    // resolve_src = false;
     transition_image(_main_cmd_buf[_frame_index], &swapchain_image, ImageUsage::Present);
 
     vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
@@ -855,6 +865,14 @@ namespace quark {
       barrier.srcAccessMask = access_lookup[(u32)image->current_usage];
       barrier.dstAccessMask = access_lookup[(u32)new_usage];
 
+      if(resolve_dst) {
+        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      }
+
+      if(resolve_src) {
+        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      }
+
       vkCmdPipelineBarrier(commands,
         stage_lookup[(u32)image->current_usage], stage_lookup[(u32)new_usage],
         0,
@@ -880,14 +898,14 @@ namespace quark {
       blit_region.dstSubresource = dst_blit_info.subresource;
 
       // Info: we need to transition the image layout
-      if(src->current_usage != ImageUsage::Src) {
+      // if(src->current_usage != ImageUsage::Src) {
         transition_image(commands, src, ImageUsage::Src);
-      }
+      // }
 
       // Info: we need to transition the image layout
-      if(dst->current_usage != ImageUsage::Dst) {
+      // if(dst->current_usage != ImageUsage::Dst) {
         transition_image(commands, dst, ImageUsage::Dst);
-      }
+      // }
 
       vkCmdBlitImage(commands,
         src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
