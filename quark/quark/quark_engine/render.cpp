@@ -685,7 +685,7 @@ namespace quark {
       image_info.extent = VkExtent3D { .width = (u32)info->resolution.x, .height = (u32)info->resolution.y, .depth = 1 };
       image_info.mipLevels = 1;
       image_info.arrayLayers = 1;
-      image_info.samples = info->samples;
+      image_info.samples = (VkSampleCountFlagBits)info->samples;
       image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 
       VkImageUsageFlags usage_lookup[] {
@@ -933,7 +933,7 @@ namespace quark {
       for_every(i, info->attachment_count) {
         // build attachment descs
         attachment_descs[i].format = (VkFormat)info->attachments[i][0].format;
-        attachment_descs[i].samples = info->attachments[i][0].samples;
+        attachment_descs[i].samples = (VkSampleCountFlagBits)info->attachments[i][0].samples;
         attachment_descs[i].loadOp = info->load_ops[i];
         attachment_descs[i].storeOp = info->store_ops[i];
         attachment_descs[i].initialLayout = get_image_layout(info->initial_usage[i]);
@@ -1059,11 +1059,11 @@ namespace quark {
         .resolution = _context->render_resolution,
         .format = ImageFormat::LinearRgba16,
         .type = ImageType::RenderTargetColor,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = ImageSamples::One,
       };
       create_images(_context->material_color_images2, _FRAME_OVERLAP, &_context->material_color_image_info);
 
-      _context->material_color_image_info.samples = VK_SAMPLE_COUNT_4_BIT,
+      _context->material_color_image_info.samples = ImageSamples::Eight,
 
       create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
@@ -1071,7 +1071,7 @@ namespace quark {
         .resolution = _context->render_resolution,
         .format = ImageFormat::LinearD24S8,
         .type = ImageType::RenderTargetDepth,
-        .samples = VK_SAMPLE_COUNT_4_BIT,
+        .samples = ImageSamples::Eight,
       };
       create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 
@@ -1290,7 +1290,7 @@ namespace quark {
       // Info: msaa support
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = _context->material_color_image_info.samples;
+      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)_context->material_color_image_info.samples;
       multisample_info.sampleShadingEnable = VK_FALSE;
       multisample_info.alphaToCoverageEnable = VK_FALSE;
       multisample_info.alphaToOneEnable = VK_FALSE;

@@ -1348,7 +1348,7 @@ namespace quark {
       .resolution = { width, height },
       .format = ImageFormat::LinearRgba8,
       .type = ImageType::Texture,
-      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .samples = ImageSamples::One,
     };
     create_images(image, 1, &info);
 

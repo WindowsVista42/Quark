@@ -564,11 +564,18 @@ namespace quark {
     Present           = 6,
   );
 
+  declare_enum(ImageSamples, u32,
+    One   = VK_SAMPLE_COUNT_1_BIT,
+    Two   = VK_SAMPLE_COUNT_2_BIT,
+    Four  = VK_SAMPLE_COUNT_4_BIT,
+    Eight = VK_SAMPLE_COUNT_8_BIT,
+  );
+
   struct ImageInfo {
     ivec2 resolution;
     ImageFormat format;
     ImageType type;
-    VkSampleCountFlagBits samples;
+    ImageSamples samples;
   };
 
   struct Image {
@@ -578,7 +585,7 @@ namespace quark {
     ImageUsage current_usage;
     ivec2 resolution;
     ImageFormat format;
-    VkSampleCountFlagBits samples;
+    ImageSamples samples;
     ImageType type;
   };
 

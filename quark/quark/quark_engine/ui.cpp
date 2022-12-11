@@ -123,7 +123,7 @@ namespace quark {
       // Info: msaa support
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = _context->material_color_image_info.samples;
+      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)_context->material_color_image_info.samples;
       multisample_info.sampleShadingEnable = VK_FALSE;
       multisample_info.alphaToCoverageEnable = VK_FALSE;
       multisample_info.alphaToOneEnable = VK_FALSE;
@@ -193,7 +193,8 @@ namespace quark {
     }
 
     {
-      if(ttf_load_from_file("quark/fonts/Roboto-Medium.ttf", &font, false) != TTF_DONE) {
+      // if(ttf_load_from_file("quark/fonts/Roboto-Medium.ttf", &font, false) != TTF_DONE) {
+      if(ttf_load_from_file("quark/fonts/SpaceMono-Bold.ttf", &font, false) != TTF_DONE) {
         panic("Failed to load font file!\n");
       }
 

@@ -82,7 +82,7 @@ namespace quark {
     // Info: msaa support
     VkPipelineMultisampleStateCreateInfo multisample_info = {};
     multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisample_info.rasterizationSamples = _context->main_depth_image_info.samples;
+    multisample_info.rasterizationSamples = (VkSampleCountFlagBits)_context->main_depth_image_info.samples;
     multisample_info.sampleShadingEnable = VK_FALSE;
     multisample_info.alphaToCoverageEnable = VK_FALSE;
     multisample_info.alphaToOneEnable = VK_FALSE;
