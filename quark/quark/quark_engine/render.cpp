@@ -19,11 +19,10 @@
 namespace quark {
 
   define_resource(GraphicsContext, {});
+  // define_resource(Options, {});
 
+  // static Options options = {};
   static GraphicsContext* _context = get_resource(GraphicsContext);
-
-  static bool resolve_src = false;
-  static bool resolve_dst = false;
 
   void init_vulkan();
   void init_mesh_buffer();
@@ -34,6 +33,10 @@ namespace quark {
   void init_sampler();
 
   void init_graphics_context() {
+    // options = *get_resource(Options);
+    {
+    }
+
     init_vulkan();
     init_mesh_buffer();
     init_command_pools_and_buffers();
@@ -108,7 +111,6 @@ namespace quark {
   void end_frame() {
     GraphicsContext* _context = get_resource(GraphicsContext);
 
-    // blit image
     Image swapchain_image = {
       .image = _context->swapchain_images[_swapchain_image_index],
       .view = _context->swapchain_image_views[_swapchain_image_index],
@@ -117,43 +119,31 @@ namespace quark {
       .format = ImageFormat::LinearBgra8,
     };
 
+    VkCommandBuffer cmd = _main_cmd_buf[_frame_index];
+    Image* color_img = &_context->material_color_images[_frame_index];
+    Image* resolve_img = &_context->material_color_images2[_frame_index];
 
-    VkImageResolve img_resolve = {};
-    img_resolve.extent.width = swapchain_image.resolution.x;
-    img_resolve.extent.height = swapchain_image.resolution.y;
-    img_resolve.extent.depth = 1;
+    if(color_img->samples == ImageSamples::One) {
+      // Info: No msaa, directly blit to swapchain
+      blit_image(cmd, &swapchain_image, color_img, FilterMode::Nearest);
+    } else {
+      // if(color_img->resolution == swapchain_image.resolution) {
+      //   // Info: Fast path, we can directly resolve into the swapchain since the resolutions match
+      //   resolve_image(cmd, &swapchain_image, color_img);
+      // } else {
 
-    img_resolve.srcOffset.x = 0;
-    img_resolve.srcOffset.y = 0;
-    img_resolve.srcOffset.z = 0;
+        // @Important We can't do the fast path bc it expects both images to have the same format :(
+        // Info: Slow path, since the resolutions dont match, we need to resolve into a secondary image
+        // then blit into the swapchain so we can get filtering
+        resolve_image(cmd, resolve_img, color_img);
+        blit_image(cmd, &swapchain_image, resolve_img, FilterMode::Nearest);
 
-    img_resolve.srcSubresource.mipLevel = 0;
-    img_resolve.srcSubresource.baseArrayLayer = 0;
-    img_resolve.srcSubresource.layerCount = 1;
-    img_resolve.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      // }
+    }
 
-    img_resolve.dstOffset.x = 0;
-    img_resolve.dstOffset.y = 0;
-    img_resolve.dstOffset.z = 0;
-
-    img_resolve.dstSubresource.mipLevel = 0;
-    img_resolve.dstSubresource.baseArrayLayer = 0;
-    img_resolve.dstSubresource.layerCount = 1;
-    img_resolve.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
-    // resolve_dst = true;
-    transition_image(_main_cmd_buf[_frame_index], &_context->material_color_images2[_frame_index], ImageUsage::Dst);
-    // resolve_dst = false;
-    transition_image(_main_cmd_buf[_frame_index], &_context->material_color_images[_frame_index], ImageUsage::Src);
-    vkCmdResolveImage(_main_cmd_buf[_frame_index], _context->material_color_images[_frame_index].image, get_image_layout(_context->material_color_images[_frame_index].current_usage), _context->material_color_images2[_frame_index].image, get_image_layout(_context->material_color_images2[_frame_index].current_usage), 1, &img_resolve);
-    // resolve_src = true;
-    blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images2[_frame_index], FilterMode::Nearest);
-
-    // blit_image(_main_cmd_buf[_frame_index], &swapchain_image, &_context->material_color_images[_frame_index], FilterMode::Nearest);
-    // resolve_src = false;
-    transition_image(_main_cmd_buf[_frame_index], &swapchain_image, ImageUsage::Present);
-
-    vk_check(vkEndCommandBuffer(_main_cmd_buf[_frame_index]));
+    // End the frame
+    transition_image(cmd, &swapchain_image, ImageUsage::Present);
+    vk_check(vkEndCommandBuffer(cmd));
   
     VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
   
@@ -182,7 +172,6 @@ namespace quark {
     present_info.pNext = 0;
   
     VkResult result = vkQueuePresentKHR(_context->graphics_queue, &present_info);
-  
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _framebuffer_resized) {
       _framebuffer_resized = false;
       resize_swapchain();
@@ -196,7 +185,7 @@ namespace quark {
 
   void begin_main_depth_prepass() {
     ClearValue clear_values[] = {
-      { .depth = 1, .stencil = 0 },
+      { .depth = 0, .stencil = 0 },
     };
 
     begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_depth_prepass_render_pass, clear_values);
@@ -209,7 +198,7 @@ namespace quark {
   void begin_main_color_pass() {
     ClearValue clear_values[] = {
       { .color = BLACK },
-      { .depth = 1, .stencil = 0 },
+      { .depth = 0, .stencil = 0 },
     };
     begin_render_pass(_main_cmd_buf[_frame_index], _frame_index, &_context->main_render_pass, clear_values);
   }
@@ -502,12 +491,18 @@ namespace quark {
       selector = selector.allow_any_gpu_device_type();
       selector = selector.prefer_gpu_device_type();
 
-      vkb::PhysicalDevice vkb_physical_device;
+      vkb::PhysicalDevice vkb_physical_device = {};
       vkb_assign_if_valid(vkb_physical_device, selector.select());
+
+      printf("here!\n");
     
       vkb::DeviceBuilder device_builder{vkb_physical_device};
-      vkb::Device vkb_device;
+      printf("here!\n");
+      vkb::Device vkb_device = {};
+      printf("here!\n");
       vkb_assign_if_valid(vkb_device, device_builder.build());
+
+      printf("here!\n");
     
       _context->device = vkb_device.device;
       _context->physical_device = vkb_device.physical_device;
@@ -778,9 +773,9 @@ namespace quark {
 
     void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage) {
       // Info: we can no-op if we're the correct layout
-      // if(image->current_usage == new_usage) {
-      //   return;
-      // }
+      if(image->current_usage == new_usage) {
+         return;
+      }
 
       // Info: i'm using the fact that VkImageLayout is 0 - 7 for the flags that i want to use,
       // so i can just use it as an index into a lookup table.
@@ -865,14 +860,6 @@ namespace quark {
       barrier.srcAccessMask = access_lookup[(u32)image->current_usage];
       barrier.dstAccessMask = access_lookup[(u32)new_usage];
 
-      if(resolve_dst) {
-        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      }
-
-      if(resolve_src) {
-        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      }
-
       vkCmdPipelineBarrier(commands,
         stage_lookup[(u32)image->current_usage], stage_lookup[(u32)new_usage],
         0,
@@ -885,6 +872,11 @@ namespace quark {
     }
 
     void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode) {
+      // Info: transition layouts so imgs are in the right layout to blit to
+      transition_image(commands, dst, ImageUsage::Dst);
+      transition_image(commands, src, ImageUsage::Src);
+
+      // Info: create blit info and blit
       BlitInfo dst_blit_info = get_blit_info(dst);
       BlitInfo src_blit_info = get_blit_info(src);
 
@@ -897,22 +889,46 @@ namespace quark {
       blit_region.dstOffsets[1] = dst_blit_info.top_right;
       blit_region.dstSubresource = dst_blit_info.subresource;
 
-      // Info: we need to transition the image layout
-      // if(src->current_usage != ImageUsage::Src) {
-        transition_image(commands, src, ImageUsage::Src);
-      // }
-
-      // Info: we need to transition the image layout
-      // if(dst->current_usage != ImageUsage::Dst) {
-        transition_image(commands, dst, ImageUsage::Dst);
-      // }
-
       vkCmdBlitImage(commands,
         src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &blit_region,
         (VkFilter)filter_mode
       );
+    }
+
+    void resolve_image(VkCommandBuffer commands, Image* dst, Image* src) {
+      // Todo: safety checks
+
+      // Info: transition imgs so they are in the right layout to be resolved to
+      transition_image(commands, dst, ImageUsage::Dst);
+      transition_image(commands, src, ImageUsage::Src);
+
+      // Info: create resolve info and resolve
+      VkImageResolve img_resolve = {};
+      img_resolve.extent.width = dst->resolution.x;
+      img_resolve.extent.height = dst->resolution.y;
+      img_resolve.extent.depth = 1;
+
+      img_resolve.srcOffset.x = 0;
+      img_resolve.srcOffset.y = 0;
+      img_resolve.srcOffset.z = 0;
+
+      img_resolve.srcSubresource.mipLevel = 0;
+      img_resolve.srcSubresource.baseArrayLayer = 0;
+      img_resolve.srcSubresource.layerCount = 1;
+      img_resolve.srcSubresource.aspectMask = get_image_aspect(src->format);
+
+      img_resolve.dstOffset.x = 0;
+      img_resolve.dstOffset.y = 0;
+      img_resolve.dstOffset.z = 0;
+
+      img_resolve.dstSubresource.mipLevel = 0;
+      img_resolve.dstSubresource.baseArrayLayer = 0;
+      img_resolve.dstSubresource.layerCount = 1;
+      img_resolve.dstSubresource.aspectMask = get_image_aspect(dst->format);
+
+      vkCmdResolveImage(commands, src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &img_resolve);
     }
 
     void begin_render_pass(VkCommandBuffer commands, RenderPass* render_pass, u32 image_index, ClearValue* clear_values) {
@@ -1063,15 +1079,15 @@ namespace quark {
       };
       create_images(_context->material_color_images2, _FRAME_OVERLAP, &_context->material_color_image_info);
 
-      _context->material_color_image_info.samples = ImageSamples::Eight,
+      _context->material_color_image_info.samples = ImageSamples::Four,
 
       create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
       _context->main_depth_image_info = {
         .resolution = _context->render_resolution,
-        .format = ImageFormat::LinearD24S8,
+        .format = ImageFormat::LinearD32,
         .type = ImageType::RenderTargetDepth,
-        .samples = ImageSamples::Eight,
+        .samples = ImageSamples::Four,
       };
       create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 
@@ -1300,7 +1316,7 @@ namespace quark {
       depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
       depth_info.depthTestEnable = VK_TRUE;
       depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
       depth_info.depthBoundsTestEnable = VK_FALSE;
       depth_info.stencilTestEnable = VK_FALSE;
       depth_info.minDepthBounds = 0.0f;

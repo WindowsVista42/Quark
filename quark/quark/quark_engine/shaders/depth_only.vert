@@ -27,27 +27,31 @@ struct Transform {
   vec4 scale;
 };
 
-layout (set = 1, binding = 2, std430) readonly buffer Transforms {
+layout (set = 1, binding = 2) readonly buffer Transforms {
   Transform transforms[];
 };
 
 vec3 rotate(vec3 v, vec4 q) {
-  //// https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
-  //vec3 t = 2.0f * cross(q.xyz, v);
-  //return v + q.w * t + cross(q.xyz, t);
+  // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+  // vec3 t = 2.0f * cross(q.xyz, v);
+  // return v + q.w * t + cross(q.xyz, t);
 
-  vec3 u = q.xyz;
+  vec3 u = vec3(q.x, q.y, q.z);
   float s = q.w;
-  return v + ((cross(u, v) * s) + cross(u, cross(u,v))) * 2.0f;
+  vec3 t = 2.0f * cross(u, v);
+  return v + s * t + cross(u, t);
+
+  // vec3 u = q.xyz;
+  // float s = q.w;
+  // return v + ((cross(u, v) * s) + cross(u, cross(u,v))) * 2.0f;
 }
 
 void main() {
   const uint INDEX = BASE_INSTANCE;
 
   const vec3 position = transforms[INDEX].position.xyz;
-  const vec4 rotation = transforms[INDEX].rotation;
+  const vec4 rotation = transforms[INDEX].rotation.xyzw;
   const vec3 scale = transforms[INDEX].scale.xyz;
-
   const vec3 WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
 
   POSITION = MAIN_VP * vec4(WORLD_POSITION, 1.0f);

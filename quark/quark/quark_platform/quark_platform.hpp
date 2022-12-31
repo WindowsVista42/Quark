@@ -202,6 +202,9 @@ namespace quark {
   platform_api bool get_input_down(InputId input, u32 source_id = 0);
   platform_api bool get_input_up(InputId input, u32 source_id = 0);
 
+  platform_api bool is_input_down(InputId input, u32 source_id = 0);
+  platform_api bool is_input_up(InputId input, u32 source_id = 0);
+
   platform_api InputState get_key_state(KeyCode key);
   platform_api InputState get_mouse_button_state(MouseButtonCode mouse_button);
   platform_api InputState get_gamepad_button_state(u32 gamepad_id, GamepadButtonCode gamepad_button);
@@ -213,6 +216,14 @@ namespace quark {
   platform_api bool get_key_up(KeyCode key);
   platform_api bool get_mouse_button_up(MouseButtonCode key);
   platform_api bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode key);
+
+  platform_api bool is_key_down(KeyCode key);
+  platform_api bool is_mouse_button_down(MouseButtonCode key);
+  platform_api bool is_gamepad_button_down(u32 gamepad_id, GamepadButtonCode key);
+
+  platform_api bool is_key_up(KeyCode key);
+  platform_api bool is_mouse_button_up(MouseButtonCode key);
+  platform_api bool is_gamepad_button_up(u32 gamepad_id, GamepadButtonCode key);
 
   platform_api f32 get_gamepad_axis(u32 gamepad_id, GamepadAxisCode gamepad_axis);
   platform_api f32 get_mouse_axis(MouseAxisCode mouse_axis);
@@ -270,7 +281,6 @@ namespace quark {
     HINSTANCE hinstlib;
   };
 #endif
-
 
   platform_api Library load_library(const char* library_path);
   platform_api void unload_library(Library* library);
@@ -367,6 +377,29 @@ namespace quark {
   inline void clear_arena(Arena* arena);
   inline void clear_zero_arena(Arena* arena);
   inline void reset_arena(Arena* arena);
+
+  // inline u8* arena_push(Arena* arena, usize size);
+  // inline u8* arena_push_zero(Arena* arena, usize size);
+
+  // #define arena_push_array(arena, type, count) (type*)push_arena((arena), (count) * sizeof(type))
+  // #define arena_push_array_zero(arena, type, count) (type*)push_zero_arena((arena), (count) * sizeof(type))
+
+  // #define arena_push_struct(arena, type) (type*)push_arena((arena), sizeof(type))
+  // #define arena_push_struct_zero(arena, type) (type*)push_zero_arena((arena), sizeof(type))
+
+  // inline u8* arena_push_copy(Arena* arena, void* src, usize size);
+  // #define arena_push_array_copy(arena, src, type, count) (type*)copy_mem_arena((arena), (src), sizeof(type) * (count))
+
+  // inline void arena_pop(Arena* arena, usize size);
+
+  // // returns position to 0
+  // inline void arena_reset(Arena* arena);
+
+  // // zeros everything and returns position to 0
+  // inline void arena_clear(Arena* arena);
+
+  // // decommits memory returning to default 2MB starting block, zeros everything and returns position to 0
+  // inline void arena_hard_reset(Arena* arena);
 
 //
 // Temp Stack API

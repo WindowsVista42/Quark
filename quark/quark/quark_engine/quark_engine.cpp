@@ -17,10 +17,10 @@ namespace quark {
 
   define_savable_resource(MainCamera, {{
     .position = VEC3_ZERO,
-    .rotation = {0, F32_PI_2, 0},
+    .rotation = {0, 0, 0, 1},
     .fov = 90.0f,
     .z_near = 0.01f,
-    .z_far = 10000.0f,
+    .z_far = 100000.0f,
     .projection_type = ProjectionType::Perspective,
   }});
   define_savable_resource(SunCamera, {});
@@ -36,6 +36,8 @@ namespace quark {
   define_resource(AssetServer, {});
 
   define_savable_resource(TimeInfo, {});
+
+  u32 ECS_MAX_STORAGE = (16 * 1024);
 
   static GraphicsContext* _context = get_resource(GraphicsContext);
 
@@ -99,6 +101,10 @@ namespace quark {
   void bind_action(const char* action_name, InputId input, u32 source_id, f32 strength) {
     //TODO(sean): check for invalid input binds?
 
+    if(_action_properties_map.count(action_name) == 0) {
+      printf("In bind_action(), could not find action with name: '%s'\n", action_name);
+    }
+
     // add new input
     _action_properties_map.at(action_name).input_ids.push_back(input);
     _action_properties_map.at(action_name).source_ids.push_back(source_id);
@@ -143,6 +149,21 @@ namespace quark {
     return vec2 {
       xp.current - xn.current,
       yp.current - yn.current,
+    };
+  }
+
+  vec3 get_action_vec3(const char* action_x_pos, const char* action_x_neg, const char* action_y_pos, const char* action_y_neg, const char* action_z_pos, const char* action_z_neg) {
+    ActionState xp = _action_state_map.at(action_x_pos);
+    ActionState xn = _action_state_map.at(action_x_neg);
+    ActionState yp = _action_state_map.at(action_y_pos);
+    ActionState yn = _action_state_map.at(action_y_neg);
+    ActionState zp = _action_state_map.at(action_z_pos);
+    ActionState zn = _action_state_map.at(action_z_neg);
+
+    return vec3 {
+      xp.current - xn.current,
+      yp.current - yn.current,
+      zp.current - zn.current,
     };
   }
 
@@ -332,7 +353,18 @@ namespace quark {
       list->systems.insert(index, system_hash);
       return;
     } else {
-      panic("Relative positioning not supported yet for add_system!");
+      auto relative_index_iter = std::find(list->systems.begin(), list->systems.end(), relative_hash);
+      auto relative_index = relative_index_iter - list->systems.begin();
+
+      usize absolute_position = (((isize)list->systems.size() + relative_index + position) % list->systems.size());
+      if(position < 0) {
+        absolute_position += 1;
+      } 
+
+      // @remove printf("Absolute position was: %llu, for system: '%s'\n", absolute_position, system_name);
+
+      auto index = list->systems.begin() + absolute_position;
+      list->systems.insert(index, system_hash);
     } 
   }
 
@@ -573,7 +605,15 @@ namespace quark {
     return i;
   }
 
+  u32 get_ecs_bit(EcsContext* ctx, u32 id, u32 component_id);
+
   void* get_comp_ptr(EcsContext* ctx, u32 id, u32 component_id) {
+    // bool has_component = has_component_id(id, component_id);
+    // if(!has_component_id) {
+    //   printf("In get_comp_ptr, entity with id: '%u', does not have component with id: '%u'!\n", id, component_id);
+    //   panic("");
+    // };
+
     u8* comp_table = (u8*)ctx->ecs_comp_table[component_id];
     void* dst = &comp_table[id * ctx->ecs_comp_sizes[component_id]];
 
@@ -612,7 +652,7 @@ namespace quark {
     return ctx->ecs_bool_table[component_id][x] & shift;
   }
 
-  u32 create_entity() {
+  u32 create_entity(bool set_active) {
     EcsContext* ctx = get_resource(EcsContext);
 
     u32 entity_id = ctx->ecs_empty_head;
@@ -650,6 +690,10 @@ namespace quark {
       ctx->ecs_entity_tail = (entity_id / 32);
     }
 
+    if(set_active) {
+      add_flag_id(entity_id, ECS_ACTIVE_FLAG);
+    }
+
     return entity_id;
   }
 
@@ -681,6 +725,7 @@ namespace quark {
   }
 
   void remove_component_id(u32 entity_id, u32 component_id) {
+    remove_flag_id(entity_id, component_id);
   }
 
   void add_flag_id(u32 entity_id, u32 component_id) {
@@ -698,7 +743,7 @@ namespace quark {
     return get_comp_ptr(ctx, entity_id, component_id);
   }
 
-  bool has_component2(u32 entity_id, u32 component_id) {
+  bool has_component_id(u32 entity_id, u32 component_id) {
     EcsContext* ctx = get_resource(EcsContext);
     return get_ecs_bit(ctx, entity_id, component_id) > 0;
   }
@@ -811,6 +856,9 @@ namespace quark {
     });
 
     FILE* f = fopen("quark/saves/game_state.qsave", "wb");
+    if(f == 0) {
+      panic("Failed to open ecs state file for saving!\n");
+    }
     defer({
       fclose(f);
       log("Saved file!\n");
@@ -884,6 +932,9 @@ namespace quark {
 
     FILE* f = fopen("quark/saves/game_state.qsave", "rb");
     if(f == 0) {
+      panic("Failed to open ecs state file for loading!\n");
+    }
+    if(f == 0) {
       return;
     }
     defer({
@@ -899,12 +950,13 @@ namespace quark {
     usize fsize = ftell(f);
     fseek(f, 0L, SEEK_SET);
 
-    Timestamp s0 = get_timestamp();
     u8* ptr = push_arena(arena, 8 * MB);
     fread(ptr, 1, fsize, f);
 
     b.start = push_arena(arena, 64 * MB);
     b.size = LZ4_decompress_safe((const char*)ptr, (char*)b.start, fsize, 64 * MB);
+
+    Timestamp s0 = get_timestamp();
 
     read_fileb(&b, common_static_ptr, 1, common_static_size);
     read_fileb(&b, engine_static_ptr, 1, engine_static_size);
@@ -916,7 +968,7 @@ namespace quark {
       read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
     Timestamp s1 = get_timestamp();
-    printf("Time to read_fileb: %fms\n", (f32)get_timestamp_difference(s0, s1));
+    printf("Time to read_fileb: %fms, %.2fmb\n", (f32)get_timestamp_difference(s0, s1) * 1000.0f, (f32)b.size / (f32)(1 * MB));
 
     // fread(&ctx->ecs_entity_head, sizeof(u32), 1, f);
     // fread(&ctx->ecs_entity_tail, sizeof(u32), 1, f);

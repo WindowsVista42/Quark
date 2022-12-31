@@ -21,7 +21,7 @@ layout (set = 1, binding = 1) readonly buffer ColorMaterialInstances {
   ColorMaterialInstance instances[];
 };
 
-layout (set = 1, binding = 2, std430) readonly buffer Transforms {
+layout (set = 1, binding = 2) readonly buffer Transforms {
   Transform transforms[];
 };
 
@@ -31,7 +31,7 @@ void main() {
   INDEX = BASE_INSTANCE;
 
   const vec3 position = transforms[INDEX].position.xyz;
-  const vec4 rotation = transforms[INDEX].rotation;
+  const vec4 rotation = transforms[INDEX].rotation.xyzw;
   const vec3 scale = transforms[INDEX].scale.xyz;
 
   WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;

@@ -51,18 +51,6 @@ namespace quark {
 // Component Types
 //
 
-  struct alignas(8) Transform {
-    vec3 position;
-    quat rotation;
-  };
-
-  enum struct MeshId : u32 {};
-
-  struct Model {
-    vec3 half_extents;
-    MeshId id;
-  };
-
   enum struct ImageId : u32 {};
 
   // struct ImageProperties {
@@ -133,7 +121,6 @@ namespace quark {
     return get_resource(TimeInfo)->time;
   }
 
-
 //
 // Ecs API
 //
@@ -142,7 +129,8 @@ namespace quark {
   #define define_component(name)        \ // defined in internal/ecs.hpp
   #define update_component(name)        \ // defined in internal/ecs.hpp
 
-  #define ECS_MAX_STORAGE (128 * 1024)
+  // defaulted to 16 * 1024 entities
+  engine_var u32 ECS_MAX_STORAGE;
 
   declare_resource(EcsContext,
     u32 ecs_table_count = 0;
@@ -164,13 +152,15 @@ namespace quark {
     u32 ecs_empty_head = 0;
   );
 
+  declare_resource(EcsConfig);
+
   engine_var const u32 ECS_ACTIVE_FLAG;
   engine_var const u32 ECS_EMPTY_FLAG;
 
   engine_api void init_ecs();
   engine_api u32 add_ecs_table(u32 component_size);
 
-  engine_api u32 create_entity();
+  engine_api u32 create_entity(bool set_active = true);
   engine_api void destroy_entity(u32 entity_id);
 
   engine_api void add_component_id(u32 entity_id, u32 component_id, void* data);
@@ -209,6 +199,19 @@ namespace quark {
 // Component API
 //
 
+  declare_component(alignas(8) Transform,
+    vec3 position;
+    u32 padding;
+    quat rotation;
+  );
+
+  enum struct MeshId : u32 {};
+
+  declare_component(alignas(8) Model,
+    vec3 half_extents;
+    MeshId id;
+  );
+
   engine_api Model create_model(const char* mesh_name, vec3 scale);
   
   engine_api ImageId get_image_id(const char* image_name);
@@ -224,7 +227,7 @@ namespace quark {
   
   struct Camera3D {
     vec3 position;
-    eul3 rotation;
+    quat rotation;
     f32 fov;
     f32 z_near;
     f32 z_far;
@@ -290,6 +293,28 @@ namespace quark {
     f32 value;
   };
 
+  // struct Action2 {
+  //   bool is_down;
+  //   bool just_down;
+  //   bool is_up;
+  //   bool just_up;
+
+  //   f32 value;
+  //   f32 previous_value;
+  // };
+
+  // struct ActionBind2 {
+  //   InputId input_id;
+  //   u32 source_id;
+  //   f32 input_strength;
+  // };
+
+  // struct ActionProperties2 {
+  //   u32 bind_count;
+  //   ActionBind2* binds;
+  //   f32 max_value;
+  // };
+
   engine_api void init_actions();
   engine_api void deinit_actions();
   
@@ -301,13 +326,34 @@ namespace quark {
   engine_api void bind_action(const char* action_name, GamepadButtonCode input, u32 source_id);
   engine_api void bind_action(const char* action_name, MouseAxisCode input, f32 strength);
   engine_api void bind_action(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength);
-
   engine_api void bind_action(const char* action_name, InputId input, u32 source_id = 0, f32 strength = 1.0f);
 
-  engine_api void unbind_action(const char* action_name);
+  engine_api bool bind_key_to_action(u32 action_id, KeyCode key);
+
+  engine_api Action get_action(u32 action_id);
+  engine_api f32 get_action_value(u32 action_id);
+  engine_api vec2 get_action_values_as_vec2(u32 pos_x_axis, u32 neg_x_axis, u32 pos_y_axis, u32 neg_y_axis);
+
+  engine_api void init_action_map();
+  engine_api void deinit_action_map();
+  engine_api void update_action_map();
+
+  engine_api bool bind_name_to_action(u32 action_id, const char* name);
+
+  engine_api bool get_action_inputs(u32 action_id, u32* out_input_count, InputId* out_inputs, u32* out_source_ids, f32 out_input_strengths);
+
+  // engine_api void bind_key(const char* action_name, KeyCode input);
+  // engine_api void bind_mouse_button(const char* action_name, MouseButtonCode input);
+  // engine_api void bind_gamepad_button(const char* action_name, GamepadButtonCode input, u32 source_id);
+  // engine_api void bind_mouse_axis(const char* action_name, MouseAxisCode input, f32 strength);
+  // engine_api void bind_gamepad_axis(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength);
+  // engine_api void bind_input_id(const char* action_name, InputId input, u32 source_id = 0, f32 strength = 1.0f);
+
+  engine_api void unbind_all_inputs(const char* action_name);
   
   engine_api Action get_action(const char* action_name);
   engine_api vec2 get_action_vec2(const char* action_x_pos, const char* action_x_neg, const char* action_y_pos, const char* action_y_neg);
+  engine_api vec3 get_action_vec3(const char* action_x_pos, const char* action_x_neg, const char* action_y_pos, const char* action_y_neg, const char* action_z_pos, const char* action_z_neg);
   
   engine_api void update_all_actions();
 
@@ -593,6 +639,7 @@ namespace quark {
 
   engine_api void transition_image(VkCommandBuffer commands, Image* image, ImageUsage new_usage);
   engine_api void blit_image(VkCommandBuffer commands, Image* dst, Image* src, FilterMode filter_mode);
+  engine_api void resolve_image(VkCommandBuffer commands, Image* dst, Image* src);
 
   engine_api void copy_buffer_to_image(VkCommandBuffer commands, Image* dst, Buffer* src);
 
@@ -878,6 +925,38 @@ namespace quark {
     ResourceBundle main_depth_prepass_resource_bundles[16];
   );
 
+  declare_enum(DepthPrecision, u32,
+    Low  = (u32)ImageFormat::LinearD16,
+    High = (u32)ImageFormat::LinearD32,
+  );
+
+  declare_enum(ColorPrecision, u32,
+    Low  = (u32)ImageFormat::LinearRgba8, // Non-HDR
+    High = (u32)ImageFormat::LinearRgba16, // HDR
+  );
+
+  declare_resource(WindowConfig,
+    const char* app_name;
+
+    MouseMode starting_mouse_mode = MouseMode::Captured;
+
+    bool enable_resizing = false;
+    bool enable_raw_mouse = true;
+
+    ivec2 window_resolution = {-1, -1}; // -1 == Use monitor resolution
+  );
+
+  // Info: configurable before init_graphics_context()
+  // Afterwards, the values are copied into an internal
+  // structure that won't be easily editable
+  declare_resource(GraphicsConfig,
+    ivec2 render_resolution = {-1, -1}; // -1 == Use window resolution
+
+    ImageSamples sample_count = ImageSamples::Four;
+    ColorPrecision color_precision = ColorPrecision::High;
+    DepthPrecision depth_precision = DepthPrecision::High;
+  );
+
   engine_api void init_graphics_context();
 
 //
@@ -1134,6 +1213,13 @@ namespace quark {
     u32 saved_total_culled_count;
   );
 
+  declare_resource(DrawBatchConfig,
+    u32 material_capacity = 16; // num of different materials we can hold
+
+    u32 batch_capacity = 1024 * 128;
+    u32 instance_capacity = 128;
+  );
+
   void init_materials();
 
   engine_api u32 add_material_type(MaterialInfo* info);
@@ -1143,6 +1229,9 @@ namespace quark {
   inline void* get_material_instance(u32 material_id, u32 material_instance_index);
   inline void push_drawable(u32 material_id, Drawable* drawable, u32 material_index);
   inline void push_drawable_instance(u32 material_id, Drawable* drawable, void* material_instance);
+
+  template <typename T>
+  void push_drawable_instance(Drawable* drawable, T* material_instance);
 
   engine_api void build_material_batch_commands();
 
@@ -1221,10 +1310,14 @@ namespace quark {
     UiVertex* ptr;
   );
 
+  declare_resource(UiConfig);
+
   engine_api void init_ui_context();
   engine_api void draw_ui();
   engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
   engine_api void push_ui_widget(Widget* widget);
+
+  engine_api void push_debug_text(f32 x, f32 y, f32 font_size, const char* format, va_list args...);
 
   engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
 };

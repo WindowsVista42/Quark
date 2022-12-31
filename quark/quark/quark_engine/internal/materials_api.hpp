@@ -33,6 +33,11 @@ using namespace quark;
     copy_mem(&batch->materials_batch[i * type->material_size], material, type->material_size);
   }
 
+  template <typename T>
+  void push_drawable_instance(Drawable* drawable, T* material_instance) {
+    push_drawable_instance(T::MATERIAL_ID, drawable, material_instance);
+  }
+
   void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
     DrawBatchContext* context = get_resource(DrawBatchContext);
     MaterialBatch* batch = &context->batches[material_id];

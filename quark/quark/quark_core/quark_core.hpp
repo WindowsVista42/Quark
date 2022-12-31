@@ -131,11 +131,16 @@ namespace quark {
   f32 distance2(vec3 a, vec3 b);
   vec3 cross(vec3 a, vec3 b);
   vec3 normalize(vec3 a);
+  vec3 normalize_or_zero(vec3 a);
   vec3 normalize_max_length(vec3 a, f32 max_length);
+
   vec3 rotate_point(vec3 a, quat rotation);
+
+  vec3 rotate(vec3 point, quat rotation);
+  vec3 rotate(vec3 point, eul3 rotation);
   
   vec3 as_vec3(eul3 a);
-  
+
   vec3 as_vec3(vec2 xy, f32 z);
   vec3 as_vec3(f32 x, vec2 yz);
 
@@ -168,6 +173,8 @@ namespace quark {
   vec3 forward(eul2 a);
   vec3 right(eul2 a);
   vec3 up(eul2 a);
+
+  eul2 rotate(eul2 a, f32 angle_radians);
   
   eul2 as_eul2(vec2 a);
   
@@ -180,10 +187,16 @@ namespace quark {
   vec3 up(eul3 a);
   
   eul3 as_eul3(vec3 a);
+
+  eul3 eul3_from_quat(quat q);
   
 //
 // quat
 //
+
+  quat convert_to_quat(eul3 rotation);
+  quat convert_to_quat(mat3 rotation);
+  quat convert_to_quat(mat4 rotation);
   
   vec3 forward(quat a);
   vec3 right(quat a);
@@ -191,15 +204,19 @@ namespace quark {
   
   quat conjugate(quat a);
   quat normalize(quat a);
-  
-  quat rotate_quat(eul3 rotation);
-  quat rotate_quat(mat3 rotation);
-  quat rotate_quat(mat4 rotation);
+
   quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis);
   quat axis_angle_quat(vec3 axis, f32 angle);
+
+  quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis);
+  quat quat_from_axis_angle(vec3 axis, f32 angle_radians);
   
   quat as_quat(vec4 a);
-  
+
+  quat quat_from_eul3(eul3 a);
+  quat quat_from_mat3(mat3 a);
+  quat quat_from_mat4(mat4 a);
+
 //
 // mat2
 //
@@ -211,6 +228,9 @@ namespace quark {
 //
   
   mat3 transpose(mat3 a);
+
+  mat3 rotate(mat3 a, quat rotation);
+  mat3 scale(mat3 a, vec3 scale);
   
 //
 // mat4
@@ -228,10 +248,36 @@ namespace quark {
   mat4 forward_up_mat4(vec3 forward, vec3 up);
   mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
   mat4 axis_angle_mat4(vec3 axis, f32 angle);
+
+  mat4 transpose();
+
+  mat4 perspective_projection(f32 fov_radians, f32 aspect_ratio, f32 near_plane_distance, f32 far_plane_distance);
+  mat4 orthographic_projection(f32 left_plane_distance, f32 right_plane_distance, f32 top_plane_distance, f32 bottom_plane_distance, f32 near_plane_distance, f32 far_plane_distance);
+
+  mat4 mat4_from_orthogonal_forward_up_vectors(vec3 forward, vec3 up);
+  mat4 mat4_from_look_dir(vec3 camera_position, vec3 look_direction, vec3 up);
+  mat4 mat4_from_look_at(vec3 camera_position, vec3 target_position, vec3 up);
+  mat4 mat4_from_axis_angle(vec3 axis, f32 angle_radians);
+
   mat4 translate_mat4(vec3 position);
   mat4 rotate_mat4(quat rotation);
   mat4 scale_mat4(vec3 scale);
   mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
+
+  mat4 rotate_mat4(eul3 rotation);
+
+  mat4 translate(mat4 a, vec3 position);
+  mat4 rotate(mat4 a, quat rotation);
+  mat4 scale(mat4 a, vec3 scale);
+  mat4 transform(mat4 a, vec3 position, quat rotation, vec3 scale);
+
+  mat4 translate_identity(vec3 position);
+  mat4 rotate_identity(quat rotation);
+  mat4 scale_identity(vec3 scale);
+
+  // mat4 convert_to_mat4(quat rotation);
+
+  // mat4 as_mat4(vec4 x, vec4 y, vec4 z, vec4 w);
   
 //
 // Math utility

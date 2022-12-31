@@ -26,6 +26,9 @@ namespace quark {
   //   load_asset_folder("quark/textures");
   // }
 
+  define_component(Transform);
+  define_component(Model);
+
   void load_assets() {
     add_asset_file_loader(".vert.spv", load_vert_shader);
     add_asset_file_loader(".frag.spv", load_frag_shader);
@@ -57,8 +60,13 @@ namespace quark {
     get_resource(TimeInfo)->time = (f32)frame_end_time.value;
   }
 
-  void init() {
 
+  void init_builtin_component_types() {
+    update_component(Transform);
+    update_component(Model);
+  }
+
+  void init() {
     // Create builtin system lists
     {
       // quark_init and quark_deinit are special
@@ -85,6 +93,7 @@ namespace quark {
       create_system("load_assets", load_assets);
       create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): load meshes before this!
       create_system("init_ecs", init_ecs);
+      create_system("init_builtin_component_types", init_builtin_component_types);
       create_system("init_materials", init_materials);
       create_system("init_ui_context", init_ui_context);
 
@@ -128,6 +137,7 @@ namespace quark {
       add_system("quark_init", "copy_meshes_to_gpu", "", -1);
       // add_system("quark_init", "init_pipelines", "", -1);
       add_system("quark_init", "init_ecs", "", -1);
+      add_system("quark_init", "init_builtin_component_types", "", -1);
       add_system("quark_init", "init_materials", "", -1);
       add_system("quark_init", "init_ui_context", "", -1);
 

@@ -37,13 +37,18 @@ struct CameraData {
 };
 
 vec3 rotate(vec3 v, vec4 q) {
-  //// https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
-  //vec3 t = 2.0f * cross(q.xyz, v);
-  //return v + q.w * t + cross(q.xyz, t);
-
-  vec3 u = q.xyz;
+  vec3 u = vec3(q.x, q.y, q.z);
   float s = q.w;
-  return v + ((cross(u, v) * s) + cross(u, cross(u,v))) * 2.0f;
+  vec3 t = 2.0f * cross(u, v);
+  return v + s * t + cross(u, t);
+
+  // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+  // vec3 t = 2.0f * cross(q.xyz, v);
+  // return v + q.w * t + cross(q.xyz, t);
+
+  // vec3 u = q.xyz;
+  // float s = q.w;
+  // return v + ((cross(u, v) * s) + cross(u, cross(u,v))) * 2.0f;
 }
 
 const mat3 _aces_input_mat = {

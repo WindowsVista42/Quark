@@ -6,11 +6,10 @@
 using namespace quark;
 
   mat4 get_camera3d_view(Camera3D* camera) {
-    mat4 look_dir = forward_up_mat4(forward(camera->rotation), VEC3_UNIT_Z);
-    mat4 rotation = axis_angle_mat4(forward(camera->rotation), camera->rotation.roll);
+    mat4 rotation = forward_up_mat4(forward(camera->rotation), up(camera->rotation));
     mat4 translation = translate_mat4(-camera->position);
-    
-    return look_dir * rotation * translation;
+
+    return rotation * translation;
   }
 
   mat4 get_camera3d_projection(Camera3D* camera, f32 aspect) {

@@ -92,7 +92,7 @@ namespace quark {
     depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_info.depthTestEnable = VK_TRUE;
     depth_info.depthWriteEnable = VK_TRUE;
-    depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
     depth_info.depthBoundsTestEnable = VK_FALSE;
     depth_info.stencilTestEnable = VK_FALSE;
     depth_info.minDepthBounds = 0.0f;
@@ -372,21 +372,22 @@ namespace quark {
 
         MeshInstance* mesh_instance = &_context->mesh_instances[(u32)drawable->model.id];
 
+        // @todo implement lods
         // f32 a = powf(sqrtf(radius2) / distance(drawable->transform.position, camera->position), 2.0f);
-        f32 a = radius2 / distance2(drawable->transform.position, camera->position);
-        // log("a before: " + a);
-        // a /= rad(camera->fov);
-        // log("a: " + a);
+        // f32 a = radius2 / distance2(drawable->transform.position, camera->position);
+        // // log("a before: " + a);
+        // // a /= rad(camera->fov);
+        // // log("a: " + a);
 
-        // a /= 30000.0f;
+        // // a /= 30000.0f;
 
-        f32 bias = 0.0f;
+        // f32 bias = 0.0f;
 
-        for_every(i, 5) {
-          if(a < lods[i].threshold + bias) {
-            mesh_instance = &_context->mesh_instances[(u32)lods[i].id];
-          }
-        }
+        // for_every(i, 5) {
+        //   if(a < lods[i].threshold + bias) {
+        //     mesh_instance = &_context->mesh_instances[(u32)lods[i].id];
+        //   }
+        // }
 
         // printf("a: %f\n", a / rad(camera->fov));
         // printf("fov: %f\n", rad(camera->fov));

@@ -133,7 +133,7 @@ namespace quark {
       depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
       depth_info.depthTestEnable = VK_TRUE;
       depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+      depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
       depth_info.depthBoundsTestEnable = VK_FALSE;
       depth_info.stencilTestEnable = VK_FALSE;
       depth_info.minDepthBounds = 0.0f;
@@ -427,6 +427,13 @@ namespace quark {
     else if (widget->shape == WidgetShape::Text) {
       push_ui_text(widget->position.x, widget->position.y, widget->dimensions.x, widget->dimensions.y, color, widget->text);
     }
+  }
+
+  void push_debug_text(f32 x, f32 y, f32 font_size, const char* format, va_list args...) {
+    char buffer[512];
+    sprintf(buffer, format, args);
+
+    Widget widget = {};
   }
 
   void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click) {
