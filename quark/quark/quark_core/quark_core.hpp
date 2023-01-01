@@ -1,6 +1,6 @@
 #pragma once
 
-#include <float.h>
+// #include <float.h>
 #include <stdint.h>
 #include <atomic>
 #include <mutex>
@@ -28,6 +28,10 @@
 // Return type will sometimes be specified as TYPE in function names
 // For quark_core this is typically only done if the arguments
 // are the same across different use cases
+
+// conversions are typically 'type_from_value(s)'
+// mathematical functions are just the actual name 'conjugate'
+// other less common operations are 'type_operation'
 
 namespace quark {
 
@@ -102,187 +106,11 @@ namespace quark {
 // Linear Algebra Functions
   
   #define swizzle(v, i...) swizzle_internal<i>(v)
-  
-//
-// vec2
-//
-  
-  f32 dot(vec2 a, vec2 b);
-  f32 length(vec2 a);
-  f32 length2(vec2 a);
-  f32 inv_length(vec2 a);
-  f32 distance(vec2 a, vec2 b);
-  f32 distance2(vec2 a, vec2 b);
-  vec2 normalize(vec2 a);
-  vec2 normalize_max_length(vec2 a, f32 max_length);
-  vec2 rotate_point(vec2 a, f32 angle);
-  
-  vec2 as_vec2(eul2 a);
-  
-//
-// vec3
-//
-  
-  f32 dot(vec3 a, vec3 b);
-  f32 length(vec3 a);
-  f32 length2(vec3 a);
-  f32 inv_length(vec3 a);
-  f32 distance(vec3 a, vec3 b);
-  f32 distance2(vec3 a, vec3 b);
-  vec3 cross(vec3 a, vec3 b);
-  vec3 normalize(vec3 a);
-  vec3 normalize_or_zero(vec3 a);
-  vec3 normalize_max_length(vec3 a, f32 max_length);
-
-  vec3 rotate_point(vec3 a, quat rotation);
-
-  vec3 rotate(vec3 point, quat rotation);
-  vec3 rotate(vec3 point, eul3 rotation);
-  
-  vec3 as_vec3(eul3 a);
-
-  vec3 as_vec3(vec2 xy, f32 z);
-  vec3 as_vec3(f32 x, vec2 yz);
 
 //
-// vec4
-//
-  
-  f32 dot(vec4 a, vec4 b);
-  f32 length(vec4 a);
-  f32 length2(vec4 a);
-  f32 inv_length(vec4 a);
-  f32 distance(vec4 a, vec4 b);
-  f32 distance2(vec4 a, vec4 b);
-  vec4 normalize(vec4 a);
-  vec4 normalize_max_length(vec4 a, f32 max_length);
-  
-  vec4 as_vec4(quat a);
-  
-  vec4 as_vec4(f32 x, f32 y, vec2 zw);
-  vec4 as_vec4(f32 x, vec2 yz, f32 w);
-  vec4 as_vec4(f32 x, vec3 yzw);
-  vec4 as_vec4(vec2 xy, f32 z, f32 w);
-  vec4 as_vec4(vec2 xy, vec2 zw);
-  vec4 as_vec4(vec3 xyz, f32 w);
-  
-//
-// eul2
-//
-  
-  vec3 forward(eul2 a);
-  vec3 right(eul2 a);
-  vec3 up(eul2 a);
-
-  eul2 rotate(eul2 a, f32 angle_radians);
-  
-  eul2 as_eul2(vec2 a);
-  
-//
-// eul3
-//
-  
-  vec3 forward(eul3 a);
-  vec3 right(eul3 a);
-  vec3 up(eul3 a);
-  
-  eul3 as_eul3(vec3 a);
-
-  eul3 eul3_from_quat(quat q);
-  
-//
-// quat
+// Base Math
 //
 
-  quat convert_to_quat(eul3 rotation);
-  quat convert_to_quat(mat3 rotation);
-  quat convert_to_quat(mat4 rotation);
-  
-  vec3 forward(quat a);
-  vec3 right(quat a);
-  vec3 up(quat a);
-  
-  quat conjugate(quat a);
-  quat normalize(quat a);
-
-  quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis);
-  quat axis_angle_quat(vec3 axis, f32 angle);
-
-  quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis);
-  quat quat_from_axis_angle(vec3 axis, f32 angle_radians);
-  
-  quat as_quat(vec4 a);
-
-  quat quat_from_eul3(eul3 a);
-  quat quat_from_mat3(mat3 a);
-  quat quat_from_mat4(mat4 a);
-
-//
-// mat2
-//
-  
-  mat2 transpose(mat2 a);
-  
-//
-// mat3
-//
-  
-  mat3 transpose(mat3 a);
-
-  mat3 rotate(mat3 a, quat rotation);
-  mat3 scale(mat3 a, vec3 scale);
-  
-//
-// mat4
-//
-  
-  mat4 transpose(mat4 a);
-  
-  mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far);
-  mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far);
-  
-  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
-  mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up);
-  
-  // Right-handed coordinate system -- X+ right, Y+ forward, Z+ up
-  mat4 forward_up_mat4(vec3 forward, vec3 up);
-  mat4 look_at_mat4(vec3 position, vec3 target, vec3 up);
-  mat4 axis_angle_mat4(vec3 axis, f32 angle);
-
-  mat4 transpose();
-
-  mat4 perspective_projection(f32 fov_radians, f32 aspect_ratio, f32 near_plane_distance, f32 far_plane_distance);
-  mat4 orthographic_projection(f32 left_plane_distance, f32 right_plane_distance, f32 top_plane_distance, f32 bottom_plane_distance, f32 near_plane_distance, f32 far_plane_distance);
-
-  mat4 mat4_from_orthogonal_forward_up_vectors(vec3 forward, vec3 up);
-  mat4 mat4_from_look_dir(vec3 camera_position, vec3 look_direction, vec3 up);
-  mat4 mat4_from_look_at(vec3 camera_position, vec3 target_position, vec3 up);
-  mat4 mat4_from_axis_angle(vec3 axis, f32 angle_radians);
-
-  mat4 translate_mat4(vec3 position);
-  mat4 rotate_mat4(quat rotation);
-  mat4 scale_mat4(vec3 scale);
-  mat4 transform_mat4(vec3 position, quat rotation, vec3 scale);
-
-  mat4 rotate_mat4(eul3 rotation);
-
-  mat4 translate(mat4 a, vec3 position);
-  mat4 rotate(mat4 a, quat rotation);
-  mat4 scale(mat4 a, vec3 scale);
-  mat4 transform(mat4 a, vec3 position, quat rotation, vec3 scale);
-
-  mat4 translate_identity(vec3 position);
-  mat4 rotate_identity(quat rotation);
-  mat4 scale_identity(vec3 scale);
-
-  // mat4 convert_to_mat4(quat rotation);
-
-  // mat4 as_mat4(vec4 x, vec4 y, vec4 z, vec4 w);
-  
-//
-// Math utility
-//
-  
   f32 rad(f32 deg);
   f32 deg(f32 rad);
   
@@ -306,6 +134,161 @@ namespace quark {
   f32 acos(f32 t);
   f32 atan(f32 t);
   f32 atan2(f32 y, f32 x);
+
+  f32 lerp(f32 a, f32 b, f32 t);
+  f32 deadzone(f32 a, f32 deadzone);
+  
+//
+// vec2
+//
+  
+  f32 dot(vec2 a, vec2 b);
+  f32 length(vec2 a);
+  f32 length2(vec2 a);
+  f32 inv_length(vec2 a);
+  f32 distance(vec2 a, vec2 b);
+  f32 distance2(vec2 a, vec2 b);
+  vec2 normalize(vec2 a);
+  vec2 normalize_or_zero(vec2 a);
+  vec2 normalize_or_value(vec2 a, vec2 value);
+  vec2 normalize_to_max_length(vec2 a, f32 max_length);
+
+  vec2 lerp(vec2 a, vec2 b, f32 t);
+  vec2 rotate(vec2 a, f32 angle_radians);
+  
+  vec2 as_vec2(eul2 a);
+  
+//
+// vec3
+//
+  
+  f32 dot(vec3 a, vec3 b);
+  f32 length(vec3 a);
+  f32 length2(vec3 a);
+  f32 inv_length(vec3 a);
+  f32 distance(vec3 a, vec3 b);
+  f32 distance2(vec3 a, vec3 b);
+  vec3 cross(vec3 a, vec3 b);
+  vec3 normalize(vec3 a);
+  vec3 normalize_or_zero(vec3 a);
+  vec3 normalize_or_value(vec3 a, vec3 value);
+  vec3 normalize_to_max_length(vec3 a, f32 max_length);
+
+  vec3 lerp(vec3 a, vec3 b, f32 t);
+  vec3 rotate(vec3 point, quat rotation);
+  
+  vec3 as_vec3(eul3 a);
+
+  vec3 as_vec3(vec2 xy, f32 z);
+  vec3 as_vec3(f32 x, vec2 yz);
+
+//
+// vec4
+//
+  
+  f32 dot(vec4 a, vec4 b);
+  f32 length(vec4 a);
+  f32 length2(vec4 a);
+  f32 inv_length(vec4 a);
+  f32 distance(vec4 a, vec4 b);
+  f32 distance2(vec4 a, vec4 b);
+  vec4 normalize(vec4 a);
+  vec4 normalize_or_zero(vec4 a);
+  vec4 normalize_or_value(vec4 a, vec4 value);
+  vec4 normalize_to_max_length(vec4 a, f32 max_length);
+
+  vec4 lerp(vec4 a, vec4 b, f32 t);
+  
+  vec4 as_vec4(quat a);
+  
+  vec4 as_vec4(f32 x, f32 y, vec2 zw);
+  vec4 as_vec4(f32 x, vec2 yz, f32 w);
+  vec4 as_vec4(f32 x, vec3 yzw);
+  vec4 as_vec4(vec2 xy, f32 z, f32 w);
+  vec4 as_vec4(vec2 xy, vec2 zw);
+  vec4 as_vec4(vec3 xyz, f32 w);
+  
+//
+// eul2
+//
+  
+  vec3 eul2_forward(eul2 a);
+  vec3 eul2_right(eul2 a);
+  vec3 eul2_up(eul2 a);
+  
+  eul2 as_eul2(vec2 a);
+  
+//
+// eul3
+//
+  
+  vec3 eul3_forward(eul3 a);
+  vec3 eul3_right(eul3 a);
+  vec3 eul3_up(eul3 a);
+  
+  eul3 as_eul3(vec3 a);
+
+  // current implementation is probably wrong
+  eul3 eul3_from_quat(quat q);
+  
+//
+// quat
+//
+  
+  vec3 quat_forward(quat a);
+  vec3 quat_right(quat a);
+  vec3 quat_up(quat a);
+  
+  quat conjugate(quat a);
+  quat inverse(quat a); // same as conjugate since quaternions in quark are unit quaternions
+  quat normalize(quat a);
+
+  quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis);
+  quat quat_from_axis_angle(vec3 axis, f32 angle_radians);
+  
+  quat as_quat(vec4 a);
+
+  quat quat_from_eul3(eul3 a);
+  quat quat_from_mat3(mat3 a);
+  quat quat_from_mat4(mat4 a);
+
+//
+// mat2
+//
+  
+  mat2 transpose(mat2 a);
+
+  mat2 mat2_from_rotation(f32 angle_radians);
+  mat2 mat2_from_scale(vec2 scale);
+  
+//
+// mat3
+//
+  
+  mat3 transpose(mat3 a);
+
+  mat3 mat3_from_rotation(quat rotation);
+  mat3 mat3_from_scale(vec3 scale);
+  mat3 mat3_from_rotation_scale(quat rotation, vec3 scale);
+  
+//
+// mat4
+//
+  
+  mat4 transpose(mat4 a);
+  
+  mat4 mat4_perspective_projection(f32 fov_radians, f32 aspect_ratio, f32 z_near, f32 z_far);
+  mat4 mat4_orthographic_projection(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far);
+  
+  mat4 mat4_from_forward_up(vec3 forward, vec3 up);
+  mat4 mat4_from_look_dir(vec3 position, vec3 direction, vec3 up);
+  mat4 mat4_from_look_at(vec3 camera_position, vec3 target_position, vec3 up);
+  mat4 mat4_from_axis_angle(vec3 axis, f32 angle_radians);
+
+  mat4 mat4_from_translation(vec3 translation);
+  mat4 mat4_from_rotation(quat rotation);
+  mat4 mat4_from_scale(vec3 scale);
+  mat4 mat4_from_transform(vec3 translation, quat rotation, vec3 scale);
 
 //
 // C++ Reflection

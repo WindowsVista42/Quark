@@ -4,8 +4,6 @@
 #include <cmath>
 
 namespace quark {
-  // utility
-  
   f32 rad(f32 deg) {
     return (deg * F32_PI) / 180.0f;
   }
@@ -97,5 +95,17 @@ namespace quark {
   
   f32 atan2(f32 y, f32 x) {
     return std::atan2(y, x);
+  }
+
+  f32 lerp(f32 a, f32 b, f32 t) {
+    return a + (b - a) * t;
+  }
+
+  f32 deadzone(f32 a, f32 deadzone) {
+    if(abs(a) <= deadzone) {
+      return 0.0f;
+    }
+
+    return a;
   }
 };

@@ -255,11 +255,11 @@ namespace quark {
   declare_resource_duplicate(MainCameraViewProj, mat4);
   declare_resource_duplicate(SunCameraViewProj, mat4);
 
-  inline mat4 get_camera3d_view(Camera3D* camera);
-  inline mat4 get_camera3d_projection(Camera3D* camera, f32 aspect);
-  inline mat4 get_camera3d_view_projection(Camera3D* camera, f32 aspect);
+  inline mat4 camera3d_view_mat4(Camera3D* camera);
+  inline mat4 camera3d_projection_mat4(Camera3D* camera, f32 aspect);
+  inline mat4 camera3d_view_projection_mat4(Camera3D* camera, f32 aspect);
 
-  inline FrustumPlanes get_frustum_planes(Camera3D* camera);
+  inline FrustumPlanes camera3d_frustum_planes(Camera3D* camera);
 
   inline f32 plane_point_distance(vec4 plane, vec3 point);
   inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2);

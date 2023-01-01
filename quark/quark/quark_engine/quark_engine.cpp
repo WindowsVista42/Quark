@@ -1376,7 +1376,7 @@ namespace quark {
     struct MeshScale : vec3 {};
 
     _context->mesh_instances[(u32)id] = create_mesh(file.positions, file.normals, file.uvs, file.header->vertex_count, file.indices, file.header->index_count);
-    _context->mesh_scales[(u32)id] = normalize_max_length(file.header->half_extents, 2.0f);
+    _context->mesh_scales[(u32)id] = normalize_to_max_length(file.header->half_extents, 2.0f);
 
     printf("%s: %d\n", name, file.header->index_count);
 

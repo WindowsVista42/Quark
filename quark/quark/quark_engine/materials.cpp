@@ -248,8 +248,8 @@ namespace quark {
   }
 
   void update_world_cameras() {
-    *(mat4*)get_resource(MainCameraViewProj) = get_camera3d_view_projection(get_resource(MainCamera), get_window_aspect());
-    *(mat4*)get_resource(SunCameraViewProj) = get_camera3d_view_projection(get_resource(SunCamera), get_window_aspect());
+    *(mat4*)get_resource(MainCameraViewProj) = camera3d_view_projection_mat4(get_resource(MainCamera), get_window_aspect());
+    *(mat4*)get_resource(SunCameraViewProj) = camera3d_view_projection_mat4(get_resource(SunCamera), get_window_aspect());
   }
 
   void update_world_data() {
@@ -258,7 +258,7 @@ namespace quark {
     Buffer* current_world_data_buffer = &_context->world_data_buffers[_frame_index];
 
     MainCamera* camera = get_resource(MainCamera);
-    FrustumPlanes frustum = get_frustum_planes(camera);
+    FrustumPlanes frustum = camera3d_frustum_planes(camera);
 
     world_data->main_view_projection = *get_resource_as(MainCameraViewProj, mat4);
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
@@ -277,7 +277,7 @@ namespace quark {
     DrawBatchContext* _batch_context = get_resource(DrawBatchContext);
 
     MainCamera* camera = get_resource(MainCamera);
-    FrustumPlanes frustum = get_frustum_planes(camera);
+    FrustumPlanes frustum = camera3d_frustum_planes(camera);
 
     VkCommandBuffer commands = _main_cmd_buf[_frame_index];
 

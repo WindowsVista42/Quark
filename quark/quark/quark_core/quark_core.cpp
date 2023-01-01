@@ -1,9 +1,17 @@
 #include "quark_core.hpp"
 
 namespace quark {
-  // Math functions
+//
+// Math functions
+//
+
+//
+// other
+//
   
-  // vec2
+//
+// vec2
+//
   
   f32 dot(vec2 a, vec2 b) {
     return (a.x * b.x) + (a. y * b.y);
@@ -34,27 +42,49 @@ namespace quark {
   vec2 normalize(vec2 a) {
     return a * inv_length(a);
   }
+
+  vec2 normalize_or_zero(vec2 a) {
+    if(a == VEC2_ZERO) {
+      return VEC2_ZERO;
+    }
+
+    return normalize(a);
+  }
+
+  vec2 normalize_or_value(vec2 a, vec2 value) {
+    if(a == VEC2_ZERO) {
+      return value;
+    }
+
+    return normalize(a);
+  }
   
-  vec2 normalize_max_length(vec2 a, f32 max_length) {
+  vec2 normalize_to_max_length(vec2 a, f32 max_length) {
     if(length(a) > max_length) {
       return normalize(a) * max_length;
     }
   
     return a;
   }
-  
-  vec2 rotate_point(vec2 a, f32 angle) {
+
+  vec2 lerp(vec2 a, vec2 b, f32 t) {
+    return a + (b - a) * t;
+  }
+
+  vec2 rotate(vec2 a, f32 angle_radians) {
     return vec2 {
-      a.x * cos(angle) - a.y * sin(angle),
-      a.y * cos(angle) + a.x * sin(angle)
+      a.x * cos(angle_radians) - a.y * sin(angle_radians),
+      a.y * cos(angle_radians) + a.x * sin(angle_radians)
     };
   }
-  
+
   vec2 as_vec2(eul2 a) {
     return *(vec2*)&a;
   }
   
-  // vec3
+//
+// vec3
+//
   
   f32 dot(vec3 a, vec3 b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
@@ -101,21 +131,33 @@ namespace quark {
 
     return normalize(a);
   }
+
+  vec3 normalize_or_value(vec3 a, vec3 value) {
+    if(a == VEC3_ZERO) {
+      return value;
+    }
+
+    return normalize(a);
+  }
   
-  vec3 normalize_max_length(vec3 a, f32 max_length) {
+  vec3 normalize_to_max_length(vec3 a, f32 max_length) {
     if(length(a) > max_length) {
       return normalize(a) * max_length;
     }
   
     return a;
   }
-  
-  vec3 rotate_point(vec3 a, quat rotation) {
+
+  vec3 lerp(vec3 a, vec3 b, f32 t) {
+    return a + (b - a) * t;
+  }
+
+  vec3 rotate(vec3 point, quat rotation) {
     // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
     vec3 u = vec3 { rotation.x, rotation.y, rotation.z };
     f32 s = rotation.w;
-    vec3 t = 2.0f * cross(u, a);
-    return a + s * t + cross(u, t);
+    vec3 t = 2.0f * cross(u, point);
+    return point + s * t + cross(u, t);
   }
   
   vec3 as_vec3(eul3 a) {
@@ -130,7 +172,9 @@ namespace quark {
     return vec3 { x, yz.x, yz.y };
   }
   
-  // vec4
+//
+// vec4
+//
   
   f32 dot(vec4 a, vec4 b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w);
@@ -161,13 +205,33 @@ namespace quark {
   vec4 normalize(vec4 a) {
     return a * inv_length(a);
   }
+
+  vec4 normalize_or_zero(vec4 a) {
+    if(a == VEC4_ZERO) {
+      return VEC4_ZERO;
+    }
+
+    return normalize(a);
+  }
+
+  vec4 normalize_or_value(vec4 a, vec4 value) {
+    if(a == VEC4_ZERO) {
+      return value;
+    }
+
+    return normalize(a);
+  }
   
-  vec4 normalize_max_length(vec4 a, f32 max_length) {
+  vec4 normalize_to_max_length(vec4 a, f32 max_length) {
     if(length(a) > max_length) {
       return normalize(a) * max_length;
     }
   
     return a;
+  }
+
+  vec4 lerp(vec4 a, vec4 b, f32 t) {
+    return a + (b - a) * t;
   }
   
   vec4 as_vec4(quat a) {
@@ -198,9 +262,11 @@ namespace quark {
     return vec4 { xyz.x, xyz.y, xyz.z, w };
   }
   
-  // eul2
+//
+// eul2
+//
   
-  vec3 forward(eul2 a) {
+  vec3 eul2_forward(eul2 a) {
     // x, y, z
     return vec3 {
       -sin(a.yaw) * sin(a.pitch), // x+ right
@@ -209,7 +275,7 @@ namespace quark {
     };
   }
   
-  vec3 right(eul2 a) {
+  vec3 eul2_right(eul2 a) {
     // y, -x, z
     return vec3 {
        cos(a.yaw) * sin(a.pitch),
@@ -218,7 +284,7 @@ namespace quark {
     };
   }
   
-  vec3 up(eul2 a) {
+  vec3 eul2_up(eul2 a) {
     // -z, y, x
     return vec3 {
        sin(a.pitch),           
@@ -239,107 +305,53 @@ namespace quark {
     return *(eul2*)&a;
   }
   
-  // eul3
+//
+// eul3
+//
   
-  vec3 forward(eul3 a) {
-    return forward(*(eul2*)&a);
+  vec3 eul3_forward(eul3 a) {
+    return quat_forward(quat_from_eul3(a));
   }
 
-  vec3 right(eul3 a);
+  vec3 eul3_right(eul3 a) {
+    return quat_right(quat_from_eul3(a));
+  }
 
-  vec3 up(eul3 a);
+  vec3 eul3_up(eul3 a) {
+    return quat_up(quat_from_eul3(a));
+  }
   
   eul3 as_eul3(vec3 a) {
     return *(eul3*)&a;
   }
   
   eul3 eul3_from_quat(quat q) {
-    // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-    eul3 angles = {};
+    eul3 e = {};
 
-    f32 w = q.w;
-    f32 x = q.x;
-    f32 y = q.y;
-    f32 z = q.z;
+    e.yaw = atan2f(2 * (q.w*q.z + q.x*q.y), 1 - 2 * (q.y*q.y + q.z*q.z));
+    e.pitch = asinf(2 * (q.w*q.y - q.z*q.x));
+    e.roll = atan2f(2 * (q.w*q.x + q.y*q.z), 1 - 2 * (q.x*q.x + q.y*q.y));
 
-    // f32 yaw = atan2(2*(w*x + y*z), 1 - 2*(x*x + y*y));
-    // f32 pitch = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z));
-    // f32 roll = asin(2*(w*y - z*x));
-
-    f32 pitch = atan2(2*(w*y + z*x), 1 - 2*(x*x + y*y));
-    f32 roll = asin(2*(w*x - y*z));
-    f32 yaw = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z));
-
-    angles.yaw = yaw;
-    angles.pitch = pitch;
-    angles.roll = roll;
-
-    // // roll (x-axis rotation)
-    // f32 sinr_cosp = 2.0f * (q.w * q.x + q.y * q.z);
-    // f32 cosr_cosp = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
-    // angles.pitch = atan2(sinr_cosp, cosr_cosp);
-
-    // // pitch (y-axis rotation)
-    // f32 sinp = sqrt(1.0f + 2.0f * (q.w * q.x - q.y * q.z));
-    // f32 cosp = sqrt(1.0f - 2.0f * (q.w * q.x - q.y * q.z));
-    // angles.roll = 2.0f * atan2(sinp, cosp);
-
-    // // angles.pitch += F32_PI_2;
-
-    // // yaw (z-axis rotation)
-    // f32 siny_cosp = 2.0f * (q.w * q.z + q.x * q.y);
-    // f32 cosy_cosp = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
-    // angles.yaw = atan2(siny_cosp, cosy_cosp);
-
-    return angles;
+    return e;
   }
 
-  // quat
+//
+// quat
+//
   
-  vec3 forward(quat a) {
-    return rotate_point(VEC3_UNIT_Y, a);
+  vec3 quat_forward(quat a) {
+    return rotate(VEC3_UNIT_Y, a);
   }
   
-  vec3 right(quat a) {
-    return rotate_point(VEC3_UNIT_X, a);
+  vec3 quat_right(quat a) {
+    return rotate(VEC3_UNIT_X, a);
   }
   
-  vec3 up(quat a) {
-    return rotate_point(VEC3_UNIT_Z, a);
-  }
-
-  // Yaw X, Pitch Y, Roll Z
-  quat rotate_quat(eul3 rotation);
-  // {
-  //   f32 cos_yaw  = cos(rotation.pitch * 0.5);
-  //   f32 sin_yaw  = sin(rotation.pitch * 0.5);
-  //   f32 cos_pitch = cos(rotation.yaw * 0.5);
-  //   f32 sin_pitch = sin(rotation.yaw * 0.5);
-
-  //   f32 cos_roll   = cos(rotation.roll * 0.5);
-  //   f32 sin_roll   = sin(rotation.roll * 0.5);
-
-  //   return quat {
-  //     .x = sin_yaw * cos_pitch * cos_roll - cos_yaw * sin_pitch * sin_roll,
-  //     .y = cos_yaw * sin_pitch * cos_roll + sin_yaw * cos_pitch * sin_roll,
-  //     .z = cos_yaw * cos_pitch * sin_roll - sin_yaw * sin_pitch * cos_roll,
-  //     .w = cos_yaw * cos_pitch * cos_roll + sin_yaw * sin_pitch * sin_roll,
-  //   };
-  // }
-  
-  quat rotate_quat(mat3 rotation) {
-    return rotation_axes_quat(rotation.xs, rotation.ys, rotation.zs);
+  vec3 quat_up(quat a) {
+    return rotate(VEC3_UNIT_Z, a);
   }
   
-  quat rotate_quat(mat4 rotation) {
-    return rotation_axes_quat(
-      swizzle(rotation.xs, 0, 1, 2),
-      swizzle(rotation.ys, 0, 1, 2),
-      swizzle(rotation.zs, 0, 1, 2)
-    );
-  }
-  
-  quat rotation_axes_quat(vec3 x_axis, vec3 y_axis, vec3 z_axis) {
+  quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis) {
     // https://github.com/microsoft/DirectXMath --> `XM$quaternionRotationMatrix`
   
     auto [m00, m01, m02] = x_axis;
@@ -403,10 +415,11 @@ namespace quark {
     }
   }
   
-  quat axis_angle_quat(vec3 axis, f32 angle) {
-    f32 sinv = sinf(angle * 0.5f);
-    f32 cosv = cosf(angle * 0.5f);
-    // vec3 v = axis * sinv;
+  quat quat_from_axis_angle(vec3 axis, f32 angle_radians) {
+    // quaternions are just fancy axis angles OO
+    //                                        __
+    f32 sinv = sinf(angle_radians * 0.5f);
+    f32 cosv = cosf(angle_radians * 0.5f);
 
     quat q = {};
     q.x = axis.x * sinv;
@@ -414,9 +427,7 @@ namespace quark {
     q.z = axis.z * sinv;
     q.w = cosv;
 
-    return q; // as_quat(as_vec4(v, cosv));
-  
-    // return as_quat(as_vec4(v, cosv));
+    return q;
   }
   
   quat conjugate(quat a) {
@@ -437,33 +448,33 @@ namespace quark {
   }
 
   quat quat_from_eul3(eul3 a) {
-    f32 cos_yaw   = cos(a.yaw * 0.5);
-    f32 sin_yaw   = sin(a.yaw * 0.5);
-
-    f32 cos_pitch = cos((a.pitch - F32_PI_2)* 0.5);
-    f32 sin_pitch = sin((a.pitch - F32_PI_2)* 0.5);
-
-    f32 cos_roll  = cos(-a.roll * 0.5);
-    f32 sin_roll  = sin(-a.roll * 0.5);
-
-    f32 yaw = a.yaw;
-    f32 pitch = a.pitch - F32_PI_2;
-    f32 roll = -a.roll;
-
     quat q = {};
-    q.x = (sin_pitch * cos_roll * cos_yaw - cos_pitch * sin_roll * sin_yaw);
-    q.y = (cos_pitch * sin_roll * cos_yaw + sin_pitch * cos_roll * sin_yaw);
-    q.z = (cos_pitch * cos_roll * sin_yaw - sin_pitch * sin_roll * cos_yaw);
-    q.w = (cos_pitch * cos_roll * cos_yaw + sin_pitch * sin_roll * sin_yaw);
-    // q.w = cos(yaw/2) * cos(pitch/2) * cos(roll/2) + sin(yaw/2) * sin(pitch/2) * sin(roll/2);
-    // q.x = sin(yaw/2) * cos(pitch/2) * cos(roll/2) - cos(yaw/2) * sin(pitch/2) * sin(roll/2);
-    // q.y = cos(yaw/2) * sin(pitch/2) * cos(roll/2) + sin(yaw/2) * cos(pitch/2) * sin(roll/2);
-    // q.z = cos(yaw/2) * cos(pitch/2) * sin(roll/2) - sin(yaw/2) * sin(pitch/2) * cos(roll/2);
+
+    f32 cy = cosf(a.yaw / 2.0f);
+    f32 cp = cosf(a.pitch / 2.0f);
+    f32 cr = cosf(a.roll / 2.0f);
+
+    f32 sy = sinf(a.yaw / 2.0f);
+    f32 sp = sinf(a.pitch / 2.0f);
+    f32 sr = sinf(a.roll / 2.0f);
+
+    // @info simplified math for creating a quat for
+    // each axis and composing the rotations together
+    // this uses
+    // z axis for yaw
+    // x axis for pitch
+    // y axis for roll
+    q.x = cy * sp * cr - sy * cp * sr;
+    q.y = cy * cp * sr + sy * sp * cr;
+    q.z = sy * cp * cr + cy * sp * sr;
+    q.w = cy * cp * cr - sy * sp * sr;
 
     return q;
   }
   
-  // mat2
+//
+// mat2
+//
   
   mat2 transpose(mat2 a) {
     return mat2 {
@@ -472,7 +483,9 @@ namespace quark {
     };
   }
   
-  // mat3
+//
+// mat3
+//
   
   mat3 transpose(mat3 a) {
     return mat3 {
@@ -482,7 +495,9 @@ namespace quark {
     };
   }
   
-  // mat4
+//
+// mat4
+//
   
   mat4 transpose(mat4 a) {
     return mat4 {
@@ -493,14 +508,14 @@ namespace quark {
     };
   }
   
-  mat4 perspective(f32 fov_radians, f32 aspect, f32 z_near, f32 z_far) {
+  mat4 mat4_perspective_projection(f32 fov_radians, f32 aspect_ratio, f32 z_near, f32 z_far) {
     f32 inv_length = 1.0f / (z_near - z_far);
     f32 f = 1.0f / tan(0.5f * fov_radians);
-    f32 a = f / aspect;
+    f32 a = f / aspect_ratio;
     f32 b = (z_near + z_far) * inv_length;
     f32 c = -(2.0f * z_near * z_far) * inv_length;
     
-    f32 w = f / aspect;
+    f32 w = f / aspect_ratio;
     f32 a2 = z_near / (z_far - z_near);
     f32 b2 = (z_near * z_far) / (z_far - z_near);
   
@@ -512,7 +527,7 @@ namespace quark {
     };
   }
   
-  mat4 orthographic(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far) {
+  mat4 mat4_orthographic_projection(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far) {
     mat4 result = MAT4_ZERO;
     f32 a = 2.0f / (right - left);
     f32 b = 2.0f / (top - bottom);
@@ -529,7 +544,7 @@ namespace quark {
     };
   }
   
-  mat4 look_dir_mat4(vec3 position, vec3 direction, vec3 up) {
+  mat4 mat4_from_look_dir(vec3 position, vec3 direction, vec3 up) {
     vec3 f = normalize(-direction);
     vec3 s = normalize(cross(up, f));
     vec3 u = cross(s, f);
@@ -542,7 +557,7 @@ namespace quark {
     };
   }
 
-  mat4 forward_up_mat4(vec3 forward, vec3 up) {
+  mat4 mat4_from_forward_up(vec3 forward, vec3 up) {
     vec3 f = normalize(-forward);
     vec3 s = normalize(cross(up, f));
     vec3 u = cross(s, f);
@@ -555,12 +570,12 @@ namespace quark {
     };
   }
   
-  mat4 look_at_mat4(vec3 position, vec3 target, vec3 up) {
+  mat4 mat4_from_look_at(vec3 position, vec3 target, vec3 up) {
     vec3 direction = target - position;
-    return look_dir_mat4(position, direction, up);
+    return mat4_from_look_dir(position, direction, up);
   }
   
-  mat4 axis_angle_mat4(vec3 axis, f32 angle) {
+  mat4 mat4_from_axis_angle(vec3 axis, f32 angle) {
     f32 sinv = sin(angle);
     f32 cosv = cos(angle);
     vec3 axis_sin = axis * sinv;
@@ -593,16 +608,16 @@ namespace quark {
     };
   }
   
-  mat4 translate_mat4(vec3 position) {
+  mat4 mat4_from_translation(vec3 translation) {
     return mat4 {
       vec4 { 1.0f, 0.0f, 0.0f, 0.0f },
       vec4 { 0.0f, 1.0f, 0.0f, 0.0f },
       vec4 { 0.0f, 0.0f, 1.0f, 0.0f },
-      vec4 { position.x, position.y, position.z, 1.0f },
+      vec4 { translation.x, translation.y, translation.z, 1.0f },
     };
   }
   
-  mat4 rotate_mat4(quat rotation) {
+  mat4 mat4_from_rotation(quat rotation) {
     // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
   
     mat4 result = MAT4_IDENTITY;
@@ -637,7 +652,7 @@ namespace quark {
     return result;
   }
 
-  mat4 rotate_mat4(eul3 a) {
+  mat4 mat4_from_rotation(eul3 a) {
     mat4 m = MAT4_IDENTITY;
 
     f32 cos_yaw   = cos(a.yaw);
@@ -676,7 +691,7 @@ namespace quark {
     return m;
   }
   
-  mat4 scale_mat4(vec3 scale) {
+  mat4 mat4_from_scale(vec3 scale) {
     return mat4 {
       vec4 { scale.x,       0,       0, 0 },
       vec4 {       0, scale.y,       0, 0 },
@@ -685,16 +700,20 @@ namespace quark {
     };
   }
   
-  mat4 transform_mat4(vec3 position, quat rotation, vec3 scale) {
-    mat4 m_translation = translate_mat4(position);
-    mat4 m_rotation = rotate_mat4(rotation);
-    mat4 m_scale = scale_mat4(scale);
+  mat4 mat4_from_transform(vec3 translation, quat rotation, vec3 scale) {
+    mat4 m_translation = mat4_from_translation(translation);
+    mat4 m_rotation = mat4_from_rotation(rotation);
+    mat4 m_scale = mat4_from_scale(scale);
     return m_translation * m_rotation * m_scale;
   }
   
-  // Math operators
+//
+// Math operators
+//
   
-  // vec2
+//
+// vec2
+//
   
   f32& vec2::operator [](usize i) {
     return ((f32*)this)[i];
@@ -858,7 +877,9 @@ namespace quark {
     );
   }
   
-  // vec3
+//
+// vec3
+//
   
   f32& vec3::operator [](usize i) {
     return ((f32*)this)[i];
@@ -1048,7 +1069,9 @@ namespace quark {
     );
   }
   
-  // vec4
+//
+// vec4
+//
   
   f32& vec4::operator [](usize i) {
     return ((f32*)this)[i];
@@ -1263,7 +1286,9 @@ namespace quark {
     );
   }
   
-  // eul2
+//
+// eul2
+//
   
   eul2 operator -(eul2 a) {
     return eul2 {
@@ -1323,8 +1348,10 @@ namespace quark {
   bool operator !=(eul2 a, eul2 b) {
     return as_vec2(a) != as_vec2(b);
   }
-  
-  // eul3
+
+//
+// eul3
+//
   
   eul3 operator -(eul3 a) {
     return eul3 {
@@ -1390,7 +1417,9 @@ namespace quark {
     return as_vec3(a) != as_vec3(b);
   }
   
-  // quat
+//
+// quat
+//
   
   quat operator *(f32 a, quat b) {
     return as_quat(a * as_vec4(b));
@@ -1411,13 +1440,6 @@ namespace quark {
        a.x * b.y - a.y * b.x + a.z * b.w + a.w * b.z,
       -a.x * b.x - a.y * b.y - a.z * b.z + a.w * b.w,
     };
-
-    // quat result = {};
-    // result.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
-    // result.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
-    // result.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
-    // result.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
-    // return result;
   }
   
   void operator +=(quat& a, quat b) {
@@ -1433,8 +1455,10 @@ namespace quark {
   bool operator !=(quat a, quat b) {
     return as_vec4(a) != as_vec4(b);
   }
-  
-  // ivec2
+
+//
+// ivec2
+//
   
   i32& ivec2::operator [](usize i) {
     return ((i32*)this)[i];
@@ -1586,7 +1610,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y;
   }
   
-  // ivec3
+//
+// ivec3
+//
   
   i32& ivec3::operator [](usize i) {
     return ((i32*)this)[i];
@@ -1760,7 +1786,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y || a.z != b.z;
   }
   
-  // ivec4
+//
+// ivec4
+//
   
   i32& ivec4::operator [](usize i) {
     return ((i32*)this)[i];
@@ -1955,7 +1983,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
   }
   
-  // uvec2
+//
+// uvec2
+//
   
   u32& uvec2::operator [](usize i) {
     return ((u32*)this)[i];
@@ -2107,7 +2137,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y;
   }
   
-  // uvec3
+//
+// uvec3
+//
   
   u32& uvec3::operator [](usize i) {
     return ((u32*)this)[i];
@@ -2281,7 +2313,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y || a.z != b.z;
   }
   
-  // uvec4
+//
+// uvec4
+//
   
   u32& uvec4::operator [](usize i) {
     return ((u32*)this)[i];
@@ -2476,7 +2510,9 @@ namespace quark {
     return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
   }
   
-  // mat2
+//
+// mat2
+//
   
   vec2& mat2::operator[](usize i) {
     return ((vec2*)this)[i];
@@ -2529,7 +2565,9 @@ namespace quark {
     return a[0] != b[0] || a[1] != b[1];
   }
   
-  // mat3
+//
+// mat3
+//
   
   vec3& mat3::operator[](usize i) {
     return ((vec3*)this)[i];
@@ -2591,7 +2629,9 @@ namespace quark {
     return a[0] != b[0] || a[1] != b[1] || a[2] != b[2];
   } 
   
-  // mat4
+//
+// mat4
+//
   
   vec4& mat4::operator[](usize i) {
     return ((vec4*)this)[i];

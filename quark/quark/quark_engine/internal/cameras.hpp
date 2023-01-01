@@ -5,27 +5,27 @@
 #include "../quark_engine.hpp"
 using namespace quark;
 
-  mat4 get_camera3d_view(Camera3D* camera) {
-    mat4 rotation = forward_up_mat4(forward(camera->rotation), up(camera->rotation));
-    mat4 translation = translate_mat4(-camera->position);
+  inline mat4 camera3d_view_mat4(Camera3D* camera) {
+    mat4 rotation = mat4_from_forward_up(quat_forward(camera->rotation), quat_up(camera->rotation));
+    mat4 translation = mat4_from_translation(-camera->position);
 
     return rotation * translation;
   }
 
-  mat4 get_camera3d_projection(Camera3D* camera, f32 aspect) {
+  inline mat4 camera3d_projection_mat4(Camera3D* camera, f32 aspect) {
     if(camera->projection_type == ProjectionType::Perspective) {
-      return perspective(rad(camera->fov), aspect, camera->z_near, camera->z_far);
+      return mat4_perspective_projection(rad(camera->fov), aspect, camera->z_near, camera->z_far);
     } else {
       panic("get_camera3d_projection currently does not support orthographic projections!");
     }
   }
 
-  mat4 get_camera3d_view_projection(Camera3D* camera, f32 aspect) {
-    return get_camera3d_projection(camera, aspect) * get_camera3d_view(camera);
+  inline mat4 camera3d_view_projection_mat4(Camera3D* camera, f32 aspect) {
+    return camera3d_projection_mat4(camera, aspect) * camera3d_view_mat4(camera);
   }
 
-  FrustumPlanes get_frustum_planes(Camera3D* camera) {
-    mat4 view_projection = get_camera3d_view_projection(camera, get_window_aspect());
+  FrustumPlanes camera3d_frustum_planes(Camera3D* camera) {
+    mat4 view_projection = camera3d_view_projection_mat4(camera, get_window_aspect());
     mat4 view_projection_t = transpose(view_projection);
 
     FrustumPlanes frustum = {};
