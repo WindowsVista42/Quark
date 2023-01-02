@@ -837,7 +837,7 @@ namespace quark {
 
   void save_ecs() {
     if(common_static_ptr == 0) {
-      if(find_static_section("common.dll", &common_static_size, &common_static_ptr)) {
+      if(find_static_section("spaceships.dll", &common_static_size, &common_static_ptr)) {
         panic("failed to find static section for common.dll!\n");
       }
     }

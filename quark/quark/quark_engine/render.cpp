@@ -494,15 +494,9 @@ namespace quark {
       vkb::PhysicalDevice vkb_physical_device = {};
       vkb_assign_if_valid(vkb_physical_device, selector.select());
 
-      printf("here!\n");
-    
       vkb::DeviceBuilder device_builder{vkb_physical_device};
-      printf("here!\n");
       vkb::Device vkb_device = {};
-      printf("here!\n");
       vkb_assign_if_valid(vkb_device, device_builder.build());
-
-      printf("here!\n");
     
       _context->device = vkb_device.device;
       _context->physical_device = vkb_device.physical_device;
@@ -642,7 +636,8 @@ namespace quark {
       vkb::SwapchainBuilder swapchain_builder{_context->physical_device, _context->device, _context->surface};
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
-      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
+      // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
+      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
