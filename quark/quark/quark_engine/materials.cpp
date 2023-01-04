@@ -362,9 +362,9 @@ namespace quark {
         // Info: basic frustum culling
         //
         // This is kinda slow right now and for simple
-        // materials its actually quicker to just render them instead of frustum culling
+        // materials it might be quicker to just render them instead of frustum culling
         // Info: this is slow!!
-        f32 radius2 = length2(drawable->model.half_extents) * 1.5f;
+        f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
         if(!is_sphere_visible(&frustum, drawable->transform.position, radius2)) {
           _batch_context->material_cull_count[i] += 1;
           continue;
