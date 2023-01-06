@@ -88,6 +88,7 @@ namespace quark {
   // #define has_component(entity_id, type) // not defined here
 
   #define get_component(entity_id, type) (type*)get_component_id(entity_id, type::COMPONENT_ID)
+  #define has_component(entity_id, type) (type*)has_component_id(entity_id, type::COMPONENT_ID)
 
   // Docs:
   #define for_archetype(f...)

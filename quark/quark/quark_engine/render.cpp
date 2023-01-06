@@ -1074,7 +1074,7 @@ namespace quark {
       };
       create_images(_context->material_color_images2, _FRAME_OVERLAP, &_context->material_color_image_info);
 
-      _context->material_color_image_info.samples = ImageSamples::Four,
+      _context->material_color_image_info.samples = ImageSamples::One,
 
       create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
@@ -1082,7 +1082,7 @@ namespace quark {
         .resolution = _context->render_resolution,
         .format = ImageFormat::LinearD32,
         .type = ImageType::RenderTargetDepth,
-        .samples = ImageSamples::Four,
+        .samples = ImageSamples::One,
       };
       create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 
@@ -1730,11 +1730,13 @@ namespace quark {
     
       //update_descriptor_sets();
     }
+
+    bool PRINT_PERFORMANCE_STATISTICS = true;
     
     void print_performance_statistics() {
-      // if (!quark::ENABLE_PERFORMANCE_STATISTICS) {
-      //   return;
-      // }
+      if(!PRINT_PERFORMANCE_STATISTICS) {
+        return;
+      }
 
       static f32 timer = 0.0;
       static u32 frame_number = 0;

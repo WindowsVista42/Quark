@@ -85,6 +85,13 @@ namespace quark {
 //
 // vec3
 //
+  vec3 abs(vec3 a) {
+    vec3 v = a;
+    v.x = abs(v.x);
+    v.y = abs(v.y);
+    v.z = abs(v.z);
+    return v;
+  }
   
   f32 dot(vec3 a, vec3 b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
@@ -325,12 +332,28 @@ namespace quark {
     return *(eul3*)&a;
   }
   
+  // @info this function does not give correct results
   eul3 eul3_from_quat(quat q) {
     eul3 e = {};
 
-    e.yaw = atan2f(2 * (q.w*q.z + q.x*q.y), 1 - 2 * (q.y*q.y + q.z*q.z));
-    e.pitch = asinf(2 * (q.w*q.y - q.z*q.x));
-    e.roll = atan2f(2 * (q.w*q.x + q.y*q.z), 1 - 2 * (q.x*q.x + q.y*q.y));
+    e.yaw   = atan2f(2 * (q.w*q.x + q.x*q.y), 1 - 2 * (q.x*q.x + q.y*q.y));
+    e.pitch = atan2f(2 * (q.w*q.y + q.y*q.z), 1 - 2 * (q.y*q.y + q.z*q.z));
+    e.roll = asinf(2 * (q.w*q.y - q.z*q.z));
+
+    // // roll (x-axis rotation)
+    // double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
+    // double cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
+    // e.pitch = atan2(sinr_cosp, cosr_cosp);
+
+    // // pitch (y-axis rotation)
+    // double sinp = sqrt(1 + 2 * (q.w * q.x - q.y * q.z));
+    // double cosp = sqrt(1 - 2 * (q.w * q.x - q.y * q.z));
+    // e.roll = 2 * atan2(sinp, cosp) - F32_PI_2;
+
+    // // yaw (z-axis rotation)
+    // double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
+    // double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
+    // e.yaw = atan2(siny_cosp, cosy_cosp);
 
     return e;
   }
@@ -418,8 +441,8 @@ namespace quark {
   quat quat_from_axis_angle(vec3 axis, f32 angle_radians) {
     // quaternions are just fancy axis angles OO
     //                                        __
-    f32 sinv = sinf(angle_radians * 0.5f);
-    f32 cosv = cosf(angle_radians * 0.5f);
+    f32 sinv = sin(angle_radians * 0.5f);
+    f32 cosv = cos(angle_radians * 0.5f);
 
     quat q = {};
     q.x = axis.x * sinv;
@@ -428,6 +451,28 @@ namespace quark {
     q.w = cosv;
 
     return q;
+  }
+
+  quat quat_from_look_dir(vec3 direction) {
+    f32 d = dot(VEC3_UNIT_Y, direction);
+
+    if (d < F32_EPSILON - 1.0f) {
+      return quat { 0.0f, 0.0f, 0.0f, 1.0f };
+    }
+
+    if (d > 1.0f - F32_EPSILON) {
+      return quat { 0.0f, 0.0f, 0.0f, 1.0f };
+    }
+
+    f32 angle = (float)acos(d);
+    vec3 axis = cross(VEC3_UNIT_Y, direction);
+    axis = normalize(axis);
+    return quat_from_axis_angle(axis, angle);
+  }
+
+  quat quat_from_look_at(vec3 position, vec3 target) {
+    vec3 direction = normalize(target - position);
+    return quat_from_look_dir(direction);
   }
   
   quat conjugate(quat a) {

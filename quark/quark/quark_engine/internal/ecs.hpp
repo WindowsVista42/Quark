@@ -34,6 +34,7 @@ using namespace quark;
 // Component Helpers Internal
 
   #define get_component(entity_id, type) (type*)get_component_id(entity_id, type::COMPONENT_ID)
+  #define has_component(entity_id, type) (type*)has_component_id(entity_id, type::COMPONENT_ID)
 
 //
 // Archetype Iter Internal

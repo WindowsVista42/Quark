@@ -296,6 +296,7 @@ namespace quark {
     system_id name_hash = (system_id)hash_str_fast(system_name);
 
     if(_system_functions.find(name_hash) != _system_functions.end()) {
+      printf("system_name: %s\n", system_name);
       panic("Attempted to create a system with a name that already exists");
     }
 

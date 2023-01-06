@@ -14,6 +14,8 @@
 
 namespace quark {
 
+  engine_var bool PRINT_PERFORMANCE_STATISTICS;
+
   struct MeshFileHeader {
     u64 uuid_lo;
     u64 uuid_hi;
@@ -181,6 +183,7 @@ namespace quark {
   // #define has_component(entity_id, type) // not defined here
 
   #define get_component(entity_id, type) \ // defined in internal/ecs.hpp
+  #define has_component(entity_id, type) \ // defined in internal/ecs.hpp
 
   // Archetype iteration
   template <typename... T>

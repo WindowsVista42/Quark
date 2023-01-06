@@ -161,6 +161,7 @@ namespace quark {
 //
 // vec3
 //
+  vec3 abs(vec3 a);
   
   f32 dot(vec3 a, vec3 b);
   f32 length(vec3 a);
@@ -245,6 +246,8 @@ namespace quark {
 
   quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis);
   quat quat_from_axis_angle(vec3 axis, f32 angle_radians);
+  quat quat_from_look_dir(vec3 direction);
+  quat quat_from_look_at(vec3 position, vec3 target);
   
   quat as_quat(vec4 a);
 
