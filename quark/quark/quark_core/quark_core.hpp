@@ -43,42 +43,42 @@ namespace quark {
 
   using f32   = float;
   using f64   = double;
-  
+
   using i8    = int8_t;
   using i16   = int16_t;
   using i32   = int32_t;
   using i64   = int64_t;
   using isize = intptr_t;
-  
+
   using u8    = uint8_t;
   using u16   = uint16_t;
   using u32   = uint32_t;
   using u64   = uint64_t;
   using usize = uintptr_t;
-  
+
 //
 // Atomic Types
 //
-  
+
   using atomic_bool  = std::atomic_bool;
   using atomic_char  = std::atomic_char;
-  
+
   using atomic_i8    = std::atomic_int8_t;
   using atomic_i16   = std::atomic_int8_t;
   using atomic_i32   = std::atomic_int8_t;
   using atomic_i64   = std::atomic_int8_t;
   using atomic_isize = std::atomic_int8_t;
-  
+
   using atomic_u8    = std::atomic_uint8_t;
   using atomic_u16   = std::atomic_uint8_t;
   using atomic_u32   = std::atomic_uint8_t;
   using atomic_u64   = std::atomic_uint8_t;
   using atomic_usize = std::atomic_uint8_t;
-  
+
   using mutex = std::mutex;
   using cvar  = std::condition_variable;
   using thread_id = std::thread::id;
-  
+
 //
 // Linear Algebra Types
 //

@@ -14,7 +14,6 @@
 #include <stdio.h>
 
 namespace quark {
-
   define_savable_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, 0, 0, 1},

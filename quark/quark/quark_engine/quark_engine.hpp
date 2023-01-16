@@ -13,89 +13,15 @@
 #define var_decl engine_var
 
 namespace quark {
-
-  engine_var bool PRINT_PERFORMANCE_STATISTICS;
-
-  struct MeshFileHeader {
-    u64 uuid_lo;
-    u64 uuid_hi;
-    u32 version;
-    u32 vertex_count;
-    u32 index_count;
-    u32 indices_encoded_size;
-    u32 positions_encoded_size;
-    u32 normals_encoded_size;
-    u32 uvs_encoded_size;
-    u32 lod_count;
-    vec3 half_extents;
-    u32 _pad0;
-  };
-
-  struct MeshFileLod {
-    u32 vertex_offset;
-    u32 vertex_count;
-    u32 index_offset;
-    u32 index_count;
-    f32 threshold;
-    u32 _pad0;
-  };
-
-  struct MeshFile {
-    MeshFileHeader* header;
-    MeshFileLod* lods;
-    u32* indices;
-    vec3* positions;
-    vec3* normals;
-    vec2* uvs;
-  };
-
-//
-// Component Types
-//
-
-  enum struct ImageId : u32 {};
-
-  // struct ImageProperties {
-  //   u32 width;
-  //   u32 height;
-  // };
-
-  struct MeshInstance {
-    u32 offset;
-    u32 count;
-  };
-
-  struct MeshProperties {
-    vec3 origin;
-    vec3 half_extents;
-  };
-
-  struct Aabb {
-    vec3 position;
-    vec3 half_extents;
-  };
-
-  struct DebugColor : public vec4 {};
-
-  struct PointLight {
-    vec3 color;
-    f32 falloff;
-    f32 directionality;
-  };
-
-  struct DirectionalLight {
-    vec3 color;
-    f32 falloff;
-    f32 directionality;
-  };
-
 //
 // Resource API
 //
 
-  #define declare_resource(name, x...) \ // defined in internal/resources.hpp
-  #define define_resource(name)        \ // defined in internal/resources.hpp
-  #define define_savable_resource(name)        \ // defined in internal/resources.hpp
+  #define declare_resource(name, x...)  \ // defined in internal/resources.hpp
+  #define define_resource(name)         \ // defined in internal/resources.hpp
+  #define define_savable_resource(name) \ // defined in internal/resources.hpp
+
+  #define savable \ // defined in internal/resources.hpp
 
   #define declare_resource_duplicate(name, inherits) \ // defined in internal/resources.hpp
 
@@ -105,6 +31,10 @@ namespace quark {
 
   // Internal definitions
   #include "internal/resources.hpp"
+
+//
+// Time API
+//
 
   declare_resource(TimeInfo,
     f64 delta;
@@ -137,15 +67,15 @@ namespace quark {
   declare_resource(EcsContext,
     u32 ecs_table_count = 0;
     u32 ecs_table_capacity = 0;
-  
+
     u32 ecs_entity_head = 0;
     u32 ecs_entity_tail = 0;
     u32 ecs_entity_capacity = 0;
-  
+
     void** ecs_comp_table = 0;
     u32** ecs_bool_table = 0;
     u32* ecs_comp_sizes = 0;
-  
+
     u32 ecs_active_flag = 0;
     // u32 ecs_created_flag = 0;
     // u32 ecs_destroyed_flag = 0;
@@ -210,10 +140,24 @@ namespace quark {
 
   enum struct MeshId : u32 {};
 
+  enum struct ImageId : u32 {};
+
   declare_component(alignas(8) Model,
     vec3 half_extents;
     MeshId id;
   );
+
+  // declare_component(alignas(8) PointLight,
+  //   vec3 color;
+  //   f32 falloff;
+  //   f32 directionality;
+  // );
+
+  // declare_component(alignas(8) DirectionalLight,
+  //   vec3 color;
+  //   f32 falloff;
+  //   f32 directionality;
+  // );
 
   engine_api Model create_model(const char* mesh_name, vec3 scale);
   
@@ -841,13 +785,60 @@ namespace quark {
   engine_api void create_post_process_effect(PostProcessEffect* effect, PostProcessEffectInfo* info);
 
 //
-// Graphics Context
+// Internal Graphics Types
 //
 
   struct MeshLod {
     u32 mesh_instance_ids[8];
     f32 thresholds[8];
   };
+
+  struct MeshInstance {
+    u32 offset;
+    u32 count;
+  };
+
+  struct MeshProperties {
+    vec3 origin;
+    vec3 half_extents;
+  };
+
+  struct MeshFileHeader {
+    u64 uuid_lo;
+    u64 uuid_hi;
+    u32 version;
+    u32 vertex_count;
+    u32 index_count;
+    u32 indices_encoded_size;
+    u32 positions_encoded_size;
+    u32 normals_encoded_size;
+    u32 uvs_encoded_size;
+    u32 lod_count;
+    vec3 half_extents;
+    u32 _pad0;
+  };
+
+  struct MeshFileLod {
+    u32 vertex_offset;
+    u32 vertex_count;
+    u32 index_offset;
+    u32 index_count;
+    f32 threshold;
+    u32 _pad0;
+  };
+
+  struct MeshFile {
+    MeshFileHeader* header;
+    MeshFileLod* lods;
+    u32* indices;
+    vec3* positions;
+    vec3* normals;
+    vec2* uvs;
+  };
+
+//
+// Graphics Context
+//
 
   declare_resource(GraphicsContext,
     Arena* arena;
@@ -959,6 +950,8 @@ namespace quark {
     ColorPrecision color_precision = ColorPrecision::High;
     DepthPrecision depth_precision = DepthPrecision::High;
   );
+
+  engine_var bool PRINT_PERFORMANCE_STATISTICS;
 
   engine_api void init_graphics_context();
 
@@ -1138,6 +1131,7 @@ namespace quark {
     vec4 color;
   );
   declare_material_world(ColorMaterial,
+    vec4 tint;
   );
 
   declare_material(TextureMaterial,
@@ -1324,6 +1318,10 @@ namespace quark {
 
   engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
 };
+
+//
+// Helper
+//
 
 #define vk_check(x)                                                                                                                                  \
   do {                                                                                                                                               \
