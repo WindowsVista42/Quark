@@ -225,11 +225,11 @@ namespace quark {
     MaterialBatch* batch = &context->batches[i];
 
     batch->material_instance_count = 0;
-    batch->material_instances = push_zero_arena(context->arena, info->material_instance_capacity * info->material_size);
+    batch->material_instances = arena_push_zero(context->arena, info->material_instance_capacity * info->material_size);
 
     batch->batch_count = 0;
-    batch->drawables_batch = (Drawable*)push_zero_arena(context->arena, info->batch_capacity * sizeof(Drawable));
-    batch->materials_batch = push_zero_arena(context->arena,  info->batch_capacity * info->material_size);
+    batch->drawables_batch = (Drawable*)arena_push_zero(context->arena, info->batch_capacity * sizeof(Drawable));
+    batch->materials_batch = arena_push_zero(context->arena,  info->batch_capacity * info->material_size);
 
     return i;
   }
@@ -264,7 +264,7 @@ namespace quark {
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
     world_data->ambient = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
     world_data->tint = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
-    world_data->time = (f32)get_timestamp().value;
+    world_data->time = (f32)get_timestamp();
 
     {
       void* ptr = map_buffer(current_world_data_buffer);

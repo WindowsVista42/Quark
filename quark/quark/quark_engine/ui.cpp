@@ -216,8 +216,8 @@ namespace quark {
         glyphs[letter] = &font->glyphs[i];
 
         text_counts[letter] = (m->nfaces * 3);
-        text_verts[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
-        text_norms[letter] = (vec2*)push_arena(arena, mesh->nfaces * 3 * sizeof(vec2));
+        text_verts[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
+        text_norms[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
 
         u32 offset = 0;
         for_every(i, m->nfaces) {

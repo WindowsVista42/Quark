@@ -1,40 +1,10 @@
 #pragma once
 
-// #include <float.h>
 #include <stdint.h>
-#include <atomic>
-#include <mutex>
-#include <condition_variable>
-
-// QUARK_CORE
-// Api convention is
-// RET OP_TYPE_DETAIL(ARGS...)
-//
-// example:
-// f32 dot(vec2 a, vec2 b);
-// ret OP (args...)
-//
-// f32 dot(vec3 a, vec3 b);
-// ret OP (args...)
-//
-// -------------------------
-//
-// quat axis_angle_quat(vec3 axis, f32 angle);
-// ret  OP         TYPE(args...)
-//
-// mat4 axis_angle_mat4(vec3 axis, f32 angle);
-// ret  OP         TYPE(args...)
-//
-// Return type will sometimes be specified as TYPE in function names
-// For quark_core this is typically only done if the arguments
-// are the same across different use cases
-
-// conversions are typically 'type_from_value(s)'
-// mathematical functions are just the actual name 'conjugate'
-// other less common operations are 'type_operation'
+#include <typeinfo>
+#include <string.h>
 
 namespace quark {
-
 //
 // Number Types
 //
@@ -60,24 +30,24 @@ namespace quark {
 // Atomic Types
 //
 
-  using atomic_bool  = std::atomic_bool;
-  using atomic_char  = std::atomic_char;
+  using atomic_bool  = volatile _Atomic bool;
+  using atomic_char  = volatile _Atomic char;
 
-  using atomic_i8    = std::atomic_int8_t;
-  using atomic_i16   = std::atomic_int8_t;
-  using atomic_i32   = std::atomic_int8_t;
-  using atomic_i64   = std::atomic_int8_t;
-  using atomic_isize = std::atomic_int8_t;
+  using atomic_i8    = volatile _Atomic i8;
+  using atomic_i16   = volatile _Atomic i16;
+  using atomic_i32   = volatile _Atomic i32;
+  using atomic_i64   = volatile _Atomic i64;
+  using atomic_isize = volatile _Atomic isize;
 
-  using atomic_u8    = std::atomic_uint8_t;
-  using atomic_u16   = std::atomic_uint8_t;
-  using atomic_u32   = std::atomic_uint8_t;
-  using atomic_u64   = std::atomic_uint8_t;
-  using atomic_usize = std::atomic_uint8_t;
+  using atomic_u8    = volatile _Atomic u8;
+  using atomic_u16   = volatile _Atomic u16;
+  using atomic_u32   = volatile _Atomic u32;
+  using atomic_u64   = volatile _Atomic u64;
+  using atomic_usize = volatile _Atomic usize;
 
-  using mutex = std::mutex;
-  using cvar  = std::condition_variable;
-  using thread_id = std::thread::id;
+  // using mutex = std::mutex;
+  // using cvar  = std::condition_variable;
+  using thread_id = isize;
 
 //
 // Linear Algebra Types
@@ -229,7 +199,7 @@ namespace quark {
   
   eul3 as_eul3(vec3 a);
 
-  // current implementation is probably wrong
+  // @fix current implementation is probably wrong
   eul3 eul3_from_quat(quat q);
   
 //
@@ -241,7 +211,6 @@ namespace quark {
   vec3 quat_up(quat a);
   
   quat conjugate(quat a);
-  quat inverse(quat a); // same as conjugate since quaternions in quark are unit quaternions
   quat normalize(quat a);
 
   quat quat_from_orthonormal_basis(vec3 x_axis, vec3 y_axis, vec3 z_axis);
@@ -929,6 +898,7 @@ namespace quark {
   
 //
 // Math Constants
+// Pullled from float.h
 //
 
   static constexpr f32 F32_DECIMAL_DIG = 9;                        // # of decimal digits of rounding precision
@@ -951,7 +921,7 @@ namespace quark {
   static constexpr f32 F32_LN2         = 0.693147180559945309417;  // ln(2)
   static constexpr f32 F32_LN10        = 2.30258509299404568402;   // ln(10)
   static constexpr f32 F32_PI          = 3.14159265358979323846;   // pi
-  static constexpr f32 F32_2PI         = 3.14159265358979323846 * 2.0; // 2pi
+  static constexpr f32 F32_2PI         = F32_PI * 2.0;             // 2pi
   static constexpr f32 F32_PI_2        = 1.57079632679489661923;   // pi/2
   static constexpr f32 F32_PI_4        = 0.785398163397448309616;  // pi/4
   static constexpr f32 F32_1_PI        = 0.318309886183790671538;  // 1/pi

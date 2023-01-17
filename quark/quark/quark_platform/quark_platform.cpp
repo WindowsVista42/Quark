@@ -1,11 +1,11 @@
+// @info disabled until application security is actually needed
+#define _CRT_SECURE_NO_WARNINGS
+
 #define QUARK_PLATFORM_IMPLEMENTATION
 #include "quark_platform.hpp"
-
-// #if defined(_WIN64)
-// #define _AMD64_
-// #include <libloaderapi.h>
-// #undef max
-// #endif
+#include <string>
+#include <thread>
+#include <stdio.h>
 
 #ifdef _WIN64
 #include <windows.h>
@@ -28,8 +28,8 @@ namespace quark {
   vec2 _window_mouse_pos_accum;
   vec2 _window_scroll_pos_accum;
 
-  ThreadPool _threadpool;
-  thread_id _main_thread_id = std::this_thread::get_id();
+  ThreadPool* _thread_pool;
+  thread_id _main_thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
 
   vec2 _mouse_position;
   vec2 _mouse_delta;
@@ -47,7 +47,7 @@ namespace quark {
 
   // raw movement in pixels
   // reset at the end of update_window_inputs()
-  // Todo: High resolution mouse input?
+  // @todo high resolution mouse input with subpixel precision?
   vec2 _mouse_accumulator = {};
   void mouse_callback(GLFWwindow* window, double x, double y) {
     static f64 last_x = 0.0f;
@@ -78,7 +78,7 @@ namespace quark {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
 
-    // TODO(sean): allow for this not to be the primary monitor
+    // @todo have some kind of config
     const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
     if(_window_dimensions.x <= 0) {
@@ -104,8 +104,8 @@ namespace quark {
     glfwTerminate();
   }
 
-  std::string get_window_name() {
-    return _window_name;
+  const char* get_window_name() {
+    return _window_name.c_str();
   }
 
   ivec2 get_window_dimensions() {
@@ -198,11 +198,11 @@ namespace quark {
     return 0.0f;
   }
 
-  bool get_input_down(InputId input, u32 source_id) {
+  bool is_input_down(InputId input, u32 source_id) {
     return get_input_state(input, source_id) == InputState::Press;
   }
 
-  bool get_input_up(InputId input, u32 source_id) {
+  bool is_input_up(InputId input, u32 source_id) {
     return get_input_state(input, source_id) == InputState::Release;
   }
 
@@ -221,27 +221,27 @@ namespace quark {
     //return (InputState::Enum)glfwGetKey(_window_ptr, (int)gamepad_button);
   }
 
-  bool get_key_down(KeyCode key) {
+  bool is_key_down(KeyCode key) {
     return get_key_state(key) == InputState::Press;
   }
 
-  bool get_mouse_button_down(MouseButtonCode mouse_button) {
+  bool is_mouse_button_down(MouseButtonCode mouse_button) {
     return get_mouse_button_state(mouse_button) == InputState::Press;
   }
 
-  bool get_gamepad_button_down(u32 gamepad_id, GamepadButtonCode gamepad_button) {
+  bool is_gamepad_button_down(u32 gamepad_id, GamepadButtonCode gamepad_button) {
     return get_gamepad_button_state(gamepad_id, gamepad_button) == InputState::Press;
   }
 
-  bool get_key_up(KeyCode key) {
+  bool is_key_up(KeyCode key) {
     return get_key_state(key) == InputState::Release;
   }
 
-  bool get_mouse_button_up(MouseButtonCode mouse_button) {
+  bool is_mouse_button_up(MouseButtonCode mouse_button) {
     return get_mouse_button_state(mouse_button) == InputState::Release;
   }
 
-  bool get_gamepad_button_up(u32 gamepad_id, GamepadButtonCode gamepad_button) {
+  bool is_gamepad_button_up(u32 gamepad_id, GamepadButtonCode gamepad_button) {
     return get_gamepad_button_state(gamepad_id, gamepad_button) == InputState::Release;
   }
 
@@ -289,12 +289,8 @@ namespace quark {
     return get_mouse_mode() == MouseMode::Captured ? _mouse_delta : VEC2_ZERO;
   }
 
-  // TODO(sean): make this relative to the bottom left of the screen
   vec2 get_mouse_position() {
     return _mouse_position;
-    //f64 x = 0, y = 0;
-    //glfwGetCursorPos(_window_ptr, &x, &y);
-    //return vec2 {(f32)x, (f32)y};
   }
 
   vec2 get_scroll_delta() {
@@ -327,49 +323,45 @@ namespace quark {
 //
 
   Timestamp get_timestamp() {
-    return Timestamp { .value = glfwGetTime() };
+    return glfwGetTime();
   }
 
-  f64 get_timestamp_difference(Timestamp t0, Timestamp t1) {
-    return abs(t1.value - t0.value);
-  }
-
-  f64 get_delta_time(Timestamp t0, Timestamp t1) {
-    return abs(t1.value - t0.value);
+  Timestamp get_timestamp_difference(Timestamp t0, Timestamp t1) {
+    return abs(t1 - t0);
   }
 
 //
 // Threadpool API
 //
 
-  void init_threadpool() {
-    _threadpool.init();
+  void init_thread_pool() {
+    _thread_pool = create_thread_pool(std::thread::hardware_concurrency(), 1024);
   }
 
-  void deinit_threadpool() {}
+  void deinit_thread_pool() {}
 
-  thread_id get_main_thread_id() {
+  thread_id main_thread_id() {
     return _main_thread_id;
   }
 
-  void add_threadpool_work(WorkFunction work_func) {
-    _threadpool.push(work_func);
+  void thread_pool_push(VoidFunctionPtr work_func) {
+    ::thread_pool_push(_thread_pool, work_func);
   }
 
-  void start_threadpool() {
-    _threadpool.start();
+  void thread_pool_start() {
+    ::thread_pool_start(_thread_pool);
   }
 
-  void join_threadpool() {
-    _threadpool.join();
+  void thread_pool_join() {
+    ::thread_pool_join(_thread_pool);
   }
 
-  bool get_threadpool_finished() {
-    return _threadpool.finished();
+  bool thread_pool_is_finished() {
+    return ::thread_pool_is_finished(_thread_pool);
   }
 
-  isize get_threadpool_thread_count() {
-    return _threadpool.thread_count();
+  isize thread_pool_thread_count() {
+    return (isize)::thread_pool_thread_count(_thread_pool);
   }
 
 //
@@ -382,27 +374,34 @@ namespace quark {
 // Shared Library API
 //
 
-  Library load_library(const char* library_path) {
-    HINSTANCE hinstlib = LoadLibraryEx(
-        TEXT(library_path),
-        0,
-        0
-    );
+  struct LibraryWin64 {
+    HINSTANCE hinstlib;
+  };
+
+  Library* load_library(const char* library_path) {
+    HINSTANCE hinstlib = LoadLibraryEx(TEXT(library_path), 0, 0);
 
     if(hinstlib == 0) {
       panic("Failed to find dll!");
     }
 
-    return Library { hinstlib };
+    LibraryWin64* library = (LibraryWin64*)malloc(sizeof(LibraryWin64));
+    library->hinstlib = hinstlib;
+
+    return (Library*)library;
   }
 
-  void unload_library(Library* library) {
+  void unload_library(Library* library_ptr) {
+    LibraryWin64* library = (LibraryWin64*)library_ptr;
+
     FreeLibrary(library->hinstlib);
-    library->hinstlib = 0;
+    free(library_ptr);
   }
 
-  WorkFunction get_library_function(Library* library, const char* function_name) {
-    WorkFunction function = (WorkFunction) GetProcAddress(library->hinstlib, function_name);
+  VoidFunctionPtr library_get_function(Library* library_ptr, const char* function_name) {
+    LibraryWin64* library = (LibraryWin64*)library_ptr;
+
+    VoidFunctionPtr function = (VoidFunctionPtr) GetProcAddress(library->hinstlib, function_name);
     if(function == 0) {
       panic("Failed to find function in dll!");
     }
@@ -410,12 +409,16 @@ namespace quark {
     return function;
   }
 
-  void run_library_function(Library* library, const char* function_name) {
-    get_library_function(library, function_name)();
+  void library_run_function(Library* library_ptr, const char* function_name) {
+    LibraryWin64* library = (LibraryWin64*)library_ptr;
+
+    library_get_function(library, function_name)();
   }
 
-  bool check_library_has_function(Library* library, const char* function_name) {
-    WorkFunction function = (WorkFunction) GetProcAddress(library->hinstlib, function_name);
+  bool library_has_function(Library* library_ptr, const char* function_name) {
+    LibraryWin64* library = (LibraryWin64*)library_ptr;
+
+    VoidFunctionPtr function = (VoidFunctionPtr) GetProcAddress(library->hinstlib, function_name);
     if(function == 0) {
       return false;
     }
@@ -523,7 +526,7 @@ namespace quark {
       arena->ptr = os_reserve_mem(virtual_reserve_size);
       os_commit_mem(arena->ptr, 2 * MB);
   
-      arena->pos = 0;
+      arena->position = 0;
       arena->commit_size = 2 * MB;
     }
   
@@ -544,27 +547,21 @@ namespace quark {
   }
   
   void free_arena(Arena* arena) {
-    reset_arena(arena);
+    arena_reset(arena);
 
     usize i = (arena - _arena_pool.arenas);
     _arena_pool.thread_locks[i] = -1;
   }
   
-  // u8* push_zero_arena(Arena* arena, usize size) {
-  //   u8* ptr = push_arena(arena, size);
-  //   zero_mem(ptr, size);
-  //   return ptr;
-  // }
-  
   TempStack begin_temp_stack(Arena* arena) {
     return TempStack {
       .arena = arena,
-      .restore_pos = get_arena_pos(arena),
+      .restore_pos = arena_get_position(arena),
     };
   }
   
   void end_temp_stack(TempStack stack) {
-    set_arena_pos(stack.arena, stack.restore_pos);
+    arena_set_position(stack.arena, stack.restore_pos);
   }
   
   TempStack begin_scratch(Arena** conflicts, usize conflict_count) {
@@ -577,27 +574,13 @@ namespace quark {
   
     return TempStack {
       .arena = arena,
-      .restore_pos = get_arena_pos(arena),
+      .restore_pos = arena_get_position(arena),
     };
   }
 
 //
 // Allocator API
 //
-
-  LinearAllocator create_linear_allocator(usize capacity) {
-    u8* data = (u8*)malloc(capacity);
-
-    if(data == 0) {
-      panic("Failed to create linear allocator!");
-    }
-
-    return LinearAllocator {
-      .data = data,
-      .size = 0,
-      .capacity = capacity,
-    };
-  }
 
   LinearAllocationTracker create_linear_allocation_tracker(usize capacity) {
     return LinearAllocationTracker {
@@ -606,28 +589,9 @@ namespace quark {
     };
   }
 
-  void destroy_linear_allocator(LinearAllocator* allocator) {
-    free(allocator->data);
-    allocator->size = 0;
-    allocator->capacity = 0;
-  }
-
   void destroy_linear_allocation_tracker(LinearAllocationTracker* allocator) {
     allocator->size = 0;
     allocator->capacity = 0;
-  }
-
-  u8* alloc(LinearAllocator* allocator, usize size) {
-    usize new_length = allocator->size + size;
-
-    // TODO: figure out how I want to conditional enable this
-    if (new_length > allocator->capacity) {
-      panic("Failed to allocate to Linear Allocator!");
-    }
-
-    u8* ptr = (allocator->data + allocator->size);
-    allocator->size += size;
-    return ptr;
   }
 
   usize alloc(LinearAllocationTracker* allocator, usize size) {
@@ -643,31 +607,8 @@ namespace quark {
     return offset;
   }
 
-  u8* alloc_copy(LinearAllocator* allocator, void* data, usize size) {
-    u8* ptr = alloc(allocator, size);
-    memcpy(ptr, data, size);
-    return ptr;
-  }
-
-  void reset_alloc(LinearAllocator* allocator) {
-    allocator->size = 0;
-  }
-
   void reset_alloc(LinearAllocationTracker* allocator) {
     allocator->size = 0;
-  }
-
-  platform_api void clear_alloc(LinearAllocator* allocator) {
-    memset(allocator->data, 0, allocator->capacity);
-    allocator->size = 0;
-  }
-
-  usize get_alloc_unused(LinearAllocator* allocator) {
-    return allocator->capacity - allocator->size;
-
-    // might need to use this calculation for some reason
-    // usize rem = _capacity - _size;
-    // return rem > 0 ? rem : 0;
   }
 
   usize get_alloc_unused(LinearAllocationTracker* allocator) {
@@ -675,7 +616,198 @@ namespace quark {
   }
 
 //
-// Panic API
+// String Builder API
+//
+
+  thread_local char FORMATTING_BUFFER[512];
+
+  StringBuilder create_string_builder(Arena* arena) {
+    StringBuilder builder = {};
+    builder.arena = arena;
+    builder.data = arena->ptr + arena->position;
+    builder.length = 0;
+
+    return builder;
+  }
+
+  void string_builder_copy(StringBuilder* builder, u8* data, usize data_size) {
+    // its important that we use the unaligned push here
+    arena_push_with_alignment(builder->arena, data_size, 1);
+    copy_mem(builder->data + builder->length, data, data_size);
+    builder->length += data_size;
+  }
+
+  void string_builder_copy_string(StringBuilder* builder, const char* data) {
+    usize length = strlen(data);
+    string_builder_copy(builder, (u8*)data, length);
+  }
+
+  u8* string_builder_push(StringBuilder* builder, usize size) {
+    u8* ptr = arena_push(builder->arena, size);
+    return ptr;
+  }
+
+  StringBuilder operator +(StringBuilder s, const char* data) {
+    string_builder_copy_string(&s, data);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, f32 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%.4f", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, f64 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%.4lf", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, i32 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%d", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, i64 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%lld", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, u32 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%u", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, u64 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "%llu", data);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, vec2 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f)", data.x, data.y);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, vec3 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f, %f)", data.x, data.y, data.z);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, vec4 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f, %f, %f)", data.x, data.y, data.z, data.w);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, ivec2 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d)", data.x, data.y);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, ivec3 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d, %d)", data.x, data.y, data.z);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, ivec4 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d, %d, %d)", data.x, data.y, data.z, data.w);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, uvec2 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u)", data.x, data.y);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, uvec3 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u, %u)", data.x, data.y, data.z);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  StringBuilder operator +(StringBuilder s, uvec4 data) {
+    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u, %u, %u)", data.x, data.y, data.z, data.w);
+    string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
+    return s;
+  }
+
+  void operator +=(StringBuilder& s, const char* data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, f32 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, f64 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, i32 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, i64 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, u32 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, u64 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, vec2 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, vec3 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, vec4 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, ivec2 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, ivec3 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, ivec4 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, uvec2 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, uvec3 data) {
+    s = s + data;
+  }
+
+  void operator +=(StringBuilder& s, uvec4 data) {
+    s = s + data;
+  }
+
+//
+// Logging API
 //
 
 #ifdef _WIN64
@@ -691,4 +823,71 @@ namespace quark {
   }
 
 #endif
+
+//
+// File API
+//
+
+  i32 open_file(File** file, const char* filename, const char* mode) {
+    return fopen_s((FILE**)file, filename, mode);
+  }
+  
+  void close_file(File* file) {
+    fclose((FILE*) file);
+  }
+
+  File* open_file_panic_with_error(const char* filename, const char* mode, const char* error_message) {
+    File* f = 0;
+    if(i32 err = open_file(&f, filename, mode); err) {
+      printf("Failed to open file: \"%s\" with error message: \"%s\"\nGot file error: %d\n", filename, error_message, err);
+      panic("");
+    }
+    return f;
+  }
+  
+  isize file_read(File* file, void* out_buffer, usize byte_size) {
+    return fread(out_buffer, byte_size, 1, (FILE*)file);
+  }
+  
+  isize file_read(File* file, Arena* arena, usize byte_size, void** out_ptr) {
+    *out_ptr = arena_push(arena, byte_size);
+    return fread(*out_ptr, byte_size, 1, (FILE*)file);
+  }
+  
+  isize file_write(File* file, void* in_buffer, usize byte_size) {
+    return fwrite(in_buffer, byte_size, 1, (FILE*)file);
+  }
+
+  usize file_size(File* file) {
+    fseek((FILE*)file, 0L, SEEK_END);
+    usize fsize = ftell((FILE*)file);
+    rewind((FILE*)file);
+
+    return fsize;
+  }
+
+  RawBytes read_entire_file(Arena* arena, const char* filename) {
+    File* fp = open_file_panic_with_error(filename, "rb", "Failed to read entire file");
+    defer(close_file(fp));
+  
+    usize size = file_size(fp);
+    u8* buffer = arena_push(arena, size);
+
+    file_read(fp, buffer, size);
+
+    return RawBytes { buffer, size };
+  }
+
+//
+// String API
+//
+
+  int sprintf(char* buffer, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    int len = ::vsprintf(buffer, format, args);
+    va_end(args);
+
+    return len;
+  }
 };

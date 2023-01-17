@@ -1,14 +1,11 @@
 #include "quark_core.hpp"
 
-namespace quark {
-//
-// Math functions
-//
+_Check_return_
+size_t __cdecl strlen(
+    _In_z_ char const* _Str
+    );
 
-//
-// other
-//
-  
+namespace quark {
 //
 // vec2
 //
@@ -85,6 +82,7 @@ namespace quark {
 //
 // vec3
 //
+
   vec3 abs(vec3 a) {
     vec3 v = a;
     v.x = abs(v.x);
@@ -332,7 +330,7 @@ namespace quark {
     return *(eul3*)&a;
   }
   
-  // @info this function does not give correct results
+  // @fix this function does not give correct results
   eul3 eul3_from_quat(quat q) {
     eul3 e = {};
 

@@ -5,9 +5,13 @@
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
+
 #include <vk_mem_alloc.h>
 #include <unordered_map>
+
+namespace quark {
 #include "reflection.hpp"
+};
 
 #define api_decl engine_api
 #define var_decl engine_var
@@ -330,12 +334,12 @@ namespace quark {
   engine_api void destroy_system_list(const char* system_list_name);
   engine_api void run_system_list(const char* system_list_name);
 
-  engine_api void get_system_runtimes(system_list_id id, Timestamp** timestamps, usize* count);
+  engine_api void get_system_runtimes(system_list_id id, f64** timestamps, usize* count);
 
   engine_api void run_system_list_id(system_list_id system_list);
   engine_api void print_system_list(const char* system_list_name);
 
-  engine_api void create_system(const char* system_name, WorkFunction system_func);
+  engine_api void create_system(const char* system_name, VoidFunctionPtr system_func);
   engine_api void destroy_system(const char* system_name);
 
   engine_api void add_system(const char* list_name, const char* system_name, const char* relative_to, i32 position);
@@ -367,70 +371,59 @@ namespace quark {
   engine_api void run_state_init();
   engine_api void run_state_deinit();
 
-//
-// Tempstr API
-//
+  // struct engine_api tempstr {
+  //   char* data;
+  //   usize length;
 
-  struct engine_api tempstr {
-    char* data;
-    usize length;
-
-    tempstr() = delete;
-  };
+  //   tempstr() = delete;
+  // };
 
   // No cleanup required, create_tempstr automatically resets the internal buffer
-  engine_api tempstr create_tempstr();
-  engine_api void append_tempstr(tempstr* s, const char* data);
-  engine_api void print_tempstr(tempstr s);
-  engine_api void eprint_tempstr(tempstr s);
+  // engine_api tempstr create_tempstr();
+  // engine_api void append_tempstr(tempstr* s, const char* data);
+  // engine_api void print_tempstr(tempstr s);
+  // engine_api void eprint_tempstr(tempstr s);
 
-  engine_api tempstr operator +(tempstr s, const char* data);
-  engine_api tempstr operator +(tempstr s, f32 data);
-  engine_api tempstr operator +(tempstr s, f64 data);
-  engine_api tempstr operator +(tempstr s, i32 data);
-  engine_api tempstr operator +(tempstr s, i64 data);
-  engine_api tempstr operator +(tempstr s, u32 data);
-  engine_api tempstr operator +(tempstr s, u64 data);
-  engine_api tempstr operator +(tempstr s, usize  data);
-  engine_api tempstr operator +(tempstr s, vec2 data);
-  engine_api tempstr operator +(tempstr s, vec3 data);
-  engine_api tempstr operator +(tempstr s, vec4 data);
-  engine_api tempstr operator +(tempstr s, ivec2 data);
-  engine_api tempstr operator +(tempstr s, ivec3 data);
-  engine_api tempstr operator +(tempstr s, ivec4 data);
-  engine_api tempstr operator +(tempstr s, uvec2 data);
-  engine_api tempstr operator +(tempstr s, uvec3 data);
-  engine_api tempstr operator +(tempstr s, uvec4 data);
+  // engine_api tempstr operator +(tempstr s, const char* data);
+  // engine_api tempstr operator +(tempstr s, f32 data);
+  // engine_api tempstr operator +(tempstr s, f64 data);
+  // engine_api tempstr operator +(tempstr s, i32 data);
+  // engine_api tempstr operator +(tempstr s, i64 data);
+  // engine_api tempstr operator +(tempstr s, u32 data);
+  // engine_api tempstr operator +(tempstr s, u64 data);
+  // engine_api tempstr operator +(tempstr s, usize  data);
+  // engine_api tempstr operator +(tempstr s, vec2 data);
+  // engine_api tempstr operator +(tempstr s, vec3 data);
+  // engine_api tempstr operator +(tempstr s, vec4 data);
+  // engine_api tempstr operator +(tempstr s, ivec2 data);
+  // engine_api tempstr operator +(tempstr s, ivec3 data);
+  // engine_api tempstr operator +(tempstr s, ivec4 data);
+  // engine_api tempstr operator +(tempstr s, uvec2 data);
+  // engine_api tempstr operator +(tempstr s, uvec3 data);
+  // engine_api tempstr operator +(tempstr s, uvec4 data);
 
-  engine_api void operator +=(tempstr& s, const char* data);
-  engine_api void operator +=(tempstr& s, f32 data);
-  engine_api void operator +=(tempstr& s, f64 data);
-  engine_api void operator +=(tempstr& s, i32 data);
-  engine_api void operator +=(tempstr& s, i64 data);
-  engine_api void operator +=(tempstr& s, u32 data);
-  engine_api void operator +=(tempstr& s, u64 data);
-  engine_api void operator +=(tempstr& s, vec2 data);
-  engine_api void operator +=(tempstr& s, vec3 data);
-  engine_api void operator +=(tempstr& s, vec4 data);
-  engine_api void operator +=(tempstr& s, ivec2 data);
-  engine_api void operator +=(tempstr& s, ivec3 data);
-  engine_api void operator +=(tempstr& s, ivec4 data);
-  engine_api void operator +=(tempstr& s, uvec2 data);
-  engine_api void operator +=(tempstr& s, uvec3 data);
-  engine_api void operator +=(tempstr& s, uvec4 data);
+  // engine_api void operator +=(tempstr& s, const char* data);
+  // engine_api void operator +=(tempstr& s, f32 data);
+  // engine_api void operator +=(tempstr& s, f64 data);
+  // engine_api void operator +=(tempstr& s, i32 data);
+  // engine_api void operator +=(tempstr& s, i64 data);
+  // engine_api void operator +=(tempstr& s, u32 data);
+  // engine_api void operator +=(tempstr& s, u64 data);
+  // engine_api void operator +=(tempstr& s, vec2 data);
+  // engine_api void operator +=(tempstr& s, vec3 data);
+  // engine_api void operator +=(tempstr& s, vec4 data);
+  // engine_api void operator +=(tempstr& s, ivec2 data);
+  // engine_api void operator +=(tempstr& s, ivec3 data);
+  // engine_api void operator +=(tempstr& s, ivec4 data);
+  // engine_api void operator +=(tempstr& s, uvec2 data);
+  // engine_api void operator +=(tempstr& s, uvec3 data);
+  // engine_api void operator +=(tempstr& s, uvec4 data);
 
 //
 // Better panic
 //
 
   // [[noreturn]] engine_api void panic(tempstr s);
-
-//
-// Logging API
-//
-
-  #define log(x...) print_tempstr(create_tempstr() + x + "\n")
-  // #define error(x...) print_tempstr(create_tempstr() + x + "\n");
 
 //
 // Asset API

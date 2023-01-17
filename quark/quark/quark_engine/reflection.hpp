@@ -1,11 +1,5 @@
 #pragma once
 
-// #include <stdio.h>
-// #include <stdarg.h>
-// #include <string.h>
-// #include <stdlib.h>
-// #include <stdint.h>
-
 typedef struct ReflectionFieldInfo {
   char* type;
   char* name;
@@ -68,7 +62,7 @@ static int __parse_reflection(const char* format, ...) {
   }
 
   if(name && (__new_reflection == 1)) {
-    len = sprintf(buffer, "%.*s", (int)(strlen(name) - strlen(" {")), name);
+    len = quark::sprintf(buffer, "%.*s", (int)(strlen(name) - strlen(" {")), name);
 
     __current_reflection_info.name = (char*)malloc(len + 1);
     memcpy(__current_reflection_info.name, buffer, len + 1);
@@ -97,11 +91,11 @@ static int __parse_reflection(const char* format, ...) {
 
     name = (format + i + 1);
 
-    len = sprintf(buffer, "%.*s", (int)(name - type - 1), type); // works kinda
+    len = quark::sprintf(buffer, "%.*s", (int)(name - type - 1), type); // works kinda
     __current_reflection_info.fields[__current_reflection_info.fields_size].type = (char*)malloc(len + 1);
     memcpy(__current_reflection_info.fields[__current_reflection_info.fields_size].type, buffer, len + 1);
 
-    len = sprintf(buffer, "%.*s", (int)(strlen(name) - strlen(" :") - 1), name);
+    len = quark::sprintf(buffer, "%.*s", (int)(strlen(name) - strlen(" :") - 1), name);
     __current_reflection_info.fields[__current_reflection_info.fields_size].name = (char*)malloc(len + 1);
     memcpy(__current_reflection_info.fields[__current_reflection_info.fields_size].name, buffer, len + 1);
 

@@ -5,6 +5,13 @@
 #include <GLFW/glfw3.h>
 #include <threadpool.hpp>
 
+// #include <string.h>
+
+_Check_return_
+size_t __cdecl strlen(
+    _In_z_ char const* _Str
+    );
+
 namespace quark {
 //
 // Window API
@@ -536,4 +543,5 @@ namespace quark {
 //
 
   platform_api int sprintf(char* buffer, const char* format, ...);
+
 };

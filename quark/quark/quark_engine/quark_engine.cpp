@@ -101,7 +101,7 @@ namespace quark {
     //TODO(sean): check for invalid input binds?
 
     if(_action_properties_map.count(action_name) == 0) {
-      printf("In bind_action(), could not find action with name: '%s'\n", action_name);
+      panic("In bind_action(), could not find action with name: '%s'\n" + action_name);
     }
 
     // add new input
@@ -111,21 +111,16 @@ namespace quark {
   }
 
   void unbind_action(const char* action_name) {
-  #ifdef DEBUG
     if(_action_properties_map.find(action_name) == _action_properties_map.end()) {
-      printf("Attempted to unbind nonexistant action: \"%s\"", action_name);
-      panic("unbind()");
-      return;
+      panic("Attempted to unbind nonexistant action: \"%s\"" + action_name);
     }
-  #endif
 
     panic("unimplemented!");
   }
 
   Action get_action(const char* action_name) {
     if(_action_state_map.count(action_name) == 0) {
-      log("Could not find action: " + action_name);
-      panic("Could not find action!\n");
+      panic("Could not find action: " + action_name);
     }
 
     ActionState state = _action_state_map.at(action_name);
@@ -195,7 +190,7 @@ namespace quark {
 
   // TODO(sean): make error messages put what you put so you arent trying to figure out where they happened
   std::unordered_map<system_id, std::string> _system_names;
-  std::unordered_map<system_id, WorkFunction> _system_functions;
+  std::unordered_map<system_id, VoidFunctionPtr> _system_functions;
   std::unordered_map<system_list_id, SystemListInfo> _system_lists;
 
   void init_systems() {
@@ -250,7 +245,7 @@ namespace quark {
     _system_runtimes[system_list].push_back(get_timestamp());
     for_every(i, list->systems.size()) {
       // Optionally log/time the functions being run
-      WorkFunction system = _system_functions.at(list->systems[i]);
+      VoidFunctionPtr system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
         // log("Running: " + _system_names.at(list->systems[i]).c_str());
         system();
@@ -280,23 +275,22 @@ namespace quark {
       panic("Attempted to run a system list that does not exist!");
     }
 
-    printf("Printing system list: %s\n", system_list_name);
+    print("Printing system list: " + system_list_name + "\n");
 
     SystemListInfo* list = &_system_lists.at(list_hash);
 
     for_every(i, list->systems.size()) {
       // Optionally log/time the functions being run
-      printf("System: %s\n", _system_names.at(list->systems[i]).c_str());
+      print("System: " + _system_names.at(list->systems[i]).c_str() + "\n");
     }
   }
 
   // System handling
-  void create_system(const char* system_name, WorkFunction system_func) {
+  void create_system(const char* system_name, VoidFunctionPtr system_func) {
     system_id name_hash = (system_id)hash_str_fast(system_name);
 
     if(_system_functions.find(name_hash) != _system_functions.end()) {
-      printf("system_name: %s\n", system_name);
-      panic("Attempted to create a system with a name that already exists");
+      panic("Attempted to create a system with a name that already exists: \"" + system_name + "\"\n");
     }
 
     _system_names.insert(std::make_pair(name_hash, std::string(system_name)));
@@ -360,8 +354,6 @@ namespace quark {
       if(position < 0) {
         absolute_position += 1;
       } 
-
-      // @remove printf("Absolute position was: %llu, for system: '%s'\n", absolute_position, system_name);
 
       auto index = list->systems.begin() + absolute_position;
       list->systems.insert(index, system_hash);
@@ -447,99 +439,6 @@ namespace quark {
     run_system_list_id(_states.at(_current_state).deinit_system_list);
   }
 
-  LinearAllocator _tempstr_scratch = create_linear_allocator(1024 * 1024); // 1 MB
-
-  tempstr create_tempstr() {
-    reset_alloc(&_tempstr_scratch);
-
-    return tempstr {
-      .data = (char*)alloc(&_tempstr_scratch, 0),
-      .length = 0,
-    };
-  }
-
-  void append_tempstr(tempstr* s, const char* data) {
-    usize len = strlen(data);
-    memcpy(s->data + s->length, data, len);
-    alloc(&_tempstr_scratch, len);
-    s->length += len;
-  }
-
-  void print_tempstr(tempstr s) {
-    fwrite(s.data, 1, s.length, stdout);
-  }
-
-  void eprint_tempstr(tempstr s) {
-    fwrite(s.data, 1, s.length, stderr);
-  }
-
-  tempstr operator +(tempstr s, const char* data) {
-    append_tempstr(&s, data);
-    return s;
-  }
-
-  tempstr operator +(tempstr s, f32 data) {
-    usize len = sprintf(s.data + s.length, "%.4f", data);
-    alloc(&_tempstr_scratch, len);
-    s.length += len;
-    return s;
-  }
-
-  tempstr operator +(tempstr s, f64 data);
-
-  tempstr operator +(tempstr s, i32 data) {
-    usize len = sprintf(s.data + s.length, "%d", data);
-    alloc(&_tempstr_scratch, len);
-    s.length += len;
-    return s;
-  }
-
-  tempstr operator +(tempstr s, i64 data);
-  tempstr operator +(tempstr s, u32 data);
-  tempstr operator +(tempstr s, u64 data);
-  tempstr operator +(tempstr s, usize data) {
-    usize len = sprintf(s.data + s.length, "%llu", data);
-    alloc(&_tempstr_scratch, len);
-    s.length += len;
-    return s;
-  }
-
-  tempstr operator +(tempstr s, vec2 data);
-  tempstr operator +(tempstr s, vec3 data);
-  tempstr operator +(tempstr s, vec4 data);
-
-  tempstr operator +(tempstr s, ivec2 data) {
-    return s + "(x: " + data.x + ", y: " + data.y + ")";
-  }
-
-  tempstr operator +(tempstr s, ivec3 data);
-  tempstr operator +(tempstr s, ivec4 data);
-  tempstr operator +(tempstr s, uvec2 data);
-  tempstr operator +(tempstr s, uvec3 data);
-  tempstr operator +(tempstr s, uvec4 data);
-
-  void operator +=(tempstr& s, const char* data);
-  void operator +=(tempstr& s, f32 data);
-  void operator +=(tempstr& s, f64 data);
-  void operator +=(tempstr& s, i32 data);
-  void operator +=(tempstr& s, i64 data);
-  void operator +=(tempstr& s, u32 data);
-  void operator +=(tempstr& s, u64 data);
-  void operator +=(tempstr& s, vec2 data);
-  void operator +=(tempstr& s, vec3 data);
-  void operator +=(tempstr& s, vec4 data);
-  void operator +=(tempstr& s, ivec2 data);
-  void operator +=(tempstr& s, ivec3 data);
-  void operator +=(tempstr& s, ivec4 data);
-  void operator +=(tempstr& s, uvec2 data);
-  void operator +=(tempstr& s, uvec3 data);
-  void operator +=(tempstr& s, uvec4 data);
-
-  // [[noreturn]] void panic(tempstr s) {
-  //   eprint_tempstr(s);
-  //   exit(-1);
-  // }
-
 //
 // ECS API
 //
@@ -588,7 +487,7 @@ namespace quark {
       u32 memsize = comp_count * component_size;
       memsize = (memsize / (64 * KB)) + 1;
       memsize *= 64 * KB;
-      printf("1 mil memsize eq: %d\n", memsize);
+      log_message("1 mil memsize eq: " + memsize);
   
       ctx->ecs_comp_table[i] = malloc(memsize); // (void*)os_reserve_mem(memsize);
       // os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
@@ -758,14 +657,14 @@ namespace quark {
   FileBuffer create_fileb(Arena* arena) {
     return FileBuffer {
       .arena = arena,
-      .start = push_arena(arena, 0),
+      .start = arena_push(arena, 0),
       .size = 0,
       .read_pos = 0,
     };
   }
 
   void write_fileb(FileBuffer* buffer, void* src, u32 element_size, u32 element_count) {
-    copy_mem_arena(buffer->arena, src, element_size * element_count);
+    arena_copy(buffer->arena, src, element_size * element_count);
 
     buffer->size += element_size * element_count;
     buffer->size = align_forward(buffer->size, 8);
@@ -809,7 +708,7 @@ namespace quark {
 
   #pragma comment(lib, "dbghelp.lib")
   i32 find_static_section(const char* module_name, usize* static_size, void** static_ptr) {
-    printf("Loading .static section for %s!\n", module_name);
+    log_message("Loading .static section for " + module_name);
 
     HMODULE hMod = GetModuleHandleA(module_name);
     if (hMod) {
@@ -819,7 +718,7 @@ namespace quark {
       PIMAGE_SECTION_HEADER Section = IMAGE_FIRST_SECTION(NtHeader);
       for (WORD i = 0; i < NumSections; i++) {
         if(strcmp((char*)Section->Name, ".static") == 0) {
-          printf(".static section found with size: %ld\n", Section->SizeOfRawData);
+          log_message(".static section found with size: " + (u32)Section->SizeOfRawData);
           *static_size = Section->SizeOfRawData;
           *static_ptr = (void*)(NtHeader->OptionalHeader.ImageBase + Section->VirtualAddress);
           return 0;
@@ -852,16 +751,13 @@ namespace quark {
     defer({
       Timestamp t1 = get_timestamp();
       f64 delta_time = get_timestamp_difference(t0, t1);
-      printf("Saving ECS took %fms\n", (f32)delta_time * 1000.0f);
+      log_message("Saving ECS took " + (f32)delta_time * 1000.0f + "ms");
     });
 
-    FILE* f = fopen("quark/saves/game_state.qsave", "wb");
-    if(f == 0) {
-      panic("Failed to open ecs state file for saving!\n");
-    }
+    File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "wb", "Failed to open ecs state file for saving!\n");
     defer({
-      fclose(f);
-      log("Saved file!\n");
+      close_file(f);
+      log_message("Saved file!");
     });
 
     EcsContext* ctx = get_resource(EcsContext);
@@ -882,10 +778,10 @@ namespace quark {
       write_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
 
-    u8* ptr = push_arena(arena, 8 * MB);
+    u8* ptr = arena_push(arena, 8 * MB);
     i32 compress_size = LZ4_compress_default((const char*)b.start, (char*)ptr, b.size, 8 * MB);
 
-    fwrite(ptr, 1, compress_size, f);
+    file_write(f, ptr, compress_size);
     // save_fileb(&b, f);
     // u8* data = push_arena(arena, 0);
     // copy_mem_arena(arena, &ctx->ecs_entity_head, sizeof(u32));
@@ -924,36 +820,28 @@ namespace quark {
     defer({
       Timestamp t1 = get_timestamp();
       f64 delta_time = get_timestamp_difference(t0, t1);
-      printf("Loading ECS took %fms\n", (f32)delta_time * 1000.0f);
+      log_message("Loading ECS took " + (f32)delta_time * 1000.0f + "ms");
     });
 
     Arena* arena = get_arena();
     defer(free_arena(arena));
 
-    FILE* f = fopen("quark/saves/game_state.qsave", "rb");
-    if(f == 0) {
-      panic("Failed to open ecs state file for loading!\n");
-    }
-    if(f == 0) {
-      return;
-    }
+    File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "rb", "Failed to open ecs state file for loading!\n");
     defer({
-      fclose(f);
-      log("Loaded file!\n");
+      close_file(f);
+      log_message("Loaded file!");
     });
 
     EcsContext* ctx = get_resource(EcsContext);
 
     FileBuffer b = create_fileb(arena);
 
-    fseek(f, 0L, SEEK_END);
-    usize fsize = ftell(f);
-    fseek(f, 0L, SEEK_SET);
+    usize fsize = file_size(f);
 
-    u8* ptr = push_arena(arena, 8 * MB);
-    fread(ptr, 1, fsize, f);
+    u8* ptr = arena_push(arena, 8 * MB);
+    file_read(f, ptr, fsize);
 
-    b.start = push_arena(arena, 64 * MB);
+    b.start = arena_push(arena, 64 * MB);
     b.size = LZ4_decompress_safe((const char*)ptr, (char*)b.start, fsize, 64 * MB);
 
     Timestamp s0 = get_timestamp();
@@ -968,7 +856,7 @@ namespace quark {
       read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
     Timestamp s1 = get_timestamp();
-    printf("Time to read_fileb: %fms, %.2fmb\n", (f32)get_timestamp_difference(s0, s1) * 1000.0f, (f32)b.size / (f32)(1 * MB));
+    log_message("Time to read_fileb: " + (f32)get_timestamp_difference(s0, s1) * 1000.0f + "ms, " + (f32)b.size / (f32)(1 * MB) +"mb");
 
     // fread(&ctx->ecs_entity_head, sizeof(u32), 1, f);
     // fread(&ctx->ecs_entity_tail, sizeof(u32), 1, f);
@@ -989,7 +877,7 @@ namespace quark {
     u32 ext_hash = hash_str_fast(file_extension);
 
     if(_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
-      panic((create_tempstr() + "Tried to add an asset file loader for a file extension that has already been added!\n").data);
+      panic("Tried to add an asset file loader for a file extension that has already been added: Extension: \"" + file_extension + "\"");
     }
 
     _asset_ext_loaders.insert(std::make_pair(ext_hash, loader));
@@ -1010,7 +898,7 @@ namespace quark {
 
     if (_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
       _asset_ext_loaders.at(ext_hash)(path_s.c_str(), filename.c_str());
-      printf("Loaded: %s%s\n", filename.c_str(), extension.c_str());
+      log_message("Loaded: " + filename.c_str() + extension.c_str());
     }
   }
 
@@ -1031,10 +919,8 @@ namespace quark {
     TempStack scratch = begin_scratch(0, 0);
     defer({
       end_scratch(scratch);
-      log("reset scratch!\n");
     });
 
-    // TODO(sean): load obj model using tinyobjloader
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -1045,12 +931,11 @@ namespace quark {
     tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path, 0);
   
     if (!warn.empty()) {
-      std::cout << "OBJ WARN: " << warn << std::endl;
+      log_warning("OBJ WARNING: " + warn.c_str());
     }
   
     if (!err.empty()) {
-      std::cerr << err << std::endl;
-      exit(1);
+      panic("OBJ ERROR: " + err.c_str());
     }
   
     // usize size = 0;
@@ -1176,36 +1061,36 @@ namespace quark {
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
 
-    u8* buffer_i = push_arena(scratch.arena, 2 * MB);
+    u8* buffer_i = arena_push(scratch.arena, 2 * MB);
     usize buffer_i_size = meshopt_encodeIndexBuffer(buffer_i, 2 * MB, indices.data(), indices.size());
 
-    u8* buffer_p = push_arena(scratch.arena, 2 * MB);
+    u8* buffer_p = arena_push(scratch.arena, 2 * MB);
     usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 2 * MB, positions.data(), positions.size(), sizeof(vec3));
 
-    u8* buffer_n = push_arena(scratch.arena, 2 * MB);
+    u8* buffer_n = arena_push(scratch.arena, 2 * MB);
     usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 2 * MB, normals.data(), normals.size(), sizeof(vec3));
 
-    u8* buffer_u = push_arena(scratch.arena, 2 * MB);
+    u8* buffer_u = arena_push(scratch.arena, 2 * MB);
     usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 2 * MB, uvs.data(), uvs.size(), sizeof(vec2));
 
     // usize buffer_size = buffer_i_size + buffer_p_size + buffer_n_size + buffer_u_size;
-    u8* buffer = push_arena(scratch.arena, 0); // push_arena(scratch.arena, 8 * MB);
-    copy_mem_arena(scratch.arena, buffer_i, buffer_i_size);
-    copy_mem_arena(scratch.arena, buffer_p, buffer_p_size);
-    copy_mem_arena(scratch.arena, buffer_n, buffer_n_size);
-    copy_mem_arena(scratch.arena, buffer_u, buffer_u_size);
-    u8* end = push_arena(scratch.arena, 0);
+    u8* buffer = arena_push(scratch.arena, 0); // push_arena(scratch.arena, 8 * MB);
+    arena_copy(scratch.arena, buffer_i, buffer_i_size);
+    arena_copy(scratch.arena, buffer_p, buffer_p_size);
+    arena_copy(scratch.arena, buffer_n, buffer_n_size);
+    arena_copy(scratch.arena, buffer_u, buffer_u_size);
+    u8* end = arena_push(scratch.arena, 0);
     usize buffer_size = (usize)(end - buffer);
     // copy_mem(buffer, buffer_i, buffer_i_size);
     // copy_mem(buffer + buffer_i_size, buffer_p, buffer_p_size);
     // copy_mem(buffer + buffer_i_size + buffer_p_size, buffer_n, buffer_n_size);
     // copy_mem(buffer + buffer_i_size + buffer_p_size + buffer_n_size, buffer_u, buffer_u_size);
 
-    u8* buffer2 = push_arena(scratch.arena, 2 * MB);
+    u8* buffer2 = arena_push(scratch.arena, 2 * MB);
     i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 2 * MB);
 
     u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
-    printf("Compressed mesh %.2f%%\n", (1.0f - (buffer2_size / (f32)before_size)) * 100.0f);
+    log_message("Compressed mesh " + (1.0f - (buffer2_size / (f32)before_size)) * 100.0f + "%");
 
     // meshopt_optimizeVertexFetch()
 
@@ -1226,8 +1111,8 @@ namespace quark {
     static uint64_t UUID_LO = 0xa70e90948be13cb1;
     static uint64_t UUID_HI = 0x847f281e519ba44f;
 
-    FILE* f = fopen(test, "wb");
-    defer(fclose(f));
+    File* f = open_file_panic_with_error(test, "wb", "Failed to open qmesh file for writing!");
+    defer(close_file(f));
 
     MeshFileHeader header = {};
     header.uuid_lo = UUID_LO;
@@ -1242,7 +1127,7 @@ namespace quark {
     header.lod_count = 1;
     header.half_extents = extents;
 
-    fwrite(&header, sizeof(MeshFileHeader), 1, f);
+    file_write(f, &header, sizeof(MeshFileHeader));
 
     // dump_struct(&header);
 
@@ -1253,7 +1138,7 @@ namespace quark {
     lod0.index_count = indices.size();
     lod0.threshold = 0.5f;
 
-    fwrite(&lod0, sizeof(MeshFileLod), 1, f);
+    file_write(f, &lod0, sizeof(MeshFileLod));
 
     // printf("%s\n", name);
 
@@ -1276,7 +1161,7 @@ namespace quark {
     // printf("comp_size: %d\n", comp_size);
 
     // fwrite(comp_bytes, 1, comp_size, f);
-    fwrite(buffer2, 1, buffer2_size, f);
+    file_write(f, buffer2, buffer2_size);
 
     // fwrite(indices.data(), sizeof(u32), indices.size(), f);
     // fwrite(positions.data(), sizeof(vec3), positions.size(), f);
@@ -1288,23 +1173,20 @@ namespace quark {
     static uint64_t UUID_LO = 0xa70e90948be13cb1;
     static uint64_t UUID_HI = 0x847f281e519ba44f;
 
-    FILE* f = fopen(path, "rb");
-    defer(fclose(f));
+    File* f = open_file_panic_with_error(path, "rb", "Failed to open qmesh file for reading!");
+    defer(close_file(f));
 
-    fseek(f, 0L, SEEK_END);
-    usize fsize = ftell(f);
-    fseek(f, 0L, SEEK_SET);
+    usize fsize = file_size(f);
 
     if(fsize < sizeof(MeshFileHeader)) {
-      log("Attempted to load mesh file: " + name + ".qmesh but it was too small to be a mesh file!\n");
-      panic("");
+      panic("Attempted to load mesh file: " + name + ".qmesh but it was too small to be a mesh file!\n");
     }
 
     TempStack scratch = begin_scratch(0, 0);
     defer(end_scratch(scratch));
 
-    u8* raw_bytes = push_arena(scratch.arena, fsize);
-    fread(raw_bytes, 1, fsize, f);
+    u8* raw_bytes = arena_push(scratch.arena, fsize);
+    file_read(f, raw_bytes, fsize);
 
     MeshFile file = {};
 
@@ -1313,8 +1195,7 @@ namespace quark {
     // dump_struct(file.header);
 
     if(file.header->uuid_lo != UUID_LO || file.header->uuid_hi != UUID_HI) {
-      log("Attempted to load mesh file: " + name + ".qmesh but it was not the correct format!\n");
-      panic("");
+      panic("Attempted to load mesh file: " + name + ".qmesh but it was not the correct format!\n");
     }
 
     file.lods = inc_bytes(raw_bytes, MeshFileLod, file.header->lod_count);
@@ -1323,31 +1204,31 @@ namespace quark {
     // printf("comp_size: %u\n", comp_size);
 
     // decompress
-    u8* decomp_bytes = push_arena(scratch.arena, 2 * MB);
+    u8* decomp_bytes = arena_push(scratch.arena, 2 * MB);
     i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 2 * MB);
     // printf("decomp_size: %u\n", decomp_size);
 
-    file.indices = (u32*)push_arena(scratch.arena, 2 * MB);
+    file.indices = (u32*)arena_push(scratch.arena, 2 * MB);
     meshopt_decodeIndexBuffer(file.indices, file.header->index_count, sizeof(u32), decomp_bytes, file.header->indices_encoded_size);
     decomp_bytes += file.header->indices_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.positions = (vec3*)push_arena(scratch.arena, 2 * MB);
+    file.positions = (vec3*)arena_push(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.positions, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->positions_encoded_size);
     decomp_bytes += file.header->positions_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.normals = (vec3*)push_arena(scratch.arena, 2 * MB);
+    file.normals = (vec3*)arena_push(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.normals, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->normals_encoded_size);
     decomp_bytes += file.header->normals_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    file.uvs = (vec2*)push_arena(scratch.arena, 2 * MB);
+    file.uvs = (vec2*)arena_push(scratch.arena, 2 * MB);
     meshopt_decodeVertexBuffer(file.uvs, file.header->vertex_count, sizeof(vec2), decomp_bytes, file.header->uvs_encoded_size);
     decomp_bytes += file.header->uvs_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
-    printf("decomp_size: %d\n", decomp_size);
+    log_message("decomp_size: " + decomp_size);
 
     // u8* buffer_p = push_arena(scratch.arena, 8 * MB);
     // usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
@@ -1378,7 +1259,7 @@ namespace quark {
     _context->mesh_instances[(u32)id] = create_mesh(file.positions, file.normals, file.uvs, file.header->vertex_count, file.indices, file.header->index_count);
     _context->mesh_scales[(u32)id] = normalize_to_max_length(file.header->half_extents, 2.0f);
 
-    printf("%s: %d\n", name, file.header->index_count);
+    log_message(name + ": " + file.header->index_count);
 
     add_asset(name, id);
   }
@@ -1390,8 +1271,7 @@ namespace quark {
     stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
 
     if(!pixels) {
-      printf("Failed to load texture file \"%s\"\n", path);
-      panic("");
+      panic("Failed to load texture file \"" + path + "\"");
     }
 
     u64 image_size = width * height * 4;
@@ -1418,34 +1298,11 @@ namespace quark {
     _context->texture_count += 1;
   }
 
-  struct Bytes {
-    u8* data;
-    isize size;
-  };
-
-  int read_file_bytes(Arena* arena, void** data, isize* size);
-
-  Bytes read_file_bytes(Arena* arena, const char* path) {
-    FILE* fp = fopen(path, "rb");
-  
-    fseek(fp, 0, SEEK_END);
-    int size = ftell(fp);
-    rewind(fp);
-  
-    u8* buffer = push_arena(arena, size);
-  
-    fread(buffer, size, 1, fp);
-  
-    fclose(fp);
-
-    return Bytes { buffer, size };
-  }
-
   VkShaderModule create_shader_module(const char* path) {
     TempStack scratch = begin_scratch(0, 0);
     defer(end_scratch(scratch));
 
-    auto [buffer, size] = read_file_bytes(scratch.arena, path);
+    auto [buffer, size] = read_entire_file(scratch.arena, path);
   
     VkShaderModuleCreateInfo module_create_info = {};
     module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

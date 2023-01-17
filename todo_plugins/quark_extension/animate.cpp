@@ -25,7 +25,7 @@ namespace quark::animation {
     //  start.z + (end.z - start.z) * t,
     //  start.w + (end.w - start.w) * t,
     //};
-    //q = q.norm();
+   //q = q.norm();
     //return q;
   }
 

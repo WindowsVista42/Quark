@@ -42,8 +42,8 @@ namespace quark {
     Timestamp t0 = get_timestamp();
     load_asset_folder("quark/qmesh");
     Timestamp t1 = get_timestamp();
-    f64 t = get_timestamp_difference(t0, t1);
-    printf("loading qmeshes took: %lf seconds!\n", t);
+    Timestamp t = get_timestamp_difference(t0, t1);
+    log_message("loading qmeshes took: " + t + " seconds!\n");
   }
 
   Timestamp frame_begin_time;
@@ -57,7 +57,7 @@ namespace quark {
     frame_end_time = get_timestamp();
 
     get_resource(TimeInfo)->delta = (f32)get_timestamp_difference(frame_begin_time, frame_end_time);
-    get_resource(TimeInfo)->time = (f32)frame_end_time.value;
+    get_resource(TimeInfo)->time = (f32)frame_end_time;
   }
 
 
@@ -87,7 +87,7 @@ namespace quark {
     // Create builtin systems
     {
       // Quark init
-      create_system("init_threadpool", init_threadpool);
+      create_system("init_threadpool", init_thread_pool);
       create_system("init_window", init_window);
       create_system("init_graphics_context", init_graphics_context);
       create_system("load_assets", load_assets);

@@ -479,7 +479,6 @@ namespace quark {
       device_features.largePoints = VK_TRUE;
       device_features.multiDrawIndirect = VK_TRUE;
 
-
       VkPhysicalDeviceVulkan11Features device_features_11 = {};
       device_features_11.shaderDrawParameters = VK_TRUE;
     
@@ -532,8 +531,8 @@ namespace quark {
       }
 
       _context->arena = get_arena();
-      _context->mesh_instances = push_array_arena(_context->arena, MeshInstance, 1024);
-      _context->mesh_scales = push_array_arena(_context->arena, vec3, 1024);
+      _context->mesh_instances = arena_push_array(_context->arena, MeshInstance, 1024);
+      _context->mesh_scales = arena_push_array(_context->arena, vec3, 1024);
 
       // _context->max_indirect_draw_count = vkb_physical_device.properties.limits.maxDrawIndirectCount;
 
@@ -637,7 +636,8 @@ namespace quark {
 
       swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
       // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
-      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
+      // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
+      swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
       swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
       swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -651,10 +651,10 @@ namespace quark {
       _context->swapchain_format = swapchain_format;
       _context->swapchain_image_count = swapchain_images.size();
 
-      _context->swapchain_images = push_array_arena(_context->arena, VkImage, swapchain_images.size());
+      _context->swapchain_images = arena_push_array(_context->arena, VkImage, swapchain_images.size());
       copy_array(_context->swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
 
-      _context->swapchain_image_views = push_array_arena(_context->arena, VkImageView, swapchain_image_views.size());
+      _context->swapchain_image_views = arena_push_array(_context->arena, VkImageView, swapchain_image_views.size());
       copy_array(_context->swapchain_image_views, swapchain_image_views.data(), VkImageView, swapchain_image_views.size());
     }
 
@@ -1023,16 +1023,16 @@ namespace quark {
         .render_pass = render_pass->render_pass,
       };
 
-      render_pass->framebuffers = push_array_arena(arena, VkFramebuffer, _FRAME_OVERLAP);
+      render_pass->framebuffers = arena_push_array(arena, VkFramebuffer, _FRAME_OVERLAP);
       create_framebuffers(render_pass->framebuffers, _FRAME_OVERLAP, &framebuffer_info);
 
       // Info: we need to copy over the relevant data
       render_pass->attachment_count = info->attachment_count;
       render_pass->resolution = info->resolution;
 
-      render_pass->attachments = push_array_arena(arena, Image*, info->attachment_count);
-      render_pass->initial_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
-      render_pass->final_usage = push_array_arena(arena, ImageUsage, info->attachment_count);
+      render_pass->attachments = arena_push_array(arena, Image*, info->attachment_count);
+      render_pass->initial_usage = arena_push_array(arena, ImageUsage, info->attachment_count);
+      render_pass->final_usage = arena_push_array(arena, ImageUsage, info->attachment_count);
 
       copy_array(render_pass->attachments, info->attachments, Image*, info->attachment_count);
       copy_array(render_pass->initial_usage, info->initial_usage, ImageUsage, info->attachment_count);
@@ -1074,7 +1074,7 @@ namespace quark {
       };
       create_images(_context->material_color_images2, _FRAME_OVERLAP, &_context->material_color_image_info);
 
-      _context->material_color_image_info.samples = ImageSamples::One,
+      _context->material_color_image_info.samples = ImageSamples::Four,
 
       create_images(_context->material_color_images, _FRAME_OVERLAP, &_context->material_color_image_info);
 
@@ -1082,7 +1082,7 @@ namespace quark {
         .resolution = _context->render_resolution,
         .format = ImageFormat::LinearD32,
         .type = ImageType::RenderTargetDepth,
-        .samples = ImageSamples::One,
+        .samples = ImageSamples::Four,
       };
       create_images(_context->main_depth_images, _FRAME_OVERLAP, &_context->main_depth_image_info);
 
@@ -1219,7 +1219,7 @@ namespace quark {
       copy_descriptor_set_layouts(set_layouts, info->resource_bundle_info.group_count, info->resource_bundle_info.groups);
 
       effect->resource_bundle.group_count = info->resource_bundle_info.group_count;
-      effect->resource_bundle.groups = copy_array_arena(arena, info->resource_bundle_info.groups, ResourceGroup*, info->resource_bundle_info.group_count);
+      effect->resource_bundle.groups = arena_copy_array(arena, info->resource_bundle_info.groups, ResourceGroup*, info->resource_bundle_info.group_count);
 
       VkPipelineLayoutCreateInfo layout_info = {};
       layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1469,7 +1469,7 @@ namespace quark {
           if(bindings[j].buffers != 0) {
             // Info: fill out array of buffers,
             // if there is only one item then this just fills out the one
-            VkDescriptorBufferInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorBufferInfo, res->max_count);
+            VkDescriptorBufferInfo* infos = arena_push_array_zero(scratch.arena, VkDescriptorBufferInfo, res->max_count);
             for_every(k, res->count) {
               infos[k].buffer = res->buffers[i][k].buffer;
               infos[k].offset = 0;
@@ -1488,7 +1488,7 @@ namespace quark {
             writes[j].pBufferInfo = infos;
           }
           else if(bindings[j].images != 0) {
-            VkDescriptorImageInfo* infos = push_array_zero_arena(scratch.arena, VkDescriptorImageInfo, res->max_count);
+            VkDescriptorImageInfo* infos = arena_push_array_zero(scratch.arena, VkDescriptorImageInfo, res->max_count);
             for_every(k, res->count) {
               infos[k].imageView = res->images[i][k].view;
               infos[k].imageLayout = get_image_layout(ImageUsage::Texture);
@@ -1517,16 +1517,16 @@ namespace quark {
       allocate_descriptor_sets(group->sets, group->layout);
 
       group->bindings_count = info->bindings_count;
-      group->bindings = push_array_zero_arena(arena, ResourceBinding, info->bindings_count);
+      group->bindings = arena_push_array_zero(arena, ResourceBinding, info->bindings_count);
       for_every(i, info->bindings_count) {
         group->bindings[i].count = info->bindings[i].count;
         group->bindings[i].max_count = info->bindings[i].max_count;
 
         if(info->bindings[i].buffers != 0) {
-          group->bindings[i].buffers = copy_array_arena(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
+          group->bindings[i].buffers = arena_copy_array(arena, info->bindings[i].buffers, Buffer*, _FRAME_OVERLAP);
         }
         else if(info->bindings[i].images != 0) {
-          group->bindings[i].images = copy_array_arena(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
+          group->bindings[i].images = arena_copy_array(arena, info->bindings[i].images, Image*, _FRAME_OVERLAP);
           group->bindings[i].sampler = info->bindings[i].sampler;
         }
       }
@@ -1537,7 +1537,7 @@ namespace quark {
 
     void create_resource_bundle(Arena* arena, ResourceBundle* bundle, ResourceBundleInfo* info) {
       bundle->group_count = info->group_count;
-      bundle->groups = copy_array_arena(arena, info->groups, ResourceGroup*, info->group_count);
+      bundle->groups = arena_copy_array(arena, info->groups, ResourceGroup*, info->group_count);
     }
 
     void bind_resource_group(VkCommandBuffer commands, VkPipelineLayout layout, ResourceGroup* group, u32 frame_index, u32 bind_index) {
@@ -1756,7 +1756,7 @@ namespace quark {
         low = delta();
       }
 
-      static std::vector<f64> system_runtimes = std::vector<f64>(get_system_list("update")->systems.size() - 1, 0);
+      static std::vector<Timestamp> system_runtimes = std::vector<Timestamp>(get_system_list("update")->systems.size() - 1, 0);
 
       {
         Timestamp* runtimes;
@@ -1764,7 +1764,7 @@ namespace quark {
         get_system_runtimes((system_list_id)hash_str_fast("update"), &runtimes, &runtimes_count);
 
         for_every(i, system_runtimes.size()) {
-          system_runtimes[i] += runtimes[i].value;
+          system_runtimes[i] += runtimes[i];
         }
       }
     
