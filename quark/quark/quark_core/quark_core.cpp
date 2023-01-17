@@ -1,10 +1,5 @@
 #include "quark_core.hpp"
 
-_Check_return_
-size_t __cdecl strlen(
-    _In_z_ char const* _Str
-    );
-
 namespace quark {
 //
 // vec2
