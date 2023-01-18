@@ -1,0 +1,26 @@
+create "how to" guides for features in quark
+give excellent explanations and put this in a public repo
+- Cover basic engine structure (image + readme)
+- Cover basic core layer things and put this in an example
+  - math operations
+  - defer
+  - range based for loops
+  - declare_enum
+  - swizzle
+- Cover platform layer things
+  - Create an example for raw input handling, timing, and basic window configuration
+  - Create an example for StringBuilder and logging
+  - Create an example for OS operations, mainly showcase file io, but mention os memory stuff and shared library stuff
+  - Create an entire detailed example for arenas
+  - Create an example showing threadpool basics
+- Cover engine layer things
+  - Create an example for resources, time, and ecs
+  - Create an example for actions
+  - Create ean example for jobs and states
+  - Walk through the 3D rendering pipeline in a bit of detail
+  - Create an example for basic 3D rendering
+  - Create an example for creating a new material
+  - Create an example for 2D ui
+  - Create an example for audio
+  - Create a more in-depth low level gpu programming with the vulkan abstraction example
+- Create a simple game example
