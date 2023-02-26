@@ -5,11 +5,13 @@ import shutil
 import threading
 import re
 
-OUTPUT_PATH = "quark/shaders/"
+# OUTPUT_PATH = "quark/shaders/"
+
+INCLUDE_DIR = "quark/quark/quark_engine/shaders/"
 
 SHADER_DIRS = [
-    "",
-    "quark/quark/quark_engine/shaders/",
+    ["quark/quark/quark_engine/shaders/", "quark/shaders/"],
+    ["plugins/spaceships/spaceships/shaders/", "plugins/spaceships/shaders/"]
 ]
 
 FLAGS = [
@@ -18,12 +20,6 @@ FLAGS = [
     ["push_constant", "default"],
     ["world_data"   , "default"],
 ]
-
-# SECTION_TYPES = [
-#     "vertex",
-#     "fragment",
-#     "compute",
-# ]
 
 HEADER = """
 #version 460
@@ -91,7 +87,8 @@ def compile_ext_shader(path):
     for flag in flags:
         flag[1] = read_flag(text, flag[0].upper() + ":", flag[1])
         if flag[1] == "ignore": continue
-        flag_path = os.path.dirname(path) + "/" + flag[0] + "/" + flag[1]
+        flag_path = os.path.dirname(INCLUDE_DIR) + "/" + flag[0] + "/" + flag[1]
+        print(flag_path)
         vert_top_text = vert_top_text + try_read(flag_path, ".vert", flag)
         frag_top_text = frag_top_text + try_read(flag_path, ".frag", flag)
 
@@ -137,17 +134,25 @@ def compile_spv_shader(path):
 
 if __name__ == "__main__":
     ext_shader_paths = []
+    ext_output_paths = []
     for dir in SHADER_DIRS:
-        ext_shader_paths.extend(glob.glob(dir + "*.shader.glsl"))
+        found = glob.glob(dir[0] + "*.shader.glsl")
+        ext_shader_paths.extend(found)
 
     for path in ext_shader_paths:
         compile_ext_shader(path)
 
     shader_paths = []
+    output_paths = []
     for dir in SHADER_DIRS:
-        shader_paths.extend(glob.glob(dir + "*.vert"))
-        shader_paths.extend(glob.glob(dir + "*.frag"))
-        shader_paths.extend(glob.glob(dir + "*.comp"))
+        found_vert = glob.glob(dir[0] + "*.vert")
+        found_frag = glob.glob(dir[0] + "*.frag")
+        
+        shader_paths.extend(found_vert)
+        shader_paths.extend(found_frag)
+
+        output_paths.extend([dir[1]] * len(found_vert))
+        output_paths.extend([dir[1]] * len(found_frag))
 
     threads = []
     for path in shader_paths:
@@ -162,11 +167,11 @@ if __name__ == "__main__":
         thread.join()
 
     spv_paths = []
-    for path in shader_paths:
-        if path.find(".ext") != -1: continue
-        full_path = path + ".spv"
+    for path in zip(shader_paths, output_paths):
+        if path[0].find(".ext") != -1: continue
+        full_path = path[0] + ".spv"
         name = os.path.basename(full_path)
-        shutil.move(full_path, OUTPUT_PATH + name)
+        shutil.move(full_path, path[1] + name)
 
     for path in ext_shader_paths:
         os.remove(path.replace(".shader.glsl", ".vert"))
