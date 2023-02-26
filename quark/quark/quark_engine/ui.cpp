@@ -133,11 +133,11 @@ namespace quark {
       depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
       depth_info.depthTestEnable = VK_TRUE;
       depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
       depth_info.depthBoundsTestEnable = VK_FALSE;
       depth_info.stencilTestEnable = VK_FALSE;
-      depth_info.minDepthBounds = 0.0f;
-      depth_info.maxDepthBounds = 1.0f;
+      depth_info.minDepthBounds = 1.0f;
+      depth_info.maxDepthBounds = 0.0f;
 
       // Info: alpha blending info
       VkPipelineColorBlendAttachmentState color_blend_state = {};
@@ -363,6 +363,8 @@ namespace quark {
 
   void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text) {
     ivec2 resolution = get_window_dimensions();
+
+    y = resolution.y - y;
 
     f32 left   = (x - width / 2.0f) / (f32)resolution.x;
     f32 bottom = (y - height / 2.0f) / (f32)resolution.y;
