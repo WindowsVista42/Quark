@@ -37,3 +37,6 @@
 [submodule "lib/ttf2mesh"]
 	path = lib/ttf2mesh
 	url = https://github.com/fetisov/ttf2mesh
+[submodule "lib\\miniaudio"]
+	path = lib\\miniaudio
+	url = https://github.com/mackron/miniaudio

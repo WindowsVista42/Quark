@@ -1,6 +1,3 @@
-assets/shaders/*.spv
-assets/shaders/*.vert
-mods/*.dll
 lib/
 
 CMakeFiles/
