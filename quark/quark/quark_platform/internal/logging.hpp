@@ -45,3 +45,9 @@ using namespace quark;
     free_arena(arena); \
     exit(-1); \
   } \
+
+  #define format(str, arena, args...) \
+    StringBuilder str##_builder = create_string_builder(arena); \
+    str##_builder = str##_builder + args; \
+    str##_builder = str##_builder + "\0"; \
+    str = (char*)str##_builder.data \

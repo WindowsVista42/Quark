@@ -502,7 +502,10 @@ namespace quark {
   #define print(x...)       \ // Defined in internal/logging.hpp
   #define panic(x...)       \ // Defined in internal/logging.hpp
 
+  #define func_panic(message...) panic("In '" + __FUNCTION__ + "()': " + message + "\n")
+
   platform_api void panic_real(const char* message, const char* file, usize line);
+
 
   #include "internal/logging.hpp"
 

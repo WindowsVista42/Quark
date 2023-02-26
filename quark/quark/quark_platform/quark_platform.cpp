@@ -52,9 +52,16 @@ namespace quark {
   void mouse_callback(GLFWwindow* window, double x, double y) {
     static f64 last_x = 0.0f;
     static f64 last_y = 0.0f;
+
+    f32 dx = (f32)(last_x - x);
+    f32 dy = (f32)(last_y - y);
+
+    // Ignore large inputs because its likely an alt-tab or something
+    if(abs(dx) > 100) { dx = 0; }
+    if(abs(dy) > 100) { dy = 0; }
   
-    _mouse_accumulator.x += (f32)(last_x - x);
-    _mouse_accumulator.y += (f32)(last_y - y);
+    _mouse_accumulator.x += dx;
+    _mouse_accumulator.y += dy;
   
     last_x = x;
     last_y = y;
@@ -76,20 +83,28 @@ namespace quark {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
 
     // @todo have some kind of config
-    const GLFWvidmode* vid_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+  
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
     if(_window_dimensions.x <= 0) {
-      _window_dimensions.x = vid_mode->width;
+      _window_dimensions.x = mode->width;
     }
 
     if(_window_dimensions.y <= 0) {
-      _window_dimensions.y = vid_mode->height;
+      _window_dimensions.y = mode->height;
     }
 
+    // glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    // glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    // glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    // glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
     _window_ptr = glfwCreateWindow(_window_dimensions.x, _window_dimensions.y, _window_name.c_str(), 0, 0);
+    // glfwSetWindowMonitor(_window_ptr, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
 
     glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     glfwSetInputMode(_window_ptr, GLFW_RAW_MOUSE_MOTION, _window_enable_raw_mouse ? GLFW_TRUE : GLFW_FALSE);
@@ -619,7 +634,7 @@ namespace quark {
 // String Builder API
 //
 
-  thread_local char FORMATTING_BUFFER[512];
+  thread_local char FORMATTING_BUFFER[4096];
 
   StringBuilder create_string_builder(Arena* arena) {
     StringBuilder builder = {};
