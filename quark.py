@@ -386,10 +386,6 @@ def plugin_create():
     plugin_name = pop_arg("Plugin create expects: 'plugin_name'")
     plugin_name_caps = plugin_name.upper()
 
-    implementation_decl = plugin_name_caps + "_IMPLEMENTATION"
-    api_decl = plugin_name + "_api"
-    var_decl = plugin_name + "_var"
-
     path = "plugins" + os.sep + plugin_name
     if not os.path.exists(path):
         os.mkdir(path)
@@ -398,133 +394,30 @@ def plugin_create():
         print("Plugin already exists, please call 'quark plugin remove PLUGIN_NAME' if you wish to erase the existing plugin")
         return
 
-    # making src/api.hpp
-    if True:
-        src = """#pragma once
+    os.mkdir(path + "/" + plugin_name)
+    
+    shutil.copy("defaults/default_plugin/README.md", path + "/README.md")
+    shutil.copy("defaults/default_plugin/deps.txt", path + "/deps.txt")
+    
+    shutil.copy("defaults/default_plugin/default_plugin/api.hpp", path + "/" + plugin_name + "/api.hpp")
+    shutil.copy("defaults/default_plugin/default_plugin/mod_main.cpp", path + "/" + plugin_name + "/mod_main.cpp")
+    shutil.copy("defaults/default_plugin/default_plugin/CMakeLists.txt", path + "/" + plugin_name + "/CMakeLists.txt")
+    
+    shutil.copy("defaults/default_plugin/default_plugin/default_plugin.hpp", path + "/" + plugin_name + "/" + plugin_name + ".hpp")
+    shutil.copy("defaults/default_plugin/default_plugin/default_plugin.cpp", path + "/" + plugin_name + "/" + plugin_name + ".cpp")
 
-#if defined(_WIN32) || defined(_WIN64)
-  #if defined($implementation_decl)
-    #define $api_decl __declspec(dllexport)
-    #define $var_decl extern __declspec(dllexport)
-  #else
-    #define $api_decl __declspec(dllimport)
-    #define $var_decl extern __declspec(dllimport)
-  #endif
-#endif
-
-#ifndef $api_decl
-  #define $api_decl
-  #define $var_decl extern
-#endif"""
-
-        src = src.replace("$implementation_decl", implementation_decl)
-        src = src.replace("$api_decl", api_decl)
-        src = src.replace("$var_decl", var_decl)
-
-        src_path = path + os.sep + plugin_name
-        os.mkdir(src_path)
-        f = open(src_path + os.sep + "api.hpp", "w")
-        f.write(src)
+    for file in glob.glob(path + os.sep + "**/**.*", recursive=True):
+        f = open(file, "r")
+        string = f.read()
         f.close()
+        
+        string = string.replace("$default_plugin_caps", plugin_name_caps)
+        string = string.replace("$default_plugin", plugin_name)
 
-    # making src/CMakeLists.txt
-    if True:
-        src = """# automatically get mod name from mod directory name
-get_filename_component(MOD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
-get_filename_component(MY_MOD_NAME ${MOD_DIR} NAME)
-string(REPLACE " " "_" MY_MOD_NAME ${MY_MOD_NAME})
-project(${MY_MOD_NAME} C CXX)
+        print(string)
 
-# add all source files in src/ directory
-file(GLOB SRC *.cpp)
-add_library(${MY_MOD_NAME} SHARED ${SRC})
-
-# precomple headers and link to quark_engine
-target_precompile_headers(${MY_MOD_NAME} PUBLIC ${QUARK_MODULE})
-target_link_libraries(${MY_MOD_NAME} quark_engine)
-
-FILE(STRINGS "../deps.txt" DEPS)
-
-# precompile headers and link to all other dependencies
-foreach(DEP ${DEPS})
-	get_target_property(DIR ${DEP} SOURCE_DIR)
-	target_precompile_headers(${MY_MOD_NAME} PUBLIC ${DIR}/module.hpp)
-	message(${DIR}/module.hpp)
-endforeach()
-
-foreach(DEP ${DEPS})
-	target_link_libraries(${MY_MOD_NAME} ${DEP})
-endforeach()"""
-
-        f = open(src_path + os.sep + "CMakeLists.txt", "w")
-        f.write(src)
-        f.close()
-
-    # making src/$plugin_name.hpp
-    if True:
-        src = """#pragma once
-
-#include <quark/module.hpp>
-using namespace quark;
-
-#include "api.hpp"
-
-namespace $plugin_name {
-  $api_decl void print_hello();
-}"""
-
-        src = src.replace("$plugin_name", plugin_name)
-        src = src.replace("$api_decl", api_decl)
-
-        f = open(src_path + os.sep + plugin_name + ".hpp", "w")
-        f.write(src)
-        f.close()
-
-    # making src/$plugin_name.cpp
-    if True:
-        src = """#define $implementation_decl
-#include "$plugin_name.hpp"
-
-namespace $plugin_name {
-  void print_hello() {
-    static f32 t = 0.0f;
-    t += DT;
-
-    if (t > 0.5f) {
-      t -= 0.5f;
-      printf("Hello from $plugin_name!\\n");
-    }
-  }
-}
-
-mod_main() {
-  system::list("update")
-      .add(def($plugin_name::print_hello), -1);
-}
-"""
-
-        src = src.replace("$implementation_decl", implementation_decl)
-        src = src.replace("$plugin_name", plugin_name)
-        src = src.replace("$api_decl", api_decl)
-
-        f = open(src_path + os.sep + plugin_name + ".cpp", "w")
-        f.write(src)
-        f.close()
-
-    # making src/module.hpp
-    if True:
-        src = """#pragma once
-
-#include "$plugin_name.hpp\""""
-        src = src.replace("$plugin_name", plugin_name)
-
-        f = open(src_path + os.sep + "module.hpp", "w")
-        f.write(src)
-        f.close()
-
-    # making deps.txt
-    if True:
-        f = open(src_path + os.sep + ".." + os.sep + "deps.txt", "w")
+        f = open(file, "w")
+        f.write(string)
         f.close()
 
     print("Created plugin: '" + plugin_name + "'")
