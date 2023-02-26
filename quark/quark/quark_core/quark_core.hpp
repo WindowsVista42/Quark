@@ -104,9 +104,11 @@ namespace quark {
   f32 acos(f32 t);
   f32 atan(f32 t);
   f32 atan2(f32 y, f32 x);
+  f32 sincos(f32 t);
 
   f32 lerp(f32 a, f32 b, f32 t);
   f32 deadzone(f32 a, f32 deadzone);
+  f32 wrap(f32 a, f32 min, f32 max);
   
 //
 // vec2
@@ -133,12 +135,12 @@ namespace quark {
 //
   vec3 abs(vec3 a);
   
-  f32 dot(vec3 a, vec3 b);
-  f32 length(vec3 a);
-  f32 length2(vec3 a);
-  f32 inv_length(vec3 a);
-  f32 distance(vec3 a, vec3 b);
-  f32 distance2(vec3 a, vec3 b);
+  f32  dot(vec3 a, vec3 b);
+  f32  length(vec3 a);
+  f32  length2(vec3 a);
+  f32  inv_length(vec3 a);
+  f32  distance(vec3 a, vec3 b);
+  f32  distance2(vec3 a, vec3 b);
   vec3 cross(vec3 a, vec3 b);
   vec3 normalize(vec3 a);
   vec3 normalize_or_zero(vec3 a);
@@ -934,23 +936,25 @@ namespace quark {
 // Linear Algebra Constants
 //
   
-  static constexpr vec2 VEC2_ZERO   = vec2 { 0.0f, 0.0f };
-  static constexpr vec2 VEC2_ONE    = vec2 { 1.0f, 1.0f };
-  static constexpr vec2 VEC2_UNIT_X = vec2 { 1.0f, 0.0f };
-  static constexpr vec2 VEC2_UNIT_Y = vec2 { 0.0f, 1.0f };
+  static constexpr vec2 VEC2_ZERO     = vec2 { 0.0f, 0.0f };
+  static constexpr vec2 VEC2_ONE      = vec2 { 1.0f, 1.0f };
+  static constexpr vec2 VEC2_UNIT_X   = vec2 { 1.0f, 0.0f };
+  static constexpr vec2 VEC2_UNIT_Y   = vec2 { 0.0f, 1.0f };
   
-  static constexpr vec3 VEC3_ZERO   = vec3 { 0.0f, 0.0f, 0.0f };
-  static constexpr vec3 VEC3_ONE    = vec3 { 1.0f, 1.0f, 1.0f };
-  static constexpr vec3 VEC3_UNIT_X = vec3 { 1.0f, 0.0f, 0.0f };
-  static constexpr vec3 VEC3_UNIT_Y = vec3 { 0.0f, 1.0f, 0.0f };
-  static constexpr vec3 VEC3_UNIT_Z = vec3 { 0.0f, 0.0f, 1.0f };
+  static constexpr vec3 VEC3_ZERO     = vec3 { 0.0f, 0.0f, 0.0f };
+  static constexpr vec3 VEC3_ONE      = vec3 { 1.0f, 1.0f, 1.0f };
+  static constexpr vec3 VEC3_UNIT_X   = vec3 { 1.0f, 0.0f, 0.0f };
+  static constexpr vec3 VEC3_UNIT_Y   = vec3 { 0.0f, 1.0f, 0.0f };
+  static constexpr vec3 VEC3_UNIT_Z   = vec3 { 0.0f, 0.0f, 1.0f };
   
-  static constexpr vec4 VEC4_ZERO   = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
-  static constexpr vec4 VEC4_ONE    = vec4 { 1.0f, 1.0f, 1.0f, 1.0f };
-  static constexpr vec4 VEC4_UNIT_X = vec4 { 1.0f, 0.0f, 0.0f, 0.0f };
-  static constexpr vec4 VEC4_UNIT_Y = vec4 { 0.0f, 1.0f, 0.0f, 0.0f };
-  static constexpr vec4 VEC4_UNIT_Z = vec4 { 0.0f, 0.0f, 1.0f, 0.0f };
-  static constexpr vec4 VEC4_UNIT_W = vec4 { 0.0f, 0.0f, 0.0f, 1.0f };
+  static constexpr vec4 VEC4_ZERO     = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_ONE      = vec4 { 1.0f, 1.0f, 1.0f, 1.0f };
+  static constexpr vec4 VEC4_UNIT_X   = vec4 { 1.0f, 0.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_Y   = vec4 { 0.0f, 1.0f, 0.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_Z   = vec4 { 0.0f, 0.0f, 1.0f, 0.0f };
+  static constexpr vec4 VEC4_UNIT_W   = vec4 { 0.0f, 0.0f, 0.0f, 1.0f };
+
+  static constexpr quat QUAT_IDENTITY = quat { 0.0f, 0.0f, 0.0f, 1.0f };
   
   static constexpr mat2 MAT2_ZERO = mat2 {
     vec2 { 0, 0 },

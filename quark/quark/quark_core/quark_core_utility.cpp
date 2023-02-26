@@ -97,6 +97,10 @@ namespace quark {
     return std::atan2(y, x);
   }
 
+  f32 sincos(f32 a) {
+    return sinf(a) * cosf(a);
+  }
+
   f32 lerp(f32 a, f32 b, f32 t) {
     return a + (b - a) * t;
   }
