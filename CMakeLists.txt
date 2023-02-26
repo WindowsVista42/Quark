@@ -27,11 +27,11 @@ if(WIN32)
   #set(FORCE_SHARED_CRT ON)
   set(CMAKE_C_FLAGS_DEBUG "-O2 -mavx2 -DDEBUG -static -Wno-nullability-completeness -Wno-macro-redefined")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -mavx2 -DDEBUG -static -Wno-macro-redefined")
-  set(CMAKE_C_FLAGS_RELEASE "-O2 -mavx2 -static -Wno-nullability-completeness -Wno-macro-redefined")
+  set(CMAKE_C_FLAGS_RELEASE "-O2 -msse2 -static -Wno-nullability-completeness -Wno-macro-redefined")
   
   set(CMAKE_CXX_FLAGS_DEBUG "-O2 -mavx2 -DDEBUG -static -Wno-nullability-completeness -Wno-macro-redefined")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -mavx2 -DDEBUG -static -Wno-macro-redefined")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -mavx2 -static -Wno-nullability-completeness -Wno-macro-redefined")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -msse2 -static -Wno-nullability-completeness -Wno-macro-redefined")
 endif(WIN32)
 
 if(UNIX)
