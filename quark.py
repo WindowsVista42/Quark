@@ -414,8 +414,6 @@ def plugin_create():
         string = string.replace("$default_plugin_caps", plugin_name_caps)
         string = string.replace("$default_plugin", plugin_name)
 
-        print(string)
-
         f = open(file, "w")
         f.write(string)
         f.close()
