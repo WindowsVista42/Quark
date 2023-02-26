@@ -3,17 +3,31 @@
 #include <unordered_map>
 #include <filesystem>
 #include <tiny_obj_loader.h>
-#include <iostream>
-#include <vulkan/vulkan.h>
 #include <stb_image.h>
 #include <meshoptimizer.h>
 #include <lz4.h>
 
+#ifdef _WIN64
 #include <windows.h>
 #include <dbghelp.h>
-#include <stdio.h>
+#endif
+
+#undef format
+
+#define MINIAUDIO_IMPLEMENTATION
+#include "../../lib/miniaudio/miniaudio.h"
 
 namespace quark {
+  Arena* global_arena() {
+    static Arena* arena = get_arena();
+    return arena;
+  }
+
+  Arena* frame_arena() {
+    static Arena* arena = get_arena();
+    return arena;
+  }
+
   define_savable_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, 0, 0, 1},
@@ -315,7 +329,11 @@ namespace quark {
     system_id relative_hash = (system_id)hash_str_fast(relative_to);
 
     if(_system_lists.find(list_hash) == _system_lists.end()) {
-      panic("Could not find system list to add system to!");
+      func_panic("Could not find system list named: " + list_name);
+    }
+
+    if(_system_functions.find(system_hash) == _system_functions.end()) {
+      func_panic("Could not find system named: " + system_name);
     }
 
     SystemListInfo* list = &_system_lists.at(list_hash);
@@ -487,7 +505,10 @@ namespace quark {
       u32 memsize = comp_count * component_size;
       memsize = (memsize / (64 * KB)) + 1;
       memsize *= 64 * KB;
+
+      #ifdef DEBUG
       log_message("1 mil memsize eq: " + memsize);
+      #endif
   
       ctx->ecs_comp_table[i] = malloc(memsize); // (void*)os_reserve_mem(memsize);
       // os_commit_mem((u8*)ctx->ecs_comp_table[i], memsize);
@@ -708,7 +729,9 @@ namespace quark {
 
   #pragma comment(lib, "dbghelp.lib")
   i32 find_static_section(const char* module_name, usize* static_size, void** static_ptr) {
+    #ifdef DEBUG
     log_message("Loading .static section for " + module_name);
+    #endif
 
     HMODULE hMod = GetModuleHandleA(module_name);
     if (hMod) {
@@ -718,7 +741,9 @@ namespace quark {
       PIMAGE_SECTION_HEADER Section = IMAGE_FIRST_SECTION(NtHeader);
       for (WORD i = 0; i < NumSections; i++) {
         if(strcmp((char*)Section->Name, ".static") == 0) {
+          #ifdef DEBUG
           log_message(".static section found with size: " + (u32)Section->SizeOfRawData);
+          #endif
           *static_size = Section->SizeOfRawData;
           *static_ptr = (void*)(NtHeader->OptionalHeader.ImageBase + Section->VirtualAddress);
           return 0;
@@ -736,7 +761,7 @@ namespace quark {
 
   void save_ecs() {
     if(common_static_ptr == 0) {
-      if(find_static_section("spaceships.dll", &common_static_size, &common_static_ptr)) {
+      if(find_static_section("sandbox.dll", &common_static_size, &common_static_ptr)) {
         panic("failed to find static section for common.dll!\n");
       }
     }
@@ -757,7 +782,9 @@ namespace quark {
     File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "wb", "Failed to open ecs state file for saving!\n");
     defer({
       close_file(f);
+      #ifdef DEBUG
       log_message("Saved file!");
+      #endif
     });
 
     EcsContext* ctx = get_resource(EcsContext);
@@ -805,7 +832,7 @@ namespace quark {
 
   void load_ecs() {
     if(common_static_ptr == 0 || common_static_size == 0) {
-      if(find_static_section("common.dll", &common_static_size, &common_static_ptr)) {
+      if(find_static_section("sandbox.dll", &common_static_size, &common_static_ptr)) {
         panic("failed to find static section for common.dll!\n");
       }
     }
@@ -829,7 +856,9 @@ namespace quark {
     File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "rb", "Failed to open ecs state file for loading!\n");
     defer({
       close_file(f);
+      #ifdef DEBUG
       log_message("Loaded file!");
+      #endif
     });
 
     EcsContext* ctx = get_resource(EcsContext);
@@ -856,7 +885,9 @@ namespace quark {
       read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
     Timestamp s1 = get_timestamp();
+    #ifdef DEBUG
     log_message("Time to read_fileb: " + (f32)get_timestamp_difference(s0, s1) * 1000.0f + "ms, " + (f32)b.size / (f32)(1 * MB) +"mb");
+    #endif
 
     // fread(&ctx->ecs_entity_head, sizeof(u32), 1, f);
     // fread(&ctx->ecs_entity_tail, sizeof(u32), 1, f);
@@ -898,7 +929,9 @@ namespace quark {
 
     if (_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
       _asset_ext_loaders.at(ext_hash)(path_s.c_str(), filename.c_str());
+      #ifdef DEBUG
       log_message("Loaded: " + filename.c_str() + extension.c_str());
+      #endif
     }
   }
 
@@ -1090,7 +1123,9 @@ namespace quark {
     i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 2 * MB);
 
     u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
+    #ifdef DEBUG
     log_message("Compressed mesh " + (1.0f - (buffer2_size / (f32)before_size)) * 100.0f + "%");
+    #endif
 
     // meshopt_optimizeVertexFetch()
 
@@ -1228,7 +1263,9 @@ namespace quark {
     decomp_bytes += file.header->uvs_encoded_size;
     decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
 
+    #ifdef DEBUG
     log_message("decomp_size: " + decomp_size);
+    #endif
 
     // u8* buffer_p = push_arena(scratch.arena, 8 * MB);
     // usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
@@ -1259,7 +1296,9 @@ namespace quark {
     _context->mesh_instances[(u32)id] = create_mesh(file.positions, file.normals, file.uvs, file.header->vertex_count, file.indices, file.header->index_count);
     _context->mesh_scales[(u32)id] = normalize_to_max_length(file.header->half_extents, 2.0f);
 
+    #ifdef DEBUG
     log_message(name + ": " + file.header->index_count);
+    #endif
 
     add_asset(name, id);
   }
@@ -1329,5 +1368,26 @@ namespace quark {
       .module = create_shader_module(path),
     };
     add_asset(name, frag_module);
+  }
+
+//
+// Audio API
+//
+
+  define_resource(SoundContext, {});
+
+  void init_sound_context() {
+    SoundContext* ctx = get_resource(SoundContext);
+  
+    ctx->engine = (ma_engine*)arena_push(global_arena(), sizeof(ma_engine));
+    if(ma_result result = ma_engine_init(0, ctx->engine); result != MA_SUCCESS) {
+      panic("Failed to init audio with error: " + (u32)result + "\n");
+    }
+  }
+
+  void play_sound(const char* sound_name, vec2 position) {
+    SoundContext* ctx = get_resource(SoundContext);
+  
+    ma_engine_play_sound(ctx->engine, sound_name, 0);
   }
 };

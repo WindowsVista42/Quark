@@ -139,7 +139,7 @@ namespace quark {
     {
       BufferInfo info ={
         .type = BufferType::Commands,
-        .size = 128 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+        .size = 256 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
       };
 
       // Todo: create this
@@ -202,8 +202,8 @@ namespace quark {
       create_resource_group(_context->arena, &_context->global_resources_group, &resource_info);
     }
 
-    update_material(ColorMaterial, "color", "color", 128 * 1024, 128);
-    update_material(TextureMaterial, "texture", "texture", 128 * 1024, 128);
+    update_material(ColorMaterial, "color", "color", 256 * 1024, 128);
+    update_material(TextureMaterial, "texture", "texture", 256 * 1024, 128);
 
     {
       init_depth_prepass_pipeline();
@@ -262,8 +262,6 @@ namespace quark {
 
     world_data->main_view_projection = *get_resource_as(MainCameraViewProj, mat4);
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
-    world_data->ambient = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
-    world_data->tint = vec4 { 0.0f, 0.0f, 0.0f, 0.0f };
     world_data->time = (f32)get_timestamp();
 
     {
@@ -283,50 +281,6 @@ namespace quark {
 
     VkDrawIndexedIndirectCommand* indirect_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&_batch_context->indirect_commands[_frame_index]);
     defer(unmap_buffer(&_batch_context->indirect_commands[_frame_index]));
-
-    MeshId lod0 = *get_asset<MeshId>("suzanne_lod0");
-    MeshId lod1 = *get_asset<MeshId>("suzanne");
-    MeshId lod2 = *get_asset<MeshId>("suzanne_lod1");
-    MeshId lod3 = *get_asset<MeshId>("suzanne_lod2");
-    MeshId lod4 = *get_asset<MeshId>("suzanne_lod3");
-
-    u32 triangle_count = 0;
-
-    f32 base_per_square = 2000.0f;
-    f32 base_rate = 6.0f / 250000.0f;
-    f32 lod0_b = 6.0f / (f32)_context->mesh_instances[(u32)lod0].count;
-    f32 lod1_b = 6.0f / (f32)_context->mesh_instances[(u32)lod1].count;
-    f32 lod2_b = 6.0f / (f32)_context->mesh_instances[(u32)lod2].count;
-    f32 lod3_b = 6.0f / (f32)_context->mesh_instances[(u32)lod3].count;
-    f32 lod4_b = 6.0f / (f32)_context->mesh_instances[(u32)lod4].count;
-
-    f32 lod0_thresh = base_rate / lod0_b;
-    f32 lod1_thresh = base_rate / lod1_b;
-    f32 lod2_thresh = base_rate / lod2_b;
-    f32 lod3_thresh = base_rate / lod3_b;
-    f32 lod4_thresh = base_rate / lod4_b;
-
-    struct LodInfo {
-      MeshId id;
-      f32 threshold;
-    };
-
-    LodInfo lods[5] = {
-      { lod0, lod0_thresh, },
-      { lod1, lod1_thresh, },
-      { lod2, lod2_thresh, },
-      { lod3, lod3_thresh, },
-      { lod4, lod4_thresh, },
-    };
-
-    // log("lod0_thresh: " + lod0_thresh);
-    // log("lod1_thresh: " + lod1_thresh);
-    // log("lod2_thresh: " + lod2_thresh);
-    // log("lod3_thresh: " + lod3_thresh);
-
-    // MeshId lod1 = *get_asset<MeshId>("sphere");
-    // MeshId lod2 = *get_asset<MeshId>("tri");
-    // MeshId lod3 = *get_asset<MeshId>("suzanne_lod3");
 
     // Info: build indirect commands and update material properties
     for_every(i, _batch_context->materials_count) {
@@ -350,80 +304,20 @@ namespace quark {
 
       u8* transform_data = (u8*)map_buffer(&info->transform_buffers[_frame_index]);
       defer(unmap_buffer(&info->transform_buffers[_frame_index]));
-
-      u32 stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-      for_every(j, batch->batch_count) {
-        Drawable* drawable = &batch->drawables_batch[j];
-        // Transform transform = batch->drawables_batch[j].transform;
-        // Model model = batch->drawables_batch[j].model;
-        u8* material = &batch->materials_batch[j * info->material_size];
-
-        // Info: basic frustum culling
-        //
-        // This is kinda slow right now and for simple
-        // materials it might be quicker to just render them instead of frustum culling
-        // Info: this is slow!!
+    
+      for_every(index, batch->batch_count) {
+        Drawable* drawable = &batch->drawables_batch[index];
+        u8* material = &batch->materials_batch[index * info->material_size];
+        MeshInstance* mesh_instance = &_context->mesh_instances[(u32)drawable->model.id];
+      
         f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
         if(!is_sphere_visible(&frustum, drawable->transform.position, radius2)) {
           _batch_context->material_cull_count[i] += 1;
           continue;
         }
 
-        MeshInstance* mesh_instance = &_context->mesh_instances[(u32)drawable->model.id];
-
-        // @todo implement lods
-        // f32 a = powf(sqrtf(radius2) / distance(drawable->transform.position, camera->position), 2.0f);
-        // f32 a = radius2 / distance2(drawable->transform.position, camera->position);
-        // // log("a before: " + a);
-        // // a /= rad(camera->fov);
-        // // log("a: " + a);
-
-        // // a /= 30000.0f;
-
-        // f32 bias = 0.0f;
-
-        // for_every(i, 5) {
-        //   if(a < lods[i].threshold + bias) {
-        //     mesh_instance = &_context->mesh_instances[(u32)lods[i].id];
-        //   }
-        // }
-
-        // printf("a: %f\n", a / rad(camera->fov));
-        // printf("fov: %f\n", rad(camera->fov));
-        // f32 base_ang = 0.08f;
-        // log("base: " + base);
-        // if(a > lod0_thresh + bias) { // base + bias) {
-        //   mesh_instance = &_context->mesh_instances[(u32)lod0];
-        // }
-
-        // base *= growth;
-        // log("base: " + base);
-        // base *= growth;
-        // log("base: " + base);
-        // if(a < lod1_thresh + bias) { // base + bias) {
-        //   mesh_instance = &_context->mesh_instances[(u32)lod1];
-        //   // printf("lod1!\n");
-        // }
-        // // base *= growth;
-        // // log("base: " + base);
-        // if(a < lod2_thresh + bias) { // base + bias) {
-        //   mesh_instance = &_context->mesh_instances[(u32)lod2];
-        //   // printf("lod2!\n");
-        // }
-        // // base *= growth;
-        // // log("base: " + base);
-        // if(a < lod3_thresh + bias) { // base + bias) {
-        //   mesh_instance = &_context->mesh_instances[(u32)lod3];
-        //   // printf("lod3!\n");
-        // }
-
-        triangle_count += mesh_instance->count;
-
-        // 0.01
-        // 0.001
-
-        // Info: push draw command to indirect buffer
+        _batch_context->total_triangle_count += (mesh_instance->count / 3);
+      
         indirect_commands[_batch_context->total_draw_count + _batch_context->material_draw_count[i]] = {
           .indexCount = mesh_instance->count,
           .instanceCount = 1,
@@ -431,26 +325,20 @@ namespace quark {
           .vertexOffset = 0,
           .firstInstance = _batch_context->material_draw_count[i], // material index
         };
-
-        // Info: push material data
+      
         copy_mem(material_data, material, info->material_size);
         copy_mem(transform_data, drawable, sizeof(Drawable));
-        // copy_mem(transform_data, &drawable->transform, sizeof(vec4[2]));
-        // copy_mem(transform_data + sizeof(vec4[2]), &drawable->model.half_extents, sizeof(vec3));
-
+      
         material_data += info->material_size;
-        // transform_data += sizeof(vec4[3]);
         transform_data += sizeof(Drawable);
-
+    
         _batch_context->material_draw_count[i] += 1;
       }
-
+    
       _batch_context->material_draw_offset[i] = _batch_context->total_draw_count;
       _batch_context->total_draw_count += _batch_context->material_draw_count[i];
       _batch_context->total_culled_count += _batch_context->material_cull_count[i];
     }
-
-    // printf("trangle count: %d\n", triangle_count);
   }
 
   void draw_material_batches() {
@@ -471,6 +359,10 @@ namespace quark {
       vkCmdBindIndexBuffer(_main_cmd_buf[_frame_index], _context->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
       for_every(i, _batch_context->materials_count) {
+        if(_batch_context->material_draw_count[i] == 0) {
+          continue;
+        }
+      
         MaterialEffect* effect = &_context->material_effects[i];
         bind_effect(commands, effect);
 
@@ -479,16 +371,6 @@ namespace quark {
           _batch_context->material_draw_count[i], sizeof(VkDrawIndexedIndirectCommand));
       }
     }
-
-    // Info: print some stats
-    static Timestamp t0 = get_timestamp();
-    Timestamp t1 = get_timestamp();
-    if(get_timestamp_difference(t0, t1) > 1.0f) {
-      t0 = t1;
-      printf("draw_count: %d\n", _batch_context->total_draw_count);
-      printf("culled_count: %d\n", _batch_context->total_culled_count);
-      printf("\n");
-    }
   }
 
   void reset_material_batches() {
@@ -496,9 +378,11 @@ namespace quark {
 
     context->saved_total_draw_count = context->total_draw_count;
     context->saved_total_culled_count = context->total_culled_count;
+    context->saved_total_triangle_count = context->total_triangle_count;
 
     context->total_draw_count = 0;
     context->total_culled_count = 0;
+    context->total_triangle_count = 0;
 
     for_every(i, context->materials_count) {
       context->batches[i].batch_count = 0;
@@ -529,6 +413,10 @@ namespace quark {
     vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     for_every(i, _batch_context->materials_count) {
+      if(_batch_context->material_draw_count[i] == 0) {
+        continue;
+      }
+    
       bind_resource_bundle(commands, layout, &_context->material_effects[i].resource_bundle, _frame_index);
 
       vkCmdPushConstants(commands, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), view_projection);
@@ -542,3 +430,60 @@ namespace quark {
     draw_material_batches_depth_only(get_resource(MainCameraViewProj));
   }
 };
+
+
+    /*
+      Arena* arena = get_arena(); //begin_scratch(0, 0);
+      defer(free_arena(arena));
+      u32* bitmask = (u32*)arena_push_zero(arena, batch->batch_count / 32 + 1);
+      for_every(j, batch->batch_count) {
+        u32 bitmask_index = batch->batch_count / 32;
+        u32 bit_index = batch->batch_count % 32;
+
+        Drawable* drawable = &batch->drawables_batch[j];
+      
+        f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+        if(!is_sphere_visible(&frustum, drawable->transform.position, radius2)) {
+          bitmask[bitmask_index] &= ~(1 << bit_index);
+        
+          continue;
+        }
+        
+        bitmask[bitmask_index] |= 1 << bit_index;
+      }
+
+      for_every(j, batch->batch_count / 32 + 1) {
+        u32 bitmask_copy = bitmask[j];
+        u32 bitmask_offset = j * 32;
+
+        while(bitmask_copy != 0) {
+          u32 bit_index = __builtin_ctz(bitmask_copy);
+          bitmask_copy ^= 1 << bit_index;
+
+          u32 index = bitmask_offset + bit_index;
+
+          Drawable* drawable = &batch->drawables_batch[index];
+          u8* material = &batch->materials_batch[index * info->material_size];
+          MeshInstance* mesh_instance = &_context->mesh_instances[(u32)drawable->model.id];
+        
+          triangle_count += mesh_instance->count;
+        
+          indirect_commands[_batch_context->total_draw_count + _batch_context->material_draw_count[i]] = {
+            .indexCount = mesh_instance->count,
+            .instanceCount = 1,
+            .firstIndex = mesh_instance->offset,
+            .vertexOffset = 0,
+            .firstInstance = _batch_context->material_draw_count[i], // material index
+          };
+        
+          copy_mem(material_data, material, info->material_size);
+          copy_mem(transform_data, drawable, sizeof(Drawable));
+        
+          material_data += info->material_size;
+          transform_data += sizeof(Drawable);
+      
+          _batch_context->material_draw_count[i] += 1;
+        }
+      }
+    */
+    

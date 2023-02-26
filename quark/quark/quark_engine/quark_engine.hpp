@@ -6,7 +6,11 @@
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
 
+#include <tuple>
+
 #include <vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
+
 #include <unordered_map>
 
 namespace quark {
@@ -16,7 +20,12 @@ namespace quark {
 #define api_decl engine_api
 #define var_decl engine_var
 
+typedef struct ma_engine ma_engine;
+
 namespace quark {
+  engine_api Arena* global_arena();
+  engine_api Arena* frame_arena();
+
 //
 // Resource API
 //
@@ -278,6 +287,9 @@ namespace quark {
   engine_api void bind_action(const char* action_name, MouseAxisCode input, f32 strength);
   engine_api void bind_action(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength);
   engine_api void bind_action(const char* action_name, InputId input, u32 source_id = 0, f32 strength = 1.0f);
+
+  #define add_action(action_name, bind) create_action(action_name); bind_action(action_name, bind)
+  #define add_action_analog(action_name, bind, sensitivity) create_action(action_name, 0.0f); bind_action(action_name, bind, sensitivity)
 
   engine_api bool bind_key_to_action(u32 action_id, KeyCode key);
 
@@ -1142,11 +1154,14 @@ namespace quark {
 // World Data
 //
 
+  // main_view_projection, sun_view_projection, and time are set automatically!
   declare_resource(WorldData,
     mat4 main_view_projection;
     mat4 sun_view_projection;
     vec4 tint;
     vec4 ambient;
+    vec4 sun_direction;
+    vec4 sun_color;
     f32 time;
   );
 
@@ -1195,18 +1210,20 @@ namespace quark {
 
     u32 total_draw_count;
     u32 total_culled_count;
+    u32 total_triangle_count;
     u32 material_draw_offset[16];
     u32 material_draw_count[16];
     u32 material_cull_count[16];
 
     u32 saved_total_draw_count;
     u32 saved_total_culled_count;
+    u32 saved_total_triangle_count;
   );
 
   declare_resource(DrawBatchConfig,
     u32 material_capacity = 16; // num of different materials we can hold
 
-    u32 batch_capacity = 1024 * 128;
+    u32 batch_capacity = 1024 * 256;
     u32 instance_capacity = 128;
   );
 
@@ -1291,7 +1308,7 @@ namespace quark {
   };
 
   declare_resource(UiContext,
-    u32 ui_vertex_capacity = 1024 * 128;
+    u32 ui_vertex_capacity = 1024 * 256;
     Buffer ui_vertex_buffers[3];
     VkPipelineLayout ui_pipeline_layout;
     VkPipeline ui_pipeline;
@@ -1304,12 +1321,56 @@ namespace quark {
 
   engine_api void init_ui_context();
   engine_api void draw_ui();
+
   engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
+  engine_api void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text);
   engine_api void push_ui_widget(Widget* widget);
 
   engine_api void push_debug_text(f32 x, f32 y, f32 font_size, const char* format, va_list args...);
 
   engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
+
+
+//
+// Sound API
+//
+
+  declare_resource(SoundContext,
+    ma_engine* engine;
+  );
+
+  enum SoundId : u32 {};
+
+  struct Sound {
+    SoundId sound_id;
+    f32 volume;
+  };
+
+  engine_api void init_sound_context();
+
+  engine_api void play_sound(const char* sound_name, vec2 position);
+
+//
+// Random API
+//
+
+  inline f32 rand_f32_range(f32 low, f32 high) {
+    f32 t = (f32)rand() / (f32)RAND_MAX;
+
+    return lerp(low, high, t);
+  }
+
+  inline vec3 rand_vec3_range(vec3 min, vec3 max) {
+    vec3 result = {};
+    result.x = rand_f32_range(min.x, max.x);
+    result.y = rand_f32_range(min.y, max.y);
+    result.z = rand_f32_range(min.z, max.z);
+    return result;
+  }
+
+  inline u32 rand_u32_range(u32 min, u32 max) {
+    return (rand() % (max - min)) + min;
+  }
 };
 
 //

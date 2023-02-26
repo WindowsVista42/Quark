@@ -6,26 +6,6 @@
 #include "quark_engine.hpp"
 
 namespace quark {
-  // void add_asset_types() {
-  //   add_asset_file_loader(".vert.spv", load_vert_shader);
-  //   add_asset_file_loader(".frag.spv", load_frag_shader);
-
-  //   add_asset_file_loader(".obj", load_obj_file);
-  //   add_asset_file_loader(".png", load_png_file);
-  // }
-
-  // void load_shaders() {
-  //   load_asset_folder("quark/shaders");
-  // }
-
-  // void load_meshes() {
-  //   load_asset_folder("quark/models");
-  // }
-
-  // void load_images() {
-  //   load_asset_folder("quark/textures");
-  // }
-
   define_component(Transform);
   define_component(Model);
 
@@ -39,11 +19,7 @@ namespace quark {
     load_asset_folder("quark/shaders");
     load_asset_folder("quark/models");
     load_asset_folder("quark/textures");
-    Timestamp t0 = get_timestamp();
     load_asset_folder("quark/qmesh");
-    Timestamp t1 = get_timestamp();
-    Timestamp t = get_timestamp_difference(t0, t1);
-    log_message("loading qmeshes took: " + t + " seconds!\n");
   }
 
   Timestamp frame_begin_time;
@@ -91,11 +67,12 @@ namespace quark {
       create_system("init_window", init_window);
       create_system("init_graphics_context", init_graphics_context);
       create_system("load_assets", load_assets);
-      create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): load meshes before this!
+      // create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): load meshes before this!
       create_system("init_ecs", init_ecs);
       create_system("init_builtin_component_types", init_builtin_component_types);
       create_system("init_materials", init_materials);
       create_system("init_ui_context", init_ui_context);
+      create_system("init_sound_context", init_sound_context);
 
       // Update
       create_system("update_window_inputs", update_window_inputs);
@@ -131,39 +108,41 @@ namespace quark {
     {
       // Quark init
       add_system("quark_init", "init_threadpool", "", -1);
+    
       add_system("quark_init", "init_window", "", -1);
       add_system("quark_init", "init_graphics_context", "", -1);
+    
       add_system("quark_init", "load_assets", "", -1);
-      add_system("quark_init", "copy_meshes_to_gpu", "", -1);
-      // add_system("quark_init", "init_pipelines", "", -1);
       add_system("quark_init", "init_ecs", "", -1);
       add_system("quark_init", "init_builtin_component_types", "", -1);
+    
       add_system("quark_init", "init_materials", "", -1);
       add_system("quark_init", "init_ui_context", "", -1);
+    
+      add_system("quark_init", "init_sound_context", "", -1);
 
       // Update
       add_system("update", "update_window_inputs", "", -1);
       add_system("update", "update_all_actions", "", -1);
       add_system("update", "update_tag", "", -1);
-      // add_system("update", "update_cameras", "", -1);
 
-      // Quark 3D Pipeline
+      // Update - Rendering
       add_system("update", "begin_frame", "", -1);
 
-        add_system("update", "update_world_cameras", "", -1);
-        add_system("update", "update_world_data", "", -1);
-        add_system("update", "build_material_batch_commands", "", -1);
+      add_system("update", "update_world_cameras", "", -1);
+      add_system("update", "update_world_data", "", -1);
+      add_system("update", "build_material_batch_commands", "", -1);
 
-          add_system("update", "begin_main_depth_prepass", "", -1);
-            add_system("update", "draw_material_batches_depth_prepass", "", -1);
-          add_system("update", "end_main_depth_prepass", "", -1);
+        add_system("update", "begin_main_depth_prepass", "", -1);
+          add_system("update", "draw_material_batches_depth_prepass", "", -1);
+        add_system("update", "end_main_depth_prepass", "", -1);
 
-          add_system("update", "begin_main_color_pass", "", -1);
-            add_system("update", "draw_material_batches", "", -1);
-            add_system("update", "draw_ui", "", -1);
-          add_system("update", "end_main_color_pass", "", -1);
+        add_system("update", "begin_main_color_pass", "", -1);
+          add_system("update", "draw_material_batches", "", -1);
+          add_system("update", "draw_ui", "", -1);
+        add_system("update", "end_main_color_pass", "", -1);
 
-        add_system("update", "reset_material_batches", "", -1);
+      add_system("update", "reset_material_batches", "", -1);
 
       add_system("update", "end_frame", "", -1);
 
@@ -187,6 +166,7 @@ namespace quark {
       Timestamp t1 = get_timestamp();
       get_resource(TimeInfo)->delta = get_timestamp_difference(t0, t1);
       get_resource(TimeInfo)->time += get_resource(TimeInfo)->delta;
+      arena_clear_zero(frame_arena());
     }
 
     run_state_deinit();

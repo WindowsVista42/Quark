@@ -18,12 +18,14 @@ using namespace quark;
     }; \
 
   #define define_component(name) \
-    u32 name::COMPONENT_ID; \
+    u32 name::COMPONENT_ID = -1; \
     ReflectionInfo name::REFLECTION_INFO; \
     __make_reflection_maker2(name); \
 
   #define update_component(name) \
     update_component2<name>(); \
+
+  #define init_component(name) update_component(name)
 
   template <typename T>
   void update_component2() {
@@ -74,6 +76,10 @@ using namespace quark;
 //
 
   template <typename A> void add_components(u32 id, A comp) {
+    // if (A::COMPONENT_ID == -1) {
+      // panic("Found uninitialized component: " + A::REFLECTION_INFO.name)
+    // }
+  
     if constexpr (std::is_same_v<A, u32>) {
       add_flag_id(id, comp);
     } else {
@@ -93,6 +99,18 @@ using namespace quark;
 
     u32 includes_size = sizeof(includes) / sizeof(includes[0]);
     u32 excludes_size = sizeof(excludes) / sizeof(excludes[0]);
+
+    #ifdef DEBUG
+      for_every(i, includes_size) {
+        if(includes[i] == (u32)-1) { panic("In for_archetype(), one of the includes was not initialized!"); }
+      }
+  
+      for_every(i, excludes_size) {
+        print("Exclude: " + excludes[i]);
+        if(excludes[i] == (u32)-1) { panic("In for_archetype(), one of the excludes was not initialized!"); }
+      }
+    #endif
+
 
     EcsContext* ctx = get_resource(EcsContext);
     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) {

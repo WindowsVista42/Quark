@@ -12,12 +12,13 @@
 #include "context.hpp"
 
 #define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 #include "quark_engine.hpp"
 
 #include "../quark_core/module.hpp"
 
 namespace quark {
-
   define_resource(GraphicsContext, {});
   // define_resource(Options, {});
 
@@ -435,7 +436,7 @@ namespace quark {
     void init_vulkan() {
       #define vkb_assign_if_valid(x, assignee) \
         if(auto v = assignee; v.has_value()) { \
-          x = assignee.value(); \
+          x = v.value(); \
         } else { \
           printf("Error: %s\n", v.error().message().c_str()); \
         }
@@ -465,14 +466,14 @@ namespace quark {
         builder = builder.request_validation_layers(false);
       #endif
     
-      vkb::Instance vkb_inst;
+      vkb::Instance vkb_inst = {};
       vkb_assign_if_valid(vkb_inst, builder.build());
-    
+  
       _context->instance = vkb_inst.instance;
       _context->debug_messenger = vkb_inst.debug_messenger;
     
       vk_check(glfwCreateWindowSurface(_context->instance, get_window_ptr(), 0, &_context->surface));
-    
+
       VkPhysicalDeviceFeatures device_features = {};
       device_features.fillModeNonSolid = VK_TRUE;
       device_features.wideLines = VK_TRUE;
@@ -1737,93 +1738,45 @@ namespace quark {
       if(!PRINT_PERFORMANCE_STATISTICS) {
         return;
       }
-
-      static f32 timer = 0.0;
-      static u32 frame_number = 0;
-      static f32 low = 1.0;
-      static f32 high = 0.0;
-    
-      const u32 target = 60;
-      const f32 threshold = 1.0;
-    
-      frame_number += 1;
-      timer += delta();
-    
-      if (delta() > high) {
-        high = delta();
-      }
-      if (delta() < low) {
-        low = delta();
-      }
-
-      static std::vector<Timestamp> system_runtimes = std::vector<Timestamp>(get_system_list("update")->systems.size() - 1, 0);
-
+  
       {
         Timestamp* runtimes;
         usize runtimes_count;
         get_system_runtimes((system_list_id)hash_str_fast("update"), &runtimes, &runtimes_count);
-
-        for_every(i, system_runtimes.size()) {
-          system_runtimes[i] += runtimes[i];
-        }
-      }
     
-      if (timer > threshold) {
-        // TODO(sean): fix this so that the threshold doesn't have to be 1 for this
-        // to work
-        printf("---- Performance Statistics ----\n"
-               "\n"
-               "Target:  %.2fms (%.2f%%)\n"
-               "Average: %.2fms (%.2f%%)\n"
-               "High:    %.2fms (%.2f%%)\n"
-               "Low:     %.2fms (%.2f%%)\n"
-               "\n"
-               "\n",
-            (1.0f / (f32)target) * 1000.0f, 100.0f, // Target framerate calculation
-            (1.0f / (f32)frame_number) * 1000.0f,
-            100.0f / ((f32)frame_number / (f32)target),             // Average framerate calculation
-            high * 1000.0f, 100.0f * (high / (1.0f / (f32)target)), // High framerate calculation
-            low * 1000.0f, 100.0f * (low / (1.0f / (f32)target))    // Low framerate calculation
-        );
+        const f32 target  = (1.0f / 60.0f) * 1000.0f;
+        const f32 average = delta() * 1000.0f;
+        const f32 percent = (average / target) * 100.0f;
+        const f32 fps = 1.0f / delta();
+
+        auto* draw_batch_context = get_resource(DrawBatchContext);
+    
+        StringBuilder builder = create_string_builder(frame_arena());
+        builder = builder +
+          "-- Performance Statistics --\n"
+          "Target:  " + target + " ms\n"
+          "Average: " + average + " ms\n"
+          "Percent: " + percent + "%\n"
+          "Fps:      " + fps + "\n"
+          "\n"
+          "-- Rendering Info --\n"
+          "Draw Count:      " + draw_batch_context->saved_total_draw_count + "\n"
+          "Cull Count:      " + draw_batch_context->saved_total_culled_count + "\n"
+          "Triangle Count: " + draw_batch_context->saved_total_triangle_count + "\n"
+          "Msaa: 4x" + "\n"
+          "\n"
+          "-- Job Runtimes --\n";
 
         SystemListInfo* info = get_system_list("update");
+    
+        for_every(i, runtimes_count - 1) {
+          f64 delta_ms = (runtimes[i+1] - runtimes[i]) * 1000.0;
+          // f64 delta_ratio = 100.0f * (runtimes[i] / (1.0f / delta()));
 
-        std::vector<f64> avg_deltas = {};
-        f64 total = 0.0f;
-
-        for_range(i, 1, system_runtimes.size()) {
-          avg_deltas.push_back((system_runtimes[i] - system_runtimes[i - 1]) / (f64)frame_number);
-          total += avg_deltas[i - 1];
+          builder = builder + get_system_name(info->systems[i]) + " (" + delta_ms + " ms)\n";
         }
 
-        printf("---- System Runtimes ----\n");
-        printf("\n");
-        for_every(i, avg_deltas.size()) {
-          f64 delta_ms = avg_deltas[i] * 1000.0;
-          f64 delta_ratio = 100.0f * (avg_deltas[i] / total);
-
-          char buf0[128];
-          int b0l = sprintf(buf0, "%.2lf ms", delta_ms);
-          int b0wl = strlen("100.00 ms");
-
-          char buf1[128];
-          int b1l = sprintf(buf1, "%.2lf%%", delta_ratio);
-          int b1wl = strlen("100.00%");
-
-          printf("%-50s | %*s%s | %*s%s\n", get_system_name(info->systems[i]), b0wl - b0l, "", buf0, b1wl - b1l, "", buf1);
-          // printf("System: %-30s %.2lfms\n", get_system_name(info->systems[i]), avg_deltas[i] * 1000.0);
-        }
-
-        for_every(i, system_runtimes.size()) {
-          system_runtimes[i] = 0.0f;
-        }
-
-        printf("\n\n");
-
-        timer -= threshold;
-        frame_number = 0;
-        low = 1.0;
-        high = 0.0;
+        push_ui_text(20, 20, 20, 20, {10, 10, 10, 1}, (char*)builder.data);
       }
     }
 };
@@ -2066,7 +2019,7 @@ namespace quark {
 // 
 //   //   Image image = {};
 // 
-//   //   vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image.data.image, &image.data.allocation, 0));
+//   // vk_check(vmaCreateImage(_gpu_alloc, &image_info, &alloc_info, &image.data.image, &image.data.allocation, 0));
 //   //   vk_check(vkCreateImageView(_context.device, &view_info, 0, &image.data.view));
 // 
 //   //   image.type = info->type;
