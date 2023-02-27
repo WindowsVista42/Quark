@@ -534,6 +534,8 @@ namespace quark {
 
   platform_api RawBytes read_entire_file(Arena* arena, const char* filename);
 
+  platform_api bool file_exists(const char* filename);
+
 //
 // String API
 //

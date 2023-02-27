@@ -336,17 +336,6 @@ namespace quark {
     f32 top    = (y + height / 2.0f) / (f32)resolution.y;
     f32 bottom = (y - height / 2.0f) / (f32)resolution.y;
 
-    // u16 r = float_to_half(color.x);
-    // u16 g = float_to_half(color.y);
-    // u16 b = float_to_half(color.z);
-    // u16 a = float_to_half(color.w);
-    // u64 color16 =
-    //   ((u64)r << 00) | 
-    //   ((u64)g << 16) | 
-    //   ((u64)b << 32) | 
-    //   ((u64)a << 48);
-    // u64 color16 = *(u64*)&color_v16; // get lower 64 bits for our 16 bpc color
-
     // Info: lower left triangle
     _ui->ptr[_ui->ui_vertex_count + 0] = { .position = { left, top, },     .color = color, .normal = {0.0f, 0.0f} };
     _ui->ptr[_ui->ui_vertex_count + 1] = { .position = { left, bottom, },  .color = color, .normal = {0.0f, 0.0f} };
@@ -359,6 +348,10 @@ namespace quark {
 
     _ui->ui_vertex_count += 6;
     // printf("ui vert count: %d\n", _ui->ui_vertex_count);
+  }
+
+  void push_text(f32 x, f32 y, f32 size, vec4 color, const char* text) {
+    push_ui_text(x, y, size, size, color, text);
   }
 
   void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text) {

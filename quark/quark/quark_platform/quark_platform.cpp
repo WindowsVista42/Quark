@@ -3,8 +3,11 @@
 
 #define QUARK_PLATFORM_IMPLEMENTATION
 #include "quark_platform.hpp"
+
 #include <string>
 #include <thread>
+
+#include <io.h>
 #include <stdio.h>
 
 #ifdef _WIN64
@@ -647,7 +650,7 @@ namespace quark {
 
   void string_builder_copy(StringBuilder* builder, u8* data, usize data_size) {
     // its important that we use the unaligned push here
-    arena_push_with_alignment(builder->arena, data_size, 1);
+    arena_push_zero_with_alignment(builder->arena, data_size, 1);
     copy_mem(builder->data + builder->length, data, data_size);
     builder->length += data_size;
   }
@@ -891,6 +894,10 @@ namespace quark {
     file_read(fp, buffer, size);
 
     return RawBytes { buffer, size };
+  }
+
+  bool file_exists(const char* filename) {
+    return _access(filename, 0) != -1;
   }
 
 //

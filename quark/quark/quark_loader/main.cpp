@@ -60,6 +60,7 @@ int main() {
       if (extension == LIB_EXT) {
         Library* lib = load_library(it->path().relative_path().make_preferred().u8string().c_str());
         if (library_has_function(lib, "mod_main")) {
+          quark::add_plugin_name(it->path().filename().string().c_str());
           library_run_function(lib, "mod_main");
           //if (lib.has("mod_deps")) {
           //  rem_libs.push_back(lib);
@@ -86,6 +87,9 @@ int main() {
   //  lib.run("mod_main");
   //}
 
+  #ifdef _WIN64
+  quark::add_plugin_name("quark_engine.dll");
+  #endif
   quark::run();
 
   return 0;

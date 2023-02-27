@@ -115,8 +115,10 @@ namespace quark {
   engine_api void* get_component_id(u32 entity_id, u32 component_id);
   engine_api bool has_component_id(u32 entity_id, u32 component_id);
 
-  engine_api void save_ecs();
-  engine_api void load_ecs();
+
+  engine_api void add_plugin_name(const char* name);
+  engine_api void save_snapshot(const char* file);
+  engine_api void load_snapshot(const char* file);
 
   // #define add_component(entity_id, x) // not defined here
   // #define remove_component(entity_id, type) // not defined here
@@ -1325,6 +1327,8 @@ namespace quark {
   engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
   engine_api void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text);
   engine_api void push_ui_widget(Widget* widget);
+
+  engine_api void push_text(f32 x, f32 y, f32 size, vec4 color, const char* text);
 
   engine_api void push_debug_text(f32 x, f32 y, f32 font_size, const char* format, va_list args...);
 

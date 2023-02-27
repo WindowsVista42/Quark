@@ -754,21 +754,27 @@ namespace quark {
     return 1;
   }
 
-  usize common_static_size = 0;
-  void* common_static_ptr = 0;
-  usize engine_static_size = 0;
-  void* engine_static_ptr = 0;
+  struct StaticSection {
+    std::string name;
+    usize size;
+    void* ptr;
+  };
 
-  void save_ecs() {
-    if(common_static_ptr == 0) {
-      if(find_static_section("sandbox.dll", &common_static_size, &common_static_ptr)) {
-        panic("failed to find static section for common.dll!\n");
-      }
-    }
+  std::vector<StaticSection> static_sections;
 
-    if(engine_static_ptr == 0) {
-      if(find_static_section("quark_engine.dll", &engine_static_size, &engine_static_ptr)) {
-        panic("failed to find static section for quark_engine.dll!\n");
+  void add_plugin_name(const char* name) {
+    static_sections.push_back({
+      .name = name,
+      .size = 0,
+      .ptr = 0,
+    });
+  }
+
+  void save_snapshot(const char* file) {
+    for_every(i, static_sections.size()) {
+      StaticSection* section = &static_sections[i];
+      if(section->ptr == 0) {
+        find_static_section(section->name.c_str(), &section->size, &section->ptr);
       }
     }
 
@@ -776,10 +782,10 @@ namespace quark {
     defer({
       Timestamp t1 = get_timestamp();
       f64 delta_time = get_timestamp_difference(t0, t1);
-      log_message("Saving ECS took " + (f32)delta_time * 1000.0f + "ms");
+      log_message("Saving snapshot took " + (f32)delta_time * 1000.0f + "ms");
     });
 
-    File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "wb", "Failed to open ecs state file for saving!\n");
+    File* f = open_file_panic_with_error(file, "wb", "Failed to open snapshot file for saving!\n");
     defer({
       close_file(f);
       #ifdef DEBUG
@@ -793,14 +799,15 @@ namespace quark {
     defer(free_arena(arena));
 
     FileBuffer b = create_fileb(arena);
-    write_fileb(&b, common_static_ptr, 1, common_static_size);
-    write_fileb(&b, engine_static_ptr, 1, engine_static_size);
+
+    for_every(i, static_sections.size()) {
+      write_fileb(&b, static_sections[i].ptr, 1, static_sections[i].size);
+    }
+
     write_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     write_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
     write_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
     for_every(i, ctx->ecs_table_count) {
-      // copy_mem_arena(arena, ctx->ecs_bool_table[i], sizeof(u32) * (ECS_MAX_STORAGE / 32));
-      // copy_mem_arena(arena, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i] * (ECS_MAX_STORAGE / 32));
       write_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
       write_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
     }
@@ -809,37 +816,14 @@ namespace quark {
     i32 compress_size = LZ4_compress_default((const char*)b.start, (char*)ptr, b.size, 8 * MB);
 
     file_write(f, ptr, compress_size);
-    // save_fileb(&b, f);
-    // u8* data = push_arena(arena, 0);
-    // copy_mem_arena(arena, &ctx->ecs_entity_head, sizeof(u32));
-    // copy_mem_arena(arena, &ctx->ecs_entity_tail, sizeof(u32));
-    // fwrite(&ctx->ecs_entity_head, sizeof(u32), 1, f);
-    // fwrite(&ctx->ecs_entity_tail, sizeof(u32), 1, f);
-    // for_every(i, ctx->ecs_table_count) {
-    //   // copy_mem_arena(arena, ctx->ecs_bool_table[i], sizeof(u32) * (ECS_MAX_STORAGE / 32));
-    //   // copy_mem_arena(arena, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i] * (ECS_MAX_STORAGE / 32));
-    //   fwrite(ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32, f);
-    //   fwrite(ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE, f);
-    // }
-
-    // u8* data2 = push_arena(arena, 0);
-    // usize uncomp_size = (usize)(data2 - data);
-
-    // u8* dst = push_arena(arena, 8 * MB);
-    // LZ4_compress_default((const char*)data, (char*)dst, (i32)uncomp_size, 8 * MB);
-    // fwrite(data, 1, size, f);
   }
 
-  void load_ecs() {
-    if(common_static_ptr == 0 || common_static_size == 0) {
-      if(find_static_section("sandbox.dll", &common_static_size, &common_static_ptr)) {
-        panic("failed to find static section for common.dll!\n");
-      }
-    }
-
-    if(engine_static_ptr == 0 || engine_static_size == 0) {
-      if(find_static_section("quark_engine.dll", &engine_static_size, &engine_static_ptr)) {
-        panic("failed to find static section for quark_engine.dll!\n");
+  void load_snapshot(const char* file) {
+    for_every(i, static_sections.size()) {
+      StaticSection* section = &static_sections[i];
+      if(section->ptr == 0) {
+        print("Found section for: " + section->name.c_str());
+        find_static_section(section->name.c_str(), &section->size, &section->ptr);
       }
     }
 
@@ -847,13 +831,13 @@ namespace quark {
     defer({
       Timestamp t1 = get_timestamp();
       f64 delta_time = get_timestamp_difference(t0, t1);
-      log_message("Loading ECS took " + (f32)delta_time * 1000.0f + "ms");
+      log_message("Loading snapshot took " + (f32)delta_time * 1000.0f + "ms");
     });
 
     Arena* arena = get_arena();
     defer(free_arena(arena));
 
-    File* f = open_file_panic_with_error("quark/saves/game_state.qsave", "rb", "Failed to open ecs state file for loading!\n");
+    File* f = open_file_panic_with_error(file, "rb", "Failed to open snapshot state file for loading!\n");
     defer({
       close_file(f);
       #ifdef DEBUG
@@ -875,8 +859,10 @@ namespace quark {
 
     Timestamp s0 = get_timestamp();
 
-    read_fileb(&b, common_static_ptr, 1, common_static_size);
-    read_fileb(&b, engine_static_ptr, 1, engine_static_size);
+    for_every(i, static_sections.size()) {
+      read_fileb(&b, static_sections[i].ptr, 1, static_sections[i].size);
+    }
+
     read_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
     read_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
     read_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
