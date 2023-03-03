@@ -12,11 +12,6 @@
 #include <dbghelp.h>
 #endif
 
-#undef format
-
-#define MINIAUDIO_IMPLEMENTATION
-#include "../../lib/miniaudio/miniaudio.h"
-
 namespace quark {
   Arena* global_arena() {
     static Arena* arena = get_arena();
@@ -27,24 +22,6 @@ namespace quark {
     static Arena* arena = get_arena();
     return arena;
   }
-
-  define_savable_resource(MainCamera, {{
-    .position = VEC3_ZERO,
-    .rotation = {0, 0, 0, 1},
-    .fov = 90.0f,
-    .z_near = 0.01f,
-    .z_far = 100000.0f,
-    .projection_type = ProjectionType::Perspective,
-  }});
-  define_savable_resource(SunCamera, {});
-
-  define_savable_resource(UICamera, {});
-
-  define_savable_resource(MainCameraFrustum, {});
-  define_savable_resource(SunCameraFrustum, {});
-
-  define_savable_resource(MainCameraViewProj, {});
-  define_savable_resource(SunCameraViewProj, {});
 
   define_resource(AssetServer, {});
 
@@ -261,9 +238,9 @@ namespace quark {
       // Optionally log/time the functions being run
       VoidFunctionPtr system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
-        // log("Running: " + _system_names.at(list->systems[i]).c_str());
+        print("Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
         system();
-        // log("Finished: " + _system_names.at(list->systems[i]).c_str());
+        print("Finished: " + _system_names.at(list->systems[i]).c_str() + "\n");
       }
       _system_runtimes[system_list].push_back(get_timestamp());
     }
@@ -1354,26 +1331,5 @@ namespace quark {
       .module = create_shader_module(path),
     };
     add_asset(name, frag_module);
-  }
-
-//
-// Audio API
-//
-
-  define_resource(SoundContext, {});
-
-  void init_sound_context() {
-    SoundContext* ctx = get_resource(SoundContext);
-  
-    ctx->engine = (ma_engine*)arena_push(global_arena(), sizeof(ma_engine));
-    if(ma_result result = ma_engine_init(0, ctx->engine); result != MA_SUCCESS) {
-      panic("Failed to init audio with error: " + (u32)result + "\n");
-    }
-  }
-
-  void play_sound(const char* sound_name, vec2 position) {
-    SoundContext* ctx = get_resource(SoundContext);
-  
-    ma_engine_play_sound(ctx->engine, sound_name, 0);
   }
 };

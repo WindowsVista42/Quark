@@ -900,6 +900,10 @@ namespace quark {
     return _access(filename, 0) != -1;
   }
 
+  bool path_exists(const char* path) {
+    return file_exists(path);
+  }
+
 //
 // String API
 //

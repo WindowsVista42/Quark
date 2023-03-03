@@ -10,8 +10,6 @@ namespace quark {
   define_component(Model);
 
   void load_assets() {
-    add_asset_file_loader(".vert.spv", load_vert_shader);
-    add_asset_file_loader(".frag.spv", load_frag_shader);
     add_asset_file_loader(".obj", load_obj_file);
     add_asset_file_loader(".png", load_png_file);
     add_asset_file_loader(".qmesh", load_qmesh_file);
@@ -140,9 +138,8 @@ namespace quark {
         add_system("update", "begin_main_color_pass", "", -1);
           add_system("update", "draw_material_batches", "", -1);
           add_system("update", "draw_ui", "", -1);
+          add_system("update", "reset_material_batches", "", -1);
         add_system("update", "end_main_color_pass", "", -1);
-
-      add_system("update", "reset_material_batches", "", -1);
 
       add_system("update", "end_frame", "", -1);
 

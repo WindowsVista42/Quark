@@ -1,9 +1,11 @@
 add_library(quark_engine SHARED
   context.cpp
   quark_engine.cpp
-  render.cpp
+  graphics.cpp
+  renderer.cpp
   materials.cpp
   ui.cpp
+  audio.cpp
   ../../../lib/lz4/lib/lz4.c
   ../../../lib/ttf2mesh/ttf2mesh.c
 )

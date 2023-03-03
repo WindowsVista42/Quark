@@ -206,17 +206,6 @@ namespace quark {
     vec4 planes[6];
   };
 
-  declare_resource_duplicate(MainCamera, Camera3D);
-  declare_resource_duplicate(SunCamera, Camera3D);
-
-  declare_resource_duplicate(UICamera, Camera2D);
-
-  declare_resource_duplicate(MainCameraFrustum, FrustumPlanes);
-  declare_resource_duplicate(SunCameraFrustum, FrustumPlanes);
-
-  declare_resource_duplicate(MainCameraViewProj, mat4);
-  declare_resource_duplicate(SunCameraViewProj, mat4);
-
   inline mat4 camera3d_view_mat4(Camera3D* camera);
   inline mat4 camera3d_projection_mat4(Camera3D* camera, f32 aspect);
   inline mat4 camera3d_view_projection_mat4(Camera3D* camera, f32 aspect);
@@ -225,8 +214,6 @@ namespace quark {
 
   inline f32 plane_point_distance(vec4 plane, vec3 point);
   inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2);
-
-  engine_api void update_world_cameras();
 
   #include "internal/cameras.hpp"
 
@@ -384,60 +371,6 @@ namespace quark {
   engine_api void run_state();
   engine_api void run_state_init();
   engine_api void run_state_deinit();
-
-  // struct engine_api tempstr {
-  //   char* data;
-  //   usize length;
-
-  //   tempstr() = delete;
-  // };
-
-  // No cleanup required, create_tempstr automatically resets the internal buffer
-  // engine_api tempstr create_tempstr();
-  // engine_api void append_tempstr(tempstr* s, const char* data);
-  // engine_api void print_tempstr(tempstr s);
-  // engine_api void eprint_tempstr(tempstr s);
-
-  // engine_api tempstr operator +(tempstr s, const char* data);
-  // engine_api tempstr operator +(tempstr s, f32 data);
-  // engine_api tempstr operator +(tempstr s, f64 data);
-  // engine_api tempstr operator +(tempstr s, i32 data);
-  // engine_api tempstr operator +(tempstr s, i64 data);
-  // engine_api tempstr operator +(tempstr s, u32 data);
-  // engine_api tempstr operator +(tempstr s, u64 data);
-  // engine_api tempstr operator +(tempstr s, usize  data);
-  // engine_api tempstr operator +(tempstr s, vec2 data);
-  // engine_api tempstr operator +(tempstr s, vec3 data);
-  // engine_api tempstr operator +(tempstr s, vec4 data);
-  // engine_api tempstr operator +(tempstr s, ivec2 data);
-  // engine_api tempstr operator +(tempstr s, ivec3 data);
-  // engine_api tempstr operator +(tempstr s, ivec4 data);
-  // engine_api tempstr operator +(tempstr s, uvec2 data);
-  // engine_api tempstr operator +(tempstr s, uvec3 data);
-  // engine_api tempstr operator +(tempstr s, uvec4 data);
-
-  // engine_api void operator +=(tempstr& s, const char* data);
-  // engine_api void operator +=(tempstr& s, f32 data);
-  // engine_api void operator +=(tempstr& s, f64 data);
-  // engine_api void operator +=(tempstr& s, i32 data);
-  // engine_api void operator +=(tempstr& s, i64 data);
-  // engine_api void operator +=(tempstr& s, u32 data);
-  // engine_api void operator +=(tempstr& s, u64 data);
-  // engine_api void operator +=(tempstr& s, vec2 data);
-  // engine_api void operator +=(tempstr& s, vec3 data);
-  // engine_api void operator +=(tempstr& s, vec4 data);
-  // engine_api void operator +=(tempstr& s, ivec2 data);
-  // engine_api void operator +=(tempstr& s, ivec3 data);
-  // engine_api void operator +=(tempstr& s, ivec4 data);
-  // engine_api void operator +=(tempstr& s, uvec2 data);
-  // engine_api void operator +=(tempstr& s, uvec3 data);
-  // engine_api void operator +=(tempstr& s, uvec4 data);
-
-//
-// Better panic
-//
-
-  // [[noreturn]] engine_api void panic(tempstr s);
 
 //
 // Asset API
@@ -600,6 +533,13 @@ namespace quark {
   engine_api VkViewport get_viewport(ivec2 resolution);
   engine_api VkRect2D get_scissor(ivec2 resolution);
 
+  engine_api VmaAllocationCreateInfo get_image_alloc_info();
+  engine_api VkImageCreateInfo get_image_info(ImageInfo* info);
+  engine_api VkImageViewCreateInfo get_image_view_info(ImageInfo* info, VkImage image);
+  engine_api VkImageLayout get_image_layout(ImageUsage usage);
+  engine_api VkImageAspectFlags get_image_aspect(ImageFormat format);
+  engine_api bool is_format_color(ImageFormat format);
+
 //
 // Render Pass API
 //
@@ -659,6 +599,8 @@ namespace quark {
   engine_api void begin_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass, ClearValue* clear_values);
   engine_api void end_render_pass(VkCommandBuffer commands, u32 image_index, RenderPass* render_pass);
 
+  engine_api void create_vk_render_pass(VkRenderPass* render_pass, RenderPassInfo* info);
+
 //
 // Sampler API
 //
@@ -671,6 +613,8 @@ namespace quark {
   struct Sampler {
     VkSampler sampler;
   };
+
+  engine_api void create_samplers(Sampler* sampler, u32 n, SamplerInfo* info);
 
 //
 // Resource Group API
@@ -699,6 +643,15 @@ namespace quark {
   engine_api void create_resource_group(Arena* arena, ResourceGroup* group, ResourceGroupInfo* info);
 
   engine_api void bind_resource_group(VkCommandBuffer commands, VkPipelineLayout layout, ResourceGroup* group, u32 frame_index, u32 bind_index);
+
+  engine_api void create_descriptor_layout(VkDescriptorSetLayout* layout, ResourceBinding* bindings, u32 n);
+  engine_api void allocate_descriptor_sets(VkDescriptorSet* sets, VkDescriptorSetLayout layout);
+  engine_api void update_descriptor_sets(VkDescriptorSet* sets, ResourceBinding* bindings, u32 n);
+
+  engine_api void copy_descriptor_set_layouts(VkDescriptorSetLayout* layouts, u32 count, ResourceGroup** groups);
+
+  engine_api VkDescriptorType get_buffer_descriptor_type(BufferType type);
+  engine_api VkDescriptorType get_image_descriptor_type(ImageType type);
 
 //
 // Resource Bundle API
@@ -731,74 +684,92 @@ namespace quark {
   };
 
 //
-// Material Effect API
+// Commands API
 //
 
-  declare_enum(FillMode, u32,
-    Fill  = VK_POLYGON_MODE_FILL,
-    Line  = VK_POLYGON_MODE_LINE,
-    Point = VK_POLYGON_MODE_POINT,
+  engine_api VkCommandBuffer begin_quick_commands();
+  engine_api void end_quick_commands(VkCommandBuffer command_buffer);
+
+  engine_api VkCommandBuffer begin_quick_commands2();
+  engine_api void end_quick_commands2(VkCommandBuffer commands);
+
+  engine_api VkCommandPoolCreateInfo get_cmd_pool_info(u32 queue_family, VkCommandPoolCreateFlags create_flags);
+  engine_api VkCommandBufferAllocateInfo get_cmd_alloc_info(VkCommandPool cmd_pool, u32 cmd_buf_ct, VkCommandBufferLevel cmd_buf_lvl);
+
+//
+// Graphics
+//
+
+  declare_resource(Graphics,
+    VmaAllocator gpu_alloc; 
+
+    // Base vulkan stuff
+
+    VkInstance instance;
+    VkDebugUtilsMessengerEXT debug_messenger;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+    VkSurfaceKHR surface;
+
+    VkQueue graphics_queue;
+    VkQueue transfer_queue;
+    VkQueue present_queue;
+                               
+    u32 graphics_queue_family;
+    u32 transfer_queue_family;
+    u32 present_queue_family;
+
+    // Swapchain
+
+    VkSwapchainKHR swapchain;
+    VkFormat swapchain_format;
+
+    u32 swapchain_image_count;
+    VkImage* swapchain_images;
+    VkImageView* swapchain_image_views;
+
+    // Render
+
+    u32 image_count;
+    ivec2 render_resolution;
+  
+    // Utility
+
+    Buffer staging_buffer;
+
+    // Descriptor pool
+
+    VkDescriptorPool main_descriptor_pool;
+
+    // Commands
+
+    VkCommandPool transfer_cmd_pool;
+    VkCommandPool graphics_cmd_pool[_FRAME_OVERLAP];
+
+    VkCommandBuffer commands[_FRAME_OVERLAP];
+
+    // Synchronization
+
+    VkSemaphore present_semaphores[_FRAME_OVERLAP];
+    VkSemaphore render_semaphores[_FRAME_OVERLAP];
+    VkFence render_fences[_FRAME_OVERLAP];
+
+    // Other
+    bool framebuffer_resized; // TODO: framebuffer resizing should be --automatically handled--
+
+    usize frame_count;
+    u32 frame_index;
+    u32 swapchain_image_index;
   );
 
-  declare_enum(CullMode, u32,
-    None  = VK_CULL_MODE_NONE,
-    Front = VK_CULL_MODE_FRONT_BIT,
-    Back  = VK_CULL_MODE_BACK_BIT,
-    Both  = VK_CULL_MODE_FRONT_AND_BACK,
-  );
+  engine_api void init_graphics();
 
-  declare_enum(BlendMode, u32,
-    Off    = 0x0,
-    Simple = 0x1,
-  );
-
-  struct MaterialEffectInfo {
-    u32 material_data_size;
-    u32 world_data_size;
-    VertexShaderModule vertex_shader;
-    FragmentShaderModule fragment_shader;
-    ResourceBundleInfo resource_bundle_info;
-      
-    FillMode fill_mode;
-    CullMode cull_mode;
-    BlendMode blend_mode;
-  };
-
-  struct MaterialEffect {
-    VkPipelineLayout layout;
-    VkPipeline pipeline;
-    ResourceBundle resource_bundle;
-  };
-
-  engine_api void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info);
-
-  engine_api void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index);
-  engine_api void bind_effect(VkCommandBuffer commands, MaterialEffect* effect);
+  engine_api void begin_frame();
+  engine_api void end_frame();
 
 //
-// Post Process Effect API
+// Meshes API
 //
-
-  struct PostProcessEffectInfo {
-    u32 post_process_id;
-    u32 fragment_shader_id;
-  };
-
-  struct PostProcessEffect {
-    VkPipelineLayout layout;
-    VkPipeline pipeline;
-  };
-
-  engine_api void create_post_process_effect(PostProcessEffect* effect, PostProcessEffectInfo* info);
-
-//
-// Internal Graphics Types
-//
-
-  struct MeshLod {
-    u32 mesh_instance_ids[8];
-    f32 thresholds[8];
-  };
 
   struct MeshInstance {
     u32 offset;
@@ -808,6 +779,12 @@ namespace quark {
   struct MeshProperties {
     vec3 origin;
     vec3 half_extents;
+  };
+
+
+  struct MeshLod {
+    u32 mesh_instance_ids[8];
+    f32 thresholds[8];
   };
 
   struct MeshFileHeader {
@@ -843,278 +820,58 @@ namespace quark {
     vec2* uvs;
   };
 
-//
-// Graphics Context
-//
-
-  declare_resource(GraphicsContext,
-    Arena* arena;
-    VmaAllocator gpu_alloc; 
-
-    VkInstance instance;
-    VkDebugUtilsMessengerEXT debug_messenger;
-    VkPhysicalDevice physical_device;
-    VkDevice device;
-    VkSurfaceKHR surface;
-
-    VkQueue graphics_queue;
-    VkQueue transfer_queue;
-    VkQueue present_queue;
-                               
-    u32 graphics_queue_family;
-    u32 transfer_queue_family;
-    u32 present_queue_family;
-
-    VkSwapchainKHR swapchain;
-    VkFormat swapchain_format;
-
-    u32 swapchain_image_count;
-    VkImage* swapchain_images;
-    VkImageView* swapchain_image_views;
-
-    u32 image_count;
-    ivec2 render_resolution;
-
-    ImageInfo material_color_image_info;
-    Image material_color_images[_FRAME_OVERLAP];
-    Image material_color_images2[_FRAME_OVERLAP];
-
-    ImageInfo main_depth_image_info;
-    Image main_depth_images[_FRAME_OVERLAP];
-
-    Sampler texture_sampler;
-
-    u32 texture_count;
-    Image textures[16];
-
-    // RenderPass depth_prepass_render_pass;
-    RenderPass main_render_pass;
-
-    // RenderPass post_process_render_pass;
-
-    // RenderPass shadow_render_pass;
-    // RenderPass depth_render_pass;
-    // RenderPass material_render_pass;
-
-    // ImageInfo post_process_color_image_info;
-    // Image post_process_color_images[_FRAME_OVERLAP];
-
-    Buffer staging_buffer;
-
-    u32 mesh_counts;
-    MeshInstance* mesh_instances; // hot data
-    MeshLod* mesh_lods;
-    vec3* mesh_scales = {}; // cold data
-    Buffer vertex_positions_buffer;
-    Buffer vertex_normals_buffer;
-    Buffer vertex_uvs_buffer;
-    // Buffer vertex_buffer;
-    Buffer index_buffer;
-
-    Buffer world_data_buffers[_FRAME_OVERLAP];
-    ResourceGroup global_resources_group;
-    VkDescriptorPool main_descriptor_pool;
-    // VkDescriptorSetLayout globals_layout;
-    // VkDescriptorSet global_sets[_FRAME_OVERLAP];
-
-    MaterialEffectInfo material_effect_infos[16];
-    MaterialEffect material_effects[16];
-
-    RenderPass main_depth_prepass_render_pass;
-    VkPipelineLayout main_depth_prepass_pipeline_layout;
-    VkPipeline main_depth_prepass_pipeline;
-    ResourceBundle main_depth_prepass_resource_bundles[16];
-  );
-
-  declare_enum(DepthPrecision, u32,
-    Low  = (u32)ImageFormat::LinearD16,
-    High = (u32)ImageFormat::LinearD32,
-  );
-
-  declare_enum(ColorPrecision, u32,
-    Low  = (u32)ImageFormat::LinearRgba8, // Non-HDR
-    High = (u32)ImageFormat::LinearRgba16, // HDR
-  );
-
-  declare_resource(WindowConfig,
-    const char* app_name;
-
-    MouseMode starting_mouse_mode = MouseMode::Captured;
-
-    bool enable_resizing = false;
-    bool enable_raw_mouse = true;
-
-    ivec2 window_resolution = {-1, -1}; // -1 == Use monitor resolution
-  );
-
-  // Info: configurable before init_graphics_context()
-  // Afterwards, the values are copied into an internal
-  // structure that won't be easily editable
-  declare_resource(GraphicsConfig,
-    ivec2 render_resolution = {-1, -1}; // -1 == Use window resolution
-
-    ImageSamples sample_count = ImageSamples::Four;
-    ColorPrecision color_precision = ColorPrecision::High;
-    DepthPrecision depth_precision = DepthPrecision::High;
-  );
-
-  engine_var bool PRINT_PERFORMANCE_STATISTICS;
-
-  engine_api void init_graphics_context();
-
-//
-// Graphics Context API
-//
-
-  engine_api void begin_frame();
-  engine_api void end_frame();
-
-  engine_api void begin_main_depth_prepass();
-  engine_api void end_main_depth_prepass();
-
-  engine_api void begin_main_color_pass();
-  engine_api void end_main_color_pass();
-
-  struct LodInfo {
-    u32 count;
-    f32 bias;
-    f32* angular_threshold;
-  };
-
-  struct MeshBuffers {
-    Buffer* index_buffer;
-    u32 vertex_buffer_count;
-    Buffer** vertex_buffers;
-  };
-
-  struct MeshPool {
-    u32 mesh_count;
-    u32 mesh_capacity;
-
-    u32 vertex_offset;
-    u32 vertex_capacity;
-    u32 index_offset;
-    u32 index_capcity;
-
-    LodInfo* lod_infos; // corresponds to mesh id
-    vec3* mesh_scales;
-    MeshInstance* mesh_instances; // mesh id + lod offset
-
-    MeshBuffers* meshes;
-  };
-
-  void bind_mesh_pool(MeshPool* pool, u32* bind_indices, u32 bind_count);
-
-  u32 push_mesh(MeshPool* pool, void** vertices, u32 vertex_count, u32 vertex_type_count, u32* indices, u32 index_count);
-
-  declare_resource_duplicate(MainMeshPool, MeshPool);
-
-  // struct MeshRegistry {
-  //   u32 pool_count = 0;
-  //   u32 counts[8] = {};
-  //   MeshInstance instances[8][1024] = {}; // hot data
-  //   vec3 scales[8][1024] = {}; // cold data
-  // };
-  // declare_resource(engine_var, MeshRegistry);
-  // declare_resource(WorldData);
-
-  // engine_var GpuCullData _cull_data; //
-  // engine_var vec4 _cull_planes[6]; //
-
-  // VARIABLES
-  
-  engine_var bool _framebuffer_resized; // framebuffer resizing should be --automatically handled--
-  
-  engine_var VkCommandPool _transfer_cmd_pool;
-
-  // update to per thread resource using api
-  engine_var VkCommandPool _graphics_cmd_pool[_FRAME_OVERLAP];
-  engine_var VkCommandBuffer _main_cmd_buf[_FRAME_OVERLAP];
-  engine_var VkSemaphore _present_semaphore[_FRAME_OVERLAP];
-  engine_var VkSemaphore _render_semaphore[_FRAME_OVERLAP];
-  engine_var VkFence _render_fence[_FRAME_OVERLAP];
-  
-  // engine_var VkSampler _default_sampler; //
-
-  // mesh data
-  engine_var LinearAllocationTracker _gpu_vertices_tracker;
-  engine_var LinearAllocationTracker _gpu_indices_tracker;
-  // this buffer starts out as being a 
-  // engine_var AllocatedBuffer _gpu_vertices; // wont be used in the future
-  
-  // image data
-  // engine_var AllocatedImage _gpu_images[1024]; // wont be used in the future
-
-  engine_var usize _frame_count;
-  engine_var u32 _frame_index;
-  engine_var u32 _swapchain_image_index;
-
-  engine_var bool _pause_frustum_culling; // make function
-
-  // FUNCTIONS
-
-  // engine_api void update_cursor_position(GLFWwindow* window, double xpos, double ypos);
-  engine_api void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
-
-  engine_api VkCommandBuffer begin_quick_commands();
-  engine_api void end_quick_commands(VkCommandBuffer command_buffer);
-
-  engine_api VkCommandBuffer begin_quick_commands2();
-  engine_api void end_quick_commands2(VkCommandBuffer commands);
-
-  // All textures must be loaded before the call to this function
-  // engine_api void init_global_descriptors();
-
-  // All meshes must be loaded before the call to this function
-  engine_api void copy_meshes_to_gpu();
-
   engine_api MeshInstance create_mesh(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count);
 
-  engine_api void deinit_sync_objects();
-  // engine_api void deinit_descriptors();
-  // engine_api void deinit_sampler();
-  // engine_api void deinit_buffers_and_images();
-  // engine_api void deinit_shaders();
-  engine_api void deinit_allocators();
-  // engine_api void deinit_pipelines();
-  // engine_api void deinit_framebuffers();
-  // engine_api void deinit_render_passes();
-  engine_api void deinit_command_pools_and_buffers();
-  engine_api void deinit_swapchain();
-  engine_api void deinit_vulkan();
-
-  // engine_api void update_descriptor_sets();
-  engine_api void resize_swapchain();
-
-  engine_api void print_performance_statistics();
-  // };
-};
-
-namespace quark {
-
 //
-// Buffer API
+// Material Effect API
 //
 
-//
-// Image API
-//
+  declare_enum(FillMode, u32,
+    Fill  = VK_POLYGON_MODE_FILL,
+    Line  = VK_POLYGON_MODE_LINE,
+    Point = VK_POLYGON_MODE_POINT,
+  );
 
-//
-// Resource Group API
-//
+  declare_enum(CullMode, u32,
+    None  = VK_CULL_MODE_NONE,
+    Front = VK_CULL_MODE_FRONT_BIT,
+    Back  = VK_CULL_MODE_BACK_BIT,
+    Both  = VK_CULL_MODE_FRONT_AND_BACK,
+  );
 
-  // engine_api void create_resource_group(Arena* arena, ResourceGroup* group, ResourceGroupInfo* info);
-  // engine_api void create_resource_bundle(Arena* arena, ResourceBundle* bundle, ResourceBundleInfo* info);
+  declare_enum(BlendMode, u32,
+    Off    = 0x0,
+    Simple = 0x1,
+  );
 
-  // engine_api void bind_resource_group(VkCommandBuffer commands, VkPipelineLayout layout, ResourceGroup* group, u32 frame_index, u32 bind_index);
-  // engine_api void bind_resource_bundle(VkCommandBuffer commands, VkPipelineLayout layout, ResourceBundle* bundle, u32 frame_index);
+  declare_enum(VertexStream, u32,
+    Position = 0x1,
+    Normal = 0x2,
+    Texture = 0x4,
+  );
 
-  engine_api void copy_descriptor_set_layouts(VkDescriptorSetLayout* layouts, u32 count, ResourceGroup** groups);
+  struct MaterialEffectInfo {
+    u32 material_data_size;
+    u32 world_data_size;
+    VertexShaderModule vertex_shader;
+    FragmentShaderModule fragment_shader;
+    ResourceBundleInfo resource_bundle_info;
+      
+    FillMode fill_mode;
+    CullMode cull_mode;
+    BlendMode blend_mode;
+  };
 
-//
-// Effect APIs
-//
+  struct MaterialEffect {
+    VkPipelineLayout layout;
+    VkPipeline pipeline;
+    ResourceBundle resource_bundle;
+  };
+
+  engine_api void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info);
+
+  engine_api void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index);
+  engine_api void bind_effect(VkCommandBuffer commands, MaterialEffect* effect);
 
 //
 // Material Macros
@@ -1131,46 +888,7 @@ namespace quark {
   #include "internal/material_defines.hpp"
 
 //
-// Builtin Material Types
-//
-
-  declare_material(ColorMaterial,
-    vec4 color;
-  );
-  declare_material_world(ColorMaterial,
-    vec4 tint;
-  );
-
-  declare_material(TextureMaterial,
-    vec4 tint;
-    ImageId albedo;
-    u32 _pad0;
-
-    vec2 tiling;
-    vec2 offset;
-  );
-  declare_material_world(TextureMaterial,
-  );
-
-//
-// World Data
-//
-
-  // main_view_projection, sun_view_projection, and time are set automatically!
-  declare_resource(WorldData,
-    mat4 main_view_projection;
-    mat4 sun_view_projection;
-    vec4 tint;
-    vec4 ambient;
-    vec4 sun_direction;
-    vec4 sun_color;
-    f32 time;
-  );
-
-  engine_api void update_world_data();
-
-//
-// Material Batch API
+// Materials
 //
 
   struct alignas(8) Drawable {
@@ -1200,9 +918,62 @@ namespace quark {
     u8* materials_batch;
   };
 
-  declare_resource(DrawBatchContext,
-    Arena* arena;
+//
+// UI
+//
 
+//
+// Renderer
+//
+
+  declare_resource(Renderer,
+    // Textures
+    u32 texture_count;
+    Image textures[16];
+
+    // Meshes
+    u32 mesh_counts;
+    MeshInstance* mesh_instances; // hot data
+    MeshLod* mesh_lods;
+    vec3* mesh_scales = {}; // cold data
+
+    Buffer vertex_positions_buffer;
+    Buffer vertex_normals_buffer;
+    Buffer vertex_uvs_buffer;
+    Buffer index_buffer;
+
+    // Samplers
+    Sampler texture_sampler;
+
+    // Main color images
+    ImageInfo material_color_image_info;
+    Image material_color_images[_FRAME_OVERLAP];
+    Image material_color_images2[_FRAME_OVERLAP];
+
+    // Main depth images
+    ImageInfo main_depth_image_info;
+    Image main_depth_images[_FRAME_OVERLAP];
+
+    // Shader "world data"
+    Buffer world_data_buffers[_FRAME_OVERLAP];
+    ResourceGroup global_resources_group;
+
+    // Render passes
+    RenderPass color_pass;
+    RenderPass depth_prepass;
+    RenderPass shadow_pass;
+
+    // Depth Only
+    VkPipelineLayout depth_only_pipeline_layout;
+
+    VkPipeline main_depth_prepass_pipeline;
+    VkPipeline shadow_pass_pipeline;
+
+    // Material Effects
+    MaterialEffectInfo material_effect_infos[16];
+    MaterialEffect material_effects[16];
+
+    // Material Batches
     usize materials_count;
 
     MaterialInfo infos[16];
@@ -1217,19 +988,93 @@ namespace quark {
     u32 material_draw_count[16];
     u32 material_cull_count[16];
 
+    // Statistics
     u32 saved_total_draw_count;
     u32 saved_total_culled_count;
     u32 saved_total_triangle_count;
   );
 
-  declare_resource(DrawBatchConfig,
-    u32 material_capacity = 16; // num of different materials we can hold
+  engine_api void init_renderer();
 
-    u32 batch_capacity = 1024 * 256;
-    u32 instance_capacity = 128;
+//
+// Rendering Pipeline API
+//
+
+  engine_api void begin_main_depth_prepass();
+  engine_api void end_main_depth_prepass();
+
+  engine_api void begin_main_color_pass();
+  engine_api void end_main_color_pass();
+
+  engine_var bool PRINT_PERFORMANCE_STATISTICS;
+
+  engine_api void print_performance_statistics();
+
+//
+// Cameras API
+//
+
+  declare_resource_duplicate(MainCamera, Camera3D);
+  declare_resource_duplicate(SunCamera, Camera3D);
+
+  declare_resource_duplicate(UICamera, Camera2D);
+
+  declare_resource_duplicate(MainCameraFrustum, FrustumPlanes);
+  declare_resource_duplicate(SunCameraFrustum, FrustumPlanes);
+
+  declare_resource_duplicate(MainCameraViewProj, mat4);
+  declare_resource_duplicate(SunCameraViewProj, mat4);
+
+  engine_api void update_world_cameras();
+
+//
+// Builtin Material Types
+//
+
+  declare_material(ColorMaterial,
+    vec4 color;
+  );
+  declare_material_world(ColorMaterial,
+    vec4 tint;
   );
 
-  void init_materials();
+  declare_material(TextureMaterial,
+    vec4 tint;
+    ImageId albedo;
+    u32 _pad0;
+
+    vec2 tiling;
+    vec2 offset;
+  );
+  declare_material_world(TextureMaterial,
+  );
+
+  declare_material(LitColorMaterial,
+    vec4 color;
+  );
+  declare_material_world(LitColorMaterial,
+  );
+
+//
+// World Data
+//
+
+  // main_view_projection, sun_view_projection, and time are set automatically!
+  declare_resource(WorldData,
+    mat4 main_view_projection;
+    mat4 sun_view_projection;
+    vec4 tint;
+    vec4 ambient;
+    vec4 sun_direction;
+    vec4 sun_color;
+    f32 time;
+  );
+
+  engine_api void update_world_data();
+
+//
+// Materials API
+//
 
   engine_api u32 add_material_type(MaterialInfo* info);
 
@@ -1334,7 +1179,6 @@ namespace quark {
 
   engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
 
-
 //
 // Sound API
 //
@@ -1381,14 +1225,12 @@ namespace quark {
 // Helper
 //
 
-#define vk_check(x)                                                                                                                                  \
-  do {                                                                                                                                               \
-    VkResult err = x;                                                                                                                                \
-    if (err) {                                                                                                                                       \
-      std::cout << "Detected Vulkan error: " << err << '\n';                                                                                         \
-      std::cout << "Line: " << __LINE__ << ", File: " << __FILE__ << "\n"; \
-      panic("");                                                                                                                                     \
-    }                                                                                                                                                \
+#define vk_check(x) \
+  do { \
+    VkResult err = x; \
+    if (err) { \
+      panic("Detected Vulkan Error: " + err + "\n"); \
+    } \
   } while (0)
 
 #undef api_decl

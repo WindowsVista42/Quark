@@ -10,7 +10,7 @@ using namespace quark;
 //
 
   void* get_material_instance(u32 material_id, u32 material_instance_index) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
+    Renderer* context = get_resource(Renderer);
     MaterialBatch* batch = &context->batches[material_id];
     MaterialInfo* type = &context->infos[material_id];
 
@@ -18,7 +18,7 @@ using namespace quark;
   }
 
   void push_drawable_instance(u32 material_id, Drawable* drawable, void* material) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
+    Renderer* context = get_resource(Renderer);
     MaterialBatch* batch = &context->batches[material_id];
     MaterialInfo* type = &context->infos[material_id];
 
@@ -39,7 +39,7 @@ using namespace quark;
   }
 
   void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
-    DrawBatchContext* context = get_resource(DrawBatchContext);
+    Renderer* context = get_resource(Renderer);
     MaterialBatch* batch = &context->batches[material_id];
     MaterialInfo* info = &context->infos[material_id];
 
@@ -48,7 +48,7 @@ using namespace quark;
 
   template <typename T, typename TIndex, typename TWorld>
   void update_material2(const char* vertex_shader_name, const char* fragment_shader_name, u32 max_draw_count, u32 mat_inst_cap) {
-    GraphicsContext* context = get_resource(GraphicsContext);
+    Renderer* context = get_resource(Renderer);
 
     update_component2<T>();
     update_component2<TIndex>();
@@ -123,12 +123,12 @@ using namespace quark;
       .bindings = bindings, 
     }; 
 
-    create_resource_group(context->arena, &TWorld::RESOURCE_GROUP, &resource_info); 
+    create_resource_group(global_arena(), &TWorld::RESOURCE_GROUP, &resource_info); 
 
     ResourceGroup* resource_groups[] = { 
       &context->global_resources_group,
       &TWorld::RESOURCE_GROUP,
-    }; 
+    };
 
     ResourceBundleInfo resource_bundle_info {
       .group_count = count_of(resource_groups),
@@ -148,7 +148,7 @@ using namespace quark;
       .blend_mode = BlendMode::Off, 
     }; 
 
-    create_material_effect(context->arena, &context->material_effects[T::MATERIAL_ID], &effect_info); 
+    create_material_effect(global_arena(), &context->material_effects[T::MATERIAL_ID], &effect_info); 
     context->material_effect_infos[T::MATERIAL_ID] = effect_info; 
   } 
 

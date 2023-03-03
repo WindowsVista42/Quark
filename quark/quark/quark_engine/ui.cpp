@@ -44,6 +44,7 @@ namespace quark {
     }
   }
 
+  /*
   void init_ui_context() {
     BufferInfo ui_info = {
       .type = BufferType::VertexUpload,
@@ -52,7 +53,7 @@ namespace quark {
     create_buffers(_ui->ui_vertex_buffers, 3, &ui_info);
 
     _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[0]);
-    // _ui->ptr = (UiVertex*)push_arena(_context->arena, _ui->ui_vertex_capacity * sizeof(UiVertex));
+    // _ui->ptr = (UiVertex*)push_arena(global_arena(), _ui->ui_vertex_capacity * sizeof(UiVertex));
 
     {
       VkPipelineLayoutCreateInfo layout_info = {};
@@ -187,7 +188,7 @@ namespace quark {
       pipeline_info.pDepthStencilState = &depth_info;
       pipeline_info.pColorBlendState = &color_blend_info;
       pipeline_info.layout = _ui->ui_pipeline_layout;
-      pipeline_info.renderPass = _context->main_render_pass.render_pass;
+      pipeline_info.renderPass = _context->color_pass.render_pass;
 
       vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &_ui->ui_pipeline));
     }
@@ -198,7 +199,7 @@ namespace quark {
         panic("Failed to load font file!\n");
       }
 
-      Arena* arena = _context->arena;
+      Arena* arena = global_arena();
 
       for_every(letter, char_counts) {
         int i = ttf_find_glyph(font, '!' + letter);
@@ -296,6 +297,7 @@ namespace quark {
       }
     }
   }
+  */
 
   void draw_ui() {
     VkCommandBuffer commands = _main_cmd_buf[_frame_index];
