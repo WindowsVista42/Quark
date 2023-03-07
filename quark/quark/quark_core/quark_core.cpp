@@ -566,19 +566,18 @@ namespace quark {
   }
   
   mat4 mat4_orthographic_projection(f32 left, f32 right, f32 top, f32 bottom, f32 near, f32 far) {
-    mat4 result = MAT4_ZERO;
-    f32 a = 2.0f / (right - left);
+    f32 a = 2.0f / (left - right);
     f32 b = 2.0f / (top - bottom);
     f32 c = -2.0f / (far - near);
-    f32 x = -((right + left) / (right - left));
+    f32 x = -((right + left) / (left - right));
     f32 y = -((top + bottom) / (top - bottom));
-    f32 z = -((far + near) / (far - near));
+    f32 z = ((far + near) / (far - near));
   
     return mat4 {
-      vec4 {    a, 0.0f, 0.0f, 0.0f },
-      vec4 { 0.0f,    b, 0.0f, 0.0f },
-      vec4 { 0.0f, 0.0f,    c, 0.0f },
-      vec4 {    x,    y,    z, 1.0f },
+      vec4 { -a,  0, 0, 0 },
+      vec4 {  0,  0, c, 0 },
+      vec4 {  0, -b, 0, 0 },
+      vec4 { -x, -y, z, 1 },
     };
   }
   
