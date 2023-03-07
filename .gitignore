@@ -7,5 +7,6 @@ build/
 .quark/
 .idea/
 .vscode/
+.session
 
 compile_commands.json
