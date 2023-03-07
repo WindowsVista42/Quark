@@ -15,9 +15,17 @@ using namespace quark;
   inline mat4 camera3d_projection_mat4(Camera3D* camera, f32 aspect) {
     if(camera->projection_type == ProjectionType::Perspective) {
       return mat4_perspective_projection(rad(camera->fov), aspect, camera->z_near, camera->z_far);
-    } else {
-      panic("get_camera3d_projection currently does not support orthographic projections!");
     }
+    
+    if(camera->projection_type == ProjectionType::Orthographic) {
+      // calculate aspect-correct width and height
+      f32 half_width = (aspect > 1.0f) ? camera->half_size : camera->half_size * (1.0f / aspect);
+      f32 half_height = (aspect < 1.0f) ? camera->half_size * aspect : camera->half_size;
+    
+      return mat4_orthographic_projection(-half_width, half_width, -half_height, half_height, camera->z_near, camera->z_far);
+    }
+
+    return MAT4_IDENTITY;
   }
 
   inline mat4 camera3d_view_projection_mat4(Camera3D* camera, f32 aspect) {
@@ -44,11 +52,11 @@ using namespace quark;
   }
 
   bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2) {
-    f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
+    // f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
     f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
     f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
 
-    f32 dist = min(min(dist01, dist23), dist45);
+    f32 dist = /*min(*/min(dist45, dist23);// , dist45);
     f32 dist2 = dist * dist;
     if(dist < 0.0f) {
       dist2 = -dist2;

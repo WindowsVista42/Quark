@@ -14,7 +14,6 @@ namespace quark {
     add_asset_file_loader(".png", load_png_file);
     add_asset_file_loader(".qmesh", load_qmesh_file);
 
-    load_asset_folder("quark/shaders");
     load_asset_folder("quark/models");
     load_asset_folder("quark/textures");
     load_asset_folder("quark/qmesh");
@@ -36,8 +35,6 @@ namespace quark {
 
 
   void init_builtin_component_types() {
-    update_component(Transform);
-    update_component(Model);
   }
 
   void init() {
@@ -63,13 +60,14 @@ namespace quark {
       // Quark init
       create_system("init_threadpool", init_thread_pool);
       create_system("init_window", init_window);
-      create_system("init_graphics_context", init_graphics_context);
+      create_system("init_graphics", init_graphics);
+      create_system("init_renderer_pre_assets", init_renderer_pre_assets);
       create_system("load_assets", load_assets);
+      create_system("init_renderer_post_assets", init_renderer_post_assets);
+      create_system("init_ui_context", init_ui_context);
       // create_system("copy_meshes_to_gpu", copy_meshes_to_gpu); // NOTE(sean): load meshes before this!
       create_system("init_ecs", init_ecs);
-      create_system("init_builtin_component_types", init_builtin_component_types);
-      create_system("init_materials", init_materials);
-      create_system("init_ui_context", init_ui_context);
+      // create_system("init_builtin_component_types", init_builtin_component_types);
       create_system("init_sound_context", init_sound_context);
 
       // Update
@@ -86,6 +84,9 @@ namespace quark {
       create_system("build_material_batch_commands", build_material_batch_commands);
       create_system("reset_material_batches", reset_material_batches);
 
+      create_system("begin_shadow_pass", begin_shadow_pass);
+      create_system("end_shadow_pass", end_shadow_pass);
+    
       create_system("begin_main_depth_prepass", begin_main_depth_prepass);
       create_system("end_main_depth_prepass", end_main_depth_prepass);
 
@@ -95,6 +96,7 @@ namespace quark {
       create_system("draw_material_batches", draw_material_batches);
       create_system("draw_ui", draw_ui);
       create_system("draw_material_batches_depth_prepass", draw_material_batches_depth_prepass);
+      create_system("draw_material_batches_shadows", draw_material_batches_shadows);
 
       create_system("print_performance_statistics", print_performance_statistics);
 
@@ -106,17 +108,17 @@ namespace quark {
     {
       // Quark init
       add_system("quark_init", "init_threadpool", "", -1);
-    
       add_system("quark_init", "init_window", "", -1);
-      add_system("quark_init", "init_graphics_context", "", -1);
-    
-      add_system("quark_init", "load_assets", "", -1);
+      add_system("quark_init", "init_graphics", "", -1);
       add_system("quark_init", "init_ecs", "", -1);
-      add_system("quark_init", "init_builtin_component_types", "", -1);
+      // add_system("quark_init", "init_builtin_component_types", "", -1);
     
-      add_system("quark_init", "init_materials", "", -1);
+      add_system("quark_init", "init_renderer_pre_assets", "", -1);
+      add_system("quark_init", "load_assets", "", -1);
+      add_system("quark_init", "init_renderer_post_assets", "", -1);
       add_system("quark_init", "init_ui_context", "", -1);
     
+        
       add_system("quark_init", "init_sound_context", "", -1);
 
       // Update
@@ -130,6 +132,10 @@ namespace quark {
       add_system("update", "update_world_cameras", "", -1);
       add_system("update", "update_world_data", "", -1);
       add_system("update", "build_material_batch_commands", "", -1);
+    
+        add_system("update", "begin_shadow_pass", "", -1);
+          add_system("update", "draw_material_batches_shadows", "", -1);
+        add_system("update", "end_shadow_pass", "", -1);
 
         add_system("update", "begin_main_depth_prepass", "", -1);
           add_system("update", "draw_material_batches_depth_prepass", "", -1);

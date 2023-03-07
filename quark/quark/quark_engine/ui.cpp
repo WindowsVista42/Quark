@@ -6,8 +6,9 @@
 namespace quark {
   define_resource(UiContext, {});
 
-  static GraphicsContext* _context = get_resource(GraphicsContext);
+  static Graphics* graphics = get_resource(Graphics);
   static UiContext* _ui = get_resource(UiContext);
+  static Renderer* renderer = get_resource(Renderer);
 
   static ttf_t *font = 0;
   static ttf_glyph_t *glyph = 0;
@@ -44,7 +45,6 @@ namespace quark {
     }
   }
 
-  /*
   void init_ui_context() {
     BufferInfo ui_info = {
       .type = BufferType::VertexUpload,
@@ -63,7 +63,7 @@ namespace quark {
       layout_info.pushConstantRangeCount = 0;
       layout_info.pPushConstantRanges = 0;
 
-      vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &_ui->ui_pipeline_layout));
+      vk_check(vkCreatePipelineLayout(graphics->device, &layout_info, 0, &_ui->ui_pipeline_layout));
 
       VkVertexInputBindingDescription binding_descriptions[1] = {};
       binding_descriptions[0].binding = 0;
@@ -100,8 +100,8 @@ namespace quark {
       input_assembly_info.primitiveRestartEnable = VK_FALSE;
 
       // Info: what region of the image to render to
-      VkViewport viewport = get_viewport(_context->render_resolution);
-      VkRect2D scissor = get_scissor(_context->render_resolution);
+      VkViewport viewport = get_viewport(graphics->render_resolution);
+      VkRect2D scissor = get_scissor(graphics->render_resolution);
 
       VkPipelineViewportStateCreateInfo viewport_info = {};
       viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -124,7 +124,7 @@ namespace quark {
       // Info: msaa support
       VkPipelineMultisampleStateCreateInfo multisample_info = {};
       multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)_context->material_color_image_info.samples;
+      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)renderer->material_color_image_info.samples;
       multisample_info.sampleShadingEnable = VK_FALSE;
       multisample_info.alphaToCoverageEnable = VK_FALSE;
       multisample_info.alphaToOneEnable = VK_FALSE;
@@ -188,9 +188,9 @@ namespace quark {
       pipeline_info.pDepthStencilState = &depth_info;
       pipeline_info.pColorBlendState = &color_blend_info;
       pipeline_info.layout = _ui->ui_pipeline_layout;
-      pipeline_info.renderPass = _context->color_pass.render_pass;
+      pipeline_info.renderPass = renderer->color_pass.render_pass;
 
-      vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &_ui->ui_pipeline));
+      vk_check(vkCreateGraphicsPipelines(graphics->device, 0, 1, &pipeline_info, 0, &_ui->ui_pipeline));
     }
 
     {
@@ -204,7 +204,7 @@ namespace quark {
       for_every(letter, char_counts) {
         int i = ttf_find_glyph(font, '!' + letter);
 
-        
+      
         ttf_mesh_t* m;
         if(ttf_glyph2mesh(&font->glyphs[i], &m, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT) != TTF_DONE) {
           panic("");
@@ -297,10 +297,9 @@ namespace quark {
       }
     }
   }
-  */
 
   void draw_ui() {
-    VkCommandBuffer commands = _main_cmd_buf[_frame_index];
+    VkCommandBuffer commands = graphics->commands[graphics->frame_index];
 
     // void* dst = map_buffer(&_ui->ui_vertex_buffers[_frame_index]);
     // copy_array(dst, _ui->ptr, UiVertex, _ui->ui_vertex_count);

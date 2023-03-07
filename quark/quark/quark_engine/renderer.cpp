@@ -18,11 +18,487 @@
 
 #include "../quark_core/module.hpp"
 
+#include <lz4.h>
+#include <meshoptimizer.h>
+
 namespace quark {
   define_resource(Renderer, {});
 
   static Graphics* graphics = get_resource(Graphics);
   static Renderer* renderer = get_resource(Renderer);
+
+// Materials
+
+  define_material(ColorMaterial);
+  define_material_world(ColorMaterial, {});
+
+  define_material(TextureMaterial);
+  define_material_world(TextureMaterial, {});
+
+  define_material(LitColorMaterial);
+  define_material_world(LitColorMaterial, {});
+
+// Renderer
+
+  void load_default_shaders();
+  void init_mesh_buffer();
+  void init_sampler();
+  void init_render_passes();
+  void init_pipelines();
+
+  void init_renderer_pre_assets() {
+    renderer->mesh_instances = arena_push_array(global_arena(), MeshInstance, 1024);
+    renderer->mesh_scales = arena_push_array(global_arena(), vec3, 1024);
+  
+    {
+      BufferInfo info ={
+        .type = BufferType::Commands,
+        .size = 256 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+      };
+
+      // Todo: create this
+      create_buffers(renderer->forward_pass_commands, _FRAME_OVERLAP, &info);
+      create_buffers(renderer->shadow_pass_commands, _FRAME_OVERLAP, &info);
+    }
+
+    {
+      BufferInfo info = {
+        .type = BufferType::Uniform,
+        .size = sizeof(WorldData),
+      };
+
+      create_buffers(renderer->world_data_buffers, 2, &info);
+    }
+
+    {
+      VkDescriptorPoolSize pool_sizes[] = {
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096, },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024, },
+      };
+
+      VkDescriptorPoolCreateInfo info = {};
+      info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+      info.poolSizeCount = count_of(pool_sizes);
+      info.pPoolSizes = pool_sizes;
+      info.maxSets = 128;
+
+      vk_check(vkCreateDescriptorPool(graphics->device, &info, 0, &graphics->main_descriptor_pool));
+    }
+  
+    // we need to load shaders before a lot of other things
+
+    load_default_shaders();
+    init_mesh_buffer();
+    init_sampler();
+  }
+
+  void load_default_shaders() {
+    add_asset_file_loader(".vert.spv", load_vert_shader);
+    add_asset_file_loader(".frag.spv", load_frag_shader);
+
+    if(path_exists("quark/shaders")) {
+      load_asset_folder("quark/shaders");
+    }
+  }
+
+  void init_mesh_buffer() {
+    BufferInfo staging_buffer_info = {
+      .type = BufferType::Upload,
+      .size = 64 * MB,
+    };
+    create_buffers(&graphics->staging_buffer, 1, &staging_buffer_info);
+
+    // Info: 1 mil vertices and indices
+    u32 vertex_count = 1'000'000;
+    u32 index_count = 1'000'000;
+
+    u32 positions_size = vertex_count * sizeof(vec3);
+    u32 normals_size = vertex_count * sizeof(vec3);
+    u32 uvs_size = vertex_count * sizeof(vec2);
+
+    // individual mesh buffers
+
+    BufferInfo positions_buffer_info = {
+      .type = BufferType::Vertex,
+      .size = positions_size,
+    };
+    create_buffers(&renderer->vertex_positions_buffer, 1, &positions_buffer_info);
+
+    BufferInfo normals_buffer_info = {
+      .type = BufferType::Vertex,
+      .size = normals_size,
+    };
+    create_buffers(&renderer->vertex_normals_buffer, 1, &normals_buffer_info);
+
+    BufferInfo uvs_buffer_info = {
+      .type = BufferType::Vertex,
+      .size = uvs_size,
+    };
+    create_buffers(&renderer->vertex_uvs_buffer, 1, &uvs_buffer_info);
+
+    // index buffer
+
+    BufferInfo index_info = {
+      .type = BufferType::Index,
+      .size = index_count * (u32)sizeof(u32)
+    };
+    create_buffers(&renderer->index_buffer, 1, &index_info);
+  }
+
+  void init_sampler() {
+    SamplerInfo texture_sampler_info = {
+      .filter_mode = FilterMode::Linear,
+      .wrap_mode = WrapMode::Repeat,
+    };
+
+    create_samplers(&renderer->texture_sampler, 1, &texture_sampler_info);
+  }
+
+  void init_renderer_post_assets() {
+    // TODO: Should probably update when resolution changes
+    // internally we can just re-init this (probably)
+    init_render_passes();
+  
+    // Create global resource group
+    {
+      Buffer* buffers[_FRAME_OVERLAP] = {
+        &renderer->world_data_buffers[0],
+        &renderer->world_data_buffers[1],
+      };
+
+      Image* images[_FRAME_OVERLAP] = {
+        renderer->textures,
+        renderer->textures,
+      };
+
+      Image* shadow_images[_FRAME_OVERLAP] = {
+        &renderer->shadow_images[0],
+        &renderer->shadow_images[1],
+      };
+
+      ResourceBinding bindings[3] = {};
+      bindings[0].count = 1;
+      bindings[0].max_count = 1;
+      bindings[0].buffers = buffers;
+      bindings[0].images = 0;
+      bindings[0].sampler = 0;
+
+      bindings[1].count = renderer->texture_count;
+      bindings[1].max_count = 16;
+      bindings[1].buffers = 0;
+      bindings[1].images = images;
+      bindings[1].sampler = &renderer->texture_sampler;
+    
+      bindings[2].count = 1;
+      bindings[2].max_count = 1;
+      bindings[2].buffers = 0;
+      bindings[2].images = shadow_images;
+      bindings[2].sampler = &renderer->texture_sampler;
+
+      ResourceGroupInfo resource_info {
+        .bindings_count = count_of(bindings),
+        .bindings = bindings,
+      };
+
+      create_resource_group(global_arena(), &renderer->global_resources_group, &resource_info);
+    }
+  
+    init_pipelines();
+    // TODO: pipelines and whatnot created for materials should update *automagically*
+    // maybe we do something lazy where if the window resizes we just
+    // blit to only a subsection of the swapchain
+  }
+
+  void init_render_passes() {
+    renderer->material_color_image_info = {
+      .resolution = graphics->render_resolution,
+      .format = ImageFormat::LinearRgba16,
+      .type = ImageType::RenderTargetColor,
+      .samples = ImageSamples::One,
+    };
+    create_images(renderer->material_color_images2, _FRAME_OVERLAP, &renderer->material_color_image_info);
+
+    renderer->material_color_image_info.samples = ImageSamples::Four,
+
+    create_images(renderer->material_color_images, _FRAME_OVERLAP, &renderer->material_color_image_info);
+
+    // main depth images
+
+    renderer->main_depth_image_info = {
+      .resolution = graphics->render_resolution,
+      .format = ImageFormat::LinearD32,
+      .type = ImageType::RenderTargetDepth,
+      .samples = ImageSamples::Four,
+    };
+    create_images(renderer->main_depth_images, _FRAME_OVERLAP, &renderer->main_depth_image_info);
+
+    // depth images
+
+    renderer->shadow_resolution = ivec2 { 2048, 2048 };
+
+    renderer->shadow_image_info.resolution = renderer->shadow_resolution;
+    renderer->shadow_image_info.format = ImageFormat::LinearD16;
+    renderer->shadow_image_info.type = ImageType::RenderTargetDepth;
+    renderer->shadow_image_info.samples = ImageSamples::One;
+
+    create_images(renderer->shadow_images, _FRAME_OVERLAP, &renderer->shadow_image_info);
+
+    // create depth prepass
+    {
+      Image* images[] = {
+        renderer->main_depth_images
+      };
+
+      VkAttachmentLoadOp load_ops[] = {
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+      };
+
+      VkAttachmentStoreOp store_ops[] = {
+        VK_ATTACHMENT_STORE_OP_STORE,
+      };
+
+      ImageUsage initial_usages[] = {
+        ImageUsage::Unknown,
+      };
+
+      ImageUsage final_usages[] = {
+        ImageUsage::RenderTargetDepth,
+      };
+
+      RenderPassInfo render_pass_info = {
+        .resolution = graphics->render_resolution,
+
+        .attachment_count = count_of(images),
+        .attachments = images,
+
+        .load_ops = load_ops,
+        .store_ops = store_ops,
+
+        .initial_usage = initial_usages,
+        .final_usage = final_usages,
+      };
+
+      create_render_pass(global_arena(), &renderer->depth_prepass, &render_pass_info);
+    }
+
+    // create main pass
+    {
+      Image* images[] = {
+        renderer->material_color_images,
+        renderer->main_depth_images,
+      };
+
+      VkAttachmentLoadOp load_ops[] = {
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+        VK_ATTACHMENT_LOAD_OP_LOAD
+      };
+
+      VkAttachmentStoreOp store_ops[] = {
+        VK_ATTACHMENT_STORE_OP_STORE,
+        VK_ATTACHMENT_STORE_OP_STORE,
+      };
+
+      ImageUsage initial_usages[] = {
+        ImageUsage::Unknown,
+        ImageUsage::RenderTargetDepth,
+      };
+
+      ImageUsage final_usages[] = {
+        ImageUsage::Texture,
+        ImageUsage::Texture,
+      };
+
+      RenderPassInfo render_pass_info = {
+        .resolution = graphics->render_resolution,
+
+        .attachment_count = count_of(images),
+        .attachments = images,
+
+        .load_ops = load_ops,
+        .store_ops = store_ops,
+
+        .initial_usage = initial_usages,
+        .final_usage = final_usages,
+      };
+
+      create_render_pass(global_arena(), &renderer->color_pass, &render_pass_info);
+    }
+
+    // create shadow pass
+    {
+      Image* images[] = {
+        renderer->shadow_images,
+      };
+
+      VkAttachmentLoadOp load_ops[] = {
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+      };
+
+      VkAttachmentStoreOp store_ops[] = {
+        VK_ATTACHMENT_STORE_OP_STORE,
+      };
+
+      ImageUsage initial_usages[] = {
+        ImageUsage::Unknown,
+      };
+
+      ImageUsage final_usages[] = {
+        ImageUsage::Texture,
+      };
+
+      RenderPassInfo info = {};
+      info.resolution = renderer->shadow_resolution;
+      info.attachment_count = count_of(images);
+      info.attachments = images;
+      info.load_ops = load_ops;
+      info.store_ops = store_ops;
+      info.initial_usage = initial_usages;
+      info.final_usage = final_usages;
+
+      create_render_pass(global_arena(), &renderer->shadow_pass, &info);
+    }
+  }
+
+  void init_pipelines() {
+    // init material pipelines
+    {
+      update_material(ColorMaterial, "color", "color", 256 * 1024, 128);
+      update_material(TextureMaterial, "texture", "texture", 256 * 1024, 128);
+      update_material(LitColorMaterial, "lit_color", "lit_color", 256 * 1024, 128);
+    }
+
+    // init depth prepass pipelines
+    {
+      VkDescriptorSetLayout set_layouts[renderer->material_effects[0].resource_bundle.group_count];
+      copy_descriptor_set_layouts(set_layouts, renderer->material_effects[0].resource_bundle.group_count, renderer->material_effects[0].resource_bundle.groups);
+
+      VkPushConstantRange push_constant = {};
+      push_constant.offset = 0;
+      push_constant.size = sizeof(mat4);
+      push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+      VkPipelineLayoutCreateInfo layout_info = {};
+      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      layout_info.setLayoutCount = renderer->material_effects[0].resource_bundle.group_count;
+      layout_info.pSetLayouts = set_layouts;
+      layout_info.pushConstantRangeCount = 1;
+      layout_info.pPushConstantRanges = &push_constant;
+
+      vk_check(vkCreatePipelineLayout(graphics->device, &layout_info, 0, &renderer->depth_only_pipeline_layout));
+
+      VkVertexInputBindingDescription binding_descriptions[1] = {};
+      // Info: positions data
+      binding_descriptions[0].binding = 0;
+      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      binding_descriptions[0].stride = sizeof(vec3);
+
+      VkVertexInputAttributeDescription attribute_descriptions[1] = {};
+      attribute_descriptions[0].binding = 0;
+      attribute_descriptions[0].location = 0;
+      attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attribute_descriptions[0].offset = 0;
+
+      // Info: layout of triangles
+      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
+      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
+      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
+      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
+      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
+
+      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
+      input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+      input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      input_assembly_info.primitiveRestartEnable = VK_FALSE;
+
+      // Info: what region of the image to render to
+      VkViewport viewport = get_viewport(graphics->render_resolution);
+      VkRect2D scissor = get_scissor(graphics->render_resolution);
+
+      VkPipelineViewportStateCreateInfo viewport_info = {};
+      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+      viewport_info.viewportCount = 1;
+      viewport_info.pViewports = &viewport;
+      viewport_info.scissorCount = 1;
+      viewport_info.pScissors = &scissor;
+    
+      // Info: how the triangles get drawn
+      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
+      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+      rasterization_info.depthClampEnable = VK_FALSE;
+      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
+      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
+      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
+      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      rasterization_info.depthBiasEnable = VK_FALSE;
+      rasterization_info.lineWidth = 1.0f;
+
+      // Info: msaa support
+      VkPipelineMultisampleStateCreateInfo multisample_info = {};
+      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)renderer->main_depth_image_info.samples;
+      multisample_info.sampleShadingEnable = VK_FALSE;
+      multisample_info.alphaToCoverageEnable = VK_FALSE;
+      multisample_info.alphaToOneEnable = VK_FALSE;
+
+      // Info: how depth gets handled
+      VkPipelineDepthStencilStateCreateInfo depth_info = {};
+      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depth_info.depthTestEnable = VK_TRUE;
+      depth_info.depthWriteEnable = VK_TRUE;
+      depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+      depth_info.depthBoundsTestEnable = VK_FALSE;
+      depth_info.stencilTestEnable = VK_FALSE;
+      depth_info.minDepthBounds = 0.0f;
+      depth_info.maxDepthBounds = 1.0f;
+
+      // Todo: suppport different blend modes
+      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
+      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+      color_blend_info.logicOpEnable = VK_FALSE;
+      color_blend_info.attachmentCount = 0;
+      color_blend_info.pAttachments = 0;
+
+      // Info: vertex shader stage
+      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
+      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+      vertex_stage_info.module = get_asset<VertexShaderModule>("depth_only")->module;
+      vertex_stage_info.pName = "main";
+
+      VkPipelineShaderStageCreateInfo shader_stages[1] = {
+        vertex_stage_info,
+      };
+
+      VkGraphicsPipelineCreateInfo pipeline_info = {};
+      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+      pipeline_info.stageCount = count_of(shader_stages);
+      pipeline_info.pStages = shader_stages;
+      pipeline_info.pVertexInputState = &vertex_input_info;
+      pipeline_info.pInputAssemblyState = &input_assembly_info;
+      pipeline_info.pViewportState = &viewport_info;
+      pipeline_info.pRasterizationState = &rasterization_info;
+      pipeline_info.pMultisampleState = &multisample_info;
+      pipeline_info.pDepthStencilState = &depth_info;
+      pipeline_info.pColorBlendState = &color_blend_info;
+      pipeline_info.layout = renderer->depth_only_pipeline_layout;
+      pipeline_info.renderPass = renderer->depth_prepass.render_pass;
+
+      // create depth prepass pipline
+      vk_check(vkCreateGraphicsPipelines(graphics->device, 0, 1, &pipeline_info, 0, &renderer->main_depth_prepass_pipeline));
+
+      // create shadow depth pipeline
+      viewport = get_viewport(renderer->shadow_resolution);
+      scissor = get_scissor(renderer->shadow_resolution);
+    
+      viewport_info.pViewports = &viewport;
+      viewport_info.pScissors = &scissor;
+
+      pipeline_info.renderPass = renderer->shadow_pass.render_pass;
+      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)renderer->shadow_image_info.samples;
+      vk_check(vkCreateGraphicsPipelines(graphics->device, 0, 1, &pipeline_info, 0, &renderer->shadow_pass_pipeline));
+    }
+  }
 
 //
 // Meshes API
@@ -227,402 +703,20 @@ namespace quark {
   }
 
 //
-// Renderer
-//
-
-  void load_default_shaders();
-  void init_mesh_buffer();
-  void init_sampler();
-  void init_render_passes();
-  void init_pipelines();
-
-  void init_renderer() {
-    renderer->mesh_instances = arena_push_array(global_arena(), MeshInstance, 1024);
-    renderer->mesh_scales = arena_push_array(global_arena(), vec3, 1024);
-  
-    {
-      BufferInfo info ={
-        .type = BufferType::Commands,
-        .size = 256 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
-      };
-
-      // Todo: create this
-      create_buffers(renderer->indirect_commands, _FRAME_OVERLAP, &info);
-    }
-
-    {
-      BufferInfo info = {
-        .type = BufferType::Uniform,
-        .size = sizeof(WorldData),
-      };
-
-      create_buffers(renderer->world_data_buffers, 2, &info);
-    }
-
-    {
-      VkDescriptorPoolSize pool_sizes[] = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096, },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024, },
-      };
-
-      VkDescriptorPoolCreateInfo info = {};
-      info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-      info.poolSizeCount = count_of(pool_sizes);
-      info.pPoolSizes = pool_sizes;
-      info.maxSets = 128;
-
-      vk_check(vkCreateDescriptorPool(graphics->device, &info, 0, &graphics->main_descriptor_pool));
-    }
-
-    {
-      Buffer* buffers[_FRAME_OVERLAP] = {
-        &renderer->world_data_buffers[0],
-        &renderer->world_data_buffers[1],
-      };
-
-      Image* images[_FRAME_OVERLAP] = {
-        renderer->textures,
-        renderer->textures,
-      };
-
-      ResourceBinding bindings[2] = {};
-      bindings[0].count = 1;
-      bindings[0].max_count = 1;
-      bindings[0].buffers = buffers;
-      bindings[0].images = 0;
-      bindings[0].sampler = 0;
-
-      bindings[1].count = renderer->texture_count;
-      bindings[1].max_count = 64;
-      bindings[1].buffers = 0;
-      bindings[1].images = images;
-      bindings[1].sampler = &renderer->texture_sampler;
-
-      ResourceGroupInfo resource_info {
-        .bindings_count = count_of(bindings),
-        .bindings = bindings,
-      };
-
-      create_resource_group(global_arena(), &renderer->global_resources_group, &resource_info);
-    }
-  
-    // we need to load shaders before a lot of other things
-
-    load_default_shaders();
-    init_mesh_buffer();
-    init_sampler();
-
-    // TODO: Should probably update when resolution changes
-    // internally we can just re-init this (probably)
-    init_render_passes();
-    init_pipelines();
-    // TODO: pipelines and whatnot created for materials should update *automagically*
-    // maybe we do something lazy where if the window resizes we just
-    // blit to only a subsection of the swapchain
-  }
-
-  void load_default_shaders() {
-    add_asset_file_loader(".vert.spv", load_vert_shader);
-    add_asset_file_loader(".frag.spv", load_frag_shader);
-
-    if(path_exists("quark/shaders")) {
-      load_asset_folder("quark/shaders");
-    }
-  }
-
-  void init_mesh_buffer() {
-    BufferInfo staging_buffer_info = {
-      .type = BufferType::Upload,
-      .size = 64 * MB,
-    };
-    create_buffers(&graphics->staging_buffer, 1, &staging_buffer_info);
-
-    // Info: 1 mil vertices and indices
-    u32 vertex_count = 1'000'000;
-    u32 index_count = 1'000'000;
-
-    u32 positions_size = vertex_count * sizeof(vec3);
-    u32 normals_size = vertex_count * sizeof(vec3);
-    u32 uvs_size = vertex_count * sizeof(vec2);
-
-    // individual mesh buffers
-
-    BufferInfo positions_buffer_info = {
-      .type = BufferType::Vertex,
-      .size = positions_size,
-    };
-    create_buffers(&renderer->vertex_positions_buffer, 1, &positions_buffer_info);
-
-    BufferInfo normals_buffer_info = {
-      .type = BufferType::Vertex,
-      .size = normals_size,
-    };
-    create_buffers(&renderer->vertex_normals_buffer, 1, &normals_buffer_info);
-
-    BufferInfo uvs_buffer_info = {
-      .type = BufferType::Vertex,
-      .size = uvs_size,
-    };
-    create_buffers(&renderer->vertex_uvs_buffer, 1, &uvs_buffer_info);
-
-    // index buffer
-
-    BufferInfo index_info = {
-      .type = BufferType::Index,
-      .size = index_count * (u32)sizeof(u32)
-    };
-    create_buffers(&renderer->index_buffer, 1, &index_info);
-  }
-
-  void init_sampler() {
-    SamplerInfo texture_sampler_info = {
-      .filter_mode = FilterMode::Linear,
-      .wrap_mode = WrapMode::Repeat,
-    };
-
-    create_samplers(&renderer->texture_sampler, 1, &texture_sampler_info);
-  }
-
-  void init_render_passes() {
-    renderer->material_color_image_info = {
-      .resolution = graphics->render_resolution,
-      .format = ImageFormat::LinearRgba16,
-      .type = ImageType::RenderTargetColor,
-      .samples = ImageSamples::One,
-    };
-    create_images(renderer->material_color_images2, _FRAME_OVERLAP, &renderer->material_color_image_info);
-
-    renderer->material_color_image_info.samples = ImageSamples::Four,
-
-    create_images(renderer->material_color_images, _FRAME_OVERLAP, &renderer->material_color_image_info);
-
-    renderer->main_depth_image_info = {
-      .resolution = graphics->render_resolution,
-      .format = ImageFormat::LinearD32,
-      .type = ImageType::RenderTargetDepth,
-      .samples = ImageSamples::Four,
-    };
-    create_images(renderer->main_depth_images, _FRAME_OVERLAP, &renderer->main_depth_image_info);
-
-    // create depth prepass
-    {
-      Image* images[] = {
-        renderer->main_depth_images
-      };
-
-      VkAttachmentLoadOp load_ops[] = {
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-      };
-
-      VkAttachmentStoreOp store_ops[] = {
-        VK_ATTACHMENT_STORE_OP_STORE,
-      };
-
-      ImageUsage initial_usages[] = {
-        ImageUsage::Unknown,
-      };
-
-      ImageUsage final_usages[] = {
-        ImageUsage::RenderTargetDepth,
-      };
-
-      RenderPassInfo render_pass_info = {
-        .resolution = graphics->render_resolution,
-
-        .attachment_count = count_of(images),
-        .attachments = images,
-
-        .load_ops = load_ops,
-        .store_ops = store_ops,
-
-        .initial_usage = initial_usages,
-        .final_usage = final_usages,
-      };
-
-      create_render_pass(global_arena(), &renderer->depth_prepass, &render_pass_info);
-    }
-
-    // create main pass
-    {
-      Image* images[] = {
-        renderer->material_color_images,
-        renderer->main_depth_images,
-      };
-
-      VkAttachmentLoadOp load_ops[] = {
-        VK_ATTACHMENT_LOAD_OP_CLEAR,
-        VK_ATTACHMENT_LOAD_OP_LOAD
-      };
-
-      VkAttachmentStoreOp store_ops[] = {
-        VK_ATTACHMENT_STORE_OP_STORE,
-        VK_ATTACHMENT_STORE_OP_STORE,
-      };
-
-      ImageUsage initial_usages[] = {
-        ImageUsage::Unknown,
-        ImageUsage::RenderTargetDepth,
-      };
-
-      ImageUsage final_usages[] = {
-        ImageUsage::Texture,
-        ImageUsage::Texture,
-      };
-
-      RenderPassInfo render_pass_info = {
-        .resolution = graphics->render_resolution,
-
-        .attachment_count = count_of(images),
-        .attachments = images,
-
-        .load_ops = load_ops,
-        .store_ops = store_ops,
-
-        .initial_usage = initial_usages,
-        .final_usage = final_usages,
-      };
-
-      create_render_pass(global_arena(), &renderer->color_pass, &render_pass_info);
-    }
-  }
-
-  void init_pipelines() {
-    // init material pipelines
-    {
-      update_material(ColorMaterial, "color", "color", 256 * 1024, 128);
-      update_material(TextureMaterial, "texture", "texture", 256 * 1024, 128);
-      update_material(LitColorMaterial, "lit_color", "lit_color", 256 * 1024, 128);
-    }
-
-    // init depth prepass pipelines
-    {
-      VkDescriptorSetLayout set_layouts[renderer->material_effects[0].resource_bundle.group_count];
-      copy_descriptor_set_layouts(set_layouts, renderer->material_effects[0].resource_bundle.group_count, renderer->material_effects[0].resource_bundle.groups);
-
-      VkPushConstantRange push_constant = {};
-      push_constant.offset = 0;
-      push_constant.size = sizeof(mat4);
-      push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-      VkPipelineLayoutCreateInfo layout_info = {};
-      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = renderer->material_effects[0].resource_bundle.group_count;
-      layout_info.pSetLayouts = set_layouts;
-      layout_info.pushConstantRangeCount = 1;
-      layout_info.pPushConstantRanges = &push_constant;
-
-      vk_check(vkCreatePipelineLayout(graphics->device, &layout_info, 0, &renderer->depth_only_pipeline_layout));
-
-      VkVertexInputBindingDescription binding_descriptions[1] = {};
-      // Info: positions data
-      binding_descriptions[0].binding = 0;
-      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-      binding_descriptions[0].stride = sizeof(vec3);
-
-      VkVertexInputAttributeDescription attribute_descriptions[1] = {};
-      attribute_descriptions[0].binding = 0;
-      attribute_descriptions[0].location = 0;
-      attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-      attribute_descriptions[0].offset = 0;
-
-      // Info: layout of triangles
-      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
-      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
-      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
-      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
-      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
-
-      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
-      input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      input_assembly_info.primitiveRestartEnable = VK_FALSE;
-
-      // Info: what region of the image to render to
-      VkViewport viewport = get_viewport(graphics->render_resolution);
-      VkRect2D scissor = get_scissor(graphics->render_resolution);
-
-      VkPipelineViewportStateCreateInfo viewport_info = {};
-      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewport_info.viewportCount = 1;
-      viewport_info.pViewports = &viewport;
-      viewport_info.scissorCount = 1;
-      viewport_info.pScissors = &scissor;
-
-      // Info: how the triangles get drawn
-      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
-      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      rasterization_info.depthClampEnable = VK_FALSE;
-      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rasterization_info.depthBiasEnable = VK_FALSE;
-      rasterization_info.lineWidth = 1.0f;
-
-      // Info: msaa support
-      VkPipelineMultisampleStateCreateInfo multisample_info = {};
-      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)renderer->main_depth_image_info.samples;
-      multisample_info.sampleShadingEnable = VK_FALSE;
-      multisample_info.alphaToCoverageEnable = VK_FALSE;
-      multisample_info.alphaToOneEnable = VK_FALSE;
-
-      // Info: how depth gets handled
-      VkPipelineDepthStencilStateCreateInfo depth_info = {};
-      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-      depth_info.depthTestEnable = VK_TRUE;
-      depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
-      depth_info.depthBoundsTestEnable = VK_FALSE;
-      depth_info.stencilTestEnable = VK_FALSE;
-      depth_info.minDepthBounds = 0.0f;
-      depth_info.maxDepthBounds = 1.0f;
-
-      // Todo: suppport different blend modes
-      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
-      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      color_blend_info.logicOpEnable = VK_FALSE;
-      color_blend_info.attachmentCount = 0;
-      color_blend_info.pAttachments = 0;
-
-      // Info: vertex shader stage
-      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
-      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-      vertex_stage_info.module = get_asset<VertexShaderModule>("depth_only")->module;
-      vertex_stage_info.pName = "main";
-
-      VkPipelineShaderStageCreateInfo shader_stages[1] = {
-        vertex_stage_info,
-      };
-
-      VkGraphicsPipelineCreateInfo pipeline_info = {};
-      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipeline_info.stageCount = count_of(shader_stages);
-      pipeline_info.pStages = shader_stages;
-      pipeline_info.pVertexInputState = &vertex_input_info;
-      pipeline_info.pInputAssemblyState = &input_assembly_info;
-      pipeline_info.pViewportState = &viewport_info;
-      pipeline_info.pRasterizationState = &rasterization_info;
-      pipeline_info.pMultisampleState = &multisample_info;
-      pipeline_info.pDepthStencilState = &depth_info;
-      pipeline_info.pColorBlendState = &color_blend_info;
-      pipeline_info.layout = renderer->depth_only_pipeline_layout;
-      pipeline_info.renderPass = renderer->depth_prepass.render_pass;
-
-      // create depth prepass pipline
-      vk_check(vkCreateGraphicsPipelines(graphics->device, 0, 1, &pipeline_info, 0, &renderer->main_depth_prepass_pipeline));
-
-      // create shadow depth pipeline
-      // pipeline_info.renderPass = context->shadow_pass.render_pass;
-      // vk_check(vkCreateGraphicsPipelines(context->device, 0, 1, &pipeline_info, 0, &context->shadow_pass_pipeline));
-    }
-  }
-
-//
 // Rendering Pipeline API
 //
+
+  void begin_shadow_pass() {
+    ClearValue clear_values[] = {
+      { .depth = 0, .stencil = 0 },
+    };
+
+    begin_render_pass(graphics_commands(), frame_index(), &renderer->shadow_pass, clear_values);
+  }
+
+  void end_shadow_pass() {
+    end_render_pass(graphics_commands(), frame_index(), &renderer->shadow_pass);
+  }
 
   void begin_main_depth_prepass() {
     ClearValue clear_values[] = {
@@ -702,15 +796,19 @@ namespace quark {
       StringBuilder builder = create_string_builder(frame_arena());
       builder = builder +
         "-- Performance Statistics --\n"
-        "Target:  " + target + " ms\n"
+        "Target: " + target + " ms\n"
         "Average: " + average + " ms\n"
         "Percent: " + percent + "%\n"
-        "Fps:      " + fps + "\n"
+        "Fps: " + fps + "\n"
         "\n"
         "-- Rendering Info --\n"
-        "Draw Count:      " + renderer->saved_total_draw_count + "\n"
-        "Cull Count:      " + renderer->saved_total_culled_count + "\n"
-        "Triangle Count: " + renderer->saved_total_triangle_count + "\n"
+        "Forward Pass Draw Count: " + renderer->saved_total_draw_count + "\n"
+        "Forward Pass Cull Count: " + renderer->saved_total_culled_count + "\n"
+        "Depth Prepass Triangle Count: " + renderer->saved_total_triangle_count + "\n"
+        "Forward Pass Triangle Count: " + renderer->saved_total_triangle_count + "\n"
+        "Shadow Pass Draw Count: " + renderer->saved_shadow_total_draw_count + "\n"
+        "Shadow Pass Cull Count: " + renderer->saved_shadow_total_culled_count + "\n"
+        "Shadow Pass Triangle Count: " + renderer->saved_shadow_total_triangle_count + "\n"
         "Msaa: 4x" + "\n"
         "\n"
         "-- Job Runtimes --\n";
@@ -736,12 +834,21 @@ namespace quark {
   define_savable_resource(MainCamera, {{
     .position = VEC3_ZERO,
     .rotation = {0, 0, 0, 1},
-    .fov = 90.0f,
     .z_near = 0.01f,
     .z_far = 100000.0f,
     .projection_type = ProjectionType::Perspective,
+    .fov = 90.0f,
   }});
-  define_savable_resource(SunCamera, {});
+
+  define_savable_resource(SunCamera, {{
+    .position = {0, 0, 10},
+    .rotation = quat_from_axis_angle(VEC3_UNIT_X, F32_PI),
+    .z_near = 0.01f,
+    .z_far = 10000.0f,
+    .projection_type = ProjectionType::Orthographic,
+    .fov = 200.0f,
+    // .half_size = 5.0f,
+  }});
 
   define_savable_resource(UICamera, {});
 
@@ -753,21 +860,8 @@ namespace quark {
 
   void update_world_cameras() {
     *(mat4*)get_resource(MainCameraViewProj) = camera3d_view_projection_mat4(get_resource(MainCamera), get_window_aspect());
-    *(mat4*)get_resource(SunCameraViewProj) = camera3d_view_projection_mat4(get_resource(SunCamera), get_window_aspect());
+    *(mat4*)get_resource(SunCameraViewProj) = camera3d_view_projection_mat4(get_resource(SunCamera), 1.0f);
   }
-
-//
-// Builtin Material Types
-//
-
-  define_material(ColorMaterial);
-  define_material_world(ColorMaterial, {});
-
-  define_material(TextureMaterial);
-  define_material_world(TextureMaterial, {});
-
-  define_material(LitColorMaterial);
-  define_material_world(LitColorMaterial, {});
 
 //
 // World Data
@@ -785,6 +879,7 @@ namespace quark {
 
     world_data->main_view_projection = *get_resource_as(MainCameraViewProj, mat4);
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
+    world_data->sun_direction = as_vec4(quat_forward(get_resource_as(SunCamera, Camera3D)->rotation), 0.0f);
     world_data->time = (f32)get_timestamp();
 
     {
@@ -829,20 +924,23 @@ namespace quark {
   }
 
   void build_material_batch_commands() {
-    MainCamera* camera = get_resource(MainCamera);
-    FrustumPlanes frustum = camera3d_frustum_planes(camera);
+    FrustumPlanes main_frustum = camera3d_frustum_planes(get_resource(MainCamera));
+    FrustumPlanes shadow_frustum = camera3d_frustum_planes(get_resource(SunCamera));
 
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
 
-    VkDrawIndexedIndirectCommand* indirect_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->indirect_commands[graphics->frame_index]);
-    defer(unmap_buffer(&renderer->indirect_commands[graphics->frame_index]));
+    VkDrawIndexedIndirectCommand* forward_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->forward_pass_commands[graphics->frame_index]);
+    defer(unmap_buffer(&renderer->forward_pass_commands[graphics->frame_index]));
+  
+    VkDrawIndexedIndirectCommand* shadow_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->shadow_pass_commands[graphics->frame_index]);
+    defer(unmap_buffer(&renderer->shadow_pass_commands[graphics->frame_index]));
 
-    // Info: build indirect commands and update material properties
+    // Build indirect commands and update material properties
     for_every(i, renderer->materials_count) {
       MaterialInfo* info = &renderer->infos[i];
       MaterialBatch* batch = &renderer->batches[i];
 
-      // Info: update material world data
+      // Update material world data
       {
         Buffer* material_world_buffer = &info->world_buffers[graphics->frame_index];
         void* material_world_ptr = info->world_ptr;
@@ -853,54 +951,92 @@ namespace quark {
         unmap_buffer(material_world_buffer);
       }
 
-      // Info: map indirect draw commands buffer
-      u8* material_data = (u8*)map_buffer(&info->material_buffers[graphics->frame_index]);
-      defer(unmap_buffer(&info->material_buffers[graphics->frame_index]));
+      // Write material data to gpu
+      {
+        // Map indirect draw commands buffer
+        u8* material_data = (u8*)map_buffer(&info->material_buffers[graphics->frame_index]);
+        defer(unmap_buffer(&info->material_buffers[graphics->frame_index]));
 
-      u8* transform_data = (u8*)map_buffer(&info->transform_buffers[graphics->frame_index]);
-      defer(unmap_buffer(&info->transform_buffers[graphics->frame_index]));
-    
-      for_every(index, batch->batch_count) {
+        u8* transform_data = (u8*)map_buffer(&info->transform_buffers[graphics->frame_index]);
+        defer(unmap_buffer(&info->transform_buffers[graphics->frame_index]));
+
+        Drawable* transforms = batch->drawables_batch; // "Drawawbles" map directly to "Transforms" on the shader side of things
+        u8* materials = batch->materials_batch;
+
+        usize transforms_size = sizeof(Drawable) * batch->batch_count;
+        usize materials_size = info->material_size * batch->batch_count;
+
+        // Copy data from buffers to GPU
+
+        copy_mem(transform_data, transforms, transforms_size);
+        copy_mem(material_data, materials, materials_size);
+      }
+
+      // Write forward pass commands
+      for_iter(u32, index, 0, batch->batch_count) {
         Drawable* drawable = &batch->drawables_batch[index];
-        u8* material = &batch->materials_batch[index * info->material_size];
         MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
-      
+
+        // Check for frustum culling
         f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
-        if(!is_sphere_visible(&frustum, drawable->transform.position, radius2)) {
+        if(!is_sphere_visible(&main_frustum, drawable->transform.position, radius2)) {
           renderer->material_cull_count[i] += 1;
           continue;
         }
 
         renderer->total_triangle_count += (mesh_instance->count / 3);
-      
-        indirect_commands[renderer->total_draw_count + renderer->material_draw_count[i]] = {
+
+        forward_pass_commands[renderer->total_draw_count + renderer->material_draw_count[i]] = {
           .indexCount = mesh_instance->count,
           .instanceCount = 1,
           .firstIndex = mesh_instance->offset,
           .vertexOffset = 0,
-          .firstInstance = renderer->material_draw_count[i], // material index
+          .firstInstance = index, // material index
         };
-      
-        copy_mem(material_data, material, info->material_size);
-        copy_mem(transform_data, drawable, sizeof(Drawable));
-      
-        material_data += info->material_size;
-        transform_data += sizeof(Drawable);
-    
+
         renderer->material_draw_count[i] += 1;
       }
-    
+
       renderer->material_draw_offset[i] = renderer->total_draw_count;
       renderer->total_draw_count += renderer->material_draw_count[i];
       renderer->total_culled_count += renderer->material_cull_count[i];
+
+      // Write shadow pass commands
+      for_iter(u32, index, 0, batch->batch_count) {
+        Drawable* drawable = &batch->drawables_batch[index];
+        MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+        // Check for frustum culling
+        f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+        if(!is_sphere_visible(&shadow_frustum, drawable->transform.position, radius2)) {
+          renderer->shadow_cull_count[i] += 1;
+          continue;
+        }
+
+        renderer->shadow_total_triangle_count += (mesh_instance->count / 3);
+
+        shadow_pass_commands[renderer->shadow_total_draw_count + renderer->shadow_draw_count[i]] = {
+          .indexCount = mesh_instance->count,
+          .instanceCount = 1,
+          .firstIndex = mesh_instance->offset,
+          .vertexOffset = 0,
+          .firstInstance = index, // material index
+        };
+
+        renderer->shadow_draw_count[i] += 1;
+      }
+
+      renderer->shadow_draw_offset[i] = renderer->shadow_total_draw_count;
+      renderer->shadow_total_draw_count += renderer->shadow_draw_count[i];
+      renderer->shadow_total_culled_count += renderer->shadow_cull_count[i];
     }
   }
 
   void draw_material_batches() {
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
-    VkBuffer indirect_commands_buffer = renderer->indirect_commands[graphics->frame_index].buffer;
+    VkBuffer indirect_commands_buffer = renderer->forward_pass_commands[graphics->frame_index].buffer;
 
-    // Info: draw materials
+    // Draw materials
     {
       VkDeviceSize offsets[] = { 0, 0, 0 };
       VkBuffer buffers[] = {
@@ -928,13 +1064,25 @@ namespace quark {
   }
 
   void reset_material_batches() {
+    // save values
+
     renderer->saved_total_draw_count = renderer->total_draw_count;
     renderer->saved_total_culled_count = renderer->total_culled_count;
     renderer->saved_total_triangle_count = renderer->total_triangle_count;
 
+    renderer->saved_shadow_total_draw_count = renderer->shadow_total_draw_count;
+    renderer->saved_shadow_total_culled_count = renderer->shadow_total_culled_count;
+    renderer->saved_shadow_total_triangle_count = renderer->shadow_total_triangle_count;
+
+    // reset values
+
     renderer->total_draw_count = 0;
     renderer->total_culled_count = 0;
     renderer->total_triangle_count = 0;
+
+    renderer->shadow_total_draw_count = 0;
+    renderer->shadow_total_culled_count = 0;
+    renderer->shadow_total_triangle_count = 0;
 
     for_every(i, renderer->materials_count) {
       renderer->batches[i].batch_count = 0;
@@ -942,12 +1090,16 @@ namespace quark {
       renderer->material_draw_count[i] = 0;
       renderer->material_draw_offset[i] = 0;
       renderer->material_cull_count[i] = 0;
+    
+      renderer->shadow_draw_count[i] = 0;
+      renderer->shadow_draw_offset[i] = 0;
+      renderer->shadow_cull_count[i] = 0;
     }
   }
 
-  void draw_material_batches_depth_only(mat4* view_projection) {
+  void draw_material_batches_depth_only(VkPipeline pipeline, VkBuffer commands_buffer, mat4* view_projection, u32* offsets, u32* counts) {
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
-    VkBuffer indirect_commands_buffer = renderer->indirect_commands[graphics->frame_index].buffer;
+    // VkBuffer indirect_commands_buffer = renderer->indirect_commands[graphics->frame_index].buffer;
 
     // Info: draw depth only
     VkDeviceSize offsets_depth_only[] = { 0, };
@@ -958,283 +1110,468 @@ namespace quark {
     vkCmdBindVertexBuffers(commands, 0, count_of(buffers_depth_only), buffers_depth_only, offsets_depth_only);
     vkCmdBindIndexBuffer(commands, renderer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    VkPipeline pipeline = renderer->main_depth_prepass_pipeline;
+    // VkPipeline pipeline = renderer->main_depth_prepass_pipeline;
     VkPipelineLayout layout = renderer->depth_only_pipeline_layout;
 
     vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     for_every(i, renderer->materials_count) {
-      if(renderer->material_draw_count[i] == 0) {
+      if(counts[i] == 0) {
         continue;
       }
     
       bind_resource_bundle(commands, layout, &renderer->material_effects[i].resource_bundle, graphics->frame_index);
 
       vkCmdPushConstants(commands, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), view_projection);
-      vkCmdDrawIndexedIndirect(commands, indirect_commands_buffer,
-        renderer->material_draw_offset[i] * sizeof(VkDrawIndexedIndirectCommand),
-        renderer->material_draw_count[i], sizeof(VkDrawIndexedIndirectCommand));
+      vkCmdDrawIndexedIndirect(commands, commands_buffer,
+        offsets[i] * sizeof(VkDrawIndexedIndirectCommand),
+        counts[i], sizeof(VkDrawIndexedIndirectCommand));
     }
   }
 
   void draw_material_batches_depth_prepass() {
-    draw_material_batches_depth_only(get_resource(MainCameraViewProj));
+    draw_material_batches_depth_only(
+      renderer->main_depth_prepass_pipeline, renderer->forward_pass_commands[graphics->frame_index].buffer,
+      get_resource(MainCameraViewProj), renderer->material_draw_offset, renderer->material_draw_count);
   }
 
-//
-// UI API
-//
+  void draw_material_batches_shadows() {
+    draw_material_batches_depth_only(
+      renderer->shadow_pass_pipeline, renderer->shadow_pass_commands[graphics->frame_index].buffer,
+      get_resource(SunCameraViewProj), renderer->shadow_draw_offset, renderer->shadow_draw_count);
+  }
 
-  void init_ui_context() {
-    BufferInfo ui_info = {
-      .type = BufferType::VertexUpload,
-      .size = _ui->ui_vertex_capacity * (u32)sizeof(UiVertex),
+  Model create_model(const char* mesh_name, vec3 scale) {
+    MeshId id = *get_asset<MeshId>(mesh_name);
+
+    return Model {
+      .half_extents = scale * renderer->mesh_scales[(u32)id],
+      .id = id,
     };
-    create_buffers(_ui->ui_vertex_buffers, 3, &ui_info);
+  }
 
-    _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[0]);
-    // _ui->ptr = (UiVertex*)push_arena(global_arena(), _ui->ui_vertex_capacity * sizeof(UiVertex));
 
-    {
-      VkPipelineLayoutCreateInfo layout_info = {};
-      layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      layout_info.setLayoutCount = 0;
-      layout_info.pSetLayouts = 0;
-      layout_info.pushConstantRangeCount = 0;
-      layout_info.pPushConstantRanges = 0;
+  #define inc_bytes(buf, type, count) (type*)(buf); (buf) += sizeof(type) * (count)
 
-      vk_check(vkCreatePipelineLayout(_context->device, &layout_info, 0, &_ui->ui_pipeline_layout));
+  void load_obj_file(const char* path, const char* name) {
+    TempStack scratch = begin_scratch(0, 0);
+    defer({
+      end_scratch(scratch);
+    });
 
-      VkVertexInputBindingDescription binding_descriptions[1] = {};
-      binding_descriptions[0].binding = 0;
-      binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-      binding_descriptions[0].stride = sizeof(UiVertex);
-
-      VkVertexInputAttributeDescription attribute_descriptions[3] = {};
-      attribute_descriptions[0].binding = 0;
-      attribute_descriptions[0].location = 0;
-      attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-      attribute_descriptions[0].offset = offsetof(UiVertex, position);
-
-      attribute_descriptions[1].binding = 0;
-      attribute_descriptions[1].location = 1;
-      attribute_descriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-      attribute_descriptions[1].offset = offsetof(UiVertex, color);
-
-      attribute_descriptions[2].binding = 0;
-      attribute_descriptions[2].location = 2;
-      attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-      attribute_descriptions[2].offset = offsetof(UiVertex, normal);
-
-      // Info: layout of triangles
-      VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
-      vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-      vertex_input_info.vertexBindingDescriptionCount = count_of(binding_descriptions);
-      vertex_input_info.pVertexBindingDescriptions = binding_descriptions;
-      vertex_input_info.vertexAttributeDescriptionCount = count_of(attribute_descriptions);
-      vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
-
-      VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {};
-      input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      input_assembly_info.primitiveRestartEnable = VK_FALSE;
-
-      // Info: what region of the image to render to
-      VkViewport viewport = get_viewport(_context->render_resolution);
-      VkRect2D scissor = get_scissor(_context->render_resolution);
-
-      VkPipelineViewportStateCreateInfo viewport_info = {};
-      viewport_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewport_info.viewportCount = 1;
-      viewport_info.pViewports = &viewport;
-      viewport_info.scissorCount = 1;
-      viewport_info.pScissors = &scissor;
-
-      // Info: how the triangles get drawn
-      VkPipelineRasterizationStateCreateInfo rasterization_info = {};
-      rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      rasterization_info.depthClampEnable = VK_FALSE;
-      rasterization_info.rasterizerDiscardEnable = VK_FALSE;
-      rasterization_info.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterization_info.cullMode = VK_CULL_MODE_NONE;
-      rasterization_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rasterization_info.depthBiasEnable = VK_FALSE;
-      rasterization_info.lineWidth = 1.0f;
-
-      // Info: msaa support
-      VkPipelineMultisampleStateCreateInfo multisample_info = {};
-      multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisample_info.rasterizationSamples = (VkSampleCountFlagBits)_context->material_color_image_info.samples;
-      multisample_info.sampleShadingEnable = VK_FALSE;
-      multisample_info.alphaToCoverageEnable = VK_FALSE;
-      multisample_info.alphaToOneEnable = VK_FALSE;
-
-      // Info: how depth gets handled
-      VkPipelineDepthStencilStateCreateInfo depth_info = {};
-      depth_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-      depth_info.depthTestEnable = VK_TRUE;
-      depth_info.depthWriteEnable = VK_TRUE;
-      depth_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-      depth_info.depthBoundsTestEnable = VK_FALSE;
-      depth_info.stencilTestEnable = VK_FALSE;
-      depth_info.minDepthBounds = 1.0f;
-      depth_info.maxDepthBounds = 0.0f;
-
-      // Info: alpha blending info
-      VkPipelineColorBlendAttachmentState color_blend_state = {};
-      color_blend_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      color_blend_state.blendEnable = VK_TRUE;
-      color_blend_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-      color_blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      color_blend_state.colorBlendOp = VK_BLEND_OP_ADD;
-      color_blend_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-      color_blend_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-      color_blend_state.alphaBlendOp = VK_BLEND_OP_ADD;
-
-      // Todo: suppport different blend modes
-      VkPipelineColorBlendStateCreateInfo color_blend_info = {};
-      color_blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      color_blend_info.logicOpEnable = VK_FALSE;
-      color_blend_info.attachmentCount = 1;
-      color_blend_info.pAttachments = &color_blend_state;
-
-      // Info: shader stages
-      VkPipelineShaderStageCreateInfo vertex_stage_info = {};
-      vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-      vertex_stage_info.module = get_asset<VertexShaderModule>("ui")->module;
-      vertex_stage_info.pName = "main";
-
-      VkPipelineShaderStageCreateInfo fragment_stage_info = {};
-      fragment_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      fragment_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-      fragment_stage_info.module = get_asset<FragmentShaderModule>("ui")->module;
-      fragment_stage_info.pName = "main";
-
-      VkPipelineShaderStageCreateInfo shader_stages[] = {
-        vertex_stage_info,
-        fragment_stage_info,
-      };
-
-      VkGraphicsPipelineCreateInfo pipeline_info = {};
-      pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipeline_info.stageCount = count_of(shader_stages);
-      pipeline_info.pStages = shader_stages;
-      pipeline_info.pVertexInputState = &vertex_input_info;
-      pipeline_info.pInputAssemblyState = &input_assembly_info;
-      pipeline_info.pViewportState = &viewport_info;
-      pipeline_info.pRasterizationState = &rasterization_info;
-      pipeline_info.pMultisampleState = &multisample_info;
-      pipeline_info.pDepthStencilState = &depth_info;
-      pipeline_info.pColorBlendState = &color_blend_info;
-      pipeline_info.layout = _ui->ui_pipeline_layout;
-      pipeline_info.renderPass = _context->color_pass.render_pass;
-
-      vk_check(vkCreateGraphicsPipelines(_context->device, 0, 1, &pipeline_info, 0, &_ui->ui_pipeline));
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+  
+    std::string warn;
+    std::string err;
+  
+    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path, 0);
+  
+    if (!warn.empty()) {
+      log_warning("OBJ WARNING: " + warn.c_str());
     }
+  
+    if (!err.empty()) {
+      panic("OBJ ERROR: " + err.c_str());
+    }
+  
+    // usize size = 0;
+    // for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
+  
+    // usize memsize = size * sizeof(VertexPNT);
+    // VertexPNT* vertex_data = (VertexPNT*)push_arena(stack.arena, memsize);
 
-    {
-      // if(ttf_load_from_file("quark/fonts/Roboto-Medium.ttf", &font, false) != TTF_DONE) {
-      if(ttf_load_from_file("quark/fonts/SpaceMono-Bold.ttf", &font, false) != TTF_DONE) {
-        panic("Failed to load font file!\n");
-      }
+    // usize vertex_count = attrib.vertices.size();
+    // VertexPNT* vertex_data2 = push_array_arena(stack.arena, VertexPNT, vertex_count);
 
-      Arena* arena = global_arena();
+    vec3 max_extents = { 0.0f, 0.0f, 0.0f };
+    vec3 min_extents = { 0.0f, 0.0f, 0.0f };
 
-      for_every(letter, char_counts) {
-        int i = ttf_find_glyph(font, '!' + letter);
+    // std::unordered_map<VertexPNT, u32> unique_vertices{};
+    // std::vector<VertexPNT> vertices = {};
+    std::vector<vec3> positions_unmapped = {};
+    std::vector<vec3> normals_unmapped = {};
+    std::vector<vec2> uvs_unmapped = {};
+    std::vector<u32> indices_unmapped = {};
+    
+    for (const auto& shape : shapes) {
+      for (const auto& idx : shape.mesh.indices) {
+        // vertex position
 
-      
-        ttf_mesh_t* m;
-        if(ttf_glyph2mesh(&font->glyphs[i], &m, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT) != TTF_DONE) {
-          panic("");
-        }
+        vec3 position = vec3 {
+          .x = attrib.vertices[(3 * idx.vertex_index) + 0],
+          .y = attrib.vertices[(3 * idx.vertex_index) + 1],
+          .z = attrib.vertices[(3 * idx.vertex_index) + 2],
+        };
 
-        if(ttf_glyph2mesh3d(&font->glyphs[i], &mesh, TTF_QUALITY_NORMAL, TTF_FEATURES_DFLT, 0.01f) != TTF_DONE) {
-          panic("Failed to triangulate font!\n");
-        }
+        positions_unmapped.push_back(position);
 
-        glyphs[letter] = &font->glyphs[i];
+        vec3 normal = vec3 {
+          .x = attrib.normals[(3 * idx.normal_index) + 0],
+          .y = attrib.normals[(3 * idx.normal_index) + 1],
+          .z = attrib.normals[(3 * idx.normal_index) + 2],
+        };
 
-        text_counts[letter] = (m->nfaces * 3);
-        text_verts[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
-        text_norms[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
+        normals_unmapped.push_back(normal);
 
-        u32 offset = 0;
-        for_every(i, m->nfaces) {
-          vec2 p1 = vec2 { mesh->vert[mesh->faces[i].v1].x, mesh->vert[mesh->faces[i].v1].y };
-          vec2 p2 = vec2 { mesh->vert[mesh->faces[i].v2].x, mesh->vert[mesh->faces[i].v2].y };
-          vec2 p3 = vec2 { mesh->vert[mesh->faces[i].v3].x, mesh->vert[mesh->faces[i].v3].y };
+        // f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
+        // f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
+        // f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
+        // vertex normal
+  
+        vec2 uv = vec2 {
+          .x = attrib.texcoords[(2 * idx.texcoord_index) + 0],
+          .y = attrib.texcoords[(2 * idx.texcoord_index) + 1],
+        };
 
-          vec2 n1 = {}; // = vec2 { mesh->normals[mesh->faces[i].v1].x, mesh->normals[mesh->faces[i].v1].y };
-          vec2 n2 = {}; // = vec2 { mesh->normals[mesh->faces[i].v2].x, mesh->normals[mesh->faces[i].v2].y };
-          vec2 n3 = {}; // = vec2 { mesh->normals[mesh->faces[i].v3].x, mesh->normals[mesh->faces[i].v3].y };
+        uvs_unmapped.push_back(uv);
 
-          for_range(z, 0, mesh->nfaces) {
-            for_every(y, 3) {
-              i32 v;
+        // indices_unmapped.push_back(positions_unmapped.size() - 1);
+  
+        // copy it into our vertex
+        // VertexPNT vertex = {};
+        // vertex.position.x = vx;
+        // vertex.position.y = vy;
+        // vertex.position.z = vz;
+  
+        // vertex.normal.x = nx;
+        // vertex.normal.y = ny;
+        // vertex.normal.z = nz;
+  
+        // vertex.texture.x = tx;
+        // vertex.texture.y = 1.0f - ty; // Info: flipped cus .obj
 
-              if(y == 0) {
-                v = mesh->faces[z].v1;
-              } else if(y == 1) {
-                v = mesh->faces[z].v2;
-              } else {
-                v = mesh->faces[z].v3;
-              }
+        // vertices.push_back(vertex);
+        // indices.push_back(indices.size());
+  
+        // if(unique_vertices.count(vertex) == 0) {
+        //   unique_vertices[vertex] = (u32)vertices.size();
+        //   vertices.push_back(vertex);
+        //   // printf("new vertex!\n");
+        //   // dump_struct(&vertex);
 
-              vec2 p = vec2 { mesh->vert[v].x, mesh->vert[v].y };
-              vec3 n = vec3 { mesh->normals[v].x, mesh->normals[v].y, mesh->normals[v].z };
+        // //   // Info: find mesh extents
+        max_extents.x = max(max_extents.x, position.x);
+        max_extents.y = max(max_extents.y, position.y);
+        max_extents.z = max(max_extents.z, position.z);
 
-              // if(n.z != 0.0f) {
-              //   continue;
-              // }
-
-              if(p1 == p) {
-                n1 += swizzle(n, 0, 1);
-              }
-              if(p2 == p) {
-                n2 += swizzle(n, 0, 1);
-              }
-              if(p3 == p) {
-                n3 += swizzle(n, 0, 1);
-              }
-            }
-          }
-
-          n1 = normalize(n1);
-          n2 = normalize(n2);
-          n3 = normalize(n3);
-          // n1 /= n1n;
-          // n2 /= n2n;
-          // n3 /= n3n;
-
-          // n1 = normalize(n1);
-          // n2 = normalize(n2);
-          // n3 = normalize(n3);
-
-          // f32 y = mesh->normals[mesh->faces[i].v3].y;
-
-          // log("x: " + mesh->normals[mesh->faces[i + (mesh->nfaces / 2)].v1].x);
-
-          text_verts[letter][(i * 3) + 0] = p1;
-          text_verts[letter][(i * 3) + 1] = p2;
-          text_verts[letter][(i * 3) + 2] = p3;
-
-          text_norms[letter][(i * 3) + 0] = n1;
-          text_norms[letter][(i * 3) + 1] = n2;
-          text_norms[letter][(i * 3) + 2] = n3;
-        }
-
-        // for_every(i, mesh->nfaces * 3) {
-        //   vec2 p1 = text_verts[letter][i];
-        //   vec2 p2, p3;
-        //   find_closest_2(text_verts[letter], mesh->nfaces * 3, p1, &p2, &p3);
-        //   text_norms[letter][i] = (normalize(p1 - p2) + normalize(p1 - p3)) / 2.0f;;
+        min_extents.x = min(min_extents.x, position.x);
+        min_extents.y = min(min_extents.y, position.y);
+        min_extents.z = min(min_extents.z, position.z);
         // }
-
-        ttf_free_mesh3d(mesh);
-        ttf_free_mesh(m);
+  
+        // indices.push_back(unique_vertices[vertex]);
+        // printf("index: %d\n", indices[indices.size() - 1]);
       }
     }
+  
+    vec3 extents = {};
+    extents.x = (max_extents.x - min_extents.x);
+    extents.y = (max_extents.y - min_extents.y);
+    extents.z = (max_extents.z - min_extents.z);
+
+    for_every(i, positions_unmapped.size()) {
+      positions_unmapped[i] /= (extents * 0.5f);
+    }
+
+    meshopt_Stream streams[] = {
+      { positions_unmapped.data(), sizeof(vec3), sizeof(vec3) },
+      { normals_unmapped.data(), sizeof(vec3), sizeof(vec3) },
+      { uvs_unmapped.data(), sizeof(vec2), sizeof(vec2) },
+    };
+
+    // Todo: Finish this
+    usize index_count = positions_unmapped.size(); // indices_unmapped.size();
+    std::vector<u32> remap(index_count);
+    usize vertex_count = meshopt_generateVertexRemapMulti(remap.data(), NULL, index_count, index_count, streams, 3);
+
+    std::vector<u32> indices(index_count);
+    meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
+
+    std::vector<vec3> positions(vertex_count);
+    std::vector<vec3> normals(vertex_count);
+    std::vector<vec2> uvs(vertex_count);
+
+    meshopt_remapVertexBuffer(positions.data(), positions_unmapped.data(), index_count, sizeof(vec3), remap.data());
+    meshopt_remapVertexBuffer(normals.data(), normals_unmapped.data(), index_count, sizeof(vec3), remap.data());
+    meshopt_remapVertexBuffer(uvs.data(), uvs_unmapped.data(), index_count, sizeof(vec2), remap.data());
+
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
+
+    u8* buffer_i = arena_push(scratch.arena, 2 * MB);
+    usize buffer_i_size = meshopt_encodeIndexBuffer(buffer_i, 2 * MB, indices.data(), indices.size());
+
+    u8* buffer_p = arena_push(scratch.arena, 2 * MB);
+    usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 2 * MB, positions.data(), positions.size(), sizeof(vec3));
+
+    u8* buffer_n = arena_push(scratch.arena, 2 * MB);
+    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 2 * MB, normals.data(), normals.size(), sizeof(vec3));
+
+    u8* buffer_u = arena_push(scratch.arena, 2 * MB);
+    usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 2 * MB, uvs.data(), uvs.size(), sizeof(vec2));
+
+    // usize buffer_size = buffer_i_size + buffer_p_size + buffer_n_size + buffer_u_size;
+    u8* buffer = arena_push(scratch.arena, 0); // push_arena(scratch.arena, 8 * MB);
+    arena_copy(scratch.arena, buffer_i, buffer_i_size);
+    arena_copy(scratch.arena, buffer_p, buffer_p_size);
+    arena_copy(scratch.arena, buffer_n, buffer_n_size);
+    arena_copy(scratch.arena, buffer_u, buffer_u_size);
+    u8* end = arena_push(scratch.arena, 0);
+    usize buffer_size = (usize)(end - buffer);
+    // copy_mem(buffer, buffer_i, buffer_i_size);
+    // copy_mem(buffer + buffer_i_size, buffer_p, buffer_p_size);
+    // copy_mem(buffer + buffer_i_size + buffer_p_size, buffer_n, buffer_n_size);
+    // copy_mem(buffer + buffer_i_size + buffer_p_size + buffer_n_size, buffer_u, buffer_u_size);
+
+    u8* buffer2 = arena_push(scratch.arena, 2 * MB);
+    i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 2 * MB);
+
+    u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
+    #ifdef DEBUG
+    log_message("Compressed mesh " + (1.0f - (buffer2_size / (f32)before_size)) * 100.0f + "%");
+    #endif
+
+    // meshopt_optimizeVertexFetch()
+
+    // MeshId id = (MeshId)renderer->mesh_counts;
+    // renderer->mesh_counts += 1;
+
+    // struct MeshScale : vec3 {};
+
+    // renderer->mesh_instances[(u32)id] = create_mesh(positions.data(), normals.data(), uvs.data(), positions.size(), indices.data(), indices.size());
+    // //vertices.data(), vertices.size(), indices.data(), indices.size());
+    // renderer->mesh_scales[(u32)id] = normalize_max_length(extents, 2.0f);
+
+    // add_asset(name, id);
+
+    char test[64];
+    sprintf(test, "quark/qmesh/%s.qmesh", name);
+
+    static uint64_t UUID_LO = 0xa70e90948be13cb1;
+    static uint64_t UUID_HI = 0x847f281e519ba44f;
+
+    File* f = open_file_panic_with_error(test, "wb", "Failed to open qmesh file for writing!");
+    defer(close_file(f));
+
+    MeshFileHeader header = {};
+    header.uuid_lo = UUID_LO;
+    header.uuid_hi = UUID_HI;
+    header.version = 1;
+    header.vertex_count = positions.size();
+    header.index_count = indices.size();
+    header.indices_encoded_size = buffer_i_size;
+    header.positions_encoded_size = buffer_p_size;
+    header.normals_encoded_size = buffer_n_size;
+    header.uvs_encoded_size = buffer_u_size;
+    header.lod_count = 1;
+    header.half_extents = extents;
+
+    file_write(f, &header, sizeof(MeshFileHeader));
+
+    // dump_struct(&header);
+
+    MeshFileLod lod0 = {};
+    lod0.vertex_offset = 0;
+    lod0.vertex_count = positions.size();
+    lod0.index_offset = 0;
+    lod0.index_count = indices.size();
+    lod0.threshold = 0.5f;
+
+    file_write(f, &lod0, sizeof(MeshFileLod));
+
+    // printf("%s\n", name);
+
+    // u8* decomp_bytes = push_arena(scratch.arena, 8 * MB);
+    // u8* decomp_bytes = push_arena(scratch.arena, 0);
+    // usize start = get_arena_pos(scratch.arena);
+    // copy_array_arena(scratch.arena, indices.data(), u32, indices.size());
+    // copy_array_arena(scratch.arena, positions.data(), vec3, positions.size());
+    // copy_array_arena(scratch.arena, normals.data(), vec3, normals.size());
+    // copy_array_arena(scratch.arena, uvs.data(), vec2, uvs.size());
+
+    // // u32* indices2 = inc_bytes(decomp_bytes, u32, indices.size());
+    // // copy_array(indices2, indices.data(), u32, indices.size());
+    // usize end = get_arena_pos(scratch.arena);
+    // i32 decomp_size = end - start;
+    // printf("decomp_size: %d\n", decomp_size);
+
+    // u8* comp_bytes = push_arena(scratch.arena, 8 * MB);
+    // i32 comp_size = LZ4_compress_default((const char*)decomp_bytes, (char*)comp_bytes, decomp_size, 8 * MB);
+    // printf("comp_size: %d\n", comp_size);
+
+    // fwrite(comp_bytes, 1, comp_size, f);
+    file_write(f, buffer2, buffer2_size);
+
+    // fwrite(indices.data(), sizeof(u32), indices.size(), f);
+    // fwrite(positions.data(), sizeof(vec3), positions.size(), f);
+    // fwrite(normals.data(), sizeof(vec3), normals.size(), f);
+    // fwrite(uvs.data(), sizeof(vec3), uvs.size(), f);
+  }
+
+  void load_qmesh_file(const char* path, const char* name) {
+    static uint64_t UUID_LO = 0xa70e90948be13cb1;
+    static uint64_t UUID_HI = 0x847f281e519ba44f;
+
+    File* f = open_file_panic_with_error(path, "rb", "Failed to open qmesh file for reading!");
+    defer(close_file(f));
+
+    usize fsize = file_size(f);
+
+    if(fsize < sizeof(MeshFileHeader)) {
+      panic("Attempted to load mesh file: " + name + ".qmesh but it was too small to be a mesh file!\n");
+    }
+
+    TempStack scratch = begin_scratch(0, 0);
+    defer(end_scratch(scratch));
+
+    u8* raw_bytes = arena_push(scratch.arena, fsize);
+    file_read(f, raw_bytes, fsize);
+
+    MeshFile file = {};
+
+    file.header = inc_bytes(raw_bytes, MeshFileHeader, 1);
+
+    // dump_struct(file.header);
+
+    if(file.header->uuid_lo != UUID_LO || file.header->uuid_hi != UUID_HI) {
+      panic("Attempted to load mesh file: " + name + ".qmesh but it was not the correct format!\n");
+    }
+
+    file.lods = inc_bytes(raw_bytes, MeshFileLod, file.header->lod_count);
+
+    u32 comp_size = fsize - sizeof(MeshFileHeader) - (sizeof(MeshFileLod) * file.header->lod_count);
+    // printf("comp_size: %u\n", comp_size);
+
+    // decompress
+    u8* decomp_bytes = arena_push(scratch.arena, 2 * MB);
+    i32 decomp_size = LZ4_decompress_safe((char*)raw_bytes, (char*)decomp_bytes, comp_size, 2 * MB);
+    // printf("decomp_size: %u\n", decomp_size);
+
+    file.indices = (u32*)arena_push(scratch.arena, 2 * MB);
+    meshopt_decodeIndexBuffer(file.indices, file.header->index_count, sizeof(u32), decomp_bytes, file.header->indices_encoded_size);
+    decomp_bytes += file.header->indices_encoded_size;
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.positions = (vec3*)arena_push(scratch.arena, 2 * MB);
+    meshopt_decodeVertexBuffer(file.positions, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->positions_encoded_size);
+    decomp_bytes += file.header->positions_encoded_size;
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.normals = (vec3*)arena_push(scratch.arena, 2 * MB);
+    meshopt_decodeVertexBuffer(file.normals, file.header->vertex_count, sizeof(vec3), decomp_bytes, file.header->normals_encoded_size);
+    decomp_bytes += file.header->normals_encoded_size;
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    file.uvs = (vec2*)arena_push(scratch.arena, 2 * MB);
+    meshopt_decodeVertexBuffer(file.uvs, file.header->vertex_count, sizeof(vec2), decomp_bytes, file.header->uvs_encoded_size);
+    decomp_bytes += file.header->uvs_encoded_size;
+    decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    #ifdef DEBUG
+    log_message("decomp_size: " + decomp_size);
+    #endif
+
+    // u8* buffer_p = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, positions.data(), positions.size(), sizeof(vec3));
+
+    // u8* buffer_n = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, normals.data(), normals.size(), sizeof(vec3));
+
+    // u8* buffer_u = push_arena(scratch.arena, 8 * MB);
+    // usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_p, 8 * MB, uvs.data(), uvs.size(), sizeof(vec2));
+
+    // file.indices = inc_bytes(decomp_bytes, u32, file.header->index_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.positions = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.normals = inc_bytes(decomp_bytes, vec3, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    // file.uvs = inc_bytes(decomp_bytes, vec2, file.header->vertex_count);
+    // decomp_bytes = (u8*)align_forward((usize)decomp_bytes, 8);
+
+    MeshId id = (MeshId)renderer->mesh_counts;
+    renderer->mesh_counts += 1;
+
+    struct MeshScale : vec3 {};
+
+    renderer->mesh_instances[(u32)id] = create_mesh(file.positions, file.normals, file.uvs, file.header->vertex_count, file.indices, file.header->index_count);
+    renderer->mesh_scales[(u32)id] = normalize_to_max_length(file.header->half_extents, 2.0f);
+
+    #ifdef DEBUG
+    log_message(name + ": " + file.header->index_count);
+    #endif
+
+    add_asset(name, id);
+  }
+
+  void load_png_file(const char* path, const char* name) {
+    Image* image = &renderer->textures[renderer->texture_count];
+
+    int width, height, channels;
+    stbi_uc* pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+
+    if(!pixels) {
+      panic("Failed to load texture file \"" + path + "\"");
+    }
+
+    u64 image_size = width * height * 4;
+
+    ImageInfo info = {
+      .resolution = { width, height },
+      .format = ImageFormat::LinearRgba8,
+      .type = ImageType::Texture,
+      .samples = ImageSamples::One,
+    };
+    create_images(image, 1, &info);
+
+    write_buffer(&graphics->staging_buffer, 0, pixels, 0, image_size);
+
+    VkCommandBuffer commands = begin_quick_commands2();
+    copy_buffer_to_image(commands, image, &graphics->staging_buffer);
+    transition_image(commands, image, ImageUsage::Texture);
+    end_quick_commands2(commands);
+
+    stbi_image_free(pixels);
+
+    add_asset(name, (ImageId)renderer->texture_count);
+
+    renderer->texture_count += 1;
+  }
+
+  VkShaderModule create_shader_module(const char* path) {
+    TempStack scratch = begin_scratch(0, 0);
+    defer(end_scratch(scratch));
+
+    auto [buffer, size] = read_entire_file(scratch.arena, path);
+  
+    VkShaderModuleCreateInfo module_create_info = {};
+    module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    module_create_info.codeSize = size;
+    module_create_info.pCode = (u32*)buffer;
+  
+    VkShaderModule module = {};
+    if(vkCreateShaderModule(graphics->device, &module_create_info, 0, &module) != VK_SUCCESS) {
+      panic("create shader module!\n");
+    };
+  
+    return module;
+  }
+
+  void load_vert_shader(const char* path, const char* name) {
+    VertexShaderModule vert_module = {
+      .module = create_shader_module(path),
+    };
+    add_asset(name, vert_module);
+  }
+
+  void load_frag_shader(const char* path, const char* name) {
+    FragmentShaderModule frag_module = {
+      .module = create_shader_module(path),
+    };
+    add_asset(name, frag_module);
   }
 };

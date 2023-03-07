@@ -34,5 +34,5 @@ T* get_res_t() {
 
 #define get_resource(name) get_res_t<name>()
 
-#define get_resource_as(name, type) (type*)get_resource(name)
+#define get_resource_as(name, type) ((type*)get_resource(name))
 
