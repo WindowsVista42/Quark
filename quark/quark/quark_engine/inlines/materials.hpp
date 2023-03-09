@@ -3,11 +3,14 @@
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
 #include "../quark_engine.hpp"
-using namespace quark;
 
 //
 // Materials API Inlines (Internal)
 //
+
+#ifndef QUARK_ENGINE_INLINES
+namespace quark {
+#endif
 
   void* get_material_instance(u32 material_id, u32 material_instance_index) {
     Renderer* context = get_resource(Renderer);
@@ -50,8 +53,8 @@ using namespace quark;
   void update_material2(const char* vertex_shader_name, const char* fragment_shader_name, u32 max_draw_count, u32 mat_inst_cap) {
     Renderer* context = get_resource(Renderer);
 
-    update_component2<T>();
-    update_component2<TIndex>();
+    update_component(T);
+    update_component(TIndex);
 
     MaterialInfo info = {
       .material_size = (u32)align_forward(sizeof(T), 16),
@@ -152,3 +155,6 @@ using namespace quark;
     context->material_effect_infos[T::MATERIAL_ID] = effect_info; 
   } 
 
+#ifndef QUARK_ENGINE_INLINES
+};
+#endif

@@ -3,7 +3,6 @@
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
 #include "../quark_engine.hpp"
-using namespace quark;
 
 //
 // Materials Internal

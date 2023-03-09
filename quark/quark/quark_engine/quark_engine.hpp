@@ -2,6 +2,8 @@
 #ifndef QUARK_ENGINE_HPP
 #define QUARK_ENGINE_HPP
 
+#define QUARK_ENGINE_INLINES
+
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
@@ -272,10 +274,6 @@ namespace quark {
 
   declare_component(EntityCreated);
   declare_component(EntityDestroyed);
-
-  struct EntityRef {
-    u32 id;
-  };
 
 //
 // Structs
@@ -1030,43 +1028,77 @@ namespace quark {
 
 // Ecs (ecs.cpp)
 
+  inline void** ecs_component_tables() {
+    return get_resource(EcsContext)->ecs_comp_table;
+  }
+
+  inline u32* ecs_component_sizes() {
+    return get_resource(EcsContext)->ecs_comp_sizes;
+  }
+
+  inline u32* ecs_entity_generations() {
+    return get_resource(EcsContext)->ecs_generations;
+  }
+
+  inline u32** ecs_bool_table() {
+    return get_resource(EcsContext)->ecs_bool_table;
+  }
+
   engine_api u32 add_ecs_table(u32 component_size); // Add a new component with the given size. Returns the COMPONENT_ID.
 
   engine_api EntityId create_entity(bool set_active = true); // Create a new entity returning a unique id.
   engine_api void destroy_entity(EntityId id);               // Destroy the entity with the id.
 
+// Bitsets
+
   inline void set_bitset_bit(u32* bitset, u32 index);
   inline void unset_bitset_bit(u32* bitset, u32 index);
   inline void toggle_bitset_bit(u32* bitset, u32 index);
-  inline u32 get_bitset_bit(u32* bitset, u32 index);
+  inline bool is_bitset_bit_set(u32* bitset, u32 index);
+
+// Ecs
 
   inline bool is_valid_entity(EntityId id);
 
-  inline void* get_component_ptr_internal(u32 entity_index, u32 component_index);
+  inline void* get_component_ptr_raw(u32 entity_index, u32 component_index);
 
-  inline void add_component_internal(EntityId entity, u32 component_id, void* data); // Add a component by entity to the entity.
-  inline void remove_component_internal(EntityId entity, u32 component_id);          // Remove a component by entity from the entity.
-  inline void add_flag_internal(EntityId entity, u32 component_id);                  // Set a component flag to true.
-  inline void remove_flag_internal(EntityId entity, u32 component_id);               // Set a component flag to false.
-  inline void* get_component_internal(EntityId entity, u32 component_id);            // Get the data from a component for an entity.
-  inline bool has_component_internal(EntityId entity, u32 component_id);             // Check if the given entity has the component.
+  inline void add_component_checked(EntityId entity, u32 component_id, void* data); // Add a component by entity to the entity.
+  inline void remove_component_checked(EntityId entity, u32 component_id);          // Remove a component by entity from the entity.
+  inline void add_flag_checked(EntityId entity, u32 component_id);                  // Set a component flag to true.
+  inline void remove_flag_checked(EntityId entity, u32 component_id);               // Set a component flag to false.
+  inline void* get_component_checked(EntityId entity, u32 component_id);            // Get the data from a component for an entity.
+  inline bool has_component_checked(EntityId entity, u32 component_id);             // Check if the given entity has the component.
 
-  inline void add_component_internal_unchecked(EntityId entity_id, u32 component_id, void* data); // Add a component by id to the entity.
-  inline void remove_component_internal_unchecked(EntityId entity_id, u32 component_id);          // Remove a component by id from the entity.
-  inline void add_flag_internal_unchecked(EntityId entity_id, u32 component_id);                  // Set a component flag to true.
-  inline void remove_flag_internal_unchecked(EntityId entity_id, u32 component_id);               // Set a component flag to false.
-  inline void* get_component_internal_unchecked(EntityId entity_id, u32 component_id);            // Get the data from a component for an entity.
-  inline bool has_component_internal_unchecked(EntityId entity_id, u32 component_id);             // Check if the given entity has the component.
+  inline void add_component_unchecked(EntityId entity, u32 component_id, void* data); // Add a component by id to the entity.
+  inline void remove_component_unchecked(EntityId entity, u32 component_id);          // Remove a component by id from the entity.
+  inline void add_flag_unchecked(EntityId entity, u32 component_id);                  // Set a component flag to true.
+  inline void remove_flag_unchecked(EntityId entity, u32 component_id);               // Set a component flag to false.
+  inline void* get_component_unchecked(EntityId entity, u32 component_id);            // Get the data from a component for an entity.
+  inline bool has_component_unchecked(EntityId entity, u32 component_id);             // Check if the given entity has the component.
 
-  #define add_component(entity, data) add_component_internal(entity, decltype(data)::COMPONENT_ID, &data)
-  #define remove_component(entity, type) remove_component_internal(entity, type::COMPONENT_ID)
-  #define add_flag(entity, type) add_flag_internal(entity, type::COMPONENT_ID)
-  #define remove_flag(entity, type) remove_flag_internal(entity, type::COMPONENT_ID)
-  #define get_component(entity, type) (type*)get_component_internal(entity, type::COMPONENT_ID)
-  #define has_component(entity, type) (type*)has_component_internal(entity, type::COMPONENT_ID)
+  #define add_component(entity, data) add_component_checked(entity, decltype(data)::COMPONENT_ID, &data)
+  #define remove_component(entity, type) remove_component_checked(entity, type::COMPONENT_ID)
+  #define add_flag(entity, type) add_flag_checked(entity, type::COMPONENT_ID)
+  #define remove_flag(entity, type) remove_flag_checked(entity, type::COMPONENT_ID)
+  #define get_component(entity, type) (type*)get_component_checked(entity, type::COMPONENT_ID)
+  #define has_component(entity, type) has_component_checked(entity, type::COMPONENT_ID)
 
-  template<typename A, typename... T>
-  void add_components(EntityId id, A component, T... components);
+//
+
+  template<typename... T> void add_components(EntityId entity, T... components);
+  template<typename... T> void remove_components_template(EntityId entity);
+  template<typename... T> void add_flags_template(EntityId entity);
+  template<typename... T> void remove_flags_template(EntityId entity);
+  template<typename... T> auto get_components_template(EntityId entity);
+  template<typename... T> bool has_any_components_template(EntityId entity);
+  template<typename... T> bool has_all_components_template(EntityId entity);
+
+  #define remove_components(entity, types...) remove_components_template<types>(entity)
+  #define add_flags(entity, types...) add_flags_template<types>(entity)
+  #define remove_flags(entity, types...) remove_flags_template<types>(entity)
+  #define get_components(entity, types...) get_components_template<types>(entity)
+  #define has_any_components(entity, types...) has_any_components_template<types>(entity)
+  #define has_all_components(entity, types...) has_all_components_template<types>(entity)
 
   template <typename... I, typename... E, typename F>
   void for_archetype(Include<I...> incl, Exclude<E...> excl, F f);
@@ -1320,5 +1352,7 @@ namespace quark {
 
 #undef api_decl
 #undef var_decl
+
+#undef QUARK_ENGINE_INLINES
 
 #endif

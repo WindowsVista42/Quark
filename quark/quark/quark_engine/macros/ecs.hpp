@@ -3,7 +3,6 @@
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
 #include "../quark_engine.hpp"
-using namespace quark;
 
 //
 // Components Internal
@@ -22,16 +21,18 @@ using namespace quark;
     ReflectionInfo name::REFLECTION_INFO; \
     __make_reflection_maker2(name); \
 
-  #define update_component(name) \
-    update_component2<name>(); \
+  #define update_component(name) { \
+    name::COMPONENT_ID = add_ecs_table(sizeof(name)); \
+    name::REFLECTION_INFO = name::__make_reflection_info(); \
+  } \
 
   #define init_component(name) update_component(name)
 
-  template <typename T>
-  void update_component2() {
-    T::COMPONENT_ID = add_ecs_table(sizeof(T));
-    T::REFLECTION_INFO = T::__make_reflection_info();
-  }
+  // template <typename T>
+  // void update_component2() {
+  //   T::COMPONENT_ID = add_ecs_table(sizeof(T));
+  //   T::REFLECTION_INFO = T::__make_reflection_info();
+  // }
 
 //
 // Archetype Iter Internal

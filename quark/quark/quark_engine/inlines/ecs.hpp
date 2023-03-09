@@ -2,26 +2,204 @@
 
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
+
 #include "../quark_engine.hpp"
-using namespace quark;
+
+#ifndef QUARK_ENGINE_INLINES
+namespace quark {
+#endif
 
 // Ecs Inlines (Internal)
 
-  template <typename A> void add_components(EntityId id, A comp) {
-    // if (A::COMPONENT_ID == -1) {
-      // panic("Found uninitialized component: " + A::REFLECTION_INFO.name)
-    // }
-  
-    if constexpr (std::is_same_v<A, u32>) {
-      add_flag_id(id, comp);
-    } else {
-      add_component_id(id, A::COMPONENT_ID, &comp);
-    }
+// Bitsets
+
+  inline void set_bitset_bit(u32* bitset, u32 index) {
+    u32 x = index / 32;
+    u32 y = index - (x * 32);
+    u32 shift = 1 << y;
+
+    bitset[x] |= shift;
   }
 
-  template <typename A, typename... T> void add_components(EntityId id, A comp, T... comps) {
-    add_components<A>(id, comp);
-    add_components<T...>(id, comps...);
+  inline void unset_bitset_bit(u32* bitset, u32 index) {
+    u32 x = index / 32;
+    u32 y = index - (x * 32);
+    u32 shift = 1 << y;
+
+    bitset[x] &= ~shift;
+  }
+
+  inline void toggle_bitset_bit(u32* bitset, u32 index) {
+    u32 x = index / 32;
+    u32 y = index - (x * 32);
+    u32 shift = 1 << y;
+
+    bitset[x] ^= shift;
+  }
+
+  inline bool is_bitset_bit_set(u32* bitset, u32 index) {
+    u32 x = index / 32;
+    u32 y = index - (x * 32);
+    u32 shift = 1 << y;
+
+    return (bitset[x] & shift) > 0;
+  }
+
+// Ecs
+
+  inline bool is_valid_entity(EntityId entity) {
+    return entity.generation == ecs_entity_generations()[entity.index];
+  }
+
+  inline void* get_component_ptr_raw(u32 entity_index, u32 component_index) {
+    u8* comp_table = (u8*)ecs_component_tables()[component_index];
+    return &comp_table[entity_index * ecs_component_sizes()[component_index]];
+  }
+
+  inline void add_component_checked(EntityId entity, u32 component_id, void* data) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+ 
+    add_component_unchecked(entity, component_id, data);
+  }
+
+  inline void remove_component_checked(EntityId entity, u32 component_id) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    remove_component_unchecked(entity, component_id);
+  }
+
+  inline void add_flag_checked(EntityId entity, u32 component_id) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    add_flag_checked(entity, component_id);
+  }
+
+  inline void remove_flag_checked(EntityId entity, u32 component_id) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    remove_flag_checked(entity, component_id);
+  }
+
+  inline void* get_component_checked(EntityId entity, u32 component_id) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    if(!has_component_unchecked(entity, component_id)) {
+      panic("Entity: " + entity.index + " did not have component with id: " + component_id + "\n");
+    }
+
+    return get_component_unchecked(entity, component_id);
+  }
+
+  inline bool has_component_checked(EntityId entity, u32 component_id) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    return has_component_unchecked(entity, component_id);
+  }
+
+  inline void add_component_unchecked(EntityId entity, u32 component_id, void* data) {
+    void* dst = get_component_ptr_raw(entity.index, component_id);
+    u32 size = ecs_component_sizes()[component_id];
+
+    copy_mem(dst, data, size);
+    add_flag_unchecked(entity, component_id);
+  }
+
+  inline void remove_component_unchecked(EntityId entity, u32 component_id) {
+    remove_flag_unchecked(entity, component_id);
+  }
+
+  inline void add_flag_unchecked(EntityId entity, u32 component_id) {
+    set_bitset_bit(ecs_bool_table()[component_id], entity.index);
+  }
+
+  inline void remove_flag_unchecked(EntityId entity, u32 component_id) {
+    unset_bitset_bit(ecs_bool_table()[component_id], entity.index);
+  }
+
+  inline void* get_component_unchecked(EntityId entity, u32 component_id) {
+    return get_component_ptr_raw(entity.index, component_id);
+  }
+
+  inline bool has_component_unchecked(EntityId entity, u32 component_id) {
+    return is_bitset_bit_set(ecs_bool_table()[component_id], entity.index);
+  }
+
+  template <typename... T> void add_components(EntityId entity, T... components) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    (add_component_unchecked(entity, decltype(components)::COMPONENT_ID, &components), ...);
+  }
+
+  template <typename... T> void remove_components_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    (remove_component_unchecked(entity, T::COMPONENT_ID), ...);
+  }
+
+  template <typename... T> void add_flags_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    (add_flags_unchecked(entity, T::COMPONENT_ID), ...);
+  }
+
+  template <typename... T> void remove_flags_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    (remove_flags_unchecked(entity, T::COMPONENT_ID), ...);
+  }
+
+  template <typename... T> auto get_components_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    ([&](EntityId e, u32 component_id) {
+      if(!has_component_unchecked(entity, T::COMPONENT_ID)) {
+        panic("Entity with id: " + entity.index + " did not have component with id: " + T::COMPONENT_ID + "\n");
+      }
+    } (entity, T::COMPONENT_ID), ...);
+
+    std::tuple<T*...> tuple = std::make_tuple(
+      (T*)get_component_unchecked(entity, T::COMPONENT_ID)...
+    );
+
+    return tuple;
+  }
+
+  template<typename... T> bool has_any_components_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+
+    return ((has_component_unchecked(entity, T::COMPONENT_ID)) || ...);
+  }
+
+  template<typename... T> bool has_all_components_template(EntityId entity) {
+    if(!is_valid_entity(entity)) {
+      panic("Entity id was invalid!\n");
+    }
+  
+    return ((has_component_unchecked(entity, T::COMPONENT_ID)) && ...);
   }
 
   template <typename... I, typename... E, typename F>
@@ -86,3 +264,7 @@ using namespace quark;
       }
     }
   }
+
+#ifndef QUARK_ENGINE_INLINES
+};
+#endif

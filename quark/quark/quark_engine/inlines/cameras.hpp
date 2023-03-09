@@ -3,7 +3,10 @@
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
 #include "../quark_engine.hpp"
-using namespace quark;
+
+#ifndef QUARK_ENGINE_INLINES
+namespace quark {
+#endif
 
   inline mat4 camera3d_view_mat4(Camera3D* camera) {
     mat4 rotation = mat4_from_forward_up(quat_forward(camera->rotation), quat_up(camera->rotation));
@@ -65,3 +68,6 @@ using namespace quark;
     return (dist2 + radius2) > 0.0f;
   }
 
+#ifndef QUARK_ENGINE_INLINES
+};
+#endif

@@ -3,7 +3,10 @@
 // This file is only meant to be included inside of quark_engine.hpp
 // quark_engine.hpp is included so LSP works
 #include "../quark_engine.hpp"
-using namespace quark;
+
+#ifndef QUARK_ENGINE_INLINES
+namespace quark {
+#endif
 
 //
 // Asset Server Internal
@@ -40,3 +43,7 @@ using namespace quark;
     }
     return &map->at(hash_str_fast(name));
   }
+
+#ifndef QUARK_ENGINE_INLINES
+};
+#endif
