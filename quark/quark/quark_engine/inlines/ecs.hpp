@@ -5,11 +5,9 @@
 #include "../quark_engine.hpp"
 using namespace quark;
 
-//
-// Ecs API Inlines (Internal)
-//
+// Ecs Inlines (Internal)
 
-  template <typename A> void add_components(u32 id, A comp) {
+  template <typename A> void add_components(EntityId id, A comp) {
     // if (A::COMPONENT_ID == -1) {
       // panic("Found uninitialized component: " + A::REFLECTION_INFO.name)
     // }
@@ -21,7 +19,7 @@ using namespace quark;
     }
   }
 
-  template <typename A, typename... T> void add_components(u32 id, A comp, T... comps) {
+  template <typename A, typename... T> void add_components(EntityId id, A comp, T... comps) {
     add_components<A>(id, comp);
     add_components<T...>(id, comps...);
   }
@@ -68,11 +66,15 @@ using namespace quark;
         archetype ^= 1 << local_index;
  
         u32 entity_index = global_index + local_index;
+        u32 entity_generation = ctx->ecs_generations[entity_index];
+        EntityId id = {};
+        id.index = entity_index;
+        id.generation = entity_generation;
  
         u32 inc = (includes_size) - 1;
  
         {
-          std::tuple<u32, I*...> t = std::tuple(entity_index, [&] {
+          std::tuple<EntityId, I*...> t = std::tuple(id, [&] {
             u32 i = inc;
             inc -= 1;
 

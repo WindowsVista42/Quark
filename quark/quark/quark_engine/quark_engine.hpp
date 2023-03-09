@@ -219,7 +219,21 @@ namespace quark {
     Eight = VK_SAMPLE_COUNT_8_BIT,
   );
 
-  declare_enum(SoundId, u32);
+  //
+  declare_enum(SoundGroup, u32,
+    Music,
+    Menu,
+    Gameplay,
+    Ambient,
+  );
+
+  //
+  declare_enum(AttenuationModel, u32,
+    None        = 0,
+    Inverse     = 1,
+    Linear      = 2,
+    Exponential = 3,
+  );
 
 //
 // Components
@@ -235,6 +249,33 @@ namespace quark {
     vec3 half_extents;
     MeshId id;
   );
+
+  declare_component(SoundOptions,
+    bool playing;
+    bool loop;
+  
+    f32 volume;
+    f32 pitch;
+    f32 rolloff;
+  
+    AttenuationModel attenuation_model;
+    f32 min_gain;
+    f32 max_gain;
+    f32 min_distance;
+    f32 max_distance;
+
+    // implicit inner_cone_gain = 1
+    f32 inner_cone_angle; // radians
+    f32 outer_cone_angle; // radians
+    f32 outer_cone_gain; // should be less than 1
+  );
+
+  declare_component(EntityCreated);
+  declare_component(EntityDestroyed);
+
+  struct EntityRef {
+    u32 id;
+  };
 
 //
 // Structs
@@ -594,10 +635,19 @@ namespace quark {
     f32 text_scale;
   };
 
-  struct Sound {
-    SoundId sound_id;
-    f32 volume;
+  struct EntityId {
+    u32 index;
+    u32 generation;
   };
+
+  struct ComponentId {
+    u32 index;
+  };
+
+  // struct Sound {
+  //   SoundId sound_id;
+  //   f32 volume;
+  // };
 
 //
 // Materials (renderer.cpp)
@@ -652,9 +702,11 @@ namespace quark {
     u32 ecs_entity_tail = 0;
     u32 ecs_entity_capacity = 0;
 
-    void** ecs_comp_table = 0;
-    u32** ecs_bool_table = 0;
     u32* ecs_comp_sizes = 0;
+    void** ecs_comp_table = 0;
+
+    u32** ecs_bool_table = 0;
+    u32* ecs_generations = 0;
 
     u32 ecs_active_flag = 0;
     // u32 ecs_created_flag = 0;
@@ -870,6 +922,14 @@ namespace quark {
     ma_engine* engine;
   );
 
+  //
+  declare_resource(MainListener,
+    vec3 position;
+    quat rotation;
+    f32 volume;
+    vec3 previous_position;
+  );
+
 //
 // Variables
 //
@@ -886,7 +946,62 @@ namespace quark {
   engine_var bool PRINT_PERFORMANCE_STATISTICS;
 
 //
-// Functions
+// Functions (Initialization)
+//
+
+  engine_api void init_ecs();                  // Init the entity component system. (ecs.cpp)
+  engine_api void init_actions();              // Init the input-actions system. (actions.cpp)
+  engine_api void init_systems();              // Init the job scheduler. (jobs.cpp)
+  engine_api void init_states();               // Init the job state system (jobs.cpp)
+  engine_api void init_graphics();             // Init the Graphics resource. (graphics.cpp)
+  engine_api void init_renderer_pre_assets();  // Init the Renderer resource before assets. (renderer.cpp)
+  engine_api void init_renderer_post_assets(); // Init the Renderer resource after assets. (renderer.cpp)
+  engine_api void init_ui_context();           // Init the UiContext resource. (ui.cpp)
+  engine_api void init_sound_context();        // Init the SoundContext resource. (audio.cpp)
+
+//
+// Functions (Update)
+//
+
+// Actions (actions.cpp)
+
+  engine_api void update_all_actions();                  // Update all actions in the input action system.
+
+// Graphics (graphics.cpp)
+
+  engine_api void begin_frame();                         // Begin rendering a frame.
+  engine_api void end_frame();                           // End rendering a frame.
+
+// Renderer (renderer.cpp)
+
+  engine_api void update_world_cameras();                // Update all of the world cameras.
+  engine_api void update_world_data();                   // Update the global world data for shaders.
+  engine_api void build_material_batch_commands();       // Build the material batch commands for the render pass.
+
+  engine_api void begin_shadow_pass();                   // Begin a shadow pass
+  engine_api void end_shadow_pass();                     // End a shadow pass
+  engine_api void begin_main_depth_prepass();            // Begin a depth prepass for the main render pass
+  engine_api void end_main_depth_prepass();              // End a depth prepass for the main render pass
+  engine_api void begin_main_color_pass();               // Begin the color pass for the main render pass
+  engine_api void end_main_color_pass();                 // End the color pass for the main render pass
+
+  engine_api void draw_material_batches();               // Using the built commands, draw color.
+  engine_api void draw_material_batches_depth_prepass(); // Same as previous, but depth pre-pass.
+  engine_api void draw_material_batches_shadows();       // Same as previous, but shadows.
+  engine_api void reset_material_batches();              // Reset the material batch commands.
+
+  engine_api void print_performance_statistics();        // Draw performance statistics to the screen
+
+// User Interface (ui.cpp)
+
+  engine_api void draw_ui();                             // Draw the user interface
+
+// Sound (audio.cpp)
+
+  engine_api void sync_sound_state();                    // Synchronize sound objects with miniaudio
+
+//
+// Functions (Utility)
 //
 
 // Arenas (arenas.cpp)
@@ -915,36 +1030,46 @@ namespace quark {
 
 // Ecs (ecs.cpp)
 
-  engine_api void init_ecs();                                                    // Init the entity component system.
-  engine_api u32 add_ecs_table(u32 component_size);                              // Add a new component with the given size. Returns the COMPONENT_ID.
+  engine_api u32 add_ecs_table(u32 component_size); // Add a new component with the given size. Returns the COMPONENT_ID.
 
-  engine_api u32 create_entity(bool set_active = true);                          // Create a new entity returning a unique id.
-  engine_api void destroy_entity(u32 entity_id);                                 // Destroy the entity with the id.
+  engine_api EntityId create_entity(bool set_active = true); // Create a new entity returning a unique id.
+  engine_api void destroy_entity(EntityId id);               // Destroy the entity with the id.
 
-  engine_api void add_component_id(u32 entity_id, u32 component_id, void* data); // Add a component by id to the entity.
-  engine_api void remove_component_id(u32 entity_id, u32 component_id);          // Remove a component by id from the entity.
-  engine_api void add_flag_id(u32 entity_id, u32 component_id);                  // Set a component flag to true.
-  engine_api void remove_flag_id(u32 entity_id, u32 component_id);               // Set a component flag to false.
-  engine_api void* get_component_id(u32 entity_id, u32 component_id);            // Get the data from a component for an entity.
-  engine_api bool has_component_id(u32 entity_id, u32 component_id);             // Check if the given entity has the component.
+  inline void set_bitset_bit(u32* bitset, u32 index);
+  inline void unset_bitset_bit(u32* bitset, u32 index);
+  inline void toggle_bitset_bit(u32* bitset, u32 index);
+  inline u32 get_bitset_bit(u32* bitset, u32 index);
 
-  // #define shorthands
+  inline bool is_valid_entity(EntityId id);
 
-  #define add_component(entity_id, data) add_component_id(entity_id, decltype(data)::COMPONENT_ID, &data)
-  #define remove_component(entity_id, type) remove_component_id(entity_id, type::COMPONENT_ID)
-  #define add_flag(entity_id, type) add_flag_id(entity_id, type::COMPONENT_ID)
-  #define remove_flag(entity_id, type) remove_flag_id(entity_id, type::COMPONENT_ID)
-  #define get_component(entity_id, type) (type*)get_component_id(entity_id, type::COMPONENT_ID)
-  #define has_component(entity_id, type) (type*)has_component_id(entity_id, type::COMPONENT_ID)
+  inline void* get_component_ptr_internal(u32 entity_index, u32 component_index);
 
-  // template <typename... T>
-  // void add_components(u32 id, T... comps) {
-  //   if constexpr (std::is_same_v<T..., u32>) {
-  //     add_flag_id(id, comps...);
-  //   } else {
-  //     add_component_id(id, T::COMPONENT_ID..., &comps...);
-  //   }
-  // }
+  inline void add_component_internal(EntityId entity, u32 component_id, void* data); // Add a component by entity to the entity.
+  inline void remove_component_internal(EntityId entity, u32 component_id);          // Remove a component by entity from the entity.
+  inline void add_flag_internal(EntityId entity, u32 component_id);                  // Set a component flag to true.
+  inline void remove_flag_internal(EntityId entity, u32 component_id);               // Set a component flag to false.
+  inline void* get_component_internal(EntityId entity, u32 component_id);            // Get the data from a component for an entity.
+  inline bool has_component_internal(EntityId entity, u32 component_id);             // Check if the given entity has the component.
+
+  inline void add_component_internal_unchecked(EntityId entity_id, u32 component_id, void* data); // Add a component by id to the entity.
+  inline void remove_component_internal_unchecked(EntityId entity_id, u32 component_id);          // Remove a component by id from the entity.
+  inline void add_flag_internal_unchecked(EntityId entity_id, u32 component_id);                  // Set a component flag to true.
+  inline void remove_flag_internal_unchecked(EntityId entity_id, u32 component_id);               // Set a component flag to false.
+  inline void* get_component_internal_unchecked(EntityId entity_id, u32 component_id);            // Get the data from a component for an entity.
+  inline bool has_component_internal_unchecked(EntityId entity_id, u32 component_id);             // Check if the given entity has the component.
+
+  #define add_component(entity, data) add_component_internal(entity, decltype(data)::COMPONENT_ID, &data)
+  #define remove_component(entity, type) remove_component_internal(entity, type::COMPONENT_ID)
+  #define add_flag(entity, type) add_flag_internal(entity, type::COMPONENT_ID)
+  #define remove_flag(entity, type) remove_flag_internal(entity, type::COMPONENT_ID)
+  #define get_component(entity, type) (type*)get_component_internal(entity, type::COMPONENT_ID)
+  #define has_component(entity, type) (type*)has_component_internal(entity, type::COMPONENT_ID)
+
+  template<typename A, typename... T>
+  void add_components(EntityId id, A component, T... components);
+
+  template <typename... I, typename... E, typename F>
+  void for_archetype(Include<I...> incl, Exclude<E...> excl, F f);
 
   #include "inlines/ecs.hpp"
 
@@ -969,9 +1094,6 @@ namespace quark {
 
 // Actions (actions.cpp)
 
-  engine_api void init_actions();
-  engine_api void deinit_actions();
-  
   engine_api void create_action(const char* action_name, f32 max_value = 1.0f);
   engine_api void destroy_action(const char* action_name);
 
@@ -989,29 +1111,15 @@ namespace quark {
 
   engine_api Action get_action(u32 action_id);
   engine_api f32 get_action_value(u32 action_id);
-
-  // engine_api vec2 get_action_values_as_vec2(u32 pos_x_axis, u32 neg_x_axis, u32 pos_y_axis, u32 neg_y_axis);
-
-  // engine_api void bind_key(const char* action_name, KeyCode input);
-  // engine_api void bind_mouse_button(const char* action_name, MouseButtonCode input);
-  // engine_api void bind_gamepad_button(const char* action_name, GamepadButtonCode input, u32 source_id);
-  // engine_api void bind_mouse_axis(const char* action_name, MouseAxisCode input, f32 strength);
-  // engine_api void bind_gamepad_axis(const char* action_name, GamepadAxisCode input, u32 source_id, f32 strength);
-  // engine_api void bind_input_id(const char* action_name, InputId input, u32 source_id = 0, f32 strength = 1.0f);
   
   engine_api Action get_action(const char* action_name);
-  engine_api vec2 get_action_vec2(const char* x_pos_name, const char* x_neg_name, const char* y_pos_name, const char* y_neg_name);
-  engine_api vec3 get_action_vec3(const char* x_pos_name, const char* x_neg_name, const char* y_pos_name, const char* y_neg_name, const char* z_pos_name, const char* z_neg_name);
-  
-  engine_api void update_all_actions();
+  engine_api vec2 get_action_vec2(const char* xpos, const char* xneg, const char* ypos, const char* yneg);
+  engine_api vec3 get_action_vec3(const char* xpos, const char* xneg, const char* ypos, const char* yneg, const char* zpos, const char* zneg);
 
   engine_api ActionProperties* get_action_properties(const char* action_name);
   engine_api ActionState get_action_state(const char* action_name);
 
 // Systems (jobs.cpp)
-
-  engine_api void init_systems();
-  engine_api void deinit_systems();
 
   engine_api void create_system_list(const char* system_list_name);
   engine_api void destroy_system_list(const char* system_list_name);
@@ -1034,9 +1142,6 @@ namespace quark {
 
 // States (jobs.cpp)
 
-  engine_api void init_states();
-  engine_api void deinit_states();
-
   engine_api void create_state(const char* state_name, const char* init_system_list, const char* update_system_list, const char* deinit_system_list);
   engine_api void destroy_state(const char* state_name);
   engine_api void change_state(const char* new_state, bool set_internal_state_changed_flag = true);
@@ -1058,7 +1163,6 @@ namespace quark {
   engine_api void load_obj_file(const char* path, const char* name);
   engine_api void load_png_file(const char* path, const char* name);
 
-  // Internal Definitions
   #include "inlines/assets.hpp"
 
 // Buffers (graphics.cpp)
@@ -1126,37 +1230,20 @@ namespace quark {
 
 // Graphics (graphics.cpp)
 
-  engine_api void init_graphics(); // Init the graphics context. This initializes everything in the Graphics resource.
-  engine_api void begin_frame();   // Begin rendering a frame. Between this and end_frame(), the graphics->commands[graphics->frame_index] is a valid command buffer.
-  engine_api void end_frame();     // End rendering a frame.
-
   inline VkCommandBuffer graphics_commands(); // Returns the VkCommandBuffer for the current frame. This is only valid between begin_frame() and end_frame() calls.
   inline u32 frame_index();                   // Returns the current frame index. This is only valid between begin_frame() and end_fram() calls.
 
   #include "inlines/graphics.hpp"
 
+// Material Effect (renderer.cpp)
+
+  engine_api void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info);   // Create a MaterialEffect from the MaterialEffectInfo using the Arena to allocate.
+  engine_api void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index); // Bind the MaterialEffect resources for rendering.
+  engine_api void bind_effect(VkCommandBuffer commands, MaterialEffect* effect);                            // Bind the MaterialEffect for rendering.
+
 // Renderer (renderer.cpp)
 
-  engine_api void init_renderer_pre_assets();  // Init the parts of the renderer that are not dependant on assets. This should happen first.
-  engine_api void init_renderer_post_assets(); // Init the parts of the renderer that are dependant on assets. This should happen second.
-
-  engine_api void begin_shadow_pass();        // Begin a shadow pass
-  engine_api void end_shadow_pass();          // End a shadow pass
-  engine_api void begin_main_depth_prepass(); // Begin a depth prepass for the main render pass
-  engine_api void end_main_depth_prepass();   // End a depth prepass for the main render pass
-  engine_api void begin_main_color_pass();    // Begin the color pass for the main render pass
-  engine_api void end_main_color_pass();      // End the color pass for the main render pass
-
-  engine_api void update_world_cameras();                                  // Update all of the world cameras.
-  engine_api void update_world_data();                                     // Update the global world data for shaders.
-  engine_api void build_material_batch_commands();                         // Build the material batch commands for the render pass.
-  engine_api void draw_material_batches();                                 // Using the built commands, draw color.
-  engine_api void draw_material_batches_depth_only(mat4* view_projection); // Using the built commands, draw depth.
-  engine_api void draw_material_batches_depth_prepass();                   // Same as previous, but depth pre-pass.
-  engine_api void draw_material_batches_shadows();                         // Same as previous, but shadows.
-  engine_api void reset_material_batches();                                // Reset the material batch commands.
-
-  engine_api void print_performance_statistics(); // Draw performance statistics to the screen
+  engine_api void draw_material_batches_depth_only(mat4* view_projection); // Using the built commands, draw depth. This is mostly a helper.
 
 // Renderer Components (renderer.cpp)
 
@@ -1168,12 +1255,6 @@ namespace quark {
   engine_api void load_qmesh_file(const char* path, const char* name);
   engine_api void load_vert_shader(const char* path, const char* name);
   engine_api void load_frag_shader(const char* path, const char* name);
-
-// Material Effect (renderer.cpp)
-
-  engine_api void create_material_effect(Arena* arena, MaterialEffect* effect, MaterialEffectInfo* info);   // Create a MaterialEffect from the MaterialEffectInfo using the Arena to allocate.
-  engine_api void bind_effect_resources(VkCommandBuffer commands, MaterialEffect* effect, u32 frame_index); // Bind the MaterialEffect resources for rendering.
-  engine_api void bind_effect(VkCommandBuffer commands, MaterialEffect* effect);                            // Bind the MaterialEffect for rendering.
 
 // Materials (renderer.cpp)
 
@@ -1189,8 +1270,6 @@ namespace quark {
 
 // UI (ui.cpp)
 
-  engine_api void init_ui_context(); // Init the user interface system globally
-
   engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
   engine_api void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text);
   engine_api void push_ui_widget(Widget* widget);
@@ -1198,17 +1277,25 @@ namespace quark {
 
   engine_api void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click);
 
-  engine_api void draw_ui(); // Draw the user interface
-
 // Mesh (renderer.cpp)
 
   engine_api MeshInstance create_mesh(vec3* positions, vec3* normals, vec2* uvs, usize vertex_count, u32* indices, usize index_count);
 
 // Sound (sound.cpp)
 
-  engine_api void init_sound_context();
+  // The current problem is i want to provide
+  // some kind of parenting system for non-persistent sounds
+  // I want to use an entity_id for this but
+  // how should i handle if the entity under the entity_id is destroyed or otherwise changes?
+  // Maybe i just build this out into a more robust parenting system?
+  // Maybe i just do the weird work of 
+  // Maybe just copy over parent ids every frame, and check if entites are deleted and shit?
+  // Maybe use a bitset table to store the children and parent info?
+  // Maybe update entity ids to use a u64 (index + generation)?
 
-  engine_api void play_sound(const char* sound_name, vec2 position);
+  engine_api void attach_sound(EntityId id, const char* sound_path);
+  engine_api EntityId spawn_sound(const char* sound_path, Transform transform, SoundOptions options, bool persist);
+  engine_api void update_sound_and_options(EntityId id, Transform* transform, SoundOptions* options);
 
 // Random
 

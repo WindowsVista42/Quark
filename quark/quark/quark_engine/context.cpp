@@ -73,6 +73,7 @@ namespace quark {
       // Update
       create_system("update_window_inputs", update_window_inputs);
       create_system("update_all_actions", update_all_actions);
+      create_system("sync_sound_state", sync_sound_state);
       create_system("update_tag", 0);
 
       create_system("begin_frame", begin_frame);
@@ -117,13 +118,13 @@ namespace quark {
       add_system("quark_init", "load_assets", "", -1);
       add_system("quark_init", "init_renderer_post_assets", "", -1);
       add_system("quark_init", "init_ui_context", "", -1);
-    
         
       add_system("quark_init", "init_sound_context", "", -1);
 
       // Update
       add_system("update", "update_window_inputs", "", -1);
       add_system("update", "update_all_actions", "", -1);
+      add_system("update", "sync_sound_state", "", -1);
       add_system("update", "update_tag", "", -1);
 
       // Update - Rendering

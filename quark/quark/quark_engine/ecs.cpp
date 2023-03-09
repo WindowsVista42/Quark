@@ -2,6 +2,9 @@
 #include "quark_engine.hpp"
 
 namespace quark {
+
+// this will be __overpowered__ for entity hierarchies
+// stable pointers AND dynamic lifetimes!
 /*
 struct BitsetTable {
   u32 head;
@@ -122,7 +125,6 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     ecs->ecs_entity_capacity = 128 * KB;
     u32 size = 64 * KB;
   
-    // TODO: I would like this to by dynamically sizeable?
     ecs->ecs_comp_table = (void**)os_reserve_mem(size);
     os_commit_mem((u8*)ecs->ecs_comp_table, size);
   
@@ -132,6 +134,9 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     ecs->ecs_comp_sizes = (u32*)os_reserve_mem(size);
     os_commit_mem((u8*)ecs->ecs_comp_sizes, size);
   
+    ecs->ecs_generations = (u32*)os_reserve_mem(ECS_MAX_STORAGE * sizeof(u32));
+    os_commit_mem((u8*)ecs->ecs_generations, ECS_MAX_STORAGE * sizeof(u32));
+  
     ecs->ecs_table_capacity = size / sizeof(void*);
   
     ecs->ecs_active_flag = add_ecs_table(0);
@@ -140,6 +145,8 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     // ecs->ecs_updated_flag = add_ecs_table(0);
     ecs->ecs_empty_flag = add_ecs_table(0);
 
+    zero_mem(ecs->ecs_comp_sizes, size);
+    zero_mem(ecs->ecs_generations, ECS_MAX_STORAGE * sizeof(u32));
     memset(ecs->ecs_bool_table[ecs->ecs_empty_flag], 0xffffffff, 256 * KB);
   
     // init builtin component types
@@ -147,6 +154,7 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     update_component(Model);
   }
 
+  // TODO: change to use ComponentId
   u32 add_ecs_table(u32 component_size) {
     u32 i = ecs->ecs_table_count;
     ecs->ecs_table_count += 1;
@@ -217,9 +225,13 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     return ecs->ecs_bool_table[component_id][x] & shift;
   }
 
-  u32 create_entity(bool set_active) {
-    u32 entity_id = ecs->ecs_empty_head;
-    unset_ecs_bit(ecs, entity_id, ecs->ecs_empty_flag);
+  bool is_valid_id(EntityId id) {
+    return id.generation == ecs->ecs_generations[id.index];
+  }
+
+  EntityId create_entity(bool set_active) {
+    u32 entity_index = ecs->ecs_empty_head;
+    unset_ecs_bit(ecs, entity_index, ecs->ecs_empty_flag);
 
     // scan for new head
     u32 head = ecs->ecs_empty_head / 32;
@@ -234,57 +246,89 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     ecs->ecs_empty_head = (head * 32) + __builtin_ctz(ecs->ecs_bool_table[ecs->ecs_empty_flag][head]);
 
     // move tail right if we have gone further right
-    if((entity_id / 32) > ecs->ecs_entity_tail) {
-      ecs->ecs_entity_tail = (entity_id / 32);
+    if((entity_index / 32) > ecs->ecs_entity_tail) {
+      ecs->ecs_entity_tail = (entity_index / 32);
     }
+
+    EntityId id = {};
+    id.index = entity_index;
+    id.generation = ecs->ecs_generations[id.index];
 
     if(set_active) {
-      add_flag_id(entity_id, ECS_ACTIVE_FLAG);
+      add_flag_id(id, ECS_ACTIVE_FLAG);
     }
 
-    return entity_id;
+    return id;
   }
 
-  void destroy_entity(u32 entity_id) {
-    set_ecs_bit(ecs, entity_id, ecs->ecs_empty_flag);
+  void destroy_entity(EntityId id) {
+    if(!is_valid_id(id)) {
+      panic("In destroy_entity(), an EntityId was out of date!\n");
+    }
+
+    set_ecs_bit(ecs, id.index, ecs->ecs_empty_flag);
 
     // scan for new tail
     while(~ecs->ecs_bool_table[ecs->ecs_empty_flag][ecs->ecs_entity_tail] == 0 && ecs->ecs_entity_tail != 0) {
       ecs->ecs_entity_tail -= 1;
     }
 
-    if(entity_id < ecs->ecs_empty_head) {
-      ecs->ecs_empty_head = entity_id;
+    if(id.index < ecs->ecs_empty_head) {
+      ecs->ecs_empty_head = id.index;
     }
 
-    // todo clear all
+    ecs->ecs_generations[id.index] += 1;
   }
 
-  void add_component_id(u32 entity_id, u32 component_id, void* data) {
-    set_ecs_bit(ecs, entity_id, component_id);
-    void* dst = get_comp_ptr(ecs, entity_id, component_id);
+  void add_component_internal(EntityId id, u32 component_id, void* data) {
+    if(!is_valid_id(id)) {
+      panic("In add_component_id(), an EntityId was out of date!\n");
+    }
+  
+    set_ecs_bit(ecs, id.index, component_id);
+    void* dst = get_comp_ptr(ecs, id.index, component_id);
 
     u32 size = ecs->ecs_comp_sizes[component_id];
     copy_mem(dst, data, size);
   }
 
-  void remove_component_id(u32 entity_id, u32 component_id) {
-    remove_flag_id(entity_id, component_id);
+  void remove_component_internal(EntityId id, u32 component_id) {
+    if(!is_valid_id(id)) {
+      panic("In remove_component_id(), an EntityId was out of date!\n");
+    }
+  
+    remove_flag_id(id, component_id);
   }
 
-  void add_flag_id(u32 entity_id, u32 component_id) {
-    set_ecs_bit(ecs, entity_id, component_id);
+  void add_flag_internal(EntityId id, u32 component_id) {
+    if(!is_valid_id(id)) {
+      panic("In add_flag_id(), an EntityId was out of date!\n");
+    }
+
+    set_ecs_bit(ecs, id.index, component_id);
   }
 
-  void remove_flag_id(u32 entity_id, u32 component_id) {
-    unset_ecs_bit(ecs, entity_id, component_id);
+  void remove_flag_internal(EntityId id, u32 component_id) {
+    if(!is_valid_id(id)) {
+      panic("In remove_flag_id(), an EntityId was out of date!\n");
+    }
+
+    unset_ecs_bit(ecs, id.index, component_id);
   }
 
-  void* get_component_id(u32 entity_id, u32 component_id) {
-    return get_comp_ptr(ecs, entity_id, component_id);
+  void* get_component_internal(EntityId id, u32 component_id) {
+    if(!is_valid_id(id)) {
+      panic("In get_component_id(), an EntityId was out of date!\n");
+    }
+
+    return get_comp_ptr(ecs, id.index, component_id);
   }
 
-  bool has_component_id(u32 entity_id, u32 component_id) {
-    return get_ecs_bit(ecs, entity_id, component_id) > 0;
+  bool has_component_id(EntityId id, u32 component_id) {
+    if(!is_valid_id(id)) {
+      panic("In has_component_id(), an EntityId was out of date!\n");
+    }
+
+    return get_ecs_bit(ecs, id.index, component_id) > 0;
   }
 };

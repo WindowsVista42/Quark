@@ -931,7 +931,7 @@ namespace quark {
 
     VkDrawIndexedIndirectCommand* forward_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->forward_pass_commands[graphics->frame_index]);
     defer(unmap_buffer(&renderer->forward_pass_commands[graphics->frame_index]));
-  
+
     VkDrawIndexedIndirectCommand* shadow_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->shadow_pass_commands[graphics->frame_index]);
     defer(unmap_buffer(&renderer->shadow_pass_commands[graphics->frame_index]));
 
