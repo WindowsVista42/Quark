@@ -861,7 +861,6 @@ namespace quark {
     u32 shadow_draw_count[16];
     u32 shadow_cull_count[16];
 
-
     // Statistics
     u32 saved_total_draw_count;
     u32 saved_total_culled_count;

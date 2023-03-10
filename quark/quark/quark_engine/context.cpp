@@ -33,7 +33,6 @@ namespace quark {
     get_resource(TimeInfo)->time = (f32)frame_end_time;
   }
 
-
   void init_builtin_component_types() {
   }
 
@@ -133,7 +132,7 @@ namespace quark {
       add_system("update", "update_world_cameras", "", -1);
       add_system("update", "update_world_data", "", -1);
       add_system("update", "build_material_batch_commands", "", -1);
-    
+
         add_system("update", "begin_shadow_pass", "", -1);
           add_system("update", "draw_material_batches_shadows", "", -1);
         add_system("update", "end_shadow_pass", "", -1);

@@ -21,6 +21,8 @@
 #include <lz4.h>
 #include <meshoptimizer.h>
 
+#include <atomic>
+
 namespace quark {
   define_resource(Renderer, {});
 
@@ -56,7 +58,6 @@ namespace quark {
         .size = 256 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
       };
 
-      // Todo: create this
       create_buffers(renderer->forward_pass_commands, _FRAME_OVERLAP, &info);
       create_buffers(renderer->shadow_pass_commands, _FRAME_OVERLAP, &info);
     }
@@ -234,7 +235,7 @@ namespace quark {
 
     // depth images
 
-    renderer->shadow_resolution = ivec2 { 2048, 2048 };
+    renderer->shadow_resolution = ivec2 { 2048, 2048 } * 1;
 
     renderer->shadow_image_info.resolution = renderer->shadow_resolution;
     renderer->shadow_image_info.format = ImageFormat::LinearD16;
@@ -777,23 +778,25 @@ namespace quark {
   }
 
   bool PRINT_PERFORMANCE_STATISTICS = true;
+  bool PERFORMANCE_STATISTICS_SHORT = false;
 
   void print_performance_statistics() {
     if(!PRINT_PERFORMANCE_STATISTICS) {
       return;
     }
+  
+    StringBuilder builder = create_string_builder(frame_arena());
 
-    {
+    const f32 target  = (1.0f / 60.0f) * 1000.0f;
+    const f32 average = delta() * 1000.0f;
+    const f32 percent = (average / target) * 100.0f;
+    const f32 fps = 1.0f / delta();
+
+    if(!PERFORMANCE_STATISTICS_SHORT) {
       Timestamp* runtimes;
       usize runtimes_count;
       get_system_runtimes((system_list_id)hash_str_fast("update"), &runtimes, &runtimes_count);
-  
-      const f32 target  = (1.0f / 60.0f) * 1000.0f;
-      const f32 average = delta() * 1000.0f;
-      const f32 percent = (average / target) * 100.0f;
-      const f32 fps = 1.0f / delta();
-  
-      StringBuilder builder = create_string_builder(frame_arena());
+
       builder = builder +
         "-- Performance Statistics --\n"
         "Target: " + target + " ms\n"
@@ -806,21 +809,33 @@ namespace quark {
         "Forward Pass Cull Count: " + renderer->saved_total_culled_count + "\n"
         "Depth Prepass Triangle Count: " + renderer->saved_total_triangle_count + "\n"
         "Forward Pass Triangle Count: " + renderer->saved_total_triangle_count + "\n"
+        "Forward Pass Resolution: (" + graphics->render_resolution.x + ", " + graphics->render_resolution.y + ")\n"
+        "Forward Pass Msaa: 4x" + "\n"
         "Shadow Pass Draw Count: " + renderer->saved_shadow_total_draw_count + "\n"
         "Shadow Pass Cull Count: " + renderer->saved_shadow_total_culled_count + "\n"
         "Shadow Pass Triangle Count: " + renderer->saved_shadow_total_triangle_count + "\n"
-        "Msaa: 4x" + "\n"
+        "Shadow Pass Resolution: (" + renderer->shadow_resolution.x + ", " + renderer->shadow_resolution.y + ")\n"
+        "Shadow Pass Msaa: 1x" + "\n"
         "\n"
         "-- Job Runtimes --\n";
 
       SystemListInfo* info = get_system_list("update");
-  
+
       for_every(i, runtimes_count - 1) {
         f64 delta_ms = (runtimes[i+1] - runtimes[i]) * 1000.0;
         // f64 delta_ratio = 100.0f * (runtimes[i] / (1.0f / delta()));
 
         builder = builder + get_system_name(info->systems[i]) + " (" + delta_ms + " ms)\n";
       }
+
+      push_ui_text(20, 20, 20, 20, {10, 10, 10, 1}, (char*)builder.data);
+    } else {
+      builder = builder +
+        "-- Performance Statistics --\n"
+        "Target: " + target + " ms\n"
+        "Average: " + average + " ms\n"
+        "Percent: " + percent + "%\n"
+        "Fps: " + fps + "\n";
 
       push_ui_text(20, 20, 20, 20, {10, 10, 10, 1}, (char*)builder.data);
     }
@@ -928,17 +943,21 @@ namespace quark {
     FrustumPlanes shadow_frustum = camera3d_frustum_planes(get_resource(SunCamera));
 
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
-
+  
     VkDrawIndexedIndirectCommand* forward_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->forward_pass_commands[graphics->frame_index]);
     defer(unmap_buffer(&renderer->forward_pass_commands[graphics->frame_index]));
 
     VkDrawIndexedIndirectCommand* shadow_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->shadow_pass_commands[graphics->frame_index]);
     defer(unmap_buffer(&renderer->shadow_pass_commands[graphics->frame_index]));
 
-    // Build indirect commands and update material properties
+    // Loop through material batches and copy data to gpu and build indirect commands
     for_every(i, renderer->materials_count) {
       MaterialInfo* info = &renderer->infos[i];
       MaterialBatch* batch = &renderer->batches[i];
+
+      if(batch->batch_count == 0) {
+        continue;
+      }
 
       // Update material world data
       {
@@ -950,85 +969,337 @@ namespace quark {
         copy_mem(ptr, material_world_ptr, material_world_size);
         unmap_buffer(material_world_buffer);
       }
+    
+      // Map data buffers
+      u8* material_data = (u8*)map_buffer(&info->material_buffers[graphics->frame_index]);
+      defer(unmap_buffer(&info->material_buffers[graphics->frame_index]));
 
-      // Write material data to gpu
-      {
-        // Map indirect draw commands buffer
-        u8* material_data = (u8*)map_buffer(&info->material_buffers[graphics->frame_index]);
-        defer(unmap_buffer(&info->material_buffers[graphics->frame_index]));
+      u8* transform_data = (u8*)map_buffer(&info->transform_buffers[graphics->frame_index]);
+      defer(unmap_buffer(&info->transform_buffers[graphics->frame_index]));
 
-        u8* transform_data = (u8*)map_buffer(&info->transform_buffers[graphics->frame_index]);
-        defer(unmap_buffer(&info->transform_buffers[graphics->frame_index]));
+      // Build commands
+      u32 batch_count = (i32)batch->batch_count;
+      const u32 block_size = 2048;
 
-        Drawable* transforms = batch->drawables_batch; // "Drawawbles" map directly to "Transforms" on the shader side of things
-        u8* materials = batch->materials_batch;
+      // Make sure blocks are large enough to prevent multi-threading issues
+      assert(block_size > 32);
 
-        usize transforms_size = sizeof(Drawable) * batch->batch_count;
-        usize materials_size = info->material_size * batch->batch_count;
-
-        // Copy data from buffers to GPU
-
-        copy_mem(transform_data, transforms, transforms_size);
-        copy_mem(material_data, materials, materials_size);
-      }
-
-      // Write forward pass commands
-      for_iter(u32, index, 0, batch->batch_count) {
-        Drawable* drawable = &batch->drawables_batch[index];
-        MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
-
-        // Check for frustum culling
-        f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
-        if(!is_sphere_visible(&main_frustum, drawable->transform.position, radius2)) {
-          renderer->material_cull_count[i] += 1;
-          continue;
-        }
-
-        renderer->total_triangle_count += (mesh_instance->count / 3);
-
-        forward_pass_commands[renderer->total_draw_count + renderer->material_draw_count[i]] = {
-          .indexCount = mesh_instance->count,
-          .instanceCount = 1,
-          .firstIndex = mesh_instance->offset,
-          .vertexOffset = 0,
-          .firstInstance = index, // material index
+      // Multi-threaded
+      if(batch_count >= block_size * 2) {
+        struct ThreadWork {
+          u32 start;
+          u32 end;
         };
 
-        renderer->material_draw_count[i] += 1;
-      }
+        // TODO: this is in need of some kind of better structure for doing this kind of thing.
+        // For now this is okay.
+        //
+        // All of the vars needed for building the commands
+        // These need to be moved into some kind of unified structure in the future
+        // that gets passed by ptr.
+        static std::atomic_uint32_t total_material_draw_count = 0;
+        static std::atomic_uint32_t total_shadow_draw_count = 0;
+      
+        static std::atomic_uint32_t total_material_triangle_count = 0;
+        static std::atomic_uint32_t total_shadow_triangle_count = 0;
+  
+        static u32 work_count = 0;
+        static ThreadWork* work = 0;
+        static std::atomic_uint32_t work_index = 0;
 
-      renderer->material_draw_offset[i] = renderer->total_draw_count;
-      renderer->total_draw_count += renderer->material_draw_count[i];
-      renderer->total_culled_count += renderer->material_cull_count[i];
+        static u32* bitset = 0;
+        static u32* shadow_bitset = 0;
 
-      // Write shadow pass commands
-      for_iter(u32, index, 0, batch->batch_count) {
-        Drawable* drawable = &batch->drawables_batch[index];
-        MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+        static FrustumPlanes* main_frustum_ptr = 0;
+        static FrustumPlanes* shadow_frustum_ptr = 0;
+      
+        static VkDrawIndexedIndirectCommand* forward_pass_commands_ptr = 0;
+        static VkDrawIndexedIndirectCommand* shadow_pass_commands_ptr = 0;
 
-        // Check for frustum culling
-        f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
-        if(!is_sphere_visible(&shadow_frustum, drawable->transform.position, radius2)) {
-          renderer->shadow_cull_count[i] += 1;
-          continue;
+        static MaterialBatch* batch_ptr = 0;
+        static MaterialInfo* info_ptr = 0;
+
+        static u8* material_data_ptr = 0;
+        static u8* transform_data_ptr = 0;
+
+        // Init the vars for the current material
+        total_material_draw_count = 0;
+        total_shadow_draw_count = 0;
+      
+        total_material_triangle_count = 0;
+        total_shadow_triangle_count = 0;
+
+        work_count = batch_count / block_size + 1;
+        work = arena_push_array_zero(frame_arena(), ThreadWork, work_count);
+        work_index = 0;
+
+        bitset = arena_push_array_zero(frame_arena(), u32, batch_count / 32 + 1);
+        shadow_bitset = arena_push_array_zero(frame_arena(), u32, batch_count / 32 + 1);
+
+        main_frustum_ptr = &main_frustum;
+        shadow_frustum_ptr = &shadow_frustum;
+
+        forward_pass_commands_ptr = forward_pass_commands;
+        shadow_pass_commands_ptr = shadow_pass_commands;
+
+        batch_ptr = batch;
+        info_ptr = info;
+      
+        material_data_ptr = material_data;
+        transform_data_ptr = transform_data;
+
+        // Build work commands
+        for_every(i, work_count) {
+          work[i].start = i * block_size;
+          work[i].end = (i + 1) * block_size;
         }
 
-        renderer->shadow_total_triangle_count += (mesh_instance->count / 3);
+        work[work_count - 1].end = batch_count;
 
-        shadow_pass_commands[renderer->shadow_total_draw_count + renderer->shadow_draw_count[i]] = {
-          .indexCount = mesh_instance->count,
-          .instanceCount = 1,
-          .firstIndex = mesh_instance->offset,
-          .vertexOffset = 0,
-          .firstInstance = index, // material index
-        };
+        // Issue work commands
+        for_every(i, work_count) {
+          thread_pool_push([]() {
+            // Grab our work
+            u32 work_i = work_index.fetch_add(1, std::memory_order_seq_cst);
+            if(work_i > work_count) {
+              return;
+            }
 
-        renderer->shadow_draw_count[i] += 1;
+            ThreadWork my_work = work[work_i];
+
+            // Copy material data to gpu
+            {
+              u32 count = my_work.end - my_work.start;
+
+              // "Drawawbles" map directly to "Transforms" on the shader side of things
+              usize transforms_size = sizeof(Drawable) * count;
+              usize materials_size = info_ptr->material_size * count;
+
+              usize transforms_offset = sizeof(Drawable) * my_work.start;
+              usize materials_offset = info_ptr->material_size * my_work.start;
+
+              u8* transforms = (u8*)batch_ptr->drawables_batch + transforms_offset;
+              u8* materials = batch_ptr->materials_batch + materials_offset;
+
+              // Copy data from buffers to gpu
+              copy_mem(transform_data_ptr + transforms_offset, transforms, transforms_size);
+              copy_mem(material_data_ptr + materials_offset, materials, materials_size);
+            }
+
+            // Assert if our calculated draw count is correct
+            #ifdef DEBUG
+            u32 true_draw_count = 0;
+            #endif
+
+            // Write bitset jump list
+            for_range(index, my_work.start, my_work.end) {
+              Drawable* drawable = &batch_ptr->drawables_batch[index];
+              MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+              // Check for frustum culling
+              f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+
+              if(!is_sphere_visible(main_frustum_ptr, drawable->transform.position, radius2)) {
+                unset_bitset_bit(bitset, index);
+              } else {
+                set_bitset_bit(bitset, index);
+
+                // Assert that our calculated draw count is correct
+                #ifdef DEBUG
+                true_draw_count += 1;
+                #endif
+              }
+
+              if(!is_sphere_visible(shadow_frustum_ptr, drawable->transform.position, radius2)) {
+                unset_bitset_bit(shadow_bitset, index);
+              } else {
+                set_bitset_bit(shadow_bitset, index);
+              }
+            }
+
+            // Count how many things we have
+            u32 material_draw_count = 0;
+            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
+              material_draw_count += __builtin_popcount(bitset[bitset_index]);
+            }
+
+            // Assert that our calculated draw count is correct
+            #ifdef DEBUG
+            if(material_draw_count != true_draw_count) {
+              panic("True draw count: " + true_draw_count + ", Calculated draw count: " + material_draw_count + "\n");
+            }
+            #endif
+
+            u32 material_start = total_material_draw_count.fetch_add(material_draw_count, std::memory_order_seq_cst);
+            u32 material_offset = 0;
+            u32 material_triangle_count = 0;
+
+            // Walk the jumplist and push commands
+            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
+              u32 bits = bitset[bitset_index];
+              u32 global_index = bitset_index * 32;
+
+              // Loop unculled objects
+              while(bits != 0) {
+                u32 local_index = __builtin_ctz(bits);
+                bits ^= 1 << local_index;
+
+                u32 index = global_index + local_index;
+
+                Drawable* drawable = &batch_ptr->drawables_batch[index];
+                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+                material_triangle_count += (mesh_instance->count / 3);
+
+                forward_pass_commands_ptr[renderer->total_draw_count + material_start + material_offset] = {
+                  .indexCount = mesh_instance->count,
+                  .instanceCount = 1,
+                  .firstIndex = mesh_instance->offset,
+                  .vertexOffset = 0,
+                  .firstInstance = index, // material index
+                };
+
+                material_offset += 1;
+              }
+            }
+
+            total_material_triangle_count.fetch_add(material_triangle_count, std::memory_order_seq_cst);
+        
+            // Count how many things we have
+            u32 shadow_draw_count = 0;
+            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
+              shadow_draw_count += __builtin_popcount(shadow_bitset[bitset_index]);
+            }
+
+            u32 shadow_start = total_shadow_draw_count.fetch_add(shadow_draw_count, std::memory_order_seq_cst);
+            u32 shadow_local_offset = 0;
+            u32 shadow_triangle_count = 0;
+
+            // Move through the jumplist and push commands
+            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
+              u32 bits = shadow_bitset[bitset_index];
+              u32 global_index = bitset_index * 32;
+
+              // Loop unculled objects
+              while(bits != 0) {
+                u32 local_index = __builtin_ctz(bits);
+                bits ^= 1 << local_index;
+
+                u32 index = global_index + local_index;
+
+                Drawable* drawable = &batch_ptr->drawables_batch[index];
+                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+                shadow_triangle_count += (mesh_instance->count / 3);
+
+                shadow_pass_commands_ptr[renderer->shadow_total_draw_count + shadow_start + shadow_local_offset] = {
+                  .indexCount = mesh_instance->count,
+                  .instanceCount = 1,
+                  .firstIndex = mesh_instance->offset,
+                  .vertexOffset = 0,
+                  .firstInstance = index, // material index
+                };
+
+                shadow_local_offset += 1;
+              }
+            }
+          
+            total_shadow_triangle_count.fetch_add(shadow_triangle_count, std::memory_order_seq_cst);
+          });
+        }
+
+        thread_pool_join();
+
+        // Update values
+        renderer->material_draw_offset[i] = renderer->total_draw_count;
+        renderer->total_draw_count += total_material_draw_count.load();
+        renderer->material_draw_count[i] = total_material_draw_count.load();
+        renderer->material_cull_count[i] = batch_count - renderer->material_draw_count[i];
+        renderer->total_culled_count += renderer->material_cull_count[i];
+        renderer->total_triangle_count += total_material_triangle_count.load();
+
+        renderer->shadow_draw_offset[i] = renderer->shadow_total_draw_count;
+        renderer->shadow_total_draw_count += total_shadow_draw_count.load();
+        renderer->shadow_draw_count[i] = total_shadow_draw_count.load();
+        renderer->shadow_cull_count[i] = batch_count - renderer->shadow_draw_count[i];
+        renderer->shadow_total_culled_count += renderer->shadow_cull_count[i];
+        renderer->shadow_total_triangle_count += total_shadow_triangle_count.load();
       }
 
-      renderer->shadow_draw_offset[i] = renderer->shadow_total_draw_count;
-      renderer->shadow_total_draw_count += renderer->shadow_draw_count[i];
-      renderer->shadow_total_culled_count += renderer->shadow_cull_count[i];
+      // Build commands single-threaded
+      else {
+        // Copy material data to gpu
+        {
+          Drawable* transforms = batch->drawables_batch; // "Drawawbles" map directly to "Transforms" on the shader side of things
+          u8* materials = batch->materials_batch;
+
+          usize transforms_size = sizeof(Drawable) * batch->batch_count;
+          usize materials_size = info->material_size * batch->batch_count;
+
+          // Copy data from buffers to gpu
+
+          copy_mem(transform_data, transforms, transforms_size);
+          copy_mem(material_data, materials, materials_size);
+        }
+      
+        // Write forward pass commands
+        for_iter(u32, index, 0, batch->batch_count) {
+          Drawable* drawable = &batch->drawables_batch[index];
+          MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+          // Check for frustum culling
+          f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+          if(!is_sphere_visible(&main_frustum, drawable->transform.position, radius2)) {
+            renderer->material_cull_count[i] += 1;
+            continue;
+          }
+
+          renderer->total_triangle_count += (mesh_instance->count / 3);
+
+          forward_pass_commands[renderer->total_draw_count + renderer->material_draw_count[i]] = {
+            .indexCount = mesh_instance->count,
+            .instanceCount = 1,
+            .firstIndex = mesh_instance->offset,
+            .vertexOffset = 0,
+            .firstInstance = index, // material index
+          };
+
+          renderer->material_draw_count[i] += 1;
+        }
+
+        renderer->material_draw_offset[i] = renderer->total_draw_count;
+        renderer->total_draw_count += renderer->material_draw_count[i];
+        renderer->total_culled_count += renderer->material_cull_count[i];
+
+        // Write shadow pass commands
+        for_iter(u32, index, 0, batch->batch_count) {
+          Drawable* drawable = &batch->drawables_batch[index];
+          MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+          // Check for frustum culling
+          f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+          if(!is_sphere_visible(&shadow_frustum, drawable->transform.position, radius2)) {
+            renderer->shadow_cull_count[i] += 1;
+            continue;
+          }
+
+          renderer->shadow_total_triangle_count += (mesh_instance->count / 3);
+
+          shadow_pass_commands[renderer->shadow_total_draw_count + renderer->shadow_draw_count[i]] = {
+            .indexCount = mesh_instance->count,
+            .instanceCount = 1,
+            .firstIndex = mesh_instance->offset,
+            .vertexOffset = 0,
+            .firstInstance = index, // material index
+          };
+
+          renderer->shadow_draw_count[i] += 1;
+        }
+
+        renderer->shadow_draw_offset[i] = renderer->shadow_total_draw_count;
+        renderer->shadow_total_draw_count += renderer->shadow_draw_count[i];
+        renderer->shadow_total_culled_count += renderer->shadow_cull_count[i];
+      }
     }
   }
 
@@ -1056,7 +1327,8 @@ namespace quark {
         MaterialEffect* effect = &renderer->material_effects[i];
         bind_effect(commands, effect);
 
-        vkCmdDrawIndexedIndirect(commands, indirect_commands_buffer,
+        vkCmdDrawIndexedIndirect(commands,
+          indirect_commands_buffer,
           renderer->material_draw_offset[i] * sizeof(VkDrawIndexedIndirectCommand),
           renderer->material_draw_count[i], sizeof(VkDrawIndexedIndirectCommand));
       }
