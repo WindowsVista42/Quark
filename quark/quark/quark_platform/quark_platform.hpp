@@ -1,9 +1,15 @@
 #pragma once
+#ifndef QUARK_PLATFORM_HPP
+#define QUARK_PLATFORM_HPP
 
 #include "api.hpp"
 #include "../quark_core/module.hpp"
 #include <GLFW/glfw3.h>
 #include <threadpool.hpp>
+
+#define QUARK_PLATFORM_INLINES
+
+void thread_pool_push4();
 
 namespace quark {
 //
@@ -246,20 +252,20 @@ namespace quark {
 
   // Push a work function into the threadpools queue
   // Work will begin on the function when thread_pool_start() or thread_pool_join() is called
-  void thread_pool_push(VoidFunctionPtr work_function_ptr);
+  platform_api void thread_pool_push(VoidFunctionPtr work_function_ptr);
 
   // Tell the threadpool to begin working but dont wait on threads to complete (defer joining to a later stage)
-  void thread_pool_start();
+  platform_api void thread_pool_start();
 
   // Tell the threadpool to begin working and wait until all threads have finished their work
   // If the threadpool is already working then this function waits until all the threads have finished their work
-  void thread_pool_join();
+  platform_api void thread_pool_join();
 
   // Check if the threadpool has finished the current batch of work
-  bool thread_pool_is_finished();
+  platform_api bool thread_pool_is_finished();
   
   // Returns the number of threads committed to this threadpool
-  isize thread_pool_thread_count();
+  platform_api isize thread_pool_thread_count();
 
 //
 // Shared Library API
@@ -506,7 +512,6 @@ namespace quark {
 
   platform_api void panic_real(const char* message, const char* file, usize line);
 
-
   #include "internal/logging.hpp"
 
 //
@@ -543,3 +548,6 @@ namespace quark {
 
   platform_api int sprintf(char* buffer, const char* format, ...);
 };
+
+#undef QUARK_PLATFORM_INLINES
+#endif

@@ -3,7 +3,6 @@
 // This file is only meant to be included inside of quark_platform.hpp
 // quark_platform.hpp is included so LSP works
 #include "../quark_platform.hpp"
-using namespace quark;
 
   #define log_message(args...) { \
     Arena* arena = get_arena(); \

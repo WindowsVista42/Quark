@@ -3,7 +3,10 @@
 // This file is only meant to be included inside of quark_platform.hpp
 // quark_platform.hpp is included so LSP works
 #include "../quark_platform.hpp"
-using namespace quark;
+
+#ifndef QUARK_PLATFORM_INLINES
+namespace quark {
+#endif
 
 //
 // Custom Alignment
@@ -112,3 +115,7 @@ using namespace quark;
 //
 
   #define end_scratch(stack) end_temp_stack(stack)
+
+#ifndef QUARK_PLATFORM_INLINES
+};
+#endif
