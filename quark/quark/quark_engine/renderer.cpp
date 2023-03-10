@@ -211,6 +211,8 @@ namespace quark {
   }
 
   void init_render_passes() {
+    graphics->render_resolution *= 1.0f;
+  
     renderer->material_color_image_info = {
       .resolution = graphics->render_resolution,
       .format = ImageFormat::LinearRgba16,
@@ -890,7 +892,7 @@ namespace quark {
     Buffer* current_world_data_buffer = &renderer->world_data_buffers[graphics->frame_index];
 
     MainCamera* camera = get_resource(MainCamera);
-    FrustumPlanes frustum = camera3d_frustum_planes(camera);
+    FrustumPlanes frustum = camera3d_frustum_planes(camera, get_window_aspect());
 
     world_data->main_view_projection = *get_resource_as(MainCameraViewProj, mat4);
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
@@ -939,8 +941,8 @@ namespace quark {
   }
 
   void build_material_batch_commands() {
-    FrustumPlanes main_frustum = camera3d_frustum_planes(get_resource(MainCamera));
-    FrustumPlanes shadow_frustum = camera3d_frustum_planes(get_resource(SunCamera));
+    FrustumPlanes main_frustum = camera3d_frustum_planes(get_resource(MainCamera), get_window_aspect());
+    FrustumPlanes shadow_frustum = camera3d_frustum_planes(get_resource(SunCamera), 1);
 
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
   
@@ -949,6 +951,8 @@ namespace quark {
 
     VkDrawIndexedIndirectCommand* shadow_pass_commands = (VkDrawIndexedIndirectCommand*)map_buffer(&renderer->shadow_pass_commands[graphics->frame_index]);
     defer(unmap_buffer(&renderer->shadow_pass_commands[graphics->frame_index]));
+
+    u32 frame_index = graphics->frame_index;
 
     // Loop through material batches and copy data to gpu and build indirect commands
     for_every(i, renderer->materials_count) {
@@ -1097,7 +1101,7 @@ namespace quark {
               MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
 
               // Check for frustum culling
-              f32 radius2 = length2(drawable->model.half_extents) * 2.0f;
+              f32 radius2 = length(drawable->model.half_extents) * 0.75f;
 
               if(!is_sphere_visible(main_frustum_ptr, drawable->transform.position, radius2)) {
                 unset_bitset_bit(bitset, index);
@@ -1110,6 +1114,7 @@ namespace quark {
                 #endif
               }
 
+              radius2 *= 0.8f;
               if(!is_sphere_visible(shadow_frustum_ptr, drawable->transform.position, radius2)) {
                 unset_bitset_bit(shadow_bitset, index);
               } else {

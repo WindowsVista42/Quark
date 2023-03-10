@@ -22,9 +22,11 @@ namespace quark {
     
     if(camera->projection_type == ProjectionType::Orthographic) {
       // calculate aspect-correct width and height
-      f32 half_width = (aspect > 1.0f) ? camera->half_size : camera->half_size * (1.0f / aspect);
-      f32 half_height = (aspect < 1.0f) ? camera->half_size * aspect : camera->half_size;
-    
+      // f32 half_width = (aspect > 1.0f) ? camera->half_size : camera->half_size * (1.0f / aspect);
+      // f32 half_height = (aspect < 1.0f) ? camera->half_size * aspect : camera->half_size;
+      f32 half_width = camera->half_size;
+      f32 half_height = camera->half_size;
+
       return mat4_orthographic_projection(-half_width, half_width, -half_height, half_height, camera->z_near, camera->z_far);
     }
 
@@ -35,8 +37,15 @@ namespace quark {
     return camera3d_projection_mat4(camera, aspect) * camera3d_view_mat4(camera);
   }
 
-  FrustumPlanes camera3d_frustum_planes(Camera3D* camera) {
-    mat4 view_projection = camera3d_view_projection_mat4(camera, get_window_aspect());
+  FrustumPlanes camera3d_frustum_planes(Camera3D* camera, f32 aspect) {
+    Camera3D camera_copy = *camera;
+
+    // This fixes the frustum planes being 2x the distance they should be
+    if(camera->projection_type == ProjectionType::Orthographic) {
+      camera_copy.half_size /= 2.0f; //sqrt(camera_copy.half_size);
+    }
+
+    mat4 view_projection = camera3d_projection_mat4(&camera_copy, aspect) * camera3d_view_mat4(camera);
     mat4 view_projection_t = transpose(view_projection);
 
     FrustumPlanes frustum = {};
@@ -55,17 +64,17 @@ namespace quark {
   }
 
   bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2) {
-    // f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
+    f32 dist01 = min(plane_point_distance(frustum->planes[0], position), plane_point_distance(frustum->planes[1], position));
     f32 dist23 = min(plane_point_distance(frustum->planes[2], position), plane_point_distance(frustum->planes[3], position));
     f32 dist45 = min(plane_point_distance(frustum->planes[4], position), plane_point_distance(frustum->planes[5], position));
 
-    f32 dist = /*min(*/min(dist45, dist23);// , dist45);
-    f32 dist2 = dist * dist;
-    if(dist < 0.0f) {
-      dist2 = -dist2;
-    }
+    f32 dist = min(min(dist01, dist23), dist45);
+    // f32 dist2 = dist * dist;
+    // if(dist < 0.0f) {
+    //   dist2 = -dist2;
+    // }
    
-    return (dist2 + radius2) > 0.0f;
+    return (dist + radius2) > 0.0f;
   }
 
 #ifndef QUARK_ENGINE_INLINES

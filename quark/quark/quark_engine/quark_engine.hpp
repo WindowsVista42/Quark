@@ -1116,7 +1116,7 @@ namespace quark {
   inline mat4 camera3d_projection_mat4(Camera3D* camera, f32 aspect);
   inline mat4 camera3d_view_projection_mat4(Camera3D* camera, f32 aspect);
 
-  inline FrustumPlanes camera3d_frustum_planes(Camera3D* camera);
+  inline FrustumPlanes camera3d_frustum_planes(Camera3D* camera, f32 aspect);
 
   inline f32 plane_point_distance(vec4 plane, vec3 point);
   inline bool is_sphere_visible(FrustumPlanes* frustum, vec3 position, float radius2);

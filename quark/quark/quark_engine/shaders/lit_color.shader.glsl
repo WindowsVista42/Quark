@@ -64,7 +64,7 @@ void main() {
   vec3 proj_coords = SUN_POSITION.xyz / SUN_POSITION.w;
   proj_coords.xy = proj_coords.xy * 0.5f + 0.5f;
 
-  f32 pcf_width = 0.001f;
+  f32 pcf_width = 0.0001f;
   
   f32 light_dir_dot = dot(WORLD_NORMAL, SUN_DIRECTION.xyz);
   f32 bias = mix(-0.00002f, -0.000002f, abs(light_dir_dot));
