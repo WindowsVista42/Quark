@@ -9,6 +9,7 @@
 #include "../quark_platform/module.hpp"
 
 #include <tuple>
+#include <atomic>
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
