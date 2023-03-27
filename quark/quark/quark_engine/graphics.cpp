@@ -1022,34 +1022,31 @@ namespace quark {
 
   void init_swapchain() {
     // Swapchain creation
-    vkb::SwapchainBuilder swapchain_builder{graphics->physical_device, graphics->device, graphics->surface};
 
+    vkb::SwapchainBuilder swapchain_builder{graphics->physical_device, graphics->device, graphics->surface};
     swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
-  
-    // other swapchain options
-    // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
-    // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
-  
     swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
     swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
     swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
-  
     std::vector<VkImage> swapchain_images = vkb_swapchain.get_images().value();
     std::vector<VkImageView> swapchain_image_views = vkb_swapchain.get_image_views().value();
     VkFormat swapchain_format = vkb_swapchain.image_format;
-
-    // copy over to the graphics
 
     graphics->swapchain = vkb_swapchain.swapchain;
     graphics->swapchain_format = swapchain_format;
     graphics->swapchain_image_count = swapchain_images.size();
 
-    graphics->swapchain_images = arena_push_array(global_arena(), VkImage, swapchain_images.size());
-    copy_array(graphics->swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
+    if(graphics->swapchain_images == 0) {
+      graphics->swapchain_images = arena_push_array(global_arena(), VkImage, swapchain_images.size());
+    }
 
-    graphics->swapchain_image_views = arena_push_array(global_arena(), VkImageView, swapchain_image_views.size());
+    if(graphics->swapchain_image_views == 0) {
+      graphics->swapchain_image_views = arena_push_array(global_arena(), VkImageView, swapchain_image_views.size());
+    }
+
+    copy_array(graphics->swapchain_images, swapchain_images.data(), VkImage, swapchain_images.size());
     copy_array(graphics->swapchain_image_views, swapchain_image_views.data(), VkImageView, swapchain_image_views.size());
   }
 
@@ -1071,21 +1068,46 @@ namespace quark {
     }
   }
 
+  void resize_swapchain() {
+    vkDestroySwapchainKHR(graphics->device, graphics->swapchain, 0);
+
+    for_every(i, graphics->swapchain_image_count) {
+      // vkDestroyImage(graphics->device, graphics->swapchain_images[i], 0);
+      vkDestroyImageView(graphics->device, graphics->swapchain_image_views[i], 0);
+    }
+
+    init_swapchain();
+  }
+
   void begin_frame() {
     vk_check(vkWaitForFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index], true, _OP_TIMEOUT));
     vk_check(vkResetFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index]));
-  
+
     VkResult result = vkAcquireNextImageKHR(graphics->device, graphics->swapchain, _OP_TIMEOUT, graphics->present_semaphores[graphics->frame_index], 0, &graphics->swapchain_image_index);
-  
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      // resize_swapchain();
-      // return;
+
+    // Check for window resizes
+
+    static ivec2 prev_dim = get_window_dimensions();
+
+    if(prev_dim.x != get_window_dimensions().x) {
+      graphics->framebuffer_resized = true;
+    }
+
+    if(prev_dim.y != get_window_dimensions().y) {
+      graphics->framebuffer_resized = true;
+    }
+
+    prev_dim = get_window_dimensions();
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || graphics->framebuffer_resized) {
+      graphics->framebuffer_resized = false;
+      resize_swapchain();
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       panic("Failed to acquire swapchain image!");
     }
-  
+
     vk_check(vkResetCommandBuffer(graphics->commands[graphics->frame_index], 0));
-  
+
     VkCommandBufferBeginInfo command_begin_info = {};
     command_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     command_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -1094,12 +1116,12 @@ namespace quark {
   
     vk_check(vkBeginCommandBuffer(graphics->commands[graphics->frame_index], &command_begin_info));
   }
-  
+
   void end_frame() {
     vk_check(vkEndCommandBuffer(graphics->commands[graphics->frame_index]));
-  
+
     VkPipelineStageFlags wait_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-  
+
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pWaitDstStageMask = &wait_stage_flags;
@@ -1110,11 +1132,11 @@ namespace quark {
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &graphics->commands[graphics->frame_index];
     submit_info.pNext = 0;
-  
+
     // submit command buffer to the queue and execute it
     // render fence will block until the graphics commands finish
     vk_check(vkQueueSubmit(graphics->graphics_queue, 1, &submit_info, graphics->render_fences[graphics->frame_index]));
-  
+
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.swapchainCount = 1;
@@ -1123,15 +1145,15 @@ namespace quark {
     present_info.pWaitSemaphores = &graphics->render_semaphores[graphics->frame_index];
     present_info.pImageIndices = &graphics->swapchain_image_index;
     present_info.pNext = 0;
-  
+
     VkResult result = vkQueuePresentKHR(graphics->graphics_queue, &present_info);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || graphics->framebuffer_resized) {
       graphics->framebuffer_resized = false;
-      // resize_swapchain();
+      resize_swapchain();
     } else if (result != VK_SUCCESS) {
       panic("Failed to present swapchain image!");
     }
-  
+
     graphics->frame_count += 1;
     graphics->frame_index = graphics->frame_count % _FRAME_OVERLAP;
   }

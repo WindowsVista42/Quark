@@ -74,6 +74,11 @@ namespace quark {
     return _window_ptr;
   }
 
+  void window_size_callback(GLFWwindow* window, int w, int h) {
+    _window_dimensions.x = w;
+    _window_dimensions.y = h;
+  }
+
   void init_window() {
     if(_window_ptr != 0) {
       panic("Attempted to create the window twice!");
@@ -86,7 +91,7 @@ namespace quark {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // _window_enable_resizing ? GLFW_TRUE : GLFW_FALSE);
 
     // @todo have some kind of config
   
@@ -115,6 +120,7 @@ namespace quark {
 
     glfwSetScrollCallback(_window_ptr, scroll_callback);
     glfwSetCursorPosCallback(_window_ptr, mouse_callback);
+    glfwSetWindowSizeCallback(_window_ptr, window_size_callback);
   }
 
   void deinit_window() {
