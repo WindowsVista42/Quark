@@ -49,6 +49,8 @@ namespace quark {
   // using cvar  = std::condition_variable;
   using thread_id = isize;
 
+  // #define atomic_fetch_add(val, new_val, ordering)
+
 //
 // Linear Algebra Types
 //

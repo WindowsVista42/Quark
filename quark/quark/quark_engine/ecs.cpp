@@ -175,7 +175,7 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
       // os_commit_mem((u8*)ecs->ecs_comp_table[i], memsize);
       zero_mem(ecs->ecs_comp_table[i], memsize);
     }
-  
+
     // use the global_arena???
     u32 bt_size = 256 * KB;
     ecs->ecs_bool_table[i] = (u32*)malloc(bt_size); // os_reserve_mem(bt_size);

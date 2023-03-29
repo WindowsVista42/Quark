@@ -21,7 +21,7 @@
 #include <lz4.h>
 #include <meshoptimizer.h>
 
-#include <atomic>
+// #include <atomic>
 
 namespace quark {
   define_resource(Renderer, {});
@@ -49,13 +49,18 @@ namespace quark {
   void init_pipelines();
 
   void init_renderer_pre_assets() {
-    renderer->mesh_instances = arena_push_array(global_arena(), MeshInstance, 1024);
-    renderer->mesh_scales = arena_push_array(global_arena(), vec3, 1024);
-  
+    renderer->mesh_counts = 0;
+    renderer->mesh_instances = arena_push_array_zero(global_arena(), MeshInstance, 1024);
+    renderer->mesh_scales = arena_push_array_zero(global_arena(), vec3, 1024);
+
+    renderer->model_counts = 0;
+    renderer->model_instances = arena_push_array_zero(global_arena(), ModelInstance, 1024);
+    renderer->model_scales = arena_push_array_zero(global_arena(), vec3, 1024);
+
     {
       BufferInfo info ={
         .type = BufferType::Commands,
-        .size = 256 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+        .size = 512 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
       };
 
       create_buffers(renderer->forward_pass_commands, _FRAME_OVERLAP, &info);
@@ -240,7 +245,7 @@ namespace quark {
     renderer->shadow_resolution = ivec2 { 2048, 2048 } * 1;
 
     renderer->shadow_image_info.resolution = renderer->shadow_resolution;
-    renderer->shadow_image_info.format = ImageFormat::LinearD16;
+    renderer->shadow_image_info.format = ImageFormat::LinearD32;
     renderer->shadow_image_info.type = ImageType::RenderTargetDepth;
     renderer->shadow_image_info.samples = ImageSamples::One;
 
@@ -365,9 +370,9 @@ namespace quark {
   void init_pipelines() {
     // init material pipelines
     {
-      update_material(ColorMaterial, "color", "color", 256 * 1024, 128);
-      update_material(TextureMaterial, "texture", "texture", 256 * 1024, 128);
-      update_material(LitColorMaterial, "lit_color", "lit_color", 256 * 1024, 128);
+      update_material(ColorMaterial, "color", "color", 512 * 1024, 128);
+      update_material(TextureMaterial, "texture", "texture", 512 * 1024, 128);
+      update_material(LitColorMaterial, "lit_color", "lit_color", 512 * 1024, 128);
     }
 
     // init depth prepass pipelines
@@ -843,6 +848,62 @@ namespace quark {
     }
   }
 
+//
+//
+//
+
+  template <typename T>
+  void push_all_renderables_of_material_type() {
+    u32 count = 0;
+    for_archetype(Include<Transform, Model, T> {}, Exclude<> {},
+    [&](EntityId entity_id, Transform* transform, Model* model, T* material) {
+      count += 1;
+    });
+  
+    static thread_local u32 index = 0;
+    static thread_local Drawable* data_a = 0;
+    static thread_local LitColorMaterial* data_b = 0;
+    static thread_local u32 my_index;
+    static std::atomic_uint32_t work_index;
+
+    struct ThreadWork {
+      u32 index = 0;
+      Drawable* data_a = 0;
+      T* data_b = 0;
+      u8 pad[36];
+    };
+
+    static ThreadWork* thread_work = 0;
+
+    u32 work_count = (count / (32 * 32)) + 1;
+
+    thread_work = 0;
+    thread_work = arena_push_array_zero(frame_arena(), ThreadWork, work_count);
+
+    work_index = 0;
+
+    for_archetype_par_grp(32, Include<Transform, Model, T> {}, Exclude<> {},
+    [&]() {
+      my_index = work_index.fetch_add(1, std::memory_order_seq_cst);
+    },
+    [&](u32 bitset) {
+      auto ptrs = push_drawable_instance_n(__builtin_popcount(bitset), T::MATERIAL_ID);
+      thread_work[my_index].data_a = ptrs.drawables;
+      thread_work[my_index].data_b = (T*)ptrs.materials;
+      thread_work[my_index].index = 0;
+    },
+    [&](EntityId entity_id, Transform* transform, Model* model, T* material) {
+      thread_work[my_index].data_a[thread_work[my_index].index] = Drawable{ *transform, *model };
+      thread_work[my_index].data_b[thread_work[my_index].index] = *material;
+      thread_work[my_index].index += 1;
+    });
+  }
+
+  void push_renderables() {
+    push_all_renderables_of_material_type<ColorMaterial>();
+    push_all_renderables_of_material_type<TextureMaterial>();
+    push_all_renderables_of_material_type<LitColorMaterial>();
+  }
 
 //
 // Cameras
@@ -909,6 +970,24 @@ namespace quark {
 //
 // Materials API
 //
+
+  MeshId select_lod(ModelInstance* instance, f32 angular_size) {
+    u32 index = 0;
+
+    if(instance->angular_thresholds[1] > angular_size) {
+      index = 1;
+    }
+  
+    if(instance->angular_thresholds[2] > angular_size) {
+      index = 2;
+    }
+  
+    if(instance->angular_thresholds[3] > angular_size) {
+      index = 3;
+    }
+
+    return instance->mesh_ids[index];
+  }
 
   u32 add_material_type(MaterialInfo* info) {
     usize i = renderer->materials_count;
@@ -989,7 +1068,7 @@ namespace quark {
       assert(block_size > 32);
 
       // Multi-threaded
-      if(batch_count >= block_size * 2) {
+      // if(batch_count >= block_size * 2) {
         struct ThreadWork {
           u32 start;
           u32 end;
@@ -1065,7 +1144,7 @@ namespace quark {
           thread_pool_push([]() {
             // Grab our work
             u32 work_i = work_index.fetch_add(1, std::memory_order_seq_cst);
-            if(work_i > work_count) {
+            if(work_i >= work_count) {
               return;
             }
 
@@ -1090,28 +1169,25 @@ namespace quark {
               copy_mem(material_data_ptr + materials_offset, materials, materials_size);
             }
 
-            // Assert if our calculated draw count is correct
-            #ifdef DEBUG
-            u32 true_draw_count = 0;
-            #endif
+            // printf("time: %lf\n", total_time);
+
+            u32 material_draw_count = 0;
+            u32 shadow_draw_count = 0;
 
             // Write bitset jump list
             for_range(index, my_work.start, my_work.end) {
               Drawable* drawable = &batch_ptr->drawables_batch[index];
-              MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+              // MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+              // MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
 
               // Check for frustum culling
-              f32 radius2 = length(drawable->model.half_extents) * 0.75f;
+              f32 radius2 = length(drawable->model.half_extents) * 1.0f;
 
               if(!is_sphere_visible(main_frustum_ptr, drawable->transform.position, radius2)) {
                 unset_bitset_bit(bitset, index);
               } else {
                 set_bitset_bit(bitset, index);
-
-                // Assert that our calculated draw count is correct
-                #ifdef DEBUG
-                true_draw_count += 1;
-                #endif
+                material_draw_count += 1;
               }
 
               radius2 *= 0.8f;
@@ -1119,25 +1195,30 @@ namespace quark {
                 unset_bitset_bit(shadow_bitset, index);
               } else {
                 set_bitset_bit(shadow_bitset, index);
+                shadow_draw_count += 1;
               }
             }
 
             // Count how many things we have
-            u32 material_draw_count = 0;
-            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
-              material_draw_count += __builtin_popcount(bitset[bitset_index]);
-            }
+            // u32 material_draw_count = 0;
+            // for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
+            //   material_draw_count += __builtin_popcount(bitset[bitset_index]);
+            // }
 
             // Assert that our calculated draw count is correct
-            #ifdef DEBUG
-            if(material_draw_count != true_draw_count) {
-              panic("True draw count: " + true_draw_count + ", Calculated draw count: " + material_draw_count + "\n");
-            }
-            #endif
+            // #ifdef DEBUG
+            // if(material_draw_count != true_draw_count) {
+            //   panic("True draw count: " + true_draw_count + ", Calculated draw count: " + material_draw_count + "\n");
+            // }
+            // #endif
 
             u32 material_start = total_material_draw_count.fetch_add(material_draw_count, std::memory_order_seq_cst);
             u32 material_offset = 0;
             u32 material_triangle_count = 0;
+
+            if(work_i == work_count - 1) {
+              my_work.end += 32;
+            }
 
             // Walk the jumplist and push commands
             for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
@@ -1152,7 +1233,14 @@ namespace quark {
                 u32 index = global_index + local_index;
 
                 Drawable* drawable = &batch_ptr->drawables_batch[index];
-                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+                f32 radius2 = length2(drawable->model.half_extents);
+                f32 distance2 = length2(get_resource(MainCamera)->position - drawable->transform.position);
+                f32 angular_size = radius2 / distance2;
+
+                ModelInstance* model_instance = &renderer->model_instances[(u32)drawable->model.id];
+                MeshId lod_id = select_lod(model_instance, angular_size);
+                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)lod_id];
 
                 material_triangle_count += (mesh_instance->count / 3);
 
@@ -1170,12 +1258,6 @@ namespace quark {
 
             total_material_triangle_count.fetch_add(material_triangle_count, std::memory_order_seq_cst);
         
-            // Count how many things we have
-            u32 shadow_draw_count = 0;
-            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
-              shadow_draw_count += __builtin_popcount(shadow_bitset[bitset_index]);
-            }
-
             u32 shadow_start = total_shadow_draw_count.fetch_add(shadow_draw_count, std::memory_order_seq_cst);
             u32 shadow_local_offset = 0;
             u32 shadow_triangle_count = 0;
@@ -1193,7 +1275,14 @@ namespace quark {
                 u32 index = global_index + local_index;
 
                 Drawable* drawable = &batch_ptr->drawables_batch[index];
-                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)drawable->model.id];
+
+                f32 radius2 = length2(drawable->model.half_extents);
+                f32 distance2 = length2(get_resource(MainCamera)->position - drawable->transform.position);
+                f32 angular_size = radius2 / distance2;
+
+                ModelInstance* model_instance = &renderer->model_instances[(u32)drawable->model.id];
+                MeshId lod_id = select_lod(model_instance, angular_size);
+                MeshInstance* mesh_instance = &renderer->mesh_instances[(u32)lod_id];
 
                 shadow_triangle_count += (mesh_instance->count / 3);
 
@@ -1231,8 +1320,10 @@ namespace quark {
         renderer->shadow_total_triangle_count += total_shadow_triangle_count.load();
       }
 
+      // printf("lksjdflkjsdflkj\n");
+
       // Build commands single-threaded
-      else {
+      /* else {
         // Copy material data to gpu
         {
           Drawable* transforms = batch->drawables_batch; // "Drawawbles" map directly to "Transforms" on the shader side of things
@@ -1305,7 +1396,7 @@ namespace quark {
         renderer->shadow_total_draw_count += renderer->shadow_draw_count[i];
         renderer->shadow_total_culled_count += renderer->shadow_cull_count[i];
       }
-    }
+    } */
   }
 
   void draw_material_batches() {
@@ -1323,6 +1414,8 @@ namespace quark {
 
       vkCmdBindVertexBuffers(commands, 0, count_of(buffers), buffers, offsets);
       vkCmdBindIndexBuffer(commands, renderer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+      MeshInstance* cube = &renderer->mesh_instances[(u32)*get_asset<MeshId>("cube")];
 
       for_every(i, renderer->materials_count) {
         if(renderer->material_draw_count[i] == 0) {
@@ -1419,10 +1512,10 @@ namespace quark {
   }
 
   Model create_model(const char* mesh_name, vec3 scale) {
-    MeshId id = *get_asset<MeshId>(mesh_name);
+    ModelId id = *get_asset<ModelId>(mesh_name);
 
     return Model {
-      .half_extents = scale * renderer->mesh_scales[(u32)id],
+      .half_extents = scale * renderer->model_scales[(u32)id],
       .id = id,
     };
   }
@@ -1439,7 +1532,7 @@ namespace quark {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
-  
+
     std::string warn;
     std::string err;
   
@@ -1448,14 +1541,14 @@ namespace quark {
     if (!warn.empty()) {
       log_warning("OBJ WARNING: " + warn.c_str());
     }
-  
+
     if (!err.empty()) {
       panic("OBJ ERROR: " + err.c_str());
     }
-  
+
     // usize size = 0;
     // for_every(i, shapes.size()) { size += shapes[i].mesh.indices.size(); }
-  
+
     // usize memsize = size * sizeof(VertexPNT);
     // VertexPNT* vertex_data = (VertexPNT*)push_arena(stack.arena, memsize);
 
@@ -1782,6 +1875,50 @@ namespace quark {
     log_message(name + ": " + file.header->index_count);
     #endif
 
+    add_asset(name, id);
+  }
+
+  void load_qmodel_file(const char* path, const char* name) {
+    TempStack scratch = begin_scratch(0, 0);
+  
+    File* file = 0;
+    u32 err = open_file(&file, path, "rb");
+
+    u32 magic;
+    u32 version;
+
+    file_read(file, &magic, 4);
+    file_read(file, &version, 4);
+
+    assert(magic == *(u32*)"qmdl");
+    assert(version == 1);
+
+    f32 angular_thresholds[4];
+
+    file_read(file, angular_thresholds, 4 * sizeof(f32));
+
+    char* meshes[4];
+
+    for_every(i, 4) {
+      u32 str_len = 0;
+      file_read(file, &str_len, 4);
+      file_read(file, scratch.arena, str_len, (void**)&meshes[i]);
+    }
+
+    close_file(file);
+
+    ModelId id = (ModelId)renderer->model_counts;
+    renderer->model_counts += 1;
+
+    ModelInstance instance = {};
+
+    for_every(i, 4) {
+      instance.angular_thresholds[i] = angular_thresholds[i];
+      instance.mesh_ids[i] = *get_asset<MeshId>(meshes[i]);
+    }
+
+    renderer->model_instances[(u32)id] = instance;
+    renderer->model_scales[(u32)id] = renderer->mesh_scales[(u32)instance.mesh_ids[0]];
     add_asset(name, id);
   }
 

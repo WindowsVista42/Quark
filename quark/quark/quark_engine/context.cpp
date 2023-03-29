@@ -13,10 +13,12 @@ namespace quark {
     add_asset_file_loader(".obj", load_obj_file);
     add_asset_file_loader(".png", load_png_file);
     add_asset_file_loader(".qmesh", load_qmesh_file);
+    add_asset_file_loader(".qmodel", load_qmodel_file);
 
     load_asset_folder("quark/models");
     load_asset_folder("quark/textures");
     load_asset_folder("quark/qmesh");
+    load_asset_folder("quark/qmodel");
   }
 
   Timestamp frame_begin_time;
@@ -75,6 +77,7 @@ namespace quark {
       create_system("sync_sound_state", sync_sound_state);
       create_system("update_tag", 0);
 
+      create_system("push_renderables", push_renderables);
       create_system("begin_frame", begin_frame);
       create_system("end_frame", end_frame);
 
@@ -127,6 +130,7 @@ namespace quark {
       add_system("update", "update_tag", "", -1);
 
       // Update - Rendering
+      add_system("update", "push_renderables", "", -1);
       add_system("update", "begin_frame", "", -1);
 
       add_system("update", "update_world_cameras", "", -1);

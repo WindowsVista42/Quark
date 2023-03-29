@@ -41,6 +41,30 @@ namespace quark {
     push_drawable_instance(T::MATERIAL_ID, drawable, material_instance);
   }
 
+  inline auto push_drawable_instance_n(u32 n, u32 material_id) {
+    struct Return {
+      Drawable* drawables;
+      void* materials;
+    };
+  
+    Renderer* context = get_resource(Renderer);
+    MaterialBatch* batch = &context->batches[material_id];
+    MaterialInfo* type = &context->infos[material_id];
+
+    u32 i = __atomic_fetch_add(&batch->batch_count, n, __ATOMIC_SEQ_CST);
+
+    if(i > type->batch_capacity) {
+      printf("PANIC!\n");
+      panic("Attempted to draw more than a material batch could handle!\n");
+    }
+
+    Return ret = {};
+    ret.drawables = &batch->drawables_batch[i];
+    ret.materials = &batch->materials_batch[i * type->material_size];
+
+    return ret;
+  }
+
   void push_drawable(u32 material_id, Drawable* drawable, u32 material_instance_index) {
     Renderer* context = get_resource(Renderer);
     MaterialBatch* batch = &context->batches[material_id];

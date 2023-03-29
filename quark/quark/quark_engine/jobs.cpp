@@ -1,6 +1,9 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
+#include <thread>
+#include <windows.h>
+
 namespace quark {
   // TODO(sean): make error messages put what you put so you arent trying to figure out where they happened
   std::unordered_map<system_id, std::string> _system_names;
@@ -43,12 +46,33 @@ namespace quark {
 
   std::unordered_map<system_list_id, std::vector<Timestamp>> _system_runtimes;
 
+  static std::atomic_uint32_t job_index = 0;
+  static SystemListInfo* list_info; // = &_system_lists.at(system_list);
+
+  int read_it_and_print() {
+    auto job = []() {
+      while(true) {
+        // printf("job id: %d\n", job_index.load(std::memory_order_seq_cst));
+        // printf("name: %s\n", _system_names.at(list_info->systems[job_index.load(std::memory_order_seq_cst)]).c_str());
+        Sleep(1);
+      }
+    };
+    
+    std::thread worker(job);
+    worker.detach();
+
+    return 0;
+  }
+
   void run_system_list_id(system_list_id system_list) {
     if(_system_lists.find(system_list) == _system_lists.end()) {
       panic("Attempted to run a system list that does not exist!");
     }
 
+    static int test = read_it_and_print();
+
     SystemListInfo* list = &_system_lists.at(system_list);
+    list_info = list;
 
     if(_system_runtimes.count(system_list) == 0) {
       _system_runtimes[system_list] = {};
@@ -56,11 +80,13 @@ namespace quark {
 
     _system_runtimes[system_list].clear();
     _system_runtimes[system_list].push_back(get_timestamp());
+    job_index.store(0, std::memory_order_seq_cst);
     for_every(i, list->systems.size()) {
       // Optionally log/time the functions being run
       VoidFunctionPtr system = _system_functions.at(list->systems[i]);
       if(system != 0) { // we optionally allow tags in the form of a system
         // print("Running: " + _system_names.at(list->systems[i]).c_str() + "\n");
+        job_index.store(i, std::memory_order_seq_cst);
         system();
         // print("Finished: " + _system_names.at(list->systems[i]).c_str() + "\n");
       }

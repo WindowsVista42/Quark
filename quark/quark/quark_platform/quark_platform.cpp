@@ -112,7 +112,7 @@ namespace quark {
     // glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 
     _window_ptr = glfwCreateWindow(_window_dimensions.x, _window_dimensions.y, _window_name.c_str(), 0, 0);
-    // glfwSetWindowMonitor(_window_ptr, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    glfwSetWindowMonitor(_window_ptr, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
 
     glfwSetInputMode(_window_ptr, GLFW_CURSOR, _window_enable_cursor ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     glfwSetInputMode(_window_ptr, GLFW_RAW_MOUSE_MOTION, _window_enable_raw_mouse ? GLFW_TRUE : GLFW_FALSE);
@@ -359,7 +359,8 @@ namespace quark {
 //
 
   void init_thread_pool() {
-    _thread_pool = create_thread_pool(std::thread::hardware_concurrency(), 1024);
+    // TODO: do something smarter for thread count
+    _thread_pool = create_thread_pool(std::thread::hardware_concurrency() - 2, 1024);
   }
 
   void deinit_thread_pool() {}

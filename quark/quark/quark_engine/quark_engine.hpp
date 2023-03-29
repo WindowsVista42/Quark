@@ -134,6 +134,9 @@ namespace quark {
   declare_enum(MeshId, u32);
 
   //
+  declare_enum(ModelId, u32);
+
+  //
   declare_enum(ImageId, u32);
 
   //
@@ -250,7 +253,7 @@ namespace quark {
 
   declare_component(alignas(8) Model,
     vec3 half_extents;
-    MeshId id;
+    ModelId id;
   );
 
   declare_component(SoundOptions,
@@ -497,6 +500,12 @@ namespace quark {
   struct MeshInstance {
     u32 offset; // Triangle offset in the global mesh buffer
     u32 count;  // Triangle count in the global mesh buffer
+  };
+
+  //
+  struct ModelInstance {
+    f32 angular_thresholds[4];
+    MeshId mesh_ids[4];
   };
 
   // MeshProperties, general properties of a mesh
@@ -794,8 +803,11 @@ namespace quark {
     // Meshes
     u32 mesh_counts;
     MeshInstance* mesh_instances; // hot data
-    MeshLod* mesh_lods;
     vec3* mesh_scales = {}; // cold data
+
+    u32 model_counts;
+    ModelInstance* model_instances;
+    vec3* model_scales = {}; // cold data
 
     Buffer vertex_positions_buffer;
     Buffer vertex_normals_buffer;
@@ -971,6 +983,8 @@ namespace quark {
   engine_api void end_frame();                           // End rendering a frame.
 
 // Renderer (renderer.cpp)
+
+  engine_api void push_renderables();                    // Push the currently renderable entities onto the rendering stack.
 
   engine_api void update_world_cameras();                // Update all of the world cameras.
   engine_api void update_world_data();                   // Update the global world data for shaders.
@@ -1285,6 +1299,7 @@ namespace quark {
 // Renderer Loaders (renderer.cpp)
 
   engine_api void load_qmesh_file(const char* path, const char* name);
+  engine_api void load_qmodel_file(const char* path, const char* name);
   engine_api void load_vert_shader(const char* path, const char* name);
   engine_api void load_frag_shader(const char* path, const char* name);
 

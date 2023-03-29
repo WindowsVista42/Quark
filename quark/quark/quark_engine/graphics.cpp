@@ -1026,6 +1026,7 @@ namespace quark {
     vkb::SwapchainBuilder swapchain_builder{graphics->physical_device, graphics->device, graphics->surface};
     swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
     swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
+    // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
     swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
     swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
