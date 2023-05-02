@@ -517,7 +517,7 @@ namespace quark {
   
   Arena* get_arena_internal(Arena** conflicts, usize conflict_count, int search_thread_id) {
     Arena* arena = 0;
-  
+
     for(int i = 0; i < max_arena_count; i += 1) {
       if(_arena_pool.thread_locks[i] == search_thread_id || _arena_pool.thread_locks[i] == -1) {
   
@@ -649,7 +649,7 @@ namespace quark {
   StringBuilder create_string_builder(Arena* arena) {
     StringBuilder builder = {};
     builder.arena = arena;
-    builder.data = arena->ptr + arena->position;
+    builder.data = (char*)(arena->ptr + arena->position);
     builder.length = 0;
 
     return builder;

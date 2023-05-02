@@ -360,8 +360,8 @@ namespace quark {
     transition_image(commands, src, ImageUsage::Src);
 
     // Info: create blit info and blit
-    BlitInfo dst_blit_info = get_blit_info(dst);
     BlitInfo src_blit_info = get_blit_info(src);
+    BlitInfo dst_blit_info = get_blit_info(dst);
 
     VkImageBlit blit_region = {};
     blit_region.srcOffsets[0] = src_blit_info.bottom_left;
@@ -1021,13 +1021,21 @@ namespace quark {
   }
 
   void init_swapchain() {
-    // Swapchain creation
+    ivec2 newdim = get_window_dimensions();
+    if(newdim.x == 0) {
+      newdim.x = 1;
+    }
 
+    if(newdim.y == 0) {
+      newdim.y = 1;
+    }
+
+    // Swapchain creation
     vkb::SwapchainBuilder swapchain_builder{graphics->physical_device, graphics->device, graphics->surface};
     swapchain_builder = swapchain_builder.set_desired_format({.format = VK_FORMAT_B8G8R8A8_UNORM, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR}); //use_default_format_selection();
     swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
     // swapchain_builder = swapchain_builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
-    swapchain_builder = swapchain_builder.set_desired_extent(get_window_dimensions().x, get_window_dimensions().y);
+    swapchain_builder = swapchain_builder.set_desired_extent(newdim.x, newdim.y);
     swapchain_builder = swapchain_builder.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     vkb::Swapchain vkb_swapchain = swapchain_builder.build().value();
@@ -1070,6 +1078,12 @@ namespace quark {
   }
 
   void resize_swapchain() {
+    while(get_window_dimensions().x == 0 || get_window_dimensions().y == 0) {
+      glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(graphics->device);
+
     vkDestroySwapchainKHR(graphics->device, graphics->swapchain, 0);
 
     for_every(i, graphics->swapchain_image_count) {
@@ -1081,11 +1095,6 @@ namespace quark {
   }
 
   void begin_frame() {
-    vk_check(vkWaitForFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index], true, _OP_TIMEOUT));
-    vk_check(vkResetFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index]));
-
-    VkResult result = vkAcquireNextImageKHR(graphics->device, graphics->swapchain, _OP_TIMEOUT, graphics->present_semaphores[graphics->frame_index], 0, &graphics->swapchain_image_index);
-
     // Check for window resizes
 
     static ivec2 prev_dim = get_window_dimensions();
@@ -1100,12 +1109,21 @@ namespace quark {
 
     prev_dim = get_window_dimensions();
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || graphics->framebuffer_resized) {
+    vk_check(vkWaitForFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index], true, _OP_TIMEOUT));
+
+    if(graphics->framebuffer_resized) {
       graphics->framebuffer_resized = false;
       resize_swapchain();
+    }
+
+    VkResult result = vkAcquireNextImageKHR(graphics->device, graphics->swapchain, _OP_TIMEOUT, graphics->present_semaphores[graphics->frame_index], 0, &graphics->swapchain_image_index);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+      panic("Failed to build and acquire new swapchain image!");
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       panic("Failed to acquire swapchain image!");
     }
+
+    vk_check(vkResetFences(graphics->device, 1, &graphics->render_fences[graphics->frame_index]));
 
     vk_check(vkResetCommandBuffer(graphics->commands[graphics->frame_index], 0));
 
@@ -1114,7 +1132,7 @@ namespace quark {
     command_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     command_begin_info.pInheritanceInfo = 0;
     command_begin_info.pNext = 0;
-  
+
     vk_check(vkBeginCommandBuffer(graphics->commands[graphics->frame_index], &command_begin_info));
   }
 
@@ -1148,8 +1166,8 @@ namespace quark {
     present_info.pNext = 0;
 
     VkResult result = vkQueuePresentKHR(graphics->graphics_queue, &present_info);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || graphics->framebuffer_resized) {
-      graphics->framebuffer_resized = false;
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
       resize_swapchain();
     } else if (result != VK_SUCCESS) {
       panic("Failed to present swapchain image!");

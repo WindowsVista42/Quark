@@ -7,7 +7,7 @@ namespace quark {
 //
 
   define_resource(Arenas, {
-    get_arena(),
-    get_arena(),
+    // get_arena(),
+    // get_arena(),
   });
 };

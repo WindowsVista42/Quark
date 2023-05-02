@@ -727,6 +727,7 @@ namespace quark {
   //
   declare_resource(AssetServer,
     std::unordered_map<type_hash, std::unordered_map<u32, u8>> data;
+    std::unordered_map<type_hash, std::unordered_map<u32, char*>> hash_to_name;
   );
 
   // Graphics, this stores all of the vulkan graphics context.
@@ -1199,6 +1200,9 @@ namespace quark {
 
   template <typename T> void add_asset(const char* name, T data);
   template <typename T> T* get_asset(const char* name);
+  template <typename T> T* get_asset_by_hash(u32 hash);
+  template <typename T> void get_all_asset_hashes(u32** out_hashes, u32* out_length, Arena* arena);
+  template <typename T> char* get_asset_name(u32 hash);
 
   using AssetFileLoader = void (*)(const char* path, const char* name);
   using AssetFileUnloader = void (*)(const char* path, const char* name, asset_id id);

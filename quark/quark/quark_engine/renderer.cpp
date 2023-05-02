@@ -758,6 +758,8 @@ namespace quark {
       .format = ImageFormat::LinearBgra8,
     };
 
+    // dump_struct(&swapchain_image);
+
     VkCommandBuffer cmd = graphics->commands[graphics->frame_index];
     Image* color_img = &renderer->material_color_images[graphics->frame_index];
     Image* resolve_img = &renderer->material_color_images2[graphics->frame_index];
@@ -775,7 +777,9 @@ namespace quark {
         // Info: Slow path, since the resolutions dont match, we need to resolve into a secondary image
         // then blit into the swapchain so we can get filtering
         resolve_image(cmd, resolve_img, color_img);
-        blit_image(cmd, &swapchain_image, resolve_img, FilterMode::Nearest);
+        if(get_window_dimensions() != ivec2 {0, 0}) {
+          blit_image(cmd, &swapchain_image, resolve_img, FilterMode::Nearest);
+        }
 
       // }
     }
@@ -785,7 +789,7 @@ namespace quark {
   }
 
   bool PRINT_PERFORMANCE_STATISTICS = true;
-  bool PERFORMANCE_STATISTICS_SHORT = false;
+  bool PERFORMANCE_STATISTICS_SHORT = true;
 
   void print_performance_statistics() {
     if(!PRINT_PERFORMANCE_STATISTICS) {
@@ -1183,7 +1187,7 @@ namespace quark {
               // Check for frustum culling
               f32 radius2 = length(drawable->model.half_extents) * 1.0f;
 
-              if(!is_sphere_visible(main_frustum_ptr, drawable->transform.position, radius2)) {
+              if(!is_sphere_visible(main_frustum_ptr, drawable->transform.position, radius2 * radius2)) {
                 unset_bitset_bit(bitset, index);
               } else {
                 set_bitset_bit(bitset, index);
@@ -1191,7 +1195,7 @@ namespace quark {
               }
 
               radius2 *= 0.8f;
-              if(!is_sphere_visible(shadow_frustum_ptr, drawable->transform.position, radius2)) {
+              if(!is_sphere_visible(shadow_frustum_ptr, drawable->transform.position, radius2 * radius2)) {
                 unset_bitset_bit(shadow_bitset, index);
               } else {
                 set_bitset_bit(shadow_bitset, index);

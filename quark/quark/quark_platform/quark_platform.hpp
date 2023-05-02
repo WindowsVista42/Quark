@@ -451,7 +451,7 @@ namespace quark {
 
   struct StringBuilder {
     Arena* arena;
-    u8* data;
+    char* data;
     usize length;
   };
 

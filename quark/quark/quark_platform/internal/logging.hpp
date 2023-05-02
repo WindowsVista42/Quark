@@ -45,8 +45,9 @@
     exit(-1); \
   } \
 
-  #define format(str, arena, args...) \
-    StringBuilder str##_builder = create_string_builder(arena); \
-    str##_builder = str##_builder + args; \
-    str##_builder = str##_builder + "\0"; \
-    str = (char*)str##_builder.data \
+  #define format(arena, args...) [&]() -> StringBuilder {\
+    StringBuilder builder = create_string_builder(arena); \
+    builder = builder + args; \
+    builder = builder + "\0"; \
+    return builder;(char*)builder.data; \
+  }() \

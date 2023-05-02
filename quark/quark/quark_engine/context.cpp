@@ -39,6 +39,9 @@ namespace quark {
   }
 
   void init() {
+    get_resource(Arenas)->global_arena = get_arena();
+    get_resource(Arenas)->frame_arena = get_arena();
+  
     // Create builtin system lists
     {
       // quark_init and quark_deinit are special
@@ -171,7 +174,7 @@ namespace quark {
       Timestamp t0 = get_timestamp();
       run_state();
       Timestamp t1 = get_timestamp();
-      get_resource(TimeInfo)->delta = get_timestamp_difference(t0, t1);
+      get_resource(TimeInfo)->delta = get_timestamp_difference(t0, t1); // Add some kind of max_timestep_size parameter
       get_resource(TimeInfo)->time += get_resource(TimeInfo)->delta;
       arena_clear_zero(frame_arena());
     }

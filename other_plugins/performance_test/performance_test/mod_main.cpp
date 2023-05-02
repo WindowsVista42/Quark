@@ -15,12 +15,12 @@ mod_main() {
   // Add update jobs to update
   create_system("update_camera", update_camera);
   create_system("update_perf_test", update_perf_test);
-  create_system("add_entities_to_render_batches", add_entities_to_render_batches);
+  // create_system("add_entities_to_render_batches", add_entities_to_render_batches);
   create_system("exit_on_esc", exit_on_esc);
   
   add_system("update", "update_camera", "update_tag", -1);
   add_system("update", "update_perf_test", "update_tag", 1);
-  add_system("update", "add_entities_to_render_batches", "begin_frame", -1);
+  // add_system("update", "add_entities_to_render_batches", "begin_frame", -1);
   add_system("update", "exit_on_esc", "", -1);
   
   // Update some engine constants.

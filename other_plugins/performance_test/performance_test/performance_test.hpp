@@ -17,7 +17,7 @@ namespace quark::performance_test {
   static const u32 PERF_COUNT_Y = 48;
   static const u32 PERF_COUNT_Z = 48;
   static const f32 PERF_OFFSET = 6.0f;
-  static const char* PERF_MODELS[] = { "suzanne_lod2", "sphere", "cube" };
+  static const char* PERF_MODELS[] = { "cylinder", "sphere", "cube" };
   static const vec3 PERF_ROOT_POS = { 0.0f, 0.0f, 0.0f };
 
 //

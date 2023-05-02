@@ -34,6 +34,7 @@ namespace quark {
   }
 
   void load_asset_path(const std::filesystem::path& path) {
+    // getting nicer strings from the path
     std::string path_s = path.u8string();
 
     std::string filename = path.filename().u8string();
@@ -44,8 +45,12 @@ namespace quark {
   
     u32 ext_hash = hash_str_fast(extension.c_str());
 
+    // we have a loader for the file extension
     if (_asset_ext_loaders.find(ext_hash) != _asset_ext_loaders.end()) {
+      // call the loader func
       _asset_ext_loaders.at(ext_hash)(path_s.c_str(), filename.c_str());
+
+      // debug logging
       #ifdef DEBUG
       log_message("Loaded: " + filename.c_str() + extension.c_str());
       #endif
