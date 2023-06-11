@@ -225,6 +225,8 @@ namespace quark {
     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) {
       u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
 
+      // printf("i: %u\n", i);
+
       for(u32 j = 0; j < (includes_size); j += 1) {
         archetype &= ctx->ecs_bool_table[includes[j]][i]; 
       }
@@ -239,15 +241,21 @@ namespace quark {
  
       u32 global_index = i * 32;
  
+      u32 i2 = 0;
       while(archetype != 0) {
+        // printf("archetype: %u\n", archetype);
         u32 local_index = __builtin_ctz(archetype);
         archetype ^= archetype & -archetype;
+
+        // printf("local_index: %u\n", local_index);
  
         u32 entity_index = global_index + local_index;
         u32 entity_generation = ctx->ecs_generations[entity_index];
         EntityId id = {};
         id.index = entity_index;
         id.generation = entity_generation;
+
+        // printf("id: %u, %u\n", id.index, id.generation);
  
         u32 inc = (includes_size) - 1;
  
@@ -261,6 +269,8 @@ namespace quark {
           } ()...);
           std::apply(f, t);
         }
+
+        // printf("ran func\n");
       }
     }
   }

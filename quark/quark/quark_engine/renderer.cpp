@@ -2,6 +2,7 @@
 #include <iostream>
 #include <tiny_obj_loader.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -23,8 +24,12 @@
 
 // #include <atomic>
 
+#define MAX_POINT_LIGHT_COUNT 256
+
 namespace quark {
   define_resource(Renderer, {});
+
+  define_component(PointLight);
 
   static Graphics* graphics = get_resource(Graphics);
   static Renderer* renderer = get_resource(Renderer);
@@ -74,6 +79,14 @@ namespace quark {
       };
 
       create_buffers(renderer->world_data_buffers, 2, &info);
+    }
+
+    {
+      BufferInfo info = {};
+      info.type = BufferType::Upload;
+      info.size = sizeof(PointLightData) * MAX_POINT_LIGHT_COUNT;
+
+      create_buffers(renderer->visible_light_buffers, _FRAME_OVERLAP, &info);
     }
 
     {
@@ -160,6 +173,28 @@ namespace quark {
     create_samplers(&renderer->texture_sampler, 1, &texture_sampler_info);
   }
 
+  ResourceBinding create_buffers_binding(Buffer* buffers[_FRAME_OVERLAP], u32 count, u32 max_count) {
+    ResourceBinding binding = {};
+    binding.buffers = buffers;
+    binding.count = count;
+    binding.max_count = max_count;
+    binding.images = 0;
+    binding.sampler = 0;
+
+    return binding;
+  }
+
+  ResourceBinding create_images_binding(Image* images[_FRAME_OVERLAP], Sampler* sampler, u32 count, u32 max_count) {
+    ResourceBinding binding = {};
+    binding.buffers = 0;
+    binding.count = count;
+    binding.max_count = max_count;
+    binding.images = images;
+    binding.sampler = sampler;
+
+    return binding;
+  }
+
   void init_renderer_post_assets() {
     // TODO: Should probably update when resolution changes
     // internally we can just re-init this (probably)
@@ -182,24 +217,16 @@ namespace quark {
         &renderer->shadow_images[1],
       };
 
-      ResourceBinding bindings[3] = {};
-      bindings[0].count = 1;
-      bindings[0].max_count = 1;
-      bindings[0].buffers = buffers;
-      bindings[0].images = 0;
-      bindings[0].sampler = 0;
+      Buffer* visible_light_buffers[_FRAME_OVERLAP] = {
+        &renderer->visible_light_buffers[0],
+        &renderer->visible_light_buffers[1],
+      };
 
-      bindings[1].count = renderer->texture_count;
-      bindings[1].max_count = 16;
-      bindings[1].buffers = 0;
-      bindings[1].images = images;
-      bindings[1].sampler = &renderer->texture_sampler;
-    
-      bindings[2].count = 1;
-      bindings[2].max_count = 1;
-      bindings[2].buffers = 0;
-      bindings[2].images = shadow_images;
-      bindings[2].sampler = &renderer->texture_sampler;
+      ResourceBinding bindings[4] = {};
+      bindings[0] = create_buffers_binding(buffers, 1, 1);
+      bindings[1] = create_images_binding(images, &renderer->texture_sampler, renderer->texture_count, 16);
+      bindings[2] = create_images_binding(shadow_images, &renderer->texture_sampler, 1, 1);
+      bindings[3] = create_buffers_binding(visible_light_buffers, 1, 1);
 
       ResourceGroupInfo resource_info {
         .bindings_count = count_of(bindings),
@@ -226,7 +253,7 @@ namespace quark {
     };
     create_images(renderer->material_color_images2, _FRAME_OVERLAP, &renderer->material_color_image_info);
 
-    renderer->material_color_image_info.samples = ImageSamples::Four,
+    renderer->material_color_image_info.samples = ImageSamples::One,
 
     create_images(renderer->material_color_images, _FRAME_OVERLAP, &renderer->material_color_image_info);
 
@@ -236,13 +263,13 @@ namespace quark {
       .resolution = graphics->render_resolution,
       .format = ImageFormat::LinearD32,
       .type = ImageType::RenderTargetDepth,
-      .samples = ImageSamples::Four,
+      .samples = ImageSamples::One,
     };
     create_images(renderer->main_depth_images, _FRAME_OVERLAP, &renderer->main_depth_image_info);
 
     // depth images
 
-    renderer->shadow_resolution = ivec2 { 2048, 2048 } * 1;
+    renderer->shadow_resolution = ivec2 { 2048, 2048 } * 2;
 
     renderer->shadow_image_info.resolution = renderer->shadow_resolution;
     renderer->shadow_image_info.format = ImageFormat::LinearD32;
@@ -429,7 +456,7 @@ namespace quark {
       viewport_info.pViewports = &viewport;
       viewport_info.scissorCount = 1;
       viewport_info.pScissors = &scissor;
-    
+
       // Info: how the triangles get drawn
       VkPipelineRasterizationStateCreateInfo rasterization_info = {};
       rasterization_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -740,7 +767,7 @@ namespace quark {
 
   void begin_main_color_pass() {
     ClearValue clear_values[] = {
-      { .color = BLACK },
+      { .color = {0.06f, 0.06f, 0.06f, 1.0f} },
       { .depth = 0, .stencil = 0 },
     };
   
@@ -789,7 +816,7 @@ namespace quark {
   }
 
   bool PRINT_PERFORMANCE_STATISTICS = true;
-  bool PERFORMANCE_STATISTICS_SHORT = true;
+  bool PERFORMANCE_STATISTICS_SHORT = false;
 
   void print_performance_statistics() {
     if(!PRINT_PERFORMANCE_STATISTICS) {
@@ -955,6 +982,7 @@ namespace quark {
     // Info: update world data
     WorldData* world_data = get_resource(WorldData);
     Buffer* current_world_data_buffer = &renderer->world_data_buffers[graphics->frame_index];
+    Buffer* current_visible_lights_buffer = &renderer->visible_light_buffers[graphics->frame_index];
 
     MainCamera* camera = get_resource(MainCamera);
     FrustumPlanes frustum = camera3d_frustum_planes(camera, get_window_aspect());
@@ -962,7 +990,30 @@ namespace quark {
     world_data->main_view_projection = *get_resource_as(MainCameraViewProj, mat4);
     world_data->sun_view_projection = *get_resource_as(SunCameraViewProj, mat4);
     world_data->sun_direction = as_vec4(quat_forward(get_resource_as(SunCamera, Camera3D)->rotation), 0.0f);
+    world_data->camera_position = as_vec4(get_resource_as(MainCamera, Camera3D)->position, 0.0f);
+    world_data->camera_direction = as_vec4(quat_forward(get_resource_as(MainCamera, Camera3D)->rotation), 0.0f);
     world_data->time = (f32)get_timestamp();
+
+    {
+      PointLightData* ptr = (PointLightData*)map_buffer(current_visible_lights_buffer);
+      defer(unmap_buffer(current_visible_lights_buffer));
+
+      u32 point_light_count = 0;
+      for_archetype(Include<Transform, PointLight> {}, Exclude<> {},
+      [&](EntityId id, Transform* transform, PointLight* light) {
+        if(is_sphere_visible(&frustum, transform->position, light->range * light->range)) {
+          PointLightData data = {};
+          data.position = transform->position;
+          data.color_combined = light->base_color * light->brightness;
+          data.range = light->range;
+          data.directionality = light->directionality;
+            
+          ptr[point_light_count] = data;
+          point_light_count += 1;
+        }
+      });
+      world_data->point_light_count = point_light_count;
+    }
 
     {
       void* ptr = map_buffer(current_world_data_buffer);
@@ -1566,13 +1617,15 @@ namespace quark {
     // std::vector<VertexPNT> vertices = {};
     std::vector<vec3> positions_unmapped = {};
     std::vector<vec3> normals_unmapped = {};
+    std::vector<vec3> tangents_unmapped = {};
+    std::vector<vec3> bitangents_unmapped = {};
     std::vector<vec2> uvs_unmapped = {};
     std::vector<u32> indices_unmapped = {};
-    
+
+    std::vector<uvec3> quantized_tnb_unmapped = {};
+
     for (const auto& shape : shapes) {
       for (const auto& idx : shape.mesh.indices) {
-        // vertex position
-
         vec3 position = vec3 {
           .x = attrib.vertices[(3 * idx.vertex_index) + 0],
           .y = attrib.vertices[(3 * idx.vertex_index) + 1],
@@ -1589,11 +1642,6 @@ namespace quark {
 
         normals_unmapped.push_back(normal);
 
-        // f32 vx = attrib.vertices[(3 * idx.vertex_index) + 0];
-        // f32 vy = attrib.vertices[(3 * idx.vertex_index) + 1];
-        // f32 vz = attrib.vertices[(3 * idx.vertex_index) + 2];
-        // vertex normal
-  
         vec2 uv = vec2 {
           .x = attrib.texcoords[(2 * idx.texcoord_index) + 0],
           .y = attrib.texcoords[(2 * idx.texcoord_index) + 1],
@@ -1601,31 +1649,7 @@ namespace quark {
 
         uvs_unmapped.push_back(uv);
 
-        // indices_unmapped.push_back(positions_unmapped.size() - 1);
-  
-        // copy it into our vertex
-        // VertexPNT vertex = {};
-        // vertex.position.x = vx;
-        // vertex.position.y = vy;
-        // vertex.position.z = vz;
-  
-        // vertex.normal.x = nx;
-        // vertex.normal.y = ny;
-        // vertex.normal.z = nz;
-  
-        // vertex.texture.x = tx;
-        // vertex.texture.y = 1.0f - ty; // Info: flipped cus .obj
-
-        // vertices.push_back(vertex);
-        // indices.push_back(indices.size());
-  
-        // if(unique_vertices.count(vertex) == 0) {
-        //   unique_vertices[vertex] = (u32)vertices.size();
-        //   vertices.push_back(vertex);
-        //   // printf("new vertex!\n");
-        //   // dump_struct(&vertex);
-
-        // //   // Info: find mesh extents
+        // Info: find mesh extents
         max_extents.x = max(max_extents.x, position.x);
         max_extents.y = max(max_extents.y, position.y);
         max_extents.z = max(max_extents.z, position.z);
@@ -1633,13 +1657,68 @@ namespace quark {
         min_extents.x = min(min_extents.x, position.x);
         min_extents.y = min(min_extents.y, position.y);
         min_extents.z = min(min_extents.z, position.z);
-        // }
-  
-        // indices.push_back(unique_vertices[vertex]);
-        // printf("index: %d\n", indices[indices.size() - 1]);
       }
     }
-  
+
+    // calculate tangents and bitangents
+    for_every(i, normals_unmapped.size() / 3) {
+      vec3 v0 = positions_unmapped[i * 3 + 0];
+      vec3 v1 = positions_unmapped[i * 3 + 1];
+      vec3 v2 = positions_unmapped[i * 3 + 2];
+
+      vec2 uv0 = uvs_unmapped[i * 3 + 0];
+      vec2 uv1 = uvs_unmapped[i * 3 + 1];
+      vec2 uv2 = uvs_unmapped[i * 3 + 2];
+
+      vec3 dp1 = v1 - v0;
+      vec3 dp2 = v2 - v0;
+
+      vec2 duv1 = uv1 - uv0;
+      vec2 duv2 = uv2 - uv0;
+
+      f32 r = 1.0f / (duv1.x * duv2.y - duv1.y * duv2.x);
+      vec3 tangent = (dp1 * duv2.y - dp2 * duv1.y) * r;
+      vec3 bitangent = (dp2 * duv1.x - dp1 * duv2.x) * r;
+
+      tangents_unmapped.push_back(tangent);
+      tangents_unmapped.push_back(tangent);
+      tangents_unmapped.push_back(tangent);
+      
+      bitangents_unmapped.push_back(bitangent);
+      bitangents_unmapped.push_back(bitangent);
+      bitangents_unmapped.push_back(bitangent);
+    }
+
+    // quantize normals, tangents, bitangents and put them into tnb
+    for_every(i, normals_unmapped.size()) {
+      vec3 normal = normals_unmapped[i];
+      vec3 tangent = tangents_unmapped[i];
+      vec3 bitangent = bitangents_unmapped[i];
+
+      normal = normal * 0.5f + 0.5f;
+      tangent = tangent * 0.5f + 0.5f;
+      bitangent = bitangent * 0.5f + 0.5f;
+      
+      u32 quantized_normal =
+        (meshopt_quantizeUnorm(normal.x, 10) << 20) |
+        (meshopt_quantizeUnorm(normal.y, 10) << 10) |
+        (meshopt_quantizeUnorm(normal.z, 10));
+      
+      u32 quantized_tangent =
+        (meshopt_quantizeUnorm(tangent.x, 10) << 20) |
+        (meshopt_quantizeUnorm(tangent.y, 10) << 10) |
+        (meshopt_quantizeUnorm(tangent.z, 10));
+      
+      // print("snorm:" + meshopt_quantizeSnorm(normal.x, 10) + "\n");
+      
+      u32 quantized_bitangent =
+        (meshopt_quantizeUnorm(bitangent.x, 10) << 20) |
+        (meshopt_quantizeUnorm(bitangent.y, 10) << 10) |
+        (meshopt_quantizeUnorm(bitangent.z, 10));
+
+      quantized_tnb_unmapped.push_back(uvec3 {quantized_tangent, quantized_normal, quantized_bitangent});
+    }
+
     vec3 extents = {};
     extents.x = (max_extents.x - min_extents.x);
     extents.y = (max_extents.y - min_extents.y);
@@ -1651,7 +1730,7 @@ namespace quark {
 
     meshopt_Stream streams[] = {
       { positions_unmapped.data(), sizeof(vec3), sizeof(vec3) },
-      { normals_unmapped.data(), sizeof(vec3), sizeof(vec3) },
+      { quantized_tnb_unmapped.data(), sizeof(uvec3), sizeof(uvec3) },
       { uvs_unmapped.data(), sizeof(vec2), sizeof(vec2) },
     };
 
@@ -1664,11 +1743,11 @@ namespace quark {
     meshopt_remapIndexBuffer(indices.data(), 0, index_count, remap.data());
 
     std::vector<vec3> positions(vertex_count);
-    std::vector<vec3> normals(vertex_count);
+    std::vector<uvec3> quantized_tnb(vertex_count);
     std::vector<vec2> uvs(vertex_count);
 
     meshopt_remapVertexBuffer(positions.data(), positions_unmapped.data(), index_count, sizeof(vec3), remap.data());
-    meshopt_remapVertexBuffer(normals.data(), normals_unmapped.data(), index_count, sizeof(vec3), remap.data());
+    meshopt_remapVertexBuffer(quantized_tnb.data(), quantized_tnb_unmapped.data(), index_count, sizeof(uvec3), remap.data());
     meshopt_remapVertexBuffer(uvs.data(), uvs_unmapped.data(), index_count, sizeof(vec2), remap.data());
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), index_count, vertex_count);
@@ -1680,7 +1759,7 @@ namespace quark {
     usize buffer_p_size = meshopt_encodeVertexBuffer(buffer_p, 2 * MB, positions.data(), positions.size(), sizeof(vec3));
 
     u8* buffer_n = arena_push(scratch.arena, 2 * MB);
-    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 2 * MB, normals.data(), normals.size(), sizeof(vec3));
+    usize buffer_n_size = meshopt_encodeVertexBuffer(buffer_n, 2 * MB, quantized_tnb.data(), quantized_tnb.size(), sizeof(uvec3));
 
     u8* buffer_u = arena_push(scratch.arena, 2 * MB);
     usize buffer_u_size = meshopt_encodeVertexBuffer(buffer_u, 2 * MB, uvs.data(), uvs.size(), sizeof(vec2));
@@ -1701,7 +1780,7 @@ namespace quark {
     u8* buffer2 = arena_push(scratch.arena, 2 * MB);
     i32 buffer2_size = LZ4_compress_default((const char*)buffer, (char*)buffer2, buffer_size, 2 * MB);
 
-    u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + normals.size() * sizeof(vec3) + uvs.size() * sizeof(vec2);
+    u32 before_size = indices.size() * sizeof(u32) + positions.size() * sizeof(vec3) + quantized_tnb.size() * sizeof(uvec3) + uvs.size() * sizeof(vec2);
     #ifdef DEBUG
     log_message("Compressed mesh " + (1.0f - (buffer2_size / (f32)before_size)) * 100.0f + "%");
     #endif

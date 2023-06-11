@@ -35,8 +35,8 @@ void main() {
   const vec3 scale = transforms[INDEX].scale.xyz;
 
   WORLD_POSITION = rotate(VERTEX_POSITION * scale, rotation) + position;
-  WORLD_NORMAL = rotate(VERTEX_NORMAL, rotation);
-  WORLD_UV = VERTEX_UV;
+  // WORLD_TNB[1].xyz = rotate(VERTEX_TNB[1].xyz, rotation);
+  // WORLD_UV = VERTEX_UV;
 
   POSITION = MAIN_VP * vec4(WORLD_POSITION, 1.0f);
 }

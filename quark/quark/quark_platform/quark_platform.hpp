@@ -6,6 +6,7 @@
 #include "../quark_core/module.hpp"
 #include <GLFW/glfw3.h>
 #include <threadpool.hpp>
+#include <stdio.h>
 
 #define QUARK_PLATFORM_INLINES
 

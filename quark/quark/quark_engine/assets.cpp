@@ -58,6 +58,10 @@ namespace quark {
   }
 
   void load_asset_folder(const char* folder_path) {
+    if(!path_exists(folder_path)) {
+      return;
+    }
+
     // TODO: multithreading?
 
     using std::filesystem::recursive_directory_iterator;

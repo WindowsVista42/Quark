@@ -279,6 +279,21 @@ namespace quark {
   declare_component(EntityCreated);
   declare_component(EntityDestroyed);
 
+  declare_component(PointLight,
+    vec3 base_color;
+    f32 brightness;
+    f32 range;
+    f32 directionality;
+
+    // attenutation = 1.0 / (c + (d * l) + (d * q^2))
+  );
+
+  declare_component(DirectionLight,
+    vec3 base_color;
+    f32 brightness;
+    f32 directionality;
+  );
+
 //
 // Structs
 //
@@ -648,8 +663,19 @@ namespace quark {
     u32 generation;
   };
 
+  inline bool operator ==(EntityId a, EntityId b) {
+    return a.index == b.index && a.generation == b.generation;
+  }
+
   struct ComponentId {
     u32 index;
+  };
+
+  struct PointLightData {
+    vec3 position;
+    f32 range;
+    vec3 color_combined;
+    f32 directionality;
   };
 
   // struct Sound {
@@ -835,6 +861,7 @@ namespace quark {
 
     // Shader "world data"
     Buffer world_data_buffers[_FRAME_OVERLAP];
+    Buffer visible_light_buffers[_FRAME_OVERLAP];
     ResourceGroup global_resources_group;
 
     // Render passes
@@ -914,7 +941,10 @@ namespace quark {
     vec4 ambient;
     vec4 sun_direction;
     vec4 sun_color;
+    vec4 camera_position;
+    vec4 camera_direction;
     f32 time;
+    u32 point_light_count;
   );
 
   //

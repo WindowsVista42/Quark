@@ -11,7 +11,7 @@ INCLUDE_DIR = "quark/quark/quark_engine/shaders/"
 
 SHADER_DIRS = [
     ["quark/quark/quark_engine/shaders/", "quark/shaders/"],
-    ["plugins/spaceships/spaceships/shaders/", "plugins/spaceships/shaders/"]
+    ["plugins/shader_basics/shader_basics/shaders/", "plugins/shader_basics/shaders/"]
 ]
 
 FLAGS = [

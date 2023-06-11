@@ -152,6 +152,7 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
     // init builtin component types
     update_component(Transform);
     update_component(Model);
+    update_component(PointLight);
   }
 
   // TODO: change to use ComponentId

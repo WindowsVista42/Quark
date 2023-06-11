@@ -1,7 +1,7 @@
 struct PointLightData {
   vec3 position;
-  f32 falloff;
-  vec3 color;
+  f32 range;
+  vec3 color_combined;
   f32 directionality;
 };
 
@@ -84,4 +84,21 @@ vec4 aces(vec4 in_color) {
   color = clamp(color, 0.0, 1.0);
 
   return vec4(color, in_color.w);
+}
+
+#define PI 3.1415926538
+
+vec3 unpack_normal(f32 packed_normal) {
+  i32 i = floatBitsToInt(packed_normal);
+
+  i32 x = (i >> 20) & 1023;
+  i32 y = (i >> 10) & 1023;
+  i32 z = (i) & 1023;
+
+  vec3 normal = vec3(0.0f, 0.0f, 0.0f);
+  normal.x = (f32(x) / 1024.0f) * 2.0f - 1.0f;
+  normal.y = (f32(y) / 1024.0f) * 2.0f - 1.0f;
+  normal.z = (f32(z) / 1024.0f) * 2.0f - 1.0f;
+
+  return normal;
 }
