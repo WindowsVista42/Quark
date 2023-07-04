@@ -159,8 +159,10 @@ def build_internal(mode):
         print("-- Building plugin: ", p)
 
         glob_cpps = glob.glob("plugins/" + p + "/" + p +"/**/*.cpp", recursive=True)
+        glob_cpps.extend(glob.glob("plugins/" + p + "/" + p +"/**/*.hpp", recursive=True))
 
         for cpp in glob_cpps:
+            print(cpp)
             timestamps_curr_cpps[cpp] = str(os.path.getmtime(cpp)) + "\n"
 
         cache_path = ".quark/tracked/" + p + ".txt"
@@ -297,6 +299,9 @@ def build_internal(mode):
         if name in valid_libs:
             copy_file(path, "build/current")
             print("-- Copied \"" + path + "\"")
+
+    copy_file("build/" + mode + "/compile_commands.json", ".")
+    print("-- Copied compile_commands.json")
 
     print("- Finished copying " + mode + " build")
 
