@@ -1,7 +1,12 @@
 #include "quark_core.hpp"
 
-#define _USE_MATH_DEFINES
-#include <cmath>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #define _USE_MATH_DEFINES
+  #include <cmath>
+
+#pragma clang diagnostic pop
 
 namespace quark {
   f32 rad(f32 deg) {

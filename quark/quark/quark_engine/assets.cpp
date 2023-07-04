@@ -1,7 +1,12 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
-#include <filesystem>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <filesystem>
+
+#pragma clang diagnostic pop
 
 namespace quark {
 //

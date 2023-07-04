@@ -1,8 +1,14 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
-#include <thread>
-#include <windows.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <thread>
+
+  #include <windows.h>
+
+#pragma clang diagnostic pop
 
 namespace quark {
   // TODO(sean): make error messages put what you put so you arent trying to figure out where they happened
@@ -11,6 +17,7 @@ namespace quark {
   std::unordered_map<system_list_id, SystemListInfo> _system_lists;
 
   void init_systems() {
+    i32 i = 0;
   }
 
   void deinit_systems() {
@@ -29,14 +36,6 @@ namespace quark {
 
   void destroy_system_list(const char* system_list_name) {
     panic("destroy_system_list not supported yet!");
-
-    // u32 name_hash = hash_str_fast(system_list_name);
-
-    // if(_system_lists.find(name_hash) == _system_lists.end()) {
-    //   panic("Attempted to destroy a system list that does not exist!");
-    // }
-
-    // _system_lists.erase(std::find(_system_lists.begin(), _system_lists.end(), system_list_name));
   }
 
   void run_system_list(const char* system_list_name) {
@@ -49,27 +48,10 @@ namespace quark {
   static std::atomic_uint32_t job_index = 0;
   static SystemListInfo* list_info; // = &_system_lists.at(system_list);
 
-  int read_it_and_print() {
-    auto job = []() {
-      while(true) {
-        // printf("job id: %d\n", job_index.load(std::memory_order_seq_cst));
-        // printf("name: %s\n", _system_names.at(list_info->systems[job_index.load(std::memory_order_seq_cst)]).c_str());
-        Sleep(1);
-      }
-    };
-    
-    std::thread worker(job);
-    worker.detach();
-
-    return 0;
-  }
-
   void run_system_list_id(system_list_id system_list) {
     if(_system_lists.find(system_list) == _system_lists.end()) {
       panic("Attempted to run a system list that does not exist!");
     }
-
-    static int test = read_it_and_print();
 
     SystemListInfo* list = &_system_lists.at(system_list);
     list_info = list;

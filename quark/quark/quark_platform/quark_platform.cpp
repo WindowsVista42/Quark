@@ -1,18 +1,24 @@
-// @info disabled until application security is actually needed
-#define _CRT_SECURE_NO_WARNINGS
-
 #define QUARK_PLATFORM_IMPLEMENTATION
 #include "quark_platform.hpp"
 
-#include <string>
-#include <thread>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 
-#include <io.h>
-#include <stdio.h>
+  #include <io.h>
+  #include <stdio.h>
 
-#ifdef _WIN64
-#include <windows.h>
-#endif
+  #include <string>
+  #include <thread>
+
+  #ifdef _WIN64
+
+    // @info disabled until application security is actually needed
+    #define _CRT_SECURE_NO_WARNINGS
+    #include <windows.h>
+
+  #endif
+
+#pragma clang diagnostic pop
 
 namespace quark {
 //
@@ -678,91 +684,91 @@ namespace quark {
   }
 
   StringBuilder operator +(StringBuilder s, f32 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%.4f", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%.4f", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, f64 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%.4lf", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%.4lf", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, i32 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%d", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%d", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, i64 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%lld", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%lld", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, u32 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%u", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%u", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, u64 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "%llu", data);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "%llu", data);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, vec2 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f)", data.x, data.y);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%f, %f)", data.x, data.y);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, vec3 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f, %f)", data.x, data.y, data.z);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%f, %f, %f)", data.x, data.y, data.z);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, vec4 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%f, %f, %f, %f)", data.x, data.y, data.z, data.w);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%f, %f, %f, %f)", data.x, data.y, data.z, data.w);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, ivec2 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d)", data.x, data.y);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%d, %d)", data.x, data.y);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, ivec3 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d, %d)", data.x, data.y, data.z);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%d, %d, %d)", data.x, data.y, data.z);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, ivec4 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%d, %d, %d, %d)", data.x, data.y, data.z, data.w);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%d, %d, %d, %d)", data.x, data.y, data.z, data.w);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, uvec2 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u)", data.x, data.y);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%u, %u)", data.x, data.y);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, uvec3 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u, %u)", data.x, data.y, data.z);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%u, %u, %u)", data.x, data.y, data.z);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
 
   StringBuilder operator +(StringBuilder s, uvec4 data) {
-    usize length = sprintf(FORMATTING_BUFFER, "(%u, %u, %u, %u)", data.x, data.y, data.z, data.w);
+    usize length = sprintf(FORMATTING_BUFFER, 4096, "(%u, %u, %u, %u)", data.x, data.y, data.z, data.w);
     string_builder_copy(&s, (u8*)FORMATTING_BUFFER, length);
     return s;
   }
@@ -854,6 +860,7 @@ namespace quark {
 //
 
   i32 open_file(File** file, const char* filename, const char* mode) {
+    // TODO: Use something that supports ACTUAL 64-bits
     return fopen_s((FILE**)file, filename, mode);
   }
   
@@ -915,10 +922,10 @@ namespace quark {
 // String API
 //
 
-  int sprintf(char* buffer, const char* format, ...) {
+  int sprintf(char* buffer, u64 buffer_size, const char* format, ...) {
     va_list args;
     va_start(args, format);
-    int len = ::vsprintf(buffer, format, args);
+    int len = ::vsprintf_s(buffer, buffer_size, format, args); // TODO: This is arbitrary, figure something out...
     va_end(args);
 
     return len;

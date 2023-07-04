@@ -1,12 +1,19 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
-#ifdef _WIN64
-#include <windows.h>
-#include <dbghelp.h>
-#endif
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 
-#include <lz4.h>
+  #ifdef _WIN64
+
+    #include <windows.h>
+    #include <dbghelp.h>
+
+  #endif
+
+  #include <lz4.h>
+
+#pragma clang diagnostic pop
 
 namespace quark {
 //
@@ -62,7 +69,6 @@ namespace quark {
     HMODULE hMod = GetModuleHandleA(module_name);
     if (hMod) {
       PIMAGE_NT_HEADERS64 NtHeader = ImageNtHeader(hMod);
-      ULONGLONG ptr = NtHeader->OptionalHeader.ImageBase + NtHeader->OptionalHeader.SizeOfHeaders;
       WORD NumSections = NtHeader->FileHeader.NumberOfSections;
       PIMAGE_SECTION_HEADER Section = IMAGE_FIRST_SECTION(NtHeader);
       for (WORD i = 0; i < NumSections; i++) {
@@ -130,12 +136,12 @@ namespace quark {
       write_fileb(&b, static_sections[i].ptr, 1, static_sections[i].size);
     }
 
-    write_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
-    write_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
-    write_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
-    for_every(i, ctx->ecs_table_count) {
-      write_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
-      write_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
+    write_fileb(&b, &ctx->first_entity, sizeof(u32), 1);
+    write_fileb(&b, &ctx->last_entity, sizeof(u32), 1);
+    write_fileb(&b, &ctx->first_empty_entity, sizeof(u32), 1);
+    for_every(i, ctx->component_table_count) {
+      write_fileb(&b, ctx->component_bitsets[i], sizeof(u32), ECS_MAX_STORAGE / 32);
+      write_fileb(&b, ctx->component_datas[i], ctx->component_sizes_in_bytes[i], ECS_MAX_STORAGE);
     }
 
     u8* ptr = arena_push(arena, 8 * MB);
@@ -189,12 +195,12 @@ namespace quark {
       read_fileb(&b, static_sections[i].ptr, 1, static_sections[i].size);
     }
 
-    read_fileb(&b, &ctx->ecs_entity_head, sizeof(u32), 1);
-    read_fileb(&b, &ctx->ecs_entity_tail, sizeof(u32), 1);
-    read_fileb(&b, &ctx->ecs_empty_head, sizeof(u32), 1);
-    for_every(i, ctx->ecs_table_count) {
-      read_fileb(&b, ctx->ecs_bool_table[i], sizeof(u32), ECS_MAX_STORAGE / 32);
-      read_fileb(&b, ctx->ecs_comp_table[i], ctx->ecs_comp_sizes[i], ECS_MAX_STORAGE);
+    read_fileb(&b, &ctx->first_entity, sizeof(u32), 1);
+    read_fileb(&b, &ctx->last_entity, sizeof(u32), 1);
+    read_fileb(&b, &ctx->first_empty_entity, sizeof(u32), 1);
+    for_every(i, ctx->component_table_count) {
+      read_fileb(&b, ctx->component_bitsets[i], sizeof(u32), ECS_MAX_STORAGE / 32);
+      read_fileb(&b, ctx->component_datas[i], ctx->component_sizes_in_bytes[i], ECS_MAX_STORAGE);
     }
     Timestamp s1 = get_timestamp();
     #ifdef DEBUG

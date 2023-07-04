@@ -5,6 +5,11 @@
 #include "../quark_platform/module.hpp"
 #include "quark_engine.hpp"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+// EXTERNAL INCLUDES
+#pragma clang diagnostic pop
+
 namespace quark {
   define_component(Transform);
   define_component(Model);

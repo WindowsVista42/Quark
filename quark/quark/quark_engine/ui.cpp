@@ -1,7 +1,14 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
-#include <iostream>
-#include "../../../lib/ttf2mesh/ttf2mesh.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <iostream>
+
+  #include "../../../lib/ttf2mesh/ttf2mesh.h"
+
+#pragma clang diagnostic pop
 
 namespace quark {
   define_resource(UiContext, {});
@@ -11,17 +18,9 @@ namespace quark {
   static Renderer* renderer = get_resource(Renderer);
 
   static ttf_t *font = 0;
-  static ttf_glyph_t *glyph = 0;
   static ttf_mesh3d_t *mesh = 0;
 
   static u32 _resource_index = 0;
-
-  // struct GlyphTable {
-  //   u32 count;
-  //   u32* vert_counts;
-  //   vec2** verts;
-  //   ttf_glyph_t** glyphs;
-  // };
 
   const u32 char_counts = 126 - 33;
   u32 text_counts[char_counts];
@@ -53,7 +52,6 @@ namespace quark {
     create_buffers(_ui->ui_vertex_buffers, 3, &ui_info);
 
     _ui->ptr = (UiVertex*)map_buffer(&_ui->ui_vertex_buffers[0]);
-    // _ui->ptr = (UiVertex*)push_arena(global_arena(), _ui->ui_vertex_capacity * sizeof(UiVertex));
 
     {
       VkPipelineLayoutCreateInfo layout_info = {};
@@ -220,15 +218,14 @@ namespace quark {
         text_verts[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
         text_norms[letter] = (vec2*)arena_push(arena, mesh->nfaces * 3 * sizeof(vec2));
 
-        u32 offset = 0;
         for_every(i, m->nfaces) {
           vec2 p1 = vec2 { mesh->vert[mesh->faces[i].v1].x, mesh->vert[mesh->faces[i].v1].y };
           vec2 p2 = vec2 { mesh->vert[mesh->faces[i].v2].x, mesh->vert[mesh->faces[i].v2].y };
           vec2 p3 = vec2 { mesh->vert[mesh->faces[i].v3].x, mesh->vert[mesh->faces[i].v3].y };
 
-          vec2 n1 = {}; // = vec2 { mesh->normals[mesh->faces[i].v1].x, mesh->normals[mesh->faces[i].v1].y };
-          vec2 n2 = {}; // = vec2 { mesh->normals[mesh->faces[i].v2].x, mesh->normals[mesh->faces[i].v2].y };
-          vec2 n3 = {}; // = vec2 { mesh->normals[mesh->faces[i].v3].x, mesh->normals[mesh->faces[i].v3].y };
+          vec2 n1 = {};
+          vec2 n2 = {};
+          vec2 n3 = {};
 
           for_range(z, 0, mesh->nfaces) {
             for_every(y, 3) {
@@ -245,10 +242,6 @@ namespace quark {
               vec2 p = vec2 { mesh->vert[v].x, mesh->vert[v].y };
               vec3 n = vec3 { mesh->normals[v].x, mesh->normals[v].y, mesh->normals[v].z };
 
-              // if(n.z != 0.0f) {
-              //   continue;
-              // }
-
               if(p1 == p) {
                 n1 += swizzle(n, 0, 1);
               }
@@ -264,17 +257,6 @@ namespace quark {
           n1 = normalize(n1);
           n2 = normalize(n2);
           n3 = normalize(n3);
-          // n1 /= n1n;
-          // n2 /= n2n;
-          // n3 /= n3n;
-
-          // n1 = normalize(n1);
-          // n2 = normalize(n2);
-          // n3 = normalize(n3);
-
-          // f32 y = mesh->normals[mesh->faces[i].v3].y;
-
-          // log("x: " + mesh->normals[mesh->faces[i + (mesh->nfaces / 2)].v1].x);
 
           text_verts[letter][(i * 3) + 0] = p1;
           text_verts[letter][(i * 3) + 1] = p2;
@@ -285,13 +267,6 @@ namespace quark {
           text_norms[letter][(i * 3) + 2] = n3;
         }
 
-        // for_every(i, mesh->nfaces * 3) {
-        //   vec2 p1 = text_verts[letter][i];
-        //   vec2 p2, p3;
-        //   find_closest_2(text_verts[letter], mesh->nfaces * 3, p1, &p2, &p3);
-        //   text_norms[letter][i] = (normalize(p1 - p2) + normalize(p1 - p3)) / 2.0f;;
-        // }
-
         ttf_free_mesh3d(mesh);
         ttf_free_mesh(m);
       }
@@ -301,9 +276,6 @@ namespace quark {
   void draw_ui() {
     VkCommandBuffer commands = graphics->commands[graphics->frame_index];
 
-    // void* dst = map_buffer(&_ui->ui_vertex_buffers[_frame_index]);
-    // copy_array(dst, _ui->ptr, UiVertex, _ui->ui_vertex_count);
-    // unmap_buffer(&_ui->ui_vertex_buffers[_frame_index]);
     unmap_buffer(&_ui->ui_vertex_buffers[_resource_index]);
 
     // Info: draw depth only
@@ -315,7 +287,6 @@ namespace quark {
     vkCmdBindVertexBuffers(commands, 0, count_of(buffers), buffers, offsets);
 
     VkPipeline pipeline = _ui->ui_pipeline;
-    VkPipelineLayout layout = _ui->ui_pipeline_layout;
 
     vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -391,8 +362,6 @@ namespace quark {
 
       u32 fi = c - '!';
 
-      ivec2 wd = get_window_dimensions();
-
       for_every(i, text_counts[fi]) {
         vec2 pos = text_verts[fi][i] * scale + vec2 {left + xoffset, bottom + yoffset};
 
@@ -427,9 +396,9 @@ namespace quark {
 
   void push_debug_text(f32 x, f32 y, f32 font_size, const char* format, va_list args...) {
     char buffer[512];
-    sprintf(buffer, format, args);
+    sprintf(buffer, 512, format, args);
 
-    Widget widget = {};
+    // Widget widget = {};
   }
 
   void update_widget(Widget* widget, vec2 mouse_position, bool mouse_click) {

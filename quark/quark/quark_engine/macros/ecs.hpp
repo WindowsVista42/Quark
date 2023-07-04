@@ -37,7 +37,7 @@
 //
 // Archetype Iter Internal
 //
-
+/*
   #define for_archetype_internal(comps, c, excl, e, f...) { \
     EcsContext* ctx = get_resource(EcsContext); \
     for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) { \
@@ -66,3 +66,4 @@
       } \
     } \
   } \
+*/

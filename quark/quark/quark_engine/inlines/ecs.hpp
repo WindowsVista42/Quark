@@ -13,34 +13,34 @@ namespace quark {
 
 // Bitsets
 
-  inline void set_bitset_bit(u32* bitset, u32 index) {
-    u32 x = index / 32;
-    u32 y = index - (x * 32);
-    u32 shift = 1 << y;
+  inline void set_bitset_bit(u64* bitset, u64 index) {
+    u64 x = index / 64;
+    u64 y = index - (x * 64);
+    u64 shift = 1ULL << y;
 
     bitset[x] |= shift;
   }
 
-  inline void unset_bitset_bit(u32* bitset, u32 index) {
-    u32 x = index / 32;
-    u32 y = index - (x * 32);
-    u32 shift = 1 << y;
+  inline void unset_bitset_bit(u64* bitset, u64 index) {
+    u64 x = index / 64;
+    u64 y = index - (x * 64);
+    u64 shift = 1ULL << y;
 
     bitset[x] &= ~shift;
   }
 
-  inline void toggle_bitset_bit(u32* bitset, u32 index) {
-    u32 x = index / 32;
-    u32 y = index - (x * 32);
-    u32 shift = 1 << y;
+  inline void toggle_bitset_bit(u64* bitset, u64 index) {
+    u64 x = index / 64;
+    u64 y = index - (x * 64);
+    u64 shift = 1ULL << y;
 
     bitset[x] ^= shift;
   }
 
-  inline bool is_bitset_bit_set(u32* bitset, u32 index) {
-    u32 x = index / 32;
-    u32 y = index - (x * 32);
-    u32 shift = 1 << y;
+  inline bool is_bitset_bit_set(u64* bitset, u64 index) {
+    u64 x = index / 64;
+    u64 y = index - (x * 64);
+    u64 shift = 1ULL << y;
 
     return (bitset[x] & shift) > 0;
   }
@@ -204,79 +204,77 @@ namespace quark {
 
   template <typename... I, typename... E, typename F>
   void for_archetype(Include<I...> incl, Exclude<E...> excl, F f) {
-    u32 includes[] = { I::COMPONENT_ID... };
-    u32 excludes[] = { E::COMPONENT_ID... };
+    u64 includes[] = { I::COMPONENT_ID... };
+    u64 excludes[] = { E::COMPONENT_ID... };
 
-    u32 includes_size = sizeof(includes) / sizeof(includes[0]);
-    u32 excludes_size = sizeof(excludes) / sizeof(excludes[0]);
+    u64 includes_size = sizeof(includes) / sizeof(includes[0]);
+    u64 excludes_size = sizeof(excludes) / sizeof(excludes[0]);
 
     #ifdef DEBUG
       for_every(i, includes_size) {
-        if(includes[i] == (u32)-1) { panic("In for_archetype(), one of the includes was not initialized!"); }
+        if(includes[i] == (u64)-1) { panic("In for_archetype(), one of the includes was not initialized!"); }
       }
   
       for_every(i, excludes_size) {
         print("Exclude: " + excludes[i]);
-        if(excludes[i] == (u32)-1) { panic("In for_archetype(), one of the excludes was not initialized!"); }
+        if(excludes[i] == (u64)-1) { panic("In for_archetype(), one of the excludes was not initialized!"); }
       }
     #endif
 
-    EcsContext* ctx = get_resource(EcsContext);
-    for(u32 i = (ctx->ecs_entity_head / 32); i <= ctx->ecs_entity_tail; i += 1) {
-      u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+    EcsContext* ecs = get_resource(EcsContext);
 
-      // printf("i: %u\n", i);
+    for(u64 i = (ecs->first_entity / 64); i <= ecs->last_entity; i += 1) {
+      u64 archetype = ~ecs->component_bitsets[ecs->empty_flag_id][i];
 
-      for(u32 j = 0; j < (includes_size); j += 1) {
-        archetype &= ctx->ecs_bool_table[includes[j]][i]; 
+      // build archetype mask
+
+      for(u64 j = 0; j < (includes_size); j += 1) {
+        archetype &= ecs->component_bitsets[includes[j]][i]; 
       }
 
       if ((includes_size) != 0 || (excludes_size) != 0) {
-        archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i];
+        archetype &= ecs->component_bitsets[ecs->active_flag_id][i];
       }
 
-      for(u32 j = 0; j < (excludes_size); j += 1) {
-        archetype &= ~ctx->ecs_bool_table[excludes[j]][i]; 
+      for(u64 j = 0; j < (excludes_size); j += 1) {
+        archetype &= ~ecs->component_bitsets[excludes[j]][i]; 
       }
  
-      u32 global_index = i * 32;
- 
-      u32 i2 = 0;
+      u64 global_index = i * 64;
+
+      // iterate through entities with the archetype
       while(archetype != 0) {
-        // printf("archetype: %u\n", archetype);
-        u32 local_index = __builtin_ctz(archetype);
+        u64 local_index = __builtin_ctzll(archetype);
         archetype ^= archetype & -archetype;
-
-        // printf("local_index: %u\n", local_index);
  
-        u32 entity_index = global_index + local_index;
-        u32 entity_generation = ctx->ecs_generations[entity_index];
+        u64 entity_index = global_index + local_index;
+        u32 entity_generation = ecs->entity_generations[entity_index];
+
         EntityId id = {};
         id.index = entity_index;
         id.generation = entity_generation;
 
-        // printf("id: %u, %u\n", id.index, id.generation);
- 
-        u32 inc = (includes_size) - 1;
- 
+        u64 inc = (includes_size) - 1;
+
+        // pull components out and run the function
         {
           std::tuple<EntityId, I*...> t = std::tuple(id, [&] {
-            u32 i = inc;
+            u64 k = inc;
             inc -= 1;
 
-            u8* comp_table = (u8*)ctx->ecs_comp_table[includes[i]];
-            return (I*)&comp_table[entity_index * ctx->ecs_comp_sizes[includes[i]]];
+            u8* comp_table = (u8*)ecs->component_datas[includes[k]];
+            return (I*)&comp_table[entity_index * ecs->component_sizes_in_bytes[includes[k]]];
           } ()...);
           std::apply(f, t);
         }
-
-        // printf("ran func\n");
       }
     }
   }
 
   template <typename... I, typename... E, typename F>
   void for_archetype_par(u32 batch_size_x32, Include<I...> incl, Exclude<E...> excl, F f) {
+    panic("BAD");
+
     static EcsContext* ctx = get_resource(EcsContext);
 
     struct ThreadWork {
@@ -309,7 +307,7 @@ namespace quark {
     TempStack scratch = begin_scratch(0, 0);
     defer(end_scratch(scratch));
 
-    work_count = ((ctx->ecs_entity_tail - (ctx->ecs_entity_head / 32)) / batch_size_x32) + 1;
+    work_count = ((ctx->last_entity - (ctx->first_entity / 64)) / batch_size_x32) + 1;
     work = arena_push_array(scratch.arena, ThreadWork, work_count);
     work_index.store(0, std::memory_order_seq_cst);
 
@@ -319,7 +317,7 @@ namespace quark {
     }
 
     // entity_tail is inclusive so we add 1
-    work[work_count - 1].end = ctx->ecs_entity_tail + 1;
+    work[work_count - 1].end = ctx->last_entity + 1;
 
     for_every(i, work_count) {
       thread_pool_push([]() {
@@ -331,28 +329,29 @@ namespace quark {
         ThreadWork my_work = work[work_i];
 
         for(u32 i = my_work.start; i <= my_work.end; i += 1) {
-          u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+          u64 archetype = ~ctx->component_bitsets[ctx->empty_flag_id][i];
 
           for(u32 j = 0; j < (includes_size); j += 1) {
-            archetype &= ctx->ecs_bool_table[includes[j]][i]; 
+            archetype &= ctx->component_bitsets[includes[j]][i]; 
           }
 
           if ((includes_size) != 0 || (excludes_size) != 0) {
-            archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i];
+            archetype &= ctx->component_bitsets[ctx->active_flag_id][i];
           }
 
           for(u32 j = 0; j < (excludes_size); j += 1) {
-            archetype &= ~ctx->ecs_bool_table[excludes[j]][i]; 
+            archetype &= ~ctx->component_bitsets[excludes[j]][i]; 
           }
  
           u32 global_index = i * 32;
  
           while(archetype != 0) {
-            u32 local_index = __builtin_ctz(archetype);
-            archetype ^= 1 << local_index;
+            u64 local_index = __builtin_ctzll(archetype);
+            archetype ^= 1ULL << local_index;
  
             u32 entity_index = global_index + local_index;
-            u32 entity_generation = ctx->ecs_generations[entity_index];
+            u32 entity_generation = ctx->entity_generations[entity_index];
+
             EntityId id = {};
             id.index = entity_index;
             id.generation = entity_generation;
@@ -364,8 +363,8 @@ namespace quark {
                 u32 i = inc;
                 inc -= 1;
 
-                u8* comp_table = (u8*)ctx->ecs_comp_table[includes[i]];
-                return (I*)&comp_table[entity_index * ctx->ecs_comp_sizes[includes[i]]];
+                u8* comp_table = (u8*)ctx->component_datas[includes[i]];
+                return (I*)&comp_table[entity_index * ctx->component_sizes_in_bytes[includes[i]]];
               } ()...);
               std::apply(f2, t);
             }
@@ -379,6 +378,8 @@ namespace quark {
 
   template <typename... I, typename... E, typename W, typename G, typename F>
   void for_archetype_par_grp(u32 batch_size_x32, Include<I...> incl, Exclude<E...> excl, W w, G g, F f) {
+    panic("bad!\n");
+    
     static EcsContext* ctx = get_resource(EcsContext);
 
     struct ThreadWork {
@@ -413,7 +414,7 @@ namespace quark {
     TempStack scratch = begin_scratch(0, 0);
     defer(end_scratch(scratch));
 
-    work_count = ((ctx->ecs_entity_tail - (ctx->ecs_entity_head / 32)) / batch_size_x32) + 1;
+    work_count = ((ctx->last_entity - (ctx->first_entity / 64)) / batch_size_x32) + 1;
     work = arena_push_array(scratch.arena, ThreadWork, work_count);
     work_index = 0;
 
@@ -423,7 +424,7 @@ namespace quark {
     }
 
     // entity_tail is inclusive so we add 1
-    work[work_count - 1].end = ctx->ecs_entity_tail + 1;
+    work[work_count - 1].end = ctx->last_entity + 1;
 
     for_every(i, work_count) {
       thread_pool_push([]() {
@@ -437,18 +438,18 @@ namespace quark {
         w2();
 
         for(u32 i = my_work.start; i < my_work.end; i += 1) {
-          u32 archetype = ~ctx->ecs_bool_table[ctx->ecs_empty_flag][i];
+          u64 archetype = ~ctx->component_bitsets[ctx->empty_flag_id][i];
 
           for(u32 j = 0; j < (includes_size); j += 1) {
-            archetype &= ctx->ecs_bool_table[includes[j]][i]; 
+            archetype &= ctx->component_bitsets[includes[j]][i]; 
           }
 
           if ((includes_size) != 0 || (excludes_size) != 0) {
-            archetype &= ctx->ecs_bool_table[ctx->ecs_active_flag][i];
+            archetype &= ctx->component_bitsets[ctx->active_flag_id][i];
           }
 
           for(u32 j = 0; j < (excludes_size); j += 1) {
-            archetype &= ~ctx->ecs_bool_table[excludes[j]][i]; 
+            archetype &= ~ctx->component_bitsets[excludes[j]][i]; 
           }
 
           g2(archetype);
@@ -456,11 +457,11 @@ namespace quark {
           u32 global_index = i * 32;
  
           while(archetype != 0) {
-            u32 local_index = __builtin_ctz(archetype);
-            archetype ^= 1 << local_index;
+            u32 local_index = __builtin_ctzll(archetype);
+            archetype ^= 1ULL << local_index;
  
             u32 entity_index = global_index + local_index;
-            u32 entity_generation = ctx->ecs_generations[entity_index];
+            u32 entity_generation = ctx->entity_generations[entity_index];
             EntityId id = {};
             id.index = entity_index;
             id.generation = entity_generation;
@@ -472,8 +473,8 @@ namespace quark {
                 u32 i = inc;
                 inc -= 1;
 
-                u8* comp_table = (u8*)ctx->ecs_comp_table[includes[i]];
-                return (I*)&comp_table[entity_index * ctx->ecs_comp_sizes[includes[i]]];
+                u8* comp_table = (u8*)ctx->component_datas[includes[i]];
+                return (I*)&comp_table[entity_index * ctx->component_sizes_in_bytes[includes[i]]];
               } ()...);
               std::apply(f2, t);
             }

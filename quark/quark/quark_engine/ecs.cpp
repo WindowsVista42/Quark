@@ -1,107 +1,12 @@
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+// EXTERNAL INCLUDES
+#pragma clang diagnostic pop
+
 namespace quark {
-
-// this will be __overpowered__ for entity hierarchies
-// stable pointers AND dynamic lifetimes!
-/*
-struct BitsetTable {
-  u32 head;
-  u32 tail;
-  u32 empty_head;
-  u32 capacity;
-  u32 count;
-  
-  u32 data_size;
-
-  u32* bitset;
-  void* data;
-};
-
-BitsetTable create_bitset_table(Arena* arena, u32 data_size, u32 capacity) {
-  if(capacity % 32 != 0) {
-    panic("In create_bitset_table(), capacity should be a multiple of 32!\n");
-  }
-  
-  BitsetTable table = {};
-  table.head = 0;
-  table.tail = 0;
-  table.empty_head = 0;
-  table.capacity = capacity;
-  table.count = 0;
-
-  table.data_size = data_size;
-
-  table.bitset = arena_push_array(arena, u32, capacity / 32);
-
-  if(data_size != 0) {
-    table.data = arena_push(arena, data_size * capacity);
-  }
-
-  return table;
-}
-
-void unset_bit(u32* bitset, u32 index) {
-  u32 x = index / 32;
-  u32 y = index - (x * 32);
-  u32 shift = 1 << y;
-
-  bitset[x] &= ~shift;
-}
-
-u32 bitset_table_create(BitsetTable* table) {
-  u32 index = table->empty_head;
-  unset_bit(table->bitset, index);
-
-  // scan for new head
-  u32 head = table->empty_head / 32;
-  while(~table->bitset[head] == 0 && head < (table->capacity / 32)) {
-    head += 1;
-  }
-
-  if(head == table->capacity / 32) {
-    panic("Ran out of BitsetTable storage!\n");
-  }
-
-  table->empty_head = (head * 32) + __builtin_ctz(table->bitset[head]);
-
-  // move tail right if we have gone further right
-  if((index / 32) > table->tail) {
-    table->tail = (index / 32);
-  }
-
-  return index;
-}
-
-void bitset_table_destroy(BitsetTable* table, u32 index) {
-  set_bit(table->bitset, index);
-
-  // scan for new tail
-  u32 tail = table->tail / 32;
-  while(table->bitset[tail] == 0 && tail != 0) {
-    tail -= 1;
-  }
-
-  if(index < table->head) {
-    table->head = index;
-  }
-  
-  table->ecs_empty_head = (head * 32) + __builtin_ctz(ecs->ecs_bool_table[ecs->ecs_empty_flag][head]);
-
-  // move tail right if we have gone further right
-  if((entity_id / 32) > ecs->ecs_entity_tail) {
-    ecs->ecs_entity_tail = (entity_id / 32);
-  }
-
-  if(set_active) {
-    add_flag_id(entity_id, ECS_ACTIVE_FLAG);
-  }
-
-  return entity_id;
-}
-*/
-
 //
 // Resources
 //
@@ -119,37 +24,38 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
 // Functions
 //
 
-  constexpr usize ECS_MAX_COMPONENT_COUNT = 4096;
+  // constexpr usize ECS_MAX_COMPONENT_COUNT = 4096;
 
   void init_ecs() {
-    ecs->ecs_entity_capacity = 128 * KB;
-    u32 size = 64 * KB;
+    ecs->entity_capacity = 128 * KB;
+    u64 size = 64 * KB;
   
-    ecs->ecs_comp_table = (void**)os_reserve_mem(size);
-    os_commit_mem((u8*)ecs->ecs_comp_table, size);
+    ecs->component_datas = (void**)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs->component_datas, size);
   
-    ecs->ecs_bool_table = (u32**)os_reserve_mem(size);
-    os_commit_mem((u8*)ecs->ecs_bool_table, size);
+    ecs->component_bitsets = (u64**)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs->component_bitsets, size);
   
-    ecs->ecs_comp_sizes = (u32*)os_reserve_mem(size);
-    os_commit_mem((u8*)ecs->ecs_comp_sizes, size);
+    ecs->component_sizes_in_bytes = (u64*)os_reserve_mem(size);
+    os_commit_mem((u8*)ecs->component_sizes_in_bytes, size);
   
-    ecs->ecs_generations = (u32*)os_reserve_mem(ECS_MAX_STORAGE * sizeof(u32));
-    os_commit_mem((u8*)ecs->ecs_generations, ECS_MAX_STORAGE * sizeof(u32));
+    ecs->entity_generations = (u32*)os_reserve_mem(ECS_MAX_STORAGE * sizeof(u32));
+    os_commit_mem((u8*)ecs->entity_generations, ECS_MAX_STORAGE * sizeof(u32));
   
-    ecs->ecs_table_capacity = size / sizeof(void*);
+    ecs->component_table_capacity = size / sizeof(void*);
   
-    ecs->ecs_active_flag = add_ecs_table(0);
+    ecs->active_flag_id = add_ecs_table(0);
+    ecs->empty_flag_id = add_ecs_table(0);
     // ecs->ecs_created_flag = add_ecs_table(0);
     // ecs->ecs_destroyed_flag = add_ecs_table(0);
     // ecs->ecs_updated_flag = add_ecs_table(0);
-    ecs->ecs_empty_flag = add_ecs_table(0);
 
-    zero_mem(ecs->ecs_comp_sizes, size);
-    zero_mem(ecs->ecs_generations, ECS_MAX_STORAGE * sizeof(u32));
-    memset(ecs->ecs_bool_table[ecs->ecs_empty_flag], 0xffffffff, 256 * KB);
+    zero_mem(ecs->component_sizes_in_bytes, size);
+    zero_mem(ecs->entity_generations, ECS_MAX_STORAGE * sizeof(u32));
+    memset(ecs->component_bitsets[ecs->empty_flag_id], 0xffffffff, 256 * KB);
   
     // init builtin component types
+
     update_component(Transform);
     update_component(Model);
     update_component(PointLight);
@@ -157,11 +63,13 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
 
   // TODO: change to use ComponentId
   u32 add_ecs_table(u32 component_size) {
-    u32 i = ecs->ecs_table_count;
-    ecs->ecs_table_count += 1;
-  
+    // u32 z = 1 << 34;
+    
+    u32 i = ecs->component_table_count;
+    ecs->component_table_count += 1;
+
     // if(ecs_table_count) // reserve ptrs for more tables
-  
+
     if(component_size != 0) {
       u32 comp_count = ECS_MAX_STORAGE;
       u32 memsize = comp_count * component_size;
@@ -171,30 +79,29 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
       #ifdef DEBUG
       log_message("1 mil memsize eq: " + memsize);
       #endif
-  
-      ecs->ecs_comp_table[i] = malloc(memsize); // (void*)os_reserve_mem(memsize);
+
+      ecs->component_datas[i] = malloc(memsize); // (void*)os_reserve_mem(memsize);
       // os_commit_mem((u8*)ecs->ecs_comp_table[i], memsize);
-      zero_mem(ecs->ecs_comp_table[i], memsize);
+      zero_mem(ecs->component_datas[i], memsize);
     }
 
     // use the global_arena???
     u32 bt_size = 256 * KB;
-    ecs->ecs_bool_table[i] = (u32*)malloc(bt_size); // os_reserve_mem(bt_size);
+    ecs->component_bitsets[i] = (u64*)malloc(bt_size); // os_reserve_mem(bt_size);
     // os_commit_mem((u8*)ecs->ecs_bool_table[i], bt_size);
-    zero_mem(ecs->ecs_bool_table[i], bt_size);
-  
-    ecs->ecs_comp_sizes[i] = component_size;
-  
+    zero_mem(ecs->component_bitsets[i], bt_size);
+
+    ecs->component_sizes_in_bytes[i] = component_size;
     return i;
   }
 
   EntityId create_entity(bool set_active) {
-    u32 entity_index = ecs->ecs_empty_head;
-    unset_bitset_bit(ecs->ecs_bool_table[ecs->ecs_empty_flag], entity_index);
+    u32 entity_index = ecs->first_empty_entity;
+    unset_bitset_bit(ecs->component_bitsets[ecs->empty_flag_id], entity_index);
 
-    // scan for new head
-    u32 head = ecs->ecs_empty_head / 32;
-    while(ecs->ecs_bool_table[ecs->ecs_empty_flag][head] == 0 && head < (ECS_MAX_STORAGE / 32)) {
+    // forward scan for new head
+    u32 head = ecs->first_empty_entity / 64;
+    while(ecs->component_bitsets[ecs->empty_flag_id][head] == 0 && head < (ECS_MAX_STORAGE / 64)) {
       head += 1;
     }
 
@@ -202,16 +109,16 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
       panic("Ran out of ecs storage!\n");
     }
 
-    ecs->ecs_empty_head = (head * 32) + __builtin_ctz(ecs->ecs_bool_table[ecs->ecs_empty_flag][head]);
+    ecs->first_empty_entity = (head * 64) + __builtin_ctzll(ecs->component_bitsets[ecs->empty_flag_id][head]);
 
     // move tail right if we have gone further right
-    if((entity_index / 32) > ecs->ecs_entity_tail) {
-      ecs->ecs_entity_tail = (entity_index / 32);
+    if((entity_index / 64) > ecs->last_entity) {
+      ecs->last_entity = (entity_index / 64);
     }
 
     EntityId entity = {};
     entity.index = entity_index;
-    entity.generation = ecs->ecs_generations[entity.index];
+    entity.generation = ecs->entity_generations[entity.index];
 
     if(set_active) {
       add_flag_unchecked(entity, ECS_ACTIVE_FLAG);
@@ -225,113 +132,18 @@ void bitset_table_destroy(BitsetTable* table, u32 index) {
       panic("In destroy_entity(), an EntityId was out of date!\n");
     }
 
-    set_bitset_bit(ecs->ecs_bool_table[ecs->ecs_empty_flag], entity.index);
+    set_bitset_bit(ecs->component_bitsets[ecs->empty_flag_id], entity.index);
 
     // scan for new tail
-    while(~ecs->ecs_bool_table[ecs->ecs_empty_flag][ecs->ecs_entity_tail] == 0 && ecs->ecs_entity_tail != 0) {
-      ecs->ecs_entity_tail -= 1;
+    while(~ecs->component_bitsets[ecs->empty_flag_id][ecs->last_entity] == 0 && ecs->last_entity != 0) {
+      ecs->last_entity -= 1;
     }
 
-    if(entity.index < ecs->ecs_empty_head) {
-      ecs->ecs_empty_head = entity.index;
+    if(entity.index < ecs->first_empty_entity) {
+      ecs->first_empty_entity = entity.index;
     }
 
-    ecs->ecs_generations[entity.index] += 1;
+    ecs->entity_generations[entity.index] += 1;
   }
-
-/*
-  void* get_comp_ptr(EcsContext* ecs, u32 id, u32 component_id) {
-    u8* comp_table = (u8*)ecs->ecs_comp_table[component_id];
-    void* dst = &comp_table[id * ecs->ecs_comp_sizes[component_id]];
-
-    return dst;
-  }
-
-  void set_ecs_bit(EcsContext* ecs, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ecs->ecs_bool_table[component_id][x] |= shift;
-  }
-
-  void unset_ecs_bit(EcsContext* ecs, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ecs->ecs_bool_table[component_id][x] &= ~shift;
-  }
-
-  void toggle_ecs_bit(EcsContext* ecs, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    ecs->ecs_bool_table[component_id][x] ^= shift;
-  }
-
-  u32 get_ecs_bit(EcsContext* ecs, u32 id, u32 component_id) {
-    u32 x = id / 32;
-    u32 y = id - (x * 32);
-    u32 shift = 1 << y;
-
-    return ecs->ecs_bool_table[component_id][x] & shift;
-  }
-
-  bool is_valid_id(EntityId id) {
-  }
-
-  void add_component_internal(EntityId id, u32 component_id, void* data) {
-    if(!is_valid_id(id)) {
-      panic("In add_component_id(), an EntityId was out of date!\n");
-    }
-  
-    set_ecs_bit(ecs, id.index, component_id);
-    void* dst = get_comp_ptr(ecs, id.index, component_id);
-
-    u32 size = ecs->ecs_comp_sizes[component_id];
-    copy_mem(dst, data, size);
-  }
-
-  void remove_component_internal(EntityId id, u32 component_id) {
-    if(!is_valid_id(id)) {
-      panic("In remove_component_id(), an EntityId was out of date!\n");
-    }
-  
-    remove_flag_id(id, component_id);
-  }
-
-  void add_flag_internal(EntityId id, u32 component_id) {
-    if(!is_valid_id(id)) {
-      panic("In add_flag_id(), an EntityId was out of date!\n");
-    }
-
-    set_ecs_bit(ecs, id.index, component_id);
-  }
-
-  void remove_flag_internal(EntityId id, u32 component_id) {
-    if(!is_valid_id(id)) {
-      panic("In remove_flag_id(), an EntityId was out of date!\n");
-    }
-
-    unset_ecs_bit(ecs, id.index, component_id);
-  }
-
-  void* get_component_internal(EntityId id, u32 component_id) {
-    if(!is_valid_id(id)) {
-      panic("In get_component_id(), an EntityId was out of date!\n");
-    }
-
-    return get_comp_ptr(ecs, id.index, component_id);
-  }
-
-  bool has_component_id(EntityId id, u32 component_id) {
-    if(!is_valid_id(id)) {
-      panic("In has_component_id(), an EntityId was out of date!\n");
-    }
-
-    return get_ecs_bit(ecs, id.index, component_id) > 0;
-  }
-*/
 };
+

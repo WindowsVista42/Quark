@@ -1,12 +1,20 @@
-#include <VkBootstrap.h>
+// This has to be put up here otherwise glfw throws a hissy-fit and
+// doesn't want to give us glfwCreateWindowSurface() :(
 #include <vulkan/vulkan.h>
-#include <vk_mem_alloc.h>
 
 #define QUARK_ENGINE_IMPLEMENTATION
 #include "quark_engine.hpp"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <VkBootstrap.h>
+  #include <vk_mem_alloc.h>
+
+  #define GLFW_INCLUDE_VULKAN
+  #include <GLFW/glfw3.h>
+
+#pragma clang diagnostic pop
 
 namespace quark {
   define_resource(Graphics, {});

@@ -8,13 +8,19 @@
 #include "../quark_core/module.hpp"
 #include "../quark_platform/module.hpp"
 
-#include <tuple>
-#include <atomic>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 
-#include <vk_mem_alloc.h>
-#include <vulkan/vulkan_core.h>
+  #include <tuple>
+  #include <atomic>
+  #include <unordered_map>
 
-#include <unordered_map>
+  #include <vulkan/vulkan.h>
+  #include <vk_mem_alloc.h>
+
+  typedef struct ma_engine ma_engine;
+
+#pragma clang diagnostic pop
 
 namespace quark {
 #include "reflection.hpp"
@@ -22,8 +28,6 @@ namespace quark {
 
 #define api_decl engine_api
 #define var_decl engine_var
-
-typedef struct ma_engine ma_engine;
 
 namespace quark {
 //
@@ -729,25 +733,23 @@ namespace quark {
 
   //
   declare_resource(EcsContext,
-    u32 ecs_table_count = 0;
-    u32 ecs_table_capacity = 0;
+    u32 first_entity = 0;
+    u32 last_entity = 0;
+    u32* entity_generations = 0;
+    u32 entity_capacity = 0;
+    u32 first_empty_entity = 0;
 
-    u32 ecs_entity_head = 0;
-    u32 ecs_entity_tail = 0;
-    u32 ecs_entity_capacity = 0;
+    u32 component_table_count = 0;
+    u32 component_table_capacity = 0;
+    u64* component_sizes_in_bytes = 0;
+    void** component_datas = 0;
+    u64** component_bitsets = 0;
 
-    u32* ecs_comp_sizes = 0;
-    void** ecs_comp_table = 0;
-
-    u32** ecs_bool_table = 0;
-    u32* ecs_generations = 0;
-
-    u32 ecs_active_flag = 0;
-    // u32 ecs_created_flag = 0;
-    // u32 ecs_destroyed_flag = 0;
-    // u32 ecs_updated_flag = 0;
-    u32 ecs_empty_flag = 0;
-    u32 ecs_empty_head = 0;
+    u32 active_flag_id = 0;
+    u32 empty_flag_id = 0;
+    // u32 created_flag_component_id = 0;
+    // u32 destroyed_flag_component_id = 0;
+    // u32 updated_flag_component_id = 0;
   );
 
   //
@@ -990,6 +992,15 @@ namespace quark {
 // Functions (Initialization)
 //
 
+  // engine_api void ecs_init();
+  // engine_api void input_init();
+  // engine_api void scheduler_init();
+  // engine_api void graphics_init();
+  // engine_api void renderer_init_pre_assets();
+  // engine_api void renderer_init_post_assets();
+  // engine_api void ui_init();
+  // engine_api void sound_init();
+
   engine_api void init_ecs();                  // Init the entity component system. (ecs.cpp)
   engine_api void init_actions();              // Init the input-actions system. (actions.cpp)
   engine_api void init_systems();              // Init the job scheduler. (jobs.cpp)
@@ -1009,6 +1020,9 @@ namespace quark {
   engine_api void update_all_actions();                  // Update all actions in the input action system.
 
 // Graphics (graphics.cpp)
+
+  engine_api void quark_graphics_begin_frame();
+  engine_api void quark_graphics_end_frame();
 
   engine_api void begin_frame();                         // Begin rendering a frame.
   engine_api void end_frame();                           // End rendering a frame.
@@ -1074,19 +1088,19 @@ namespace quark {
 // Ecs (ecs.cpp)
 
   inline void** ecs_component_tables() {
-    return get_resource(EcsContext)->ecs_comp_table;
+    return get_resource(EcsContext)->component_datas;
   }
 
-  inline u32* ecs_component_sizes() {
-    return get_resource(EcsContext)->ecs_comp_sizes;
+  inline u64* ecs_component_sizes() {
+    return get_resource(EcsContext)->component_sizes_in_bytes;
   }
 
   inline u32* ecs_entity_generations() {
-    return get_resource(EcsContext)->ecs_generations;
+    return get_resource(EcsContext)->entity_generations;
   }
 
-  inline u32** ecs_bool_table() {
-    return get_resource(EcsContext)->ecs_bool_table;
+  inline u64** ecs_bool_table() {
+    return get_resource(EcsContext)->component_bitsets;
   }
 
   engine_api u32 add_ecs_table(u32 component_size); // Add a new component with the given size. Returns the COMPONENT_ID.
@@ -1096,10 +1110,10 @@ namespace quark {
 
 // Bitsets
 
-  inline void set_bitset_bit(u32* bitset, u32 index);
-  inline void unset_bitset_bit(u32* bitset, u32 index);
-  inline void toggle_bitset_bit(u32* bitset, u32 index);
-  inline bool is_bitset_bit_set(u32* bitset, u32 index);
+  inline void set_bitset_bit(u64* bitset, u64 index);
+  inline void unset_bitset_bit(u64* bitset, u64 index);
+  inline void toggle_bitset_bit(u64* bitset, u64 index);
+  inline bool is_bitset_bit_set(u64* bitset, u64 index);
 
 // Ecs
 
@@ -1247,6 +1261,26 @@ namespace quark {
 
 // Buffers (graphics.cpp)
 
+  // engine_api void graphics_buffer_create_n(Buffer* buffers, u32 n, BufferInfo* info);
+  // engine_api void* graphics_buffer_map(Buffer* buffer);
+  // engine_api void graphics_buffer_unmap(Buffer* buffer);
+  // engine_api void graphics_buffer_write(Buffer* destination, u32 destination_offset, void* source, u32 source_offset, u32 copy_size);
+  // engine_api void graphics_buffer_copy(VkCommandBuffer commands, Buffer* destination, u32 destination_offset, Buffer* source, u32 source_offset, u32 copy_size);
+
+  // engine_api VkBufferCreateInfo _graphics_buffer_create_info(BufferType type, u32 size);
+  // engine_api VmaAllocationCreateInfo _graphics_buffer_alloc_info(BufferType type);
+
+  struct GpuBuffer;
+
+  engine_api void gpubuffer_create_n(GpuBuffer* buffers, u32 n, BufferInfo* info);
+  engine_api void* gpubuffer_map(GpuBuffer* buffer);
+  engine_api void gpubuffer_unmap(GpuBuffer* buffer);
+  engine_api void gpubuffer_write(GpuBuffer* destination, u32 destination_offset, void* source, u32 source_offset, u32 copy_size);
+  engine_api void gpubuffer_copy(VkCommandBuffer commands, GpuBuffer* destination, u32 destination_offset, GpuBuffer* source, u32 source_offset, u32 copy_size);
+
+  engine_api VkBufferCreateInfo _gpubuffer_create_info(BufferType type, u32 size);
+  engine_api VmaAllocationCreateInfo _gpubuffer_alloc_info(BufferType type);
+
   engine_api void create_buffers(Buffer* buffers, u32 n, BufferInfo* info);
   engine_api void* map_buffer(Buffer* buffer);
   engine_api void unmap_buffer(Buffer* buffer);
@@ -1339,6 +1373,15 @@ namespace quark {
 
 // Materials (renderer.cpp)
 
+  // engine_api u32 renderer_register_material();
+
+  // engine_api u32 renderer_add_material_ref();
+  // engine_api void* renderer_get_material_ref();
+
+  // inline void renderer_push_drawable();
+  // inline void renderer_push_drawable_with_material_ref();
+  // generic(T) void renderer_push_drawable();
+
   engine_api u32 add_material_type(MaterialInfo* info);                             // Add a new material type with the given info
   engine_api u32 add_material_instance(u32 material_id, void* instance);            // Add a new material instance (copy of input data that can be referenced)
   inline void* get_material_instance(u32 material_id, u32 material_instance_index); // Get a pointer to the material instance
@@ -1350,6 +1393,11 @@ namespace quark {
   #include "inlines/materials.hpp"
 
 // UI (ui.cpp)
+  engine_api void ui_rect();
+  engine_api void ui_text();
+  engine_api void ui_widget();
+
+  engine_api void ui_update_widget();
 
   engine_api void push_ui_rect(f32 x, f32 y, f32 width, f32 height, vec4 color);
   engine_api void push_ui_text(f32 x, f32 y, f32 width, f32 height, vec4 color, const char* text);

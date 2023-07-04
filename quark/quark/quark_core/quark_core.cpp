@@ -1,5 +1,10 @@
 #include "quark_core.hpp"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+// EXTERNAL INCLUDES
+#pragma clang diagnostic pop
+
 namespace quark {
 //
 // vec2
@@ -547,21 +552,21 @@ namespace quark {
   }
   
   mat4 mat4_perspective_projection(f32 fov_radians, f32 aspect_ratio, f32 z_near, f32 z_far) {
-    f32 inv_length = 1.0f / (z_near - z_far);
-    f32 f = 1.0f / tan(0.5f * fov_radians);
-    f32 a = f / aspect_ratio;
-    f32 b = (z_near + z_far) * inv_length;
-    f32 c = -(2.0f * z_near * z_far) * inv_length;
+    // f32 inv_length = 1.0f / (z_near - z_far);
+    // f32 a = f / aspect_ratio;
+    // f32 b = (z_near + z_far) * inv_length;
+    // f32 c = -(2.0f * z_near * z_far) * inv_length;
     
+    f32 f = 1.0f / tan(0.5f * fov_radians);
     f32 w = f / aspect_ratio;
-    f32 a2 = z_near / (z_far - z_near);
-    f32 b2 = (z_near * z_far) / (z_far - z_near);
+    f32 a = z_near / (z_far - z_near);
+    f32 b = (z_near * z_far) / (z_far - z_near);
   
     return mat4{
       vec4 {    w, 0.0f, 0.0f,  0.0f },
-      vec4 { 0.0f, 0.0f,   a2, -1.0f },
+      vec4 { 0.0f, 0.0f,   a,  -1.0f },
       vec4 { 0.0f,    f, 0.0f,  0.0f },
-      vec4 { 0.0f, 0.0f,   b2,  0.0f },
+      vec4 { 0.0f, 0.0f,   b,   0.0f },
     };
   }
   

@@ -1,8 +1,14 @@
 #pragma once
 
-#include <stdint.h>
-#include <typeinfo>
-#include <string.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <stdint.h>
+  #include <string.h>
+  
+  #include <typeinfo>
+
+#pragma clang diagnostic pop
 
 namespace quark {
 //

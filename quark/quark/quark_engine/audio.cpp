@@ -3,8 +3,13 @@
 
 #undef format
 
-#define MINIAUDIO_IMPLEMENTATION
-#include "../../lib/miniaudio/miniaudio.h"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #define MINIAUDIO_IMPLEMENTATION
+  #include "../../lib/miniaudio/miniaudio.h"
+
+#pragma clang diagnostic pop
 
 #define api_decl engine_api
 #define var_decl engine_var

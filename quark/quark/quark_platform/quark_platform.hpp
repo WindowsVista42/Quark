@@ -4,9 +4,16 @@
 
 #include "api.hpp"
 #include "../quark_core/module.hpp"
-#include <GLFW/glfw3.h>
-#include <threadpool.hpp>
-#include <stdio.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <stdio.h>
+  
+  #include <GLFW/glfw3.h>
+  #include <threadpool.hpp>
+
+#pragma clang diagnostic pop
 
 #define QUARK_PLATFORM_INLINES
 
@@ -547,7 +554,7 @@ namespace quark {
 // String API
 //
 
-  platform_api int sprintf(char* buffer, const char* format, ...);
+  platform_api int sprintf(char* buffer, u64 buffer_size, const char* format, ...);
 };
 
 #undef QUARK_PLATFORM_INLINES

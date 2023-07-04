@@ -1,6 +1,12 @@
 #include "../module.hpp"
-#include <filesystem>
-#include <unordered_set>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
+  #include <filesystem>
+  #include <unordered_set>
+
+#pragma clang diagnostic pop
 
 using namespace quark;
 
@@ -9,7 +15,7 @@ using namespace quark;
 #endif
 
 std::vector<std::string> parse_deps(const char* deps) {
-  usize i = 0;
+  // usize i = 0;
   bool last_was_0 = false;
 
   std::vector<std::string> values = {""};
@@ -27,7 +33,7 @@ std::vector<std::string> parse_deps(const char* deps) {
       values.back().push_back(c);
     }
 
-    i += 1;
+    // i += 1;
   }
 
   // pop back if back is empty

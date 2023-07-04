@@ -1,26 +1,27 @@
-#include <VkBootstrap.h>
-#include <iostream>
-#include <tiny_obj_loader.h>
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#include "qoi.h"
 
 #define QUARK_ENGINE_IMPLEMENTATION
-#include "api.hpp"
-#include "context.hpp"
-
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
-
 #include "quark_engine.hpp"
 
-#include "../quark_core/module.hpp"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 
-#include <lz4.h>
-#include <meshoptimizer.h>
+  #include <iostream>
+
+  #include <VkBootstrap.h>
+  #include <tiny_obj_loader.h>
+
+  #define STB_IMAGE_IMPLEMENTATION
+  #include "stb_image.h"
+  #include "qoi.h"
+
+  #define VMA_IMPLEMENTATION
+  #include <vk_mem_alloc.h>
+  
+  #include <lz4.h>
+  #include <meshoptimizer.h>
+
+#pragma clang diagnostic pop
 
 // #include <atomic>
 
@@ -65,7 +66,7 @@ namespace quark {
     {
       BufferInfo info ={
         .type = BufferType::Commands,
-        .size = 512 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
+        .size = 1024 * 1024 * sizeof(VkDrawIndexedIndirectCommand),
       };
 
       create_buffers(renderer->forward_pass_commands, _FRAME_OVERLAP, &info);
@@ -253,7 +254,7 @@ namespace quark {
     };
     create_images(renderer->material_color_images2, _FRAME_OVERLAP, &renderer->material_color_image_info);
 
-    renderer->material_color_image_info.samples = ImageSamples::One,
+    renderer->material_color_image_info.samples = ImageSamples::Four,
 
     create_images(renderer->material_color_images, _FRAME_OVERLAP, &renderer->material_color_image_info);
 
@@ -263,7 +264,7 @@ namespace quark {
       .resolution = graphics->render_resolution,
       .format = ImageFormat::LinearD32,
       .type = ImageType::RenderTargetDepth,
-      .samples = ImageSamples::One,
+      .samples = ImageSamples::Four,
     };
     create_images(renderer->main_depth_images, _FRAME_OVERLAP, &renderer->main_depth_image_info);
 
@@ -397,9 +398,9 @@ namespace quark {
   void init_pipelines() {
     // init material pipelines
     {
-      update_material(ColorMaterial, "color", "color", 512 * 1024, 128);
-      update_material(TextureMaterial, "texture", "texture", 512 * 1024, 128);
-      update_material(LitColorMaterial, "lit_color", "lit_color", 512 * 1024, 128);
+      update_material(ColorMaterial, "color", "color", 1024 * 1024, 128);
+      update_material(TextureMaterial, "texture", "texture", 1024 * 1024, 128);
+      update_material(LitColorMaterial, "lit_color", "lit_color", 1024 * 1024, 128);
     }
 
     // init depth prepass pipelines
@@ -906,19 +907,19 @@ namespace quark {
 
     static ThreadWork* thread_work = 0;
 
-    u32 work_count = (count / (32 * 32)) + 1;
+    u32 work_count = (count / (64 * 64)) + 1;
 
     thread_work = 0;
     thread_work = arena_push_array_zero(frame_arena(), ThreadWork, work_count);
 
     work_index = 0;
 
-    for_archetype_par_grp(32, Include<Transform, Model, T> {}, Exclude<> {},
+    for_archetype_par_grp(64, Include<Transform, Model, T> {}, Exclude<> {},
     [&]() {
       my_index = work_index.fetch_add(1, std::memory_order_seq_cst);
     },
-    [&](u32 bitset) {
-      auto ptrs = push_drawable_instance_n(__builtin_popcount(bitset), T::MATERIAL_ID);
+    [&](u64 bitset) {
+      auto ptrs = push_drawable_instance_n(__builtin_popcountll(bitset), T::MATERIAL_ID);
       thread_work[my_index].data_a = ptrs.drawables;
       thread_work[my_index].data_b = (T*)ptrs.materials;
       thread_work[my_index].index = 0;
@@ -931,9 +932,11 @@ namespace quark {
   }
 
   void push_renderables() {
+    /*
     push_all_renderables_of_material_type<ColorMaterial>();
     push_all_renderables_of_material_type<TextureMaterial>();
     push_all_renderables_of_material_type<LitColorMaterial>();
+    */
   }
 
 //
@@ -1125,8 +1128,8 @@ namespace quark {
       // Multi-threaded
       // if(batch_count >= block_size * 2) {
         struct ThreadWork {
-          u32 start;
-          u32 end;
+          u64 start;
+          u64 end;
         };
 
         // TODO: this is in need of some kind of better structure for doing this kind of thing.
@@ -1145,8 +1148,8 @@ namespace quark {
         static ThreadWork* work = 0;
         static std::atomic_uint32_t work_index = 0;
 
-        static u32* bitset = 0;
-        static u32* shadow_bitset = 0;
+        static u64* bitset = 0;
+        static u64* shadow_bitset = 0;
 
         static FrustumPlanes* main_frustum_ptr = 0;
         static FrustumPlanes* shadow_frustum_ptr = 0;
@@ -1171,8 +1174,8 @@ namespace quark {
         work = arena_push_array_zero(frame_arena(), ThreadWork, work_count);
         work_index = 0;
 
-        bitset = arena_push_array_zero(frame_arena(), u32, batch_count / 32 + 1);
-        shadow_bitset = arena_push_array_zero(frame_arena(), u32, batch_count / 32 + 1);
+        bitset = arena_push_array_zero(frame_arena(), u64, batch_count / 64 + 1);
+        shadow_bitset = arena_push_array_zero(frame_arena(), u64, batch_count / 64 + 1);
 
         main_frustum_ptr = &main_frustum;
         shadow_frustum_ptr = &shadow_frustum;
@@ -1271,19 +1274,19 @@ namespace quark {
             u32 material_offset = 0;
             u32 material_triangle_count = 0;
 
-            if(work_i == work_count - 1) {
-              my_work.end += 32;
-            }
+            // if(work_i == work_count - 1) {
+            //   my_work.end += 64;
+            // }
 
             // Walk the jumplist and push commands
-            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
-              u32 bits = bitset[bitset_index];
-              u32 global_index = bitset_index * 32;
+            for_range(bitset_index, my_work.start / 64, my_work.end / 64) {
+              u64 bits = bitset[bitset_index];
+              u64 global_index = bitset_index * 64;
 
               // Loop unculled objects
               while(bits != 0) {
-                u32 local_index = __builtin_ctz(bits);
-                bits ^= 1 << local_index;
+                u64 local_index = __builtin_ctzll(bits);
+                bits ^= 1ULL << local_index;
 
                 u32 index = global_index + local_index;
 
@@ -1318,14 +1321,14 @@ namespace quark {
             u32 shadow_triangle_count = 0;
 
             // Move through the jumplist and push commands
-            for_range(bitset_index, my_work.start / 32, my_work.end / 32) {
-              u32 bits = shadow_bitset[bitset_index];
-              u32 global_index = bitset_index * 32;
+            for_range(bitset_index, my_work.start / 64, my_work.end / 64) {
+              u64 bits = shadow_bitset[bitset_index];
+              u64 global_index = bitset_index * 64;
 
               // Loop unculled objects
               while(bits != 0) {
-                u32 local_index = __builtin_ctz(bits);
-                bits ^= 1 << local_index;
+                u64 local_index = __builtin_ctzll(bits);
+                bits ^= 1ULL << local_index;
 
                 u32 index = global_index + local_index;
 
@@ -1799,7 +1802,7 @@ namespace quark {
     // add_asset(name, id);
 
     char test[64];
-    sprintf(test, "quark/qmesh/%s.qmesh", name);
+    sprintf(test, 64, "quark/qmesh/%s.qmesh", name);
 
     static uint64_t UUID_LO = 0xa70e90948be13cb1;
     static uint64_t UUID_HI = 0x847f281e519ba44f;
