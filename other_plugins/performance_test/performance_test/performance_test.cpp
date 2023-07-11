@@ -19,6 +19,10 @@ namespace quark::performance_test {
       create_model(PERF_MODELS[0], VEC3_ONE / 2.0f),
       create_model(PERF_MODELS[1], VEC3_ONE / 2.0f),
       create_model(PERF_MODELS[2], VEC3_ONE / 2.0f),
+      create_model(PERF_MODELS[3], VEC3_ONE / 2.0f),
+      create_model(PERF_MODELS[4], VEC3_ONE / 2.0f),
+      create_model(PERF_MODELS[5], VEC3_ONE / 2.0f),
+      create_model(PERF_MODELS[6], VEC3_ONE / 2.0f),
     };
 
     const f32 bias = 4.0f;
@@ -35,10 +39,10 @@ namespace quark::performance_test {
           transform.rotation = QUAT_IDENTITY;
         
           LitColorMaterial material = {};
-          material.color.x = (x % 3 + 1) / 3.0f;
-          material.color.y = (y % 3 + 1) / 3.0f;
+          material.color.x = (x % count_of(models) + 1) / 3.0f;
+          material.color.y = (y % count_of(models) + 1) / 3.0f;
 
-          Model model = models[(x + y) % 3];// create_model(models[(x + y) % 3], vec3 {1,1,1} * 0.5f);
+          Model model = models[(x + y) % count_of(models)];// create_model(models[(x + y) % 3], vec3 {1,1,1} * 0.5f);
           model.half_extents *= rand_f32_range(0.8f, 2.0f);
 
           EntityId entity = create_entity();
@@ -78,7 +82,7 @@ namespace quark::performance_test {
       vec3 position = camera->position + ((size * 0.9f) * quat_forward(camera->rotation));
     
       f32 thresh = 100.0f / size;
-    
+
       position.x *= thresh;
       position.x = (f32)(i64)position.x;
       position.x /= thresh;

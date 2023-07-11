@@ -18,9 +18,6 @@ static u32 scratch_model_id = 0;
 
   void init_lod_tool() {
     set_mouse_mode(MouseMode::Captured);
-
-    // add_action("next_lod", KeyCode::D);
-    // add_action("prev_lod", KeyCode::A);
   
     add_action("inc_dist", KeyCode::W);
     add_action("dec_dist", KeyCode::S);

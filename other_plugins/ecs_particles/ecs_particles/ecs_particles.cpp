@@ -71,7 +71,7 @@ namespace quark::ecs_particles {
 
     // Add floor
     {
-      u32 entity_id = create_entity();
+      EntityId entity_id = create_entity();
 
       Transform transform = {};
       transform.position = {0, 10, -20};
@@ -133,7 +133,7 @@ namespace quark::ecs_particles {
     particle.final_half_extents = VEC3_ONE * final_scale;
 
     // Add components to entities
-    u32 entity_id = create_entity();
+    EntityId entity_id = create_entity();
     add_components(entity_id, transform, model, material, motion, particle);
   }
 
@@ -187,6 +187,14 @@ namespace quark::ecs_particles {
     // Update camera position and rotation
     camera->position += movement_direction * delta() * 10.0f;
     camera->rotation = yaw_rotation * pitch_rotation;
+
+    {
+      Camera3D* sun_camera = get_resource_as(SunCamera, Camera3D);
+      sun_camera->projection_type = ProjectionType::Orthographic;
+      sun_camera->half_size = 40.0f;
+      sun_camera->position = {0,20,4000};
+      sun_camera->rotation = quat_from_axis_angle(VEC3_UNIT_X, F32_PI_2);
+    }
   }
 
   // Update a parameter
@@ -298,7 +306,7 @@ namespace quark::ecs_particles {
     // We probably don't need full physics for simple particles,
     // but I already had code that somewhat fit the role and im *lazy*.
     for_archetype(Include<Transform, Motion> {}, Exclude<> {},
-    [&](u32 entity_id, Transform* transform, Motion* motion) {
+    [&](EntityId entity_id, Transform* transform, Motion* motion) {
       motion->velocity += motion->impulse;
       motion->impulse = VEC3_ZERO;
       motion->velocity += motion->acceleration * delta();
@@ -312,7 +320,7 @@ namespace quark::ecs_particles {
   
     // Apply color shifting and size changing
     for_archetype(Include<Model, ColorMaterial, Particle> {}, Exclude<> {},
-    [](u32 entity_id, Model* model, ColorMaterial* material, Particle* particle) {
+    [](EntityId entity_id, Model* model, ColorMaterial* material, Particle* particle) {
       particle->alive_time += delta();
 
       // Destroy the particle if its past its lifetime
@@ -331,7 +339,7 @@ namespace quark::ecs_particles {
   void push_renderables() {
     // Add everything to the render batches
     for_archetype(Include<Transform, Model, ColorMaterial> {}, Exclude<> {},
-    [](u32 entity_id, Transform* transform, Model* model, ColorMaterial* material) {
+    [](EntityId entity_id, Transform* transform, Model* model, ColorMaterial* material) {
       Drawable drawable = {*transform, *model};
       push_drawable_instance(&drawable, material);
     });
